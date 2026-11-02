@@ -128,6 +128,33 @@ export const WATCHERS = [
   F('Vigilon', 'WATCHER', 'sentinel', 'Lantern beam', 'Unsleeping', 'projectile', 'strike', 'stomp', 'golem', '#8a96aa', '#e0e6f0', '#ffd23f', { top: 'eye', pattern: 'rivets' }),
 ];
 
+// Ascendants: 20 legendary portraits supplied by the founder (dist/art/src/ascendants). Held by the founder
+// wallet at level 80, never found in the wild. Battle sprites are framed medallions of each portrait.
+const A = (name, file, type, cls, move, special, basicStyle, specialStyle, accent) =>
+  ({ ...F(name, type, cls, move, special, basicStyle, specialStyle, 'hover', 'portrait', accent, '#ffffff', accent, { file }), legendary: true });
+export const ASCENDANTS = [
+  A('Nyxara', '5e80ff12', 'SHADE', 'psion', 'Violet tear', 'Gilded night', 'projectile', 'strike', '#8a4ae0'),
+  A('Serqeth', 'd376a656', 'PSYCHIC', 'psion', 'Serpent gaze', 'Mind lock', 'projectile', 'levitate', '#a060ff'),
+  A('Kaelor', 'fb262407', 'STEEL', 'titan', 'Diamond staff', 'Feathered fortress', 'whip', 'strike', '#d8e0ec'),
+  A('Lumiyah', '8a8c0c70', 'FROST', 'seraph', 'Crystal blade', 'Frozen radiance', 'whip', 'beam', '#bfefff'),
+  A('Thothex', 'a8a9208a', 'PSYCHIC', 'deity', 'Glyph ray', 'Book of breath', 'bolt', 'beam', '#3ad8c8'),
+  A('Khonsar', 'c82db54b', 'ASTRAL', 'seraph', 'Circuit crescent', 'Moon engine', 'bolt', 'beam', '#ffd23f'),
+  A('Selenox', '00bc3a2d', 'WATCHER', 'deity', 'Pearl gaze', 'Full moon vigil', 'bolt', 'strike', '#e8eeff'),
+  A('Amunrah', 'e241bf18', 'ANCIENT', 'deity', 'Ram horn', 'Hidden sun', 'projectile', 'beam', '#3ad8c8'),
+  A('Azarath', 'bb532a8b', 'ANCIENT', 'seraph', 'Gold mask', 'Halo of names', 'bolt', 'strike', '#ffd23f'),
+  A('Setekh', 'ef070189', 'EMBER', 'striker', 'Ember eyes', 'Red desert', 'projectile', 'cone', '#ff8a1f'),
+  A('Horuskai', '08afa93c', 'GALE', 'seraph', 'Falcon gust', 'Eye of the sky', 'projectile', 'beam', '#ffd23f'),
+  A('Neferion', '75a6e1ec', 'SPARK', 'psion', 'Third eye bolt', 'Solar circuit', 'bolt', 'strike', '#ffb030'),
+  A('Ptahmos', 'e0c09d02', 'TIDE', 'titan', 'Lapis wave', 'Nile flood', 'projectile', 'beam', '#3a8ae0'),
+  A('Khepron', '11012862', 'GROVE', 'sentinel', 'Emerald stare', 'Scarab dawn', 'whip', 'strike', '#3ad87a'),
+  A('Osirak', '73897098', 'WATCHER', 'deity', 'Star glyph', 'Underworld throne', 'bolt', 'beam', '#3ad8c8'),
+  A('Isisra', '95b511a4', 'TIDE', 'seraph', 'Veiled wave', 'Throne of waters', 'projectile', 'beam', '#3ad8c8'),
+  A('Rasolar', '26c73386', 'ASTRAL', 'deity', 'Sun disc', 'Solar barque', 'bolt', 'strike', '#ffd23f'),
+  A('Anuket', 'eb2159af', 'STONE', 'titan', 'Copper fist', 'Buried city', 'projectile', 'strike', '#3ad8c8'),
+  A('Anupex', '9ad7ad3b', 'SHADE', 'psion', 'Jackal fang', 'Weighing of hearts', 'whip', 'strike', '#3a5ad8'),
+  A('Nefertek', 'e8c84bd3', 'PSYCHIC', 'seraph', 'Circuit glance', 'Queen of code', 'projectile', 'beam', '#e8a040'),
+];
+
 // Rarity tier of each wild species (how often it appears, how strong it is, how hard to catch).
 export const TIERS = {
   Common: { weight: 45, mult: 0.94, catch: 0.6, lvl: 0 }, Uncommon: { weight: 28, mult: 1.0, catch: 0.45, lvl: 1 },

@@ -92,7 +92,7 @@ export function sanitizeInput(i = {}) {
 function makeFighter(monstar, side, teamMax = 0) {
   const s = monstar.stats, sp = monstar.species;
   return {
-    side, teamMax: Math.round((teamMax || s.hp) * BATTLE_HP), mon: monstar, speciesId: sp.id, type: monstar.type, mods: monstar.cls.mods, stats: s,
+    shield: monstar.traits?.shield ?? 70, side, teamMax: Math.round((teamMax || s.hp) * BATTLE_HP), mon: monstar, speciesId: sp.id, type: monstar.type, mods: monstar.cls.mods, stats: s,
     styles: { basic: sp.basicStyle || 'projectile', special: sp.specialStyle || 'beam' },
     motion: MOTION[sp.motion] ? sp.motion : 'pounce',
     level: monstar.level, exp: monstar.exp, expGained: 0,
@@ -178,7 +178,7 @@ function damageFor(att, vic, kind, style, powerOverride) {
   if (att.status) d *= STATUS[att.status.k].out || 1;
   if (vic.status) d *= STATUS[vic.status.k].in || 1;
   if (crit) d *= 1.5;
-  if (vic.guardT > 0) d *= 0.3;
+  if (vic.guardT > 0) d *= 0.25; // a guarded hit that gets through the shield is still mostly absorbed
   return { damage: Math.max(1, Math.round(d)), eff, crit };
 }
 
@@ -190,6 +190,8 @@ function applyStatus(m, vic, k, att, events, mult = 1) {
 }
 function land(m, att, vic, kind, style, events, dirx, diry, knock = 90, power) {
   if (vic.iframes > 0) { events.push({ type: 'miss', attacker: att.side, victim: vic.side, style }); return false; }
+  // Shield up: blocked completely (no damage, no SOL, no status) with this Monstar's own shield chance
+  if (vic.guardT > 0 && Math.random() * 100 < vic.shield) { events.push({ type: 'blocked', attacker: att.side, victim: vic.side, style, shield: vic.shield }); return true; }
   const { damage, eff, crit } = damageFor(att, vic, kind, style, power);
   vic.hp = Math.max(0, vic.hp - damage); att.hits++; vic.hurtT = 0.35;
   const heavy = style === 'beam' || style === 'strike' || style === 'levitate' || crit;
@@ -197,7 +199,7 @@ function land(m, att, vic, kind, style, events, dirx, diry, knock = 90, power) {
   att.ult = Math.min(100, att.ult + damage * ULT_GAIN); vic.ult = Math.min(100, vic.ult + damage * 0.6);
   // what this power does to the Monstar it hit
   const sk = style === 'levitate' ? 'lift' : TYPE_STATUS[att.type];
-  if (sk && (kind === 'special' || style === 'levitate' || Math.random() < 0.15)) applyStatus(m, vic, sk, att, events, kind === 'special' && att.ultOn ? 1.5 : 1);
+  if (sk && vic.guardT <= 0 && (kind === 'special' || style === 'levitate' || Math.random() < 0.15)) applyStatus(m, vic, sk, att, events, kind === 'special' && att.ultOn ? 1.5 : 1);
   const push = vic.status && STATUS[vic.status.k].push || 1;
   const kb = knock * vic.mods.knockback * push; vic.vx += dirx * kb; vic.vy += diry * kb;
   const exp = Math.max(1, Math.round(damage * EXP_RULES.perDamage * (crit ? EXP_RULES.critBonus : 1)));
@@ -427,6 +429,7 @@ export function snapshot(m) {
       cd: { b: r(f.cd.basic), s: r(f.cd.special), d: r(f.cd.dash), g: r(f.cd.guard) }, i: f.iframes > 0, g: f.guardT > 0,
       mv: f.moving, ds: f.dashT > 0, ct: r(Math.min(f.castT, 9)), ck: f.castKind, hu: r(f.hurtT),
       lv: f.level, sg: stageFor(f.level).id, xi: p.into, xn: p.need, xg: f.expGained, fl: MOTION[f.motion].float || f.levT > 0, lt: r(f.levT), bk: r(f.blinkT), mo: f.motion,
+      bs: f.styles.basic, ss: f.styles.special, sh: f.shield ?? 0,
       st: f.status?.k || null, stt: f.status ? r(f.status.t / f.status.max) : 0, rc: f.recT > 0, ul: Math.round(f.ult), uo: f.ultOn && f.castT < 1.2 }; }),
     lim: m.limit, pk: m.pickups.map(q => ({ id: q.id, x: r(q.x), y: r(q.y), k: q.k, l: r(q.life) })), gs: GAME_SPEED,
     p: m.projectiles.map(p => ({ id: p.id, o: p.owner, k: p.kind, st: p.style, ty: p.type, sid: p.sid, x: r(p.x), y: r(p.y), vx: Math.round(p.vx), vy: Math.round(p.vy), r: p.r })),

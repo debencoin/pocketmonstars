@@ -2,7 +2,7 @@
 // PocketMonstars pixel arena renderer: a 320x180 native-resolution battlefield scaled up with crisp pixels.
 // Draws animated pixel Monstars and a hand-built animation for every power. Exposes window.PMArena.
 (() => {
-const NAMES = ["cindercub", "mossprout", "ripplefin", "voltwing", "duskhorn", "pebblit", "frostuft", "bloomtail", "soloryx", "seraphon", "psyvolt", "blazebuck", "cinderwyrm", "pyrofinch", "magmole", "emberjack", "coralisk", "bubblyn", "clawtide", "abyssquid", "wavewing", "thornox", "fernling", "mantiseed", "acornaut", "lilypadra", "zapurr", "ohmoth", "voltusk", "joltail", "gloomwisp", "nocturrow", "shadefang", "hexmask", "quarrox", "fossilith", "geodillo", "cragcrab", "glacielk", "snowpuff", "icicrow", "rimewyrm", "cometail", "lunaroo", "orbitron", "mindmoth", "oracub", "prismeye", "toxitoad", "mycospore", "stingrex", "viperoot", "gearhound", "rivetbot", "bladewing", "ironshell", "zephyrkit", "galeon", "whirlwisp", "drakelet", "skyrex", "aurielle", "valkyra", "nimbiel", "aeonox", "anuvax", "enlilor", "enkiryn", "inannox", "utuflare", "nannamoth", "marduzar", "tiamaw", "ninhurra", "lamassor", "shedulon", "apkalith", "anzurok", "humbaroth", "pazuzar", "mushussar", "nergalith", "ereshkyl", "nabuscribe", "ziggurok", "semyazar", "azazelith", "armarok", "baraqion", "kokabyx", "tamiren", "ramielon", "danelith", "ezeqor", "sarielle", "shamsor", "arakor", "penemyr", "nephilox", "grigoran", "ophanex", "irinyx", "eyelurk", "gazewing", "vigilon"]; // generated from shared/monstars.mjs SPECIES order
+const NAMES = ["cindercub", "mossprout", "ripplefin", "voltwing", "duskhorn", "pebblit", "frostuft", "bloomtail", "soloryx", "seraphon", "psyvolt", "blazebuck", "cinderwyrm", "pyrofinch", "magmole", "emberjack", "coralisk", "bubblyn", "clawtide", "abyssquid", "wavewing", "thornox", "fernling", "mantiseed", "acornaut", "lilypadra", "zapurr", "ohmoth", "voltusk", "joltail", "gloomwisp", "nocturrow", "shadefang", "hexmask", "quarrox", "fossilith", "geodillo", "cragcrab", "glacielk", "snowpuff", "icicrow", "rimewyrm", "cometail", "lunaroo", "orbitron", "mindmoth", "oracub", "prismeye", "toxitoad", "mycospore", "stingrex", "viperoot", "gearhound", "rivetbot", "bladewing", "ironshell", "zephyrkit", "galeon", "whirlwisp", "drakelet", "skyrex", "aurielle", "valkyra", "nimbiel", "aeonox", "anuvax", "enlilor", "enkiryn", "inannox", "utuflare", "nannamoth", "marduzar", "tiamaw", "ninhurra", "lamassor", "shedulon", "apkalith", "anzurok", "humbaroth", "pazuzar", "mushussar", "nergalith", "ereshkyl", "nabuscribe", "ziggurok", "semyazar", "azazelith", "armarok", "baraqion", "kokabyx", "tamiren", "ramielon", "danelith", "ezeqor", "sarielle", "shamsor", "arakor", "penemyr", "nephilox", "grigoran", "ophanex", "irinyx", "eyelurk", "gazewing", "vigilon", "nyxara", "serqeth", "kaelor", "lumiyah", "thothex", "khonsar", "selenox", "amunrah", "azarath", "setekh", "horuskai", "neferion", "ptahmos", "khepron", "osirak", "isisra", "rasolar", "anuket", "anupex", "nefertek"]; // generated from shared/monstars.mjs SPECIES order
 const W = 320, H = 180, K = 1 / 3; // world (960x540) -> logical pixels; the canvas is 2x (640x360) so sprites keep fine detail
 const CW = 960, CH = 540, Z = 3, U = Z / 2; // U scales hand-tuned canvas-pixel sizes from the old 640 canvas
 const SPR = 0.95; // 96px battle sprites are drawn at ~65px tall on the 960 canvas (Ultimate stage)
@@ -23,7 +23,7 @@ const PAL = {
 // Frontier and Mythic Monstars borrow the look of an original power by type (ids 0-10 have their own).
 const TYPE_FX = { EMBER: 0, GROVE: 7, TIDE: 2, SPARK: 3, SHADE: 4, STONE: 5, FROST: 6, ASTRAL: 8, PSYCHIC: 10, VENOM: 4, STEEL: 5, GALE: 2, DRACO: 0, ANCIENT: 8, WATCHER: 9 };
 const MYTHIC_FIRST = 61;
-const HOLY = new Set([61, 62, 63, 64, 65, 66, 85, 86, 94]), LEGEND = new Set([9, 10, 61, 62, 63, 64, 65, 66, 85, 86, 94]); // angelic powers / no evolution wings (generated)
+const HOLY = new Set([61, 62, 63, 64, 65, 66, 85, 86, 94, 108, 109, 110, 111, 112, 113, 115, 119, 120, 121, 124]), LEGEND = new Set([9, 10, 61, 62, 63, 64, 65, 66, 85, 86, 94, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124]); // angelic powers / no evolution wings (generated)
 const vidOf = o => (o.sid < 11 ? o.sid : HOLY.has(o.sid) && o.st !== 'whip' ? 9 : TYPE_FX[o.ty] ?? 0);
 const STATUS_COL = { paralyze: '#ffe14a', freeze: '#9be6ff', burn: '#ff8a1f', poison: '#c070ff', root: '#7ad04a', stun: '#ffd84a', confuse: '#ff9cd8', lift: '#c08cff', soak: '#5ec2ff', dazzle: '#fff3c4', weaken: '#d8a040', mark: '#a8c8ff' };
 const STY = { projectile: { r: 12 }, bolt: { range: 420, hitAt: 0.08, dur: 0.22 }, whip: { range: 220, hitAt: 0.12, dur: 0.3 },
@@ -227,6 +227,7 @@ function createRenderer(canvas, arena) {
       else say(f.x * K, f.y * K - 38, `LEVEL UP! Lv${ev.level}`, '#ffe14a', 1.3, 8);
       return;
     }
+    if (ev.type === 'blocked') { const v = snap.f[ev.victim]; if (!v) return; say(v.x * K, v.y * K - 30, 'BLOCKED!', '#48d0ff', 1.1, 7); wave(v.x * K, v.y * K - 6, '#48d0ff', 70); star(v.x * K, v.y * K - 10, '#bfefff', 50, 12); return; }
     if (ev.type === 'status') { const f = snap.f[ev.side]; if (f) say(f.x * K, f.y * K - 44, ev.label, STATUS_COL[ev.k] || '#ffffff', 1.3, 5); return; }
     if (ev.type === 'ult') { const f = snap.f[ev.side]; if (!f) return; say(f.x * K, f.y * K - 50, 'ULTIMATE!', '#ffd84a', 1.4, 8); flash = Math.max(flash, 0.25); wave(f.x * K, f.y * K + 6, '#ffd84a', 120); star(f.x * K, f.y * K - 10, '#ffd84a', 90, 20); return; }
     if (ev.type === 'pickup') { const f = snap.f[ev.side]; say(ev.x * K, ev.y * K - 20, 'HP +20%', '#ff9cd8', 1.5, 7); puffs(ev.x * K, ev.y * K, 10, '#ffc0e8', 50, 8, 0.6); return; }
@@ -305,7 +306,12 @@ function createRenderer(canvas, arena) {
     blit(blinkW || grow[i] > 0.9 ? wh : spr, X + ox, Y + oy, dw, dh, flip, sx, sy, rot);
     ctx.filter = 'none'; ctx.globalAlpha = 1;
     statusFx(f, X + ox, Y + oy, dw, dh, now);
-    if (f.g) { ctx.strokeStyle = Math.floor(now * 8) % 2 ? '#fff6a8' : '#ffd23f'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(Math.round(X), Math.round(Y - dh / 2 + oy), Math.round(dw * 0.55), 0, Math.PI * 2); ctx.stroke(); }
+    if (f.g) { // shield bubble: stronger shields glow brighter
+      const sx2 = Math.round(X), sy2 = Math.round(Y - dh / 2 + oy), rr = Math.round(dw * 0.62), a2 = 0.25 + (f.sh || 70) / 200;
+      ctx.save(); ctx.globalCompositeOperation = 'lighter'; glowAt(sx2, sy2, rr * 1.1, '#48d0ff', a2 * 0.6); ctx.restore();
+      ctx.strokeStyle = '#bfefff'; ctx.globalAlpha = 0.9; ctx.lineWidth = 3 * U; ctx.beginPath(); ctx.arc(sx2, sy2, rr, 0, Math.PI * 2); ctx.stroke();
+      ctx.lineWidth = 1.5 * U; for (let k = 0; k < 6; k++) { const a = k / 6 * 6.283 + now / 900; ctx.beginPath(); ctx.arc(sx2, sy2, rr, a, a + 0.5); ctx.stroke(); } ctx.globalAlpha = 1;
+      label('SHIELD ' + (f.sh || 70) + '%', X, Y + 14 * U, '#48d0ff'); }
     if (!opt.faint) { // owner marker
       const mx = Math.round(X), my = Math.round(Y - dh - 12 * U + oy + (Math.floor(now * 3) % 2) * 2);
       ctx.fillStyle = opt.you ? '#9ef0c8' : '#ff6b6b'; ctx.beginPath(); ctx.moveTo(mx - 6 * U, my); ctx.lineTo(mx + 6 * U, my); ctx.lineTo(mx, my + 7 * U); ctx.fill();
@@ -354,6 +360,26 @@ function createRenderer(canvas, arena) {
   }
   function drawStar(x, y, r, col) { ctx.fillStyle = col; ctx.beginPath(); for (let i = 0; i < 10; i++) { const a = i * Math.PI / 5 - Math.PI / 2, rr = i % 2 ? r * 0.45 : r; i ? ctx.lineTo(x + Math.cos(a) * rr, y + Math.sin(a) * rr) : ctx.moveTo(x + Math.cos(a) * rr, y + Math.sin(a) * rr); } ctx.fill(); }
   function label(txt, x, y, col) { ctx.font = `800 ${Math.round(9 * U)}px Inter, system-ui, sans-serif`; ctx.textAlign = 'center'; ctx.fillStyle = '#141018'; ctx.fillText(txt, Math.round(x) + 2, Math.round(y) + 2); ctx.fillStyle = col; ctx.fillText(txt, Math.round(x), Math.round(y)); }
+  // Range guides for your Monstar: basic reach as a dashed ring; when the special is ready, where it will land.
+  const REACH = { whip: 220, cone: 230, bolt: 420, projectile: 480, beam: 640, strike: 460, levitate: 560 };
+  function dashedRing(x, y, r, col, a = 0.5, ry = r * 0.5) { ctx.save(); ctx.globalAlpha = a; ctx.strokeStyle = col; ctx.lineWidth = 2 * U; ctx.setLineDash([8 * U, 7 * U]); ctx.beginPath(); ctx.ellipse(x, y, r, ry, 0, 0, 6.283); ctx.stroke(); ctx.restore(); }
+  function ranges(cur, prev, t, view, now) {
+    FULL();
+    const i = view.rangeFor, f = cur.f[i], foe = cur.f[1 - i], pf = prev?.f?.[i]; if (!f || !foe) { LOG(); return; }
+    const x = (pf ? pf.x + (f.x - pf.x) * t : f.x) * K * Z, y = (pf ? pf.y + (f.y - pf.y) * t : f.y) * K * Z + 22 * U, fx = foe.x * K * Z, fy = foe.y * K * Z + 22 * U;
+    if (view.target) { const tx = view.target.x * K * Z, ty = view.target.y * K * Z + 22 * U, p = (now / 400) % 1; // where your finger / mouse sent it
+      dashedRing(tx, ty, 18 * U, '#48d0ff', 0.9); ctx.globalAlpha = 1 - p; ctx.strokeStyle = '#48d0ff'; ctx.lineWidth = 2 * U; ctx.beginPath(); ctx.ellipse(tx, ty, 18 * U + p * 26 * U, (18 * U + p * 26 * U) * 0.5, 0, 0, 6.283); ctx.stroke(); ctx.globalAlpha = 1; }
+    const rb = REACH[f.bs]; if (rb && f.bs !== 'projectile') dashedRing(x, y, rb * K * Z, '#ffffff', 0.22);
+    const ready = f.cd && f.cd.s <= 0 && f.en >= 40;
+    if (ready && f.ss) {
+      const col = f.ul >= 100 ? '#ffd84a' : '#48d0ff';
+      if (f.ss === 'strike') { dashedRing(x, y, REACH.strike * K * Z, col, 0.25); dashedRing(fx, fy, 74 * K * Z * 1.6, col, 0.75); }
+      else if (f.ss === 'cone') { const a = Math.atan2(fy - y, fx - x), R = 230 * K * Z * 1.3; ctx.save(); ctx.globalAlpha = 0.18; ctx.fillStyle = col; ctx.beginPath(); ctx.moveTo(x, y); ctx.arc(x, y, R, a - 0.55, a + 0.55); ctx.closePath(); ctx.fill(); ctx.restore(); }
+      else if (f.ss === 'beam') { const a = Math.atan2(fy - y, fx - x), L = 640 * K * Z; ctx.save(); ctx.translate(x, y); ctx.rotate(a); ctx.globalAlpha = 0.16; ctx.fillStyle = col; ctx.fillRect(0, -22 * K * Z, L, 44 * K * Z); ctx.restore(); }
+      else if (f.ss === 'levitate') dashedRing(x, y, REACH.levitate * K * Z, col, 0.3);
+    }
+    LOG();
+  }
   function blit(img, fx, fy, w, h, flip, sx, sy, rot) {
     const dw = Math.round(w * sx), dh = Math.round(h * sy);
     ctx.save(); ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high'; ctx.translate(Math.round(fx), Math.round(fy)); if (rot) ctx.rotate(rot); if (flip) ctx.scale(-1, 1); ctx.drawImage(img, -Math.round(dw / 2), -dh, dw, dh); ctx.restore();
@@ -528,6 +554,7 @@ function createRenderer(canvas, arena) {
       for (const p of cur.p || []) { const pp = prev?.p?.find(o => o.id === p.id); projectile(p, (pp ? pp.x + (p.x - pp.x) * t : p.x) * K, (pp ? pp.y + (p.y - pp.y) * t : p.y) * K, now); }
     }
     drawFx(dt);
+    if (cur && view.rangeFor != null) ranges(cur, prev, t, view, now);
     for (const p of parts) {
       p.life -= dt; p.vy += p.grav * dt; p.x += p.vx * dt; p.y += p.vy * dt;
       let col = p.col; if (!col) { const q = 1 - p.life / p.max; col = q < 0.2 ? PAL.EMBER[0] : q < 0.45 ? PAL.EMBER[1] : q < 0.7 ? PAL.EMBER[2] : q < 0.9 ? PAL.EMBER[3] : '#6a6060'; }

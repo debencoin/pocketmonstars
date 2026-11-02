@@ -37,6 +37,8 @@ export function createServer({ config = CONFIG, chain = new SolanaChain(config.r
       marketAuthority: keys.marketAuthority.publicKey.toBase58(), policy: { minStake: STAKE_POLICY.minStake, maxStake: STAKE_POLICY.maxStake, companyFeeLamports: STAKE_POLICY.companyFeeLamports, networkFeeLamports: STAKE_POLICY.networkFeeLamports } }),
     'POST /api/auth/challenge': async req => ({ message: auth.challenge((await body(req)).wallet) }),
     'POST /api/auth/verify': async req => { const b = await body(req); const s = auth.verify(b.wallet, b.signature); registry.claimAll(s.wallet); return s; },
+    // Leaderboard: connected wallets ranked by SOL earned in staked matches (final share minus stake), then wins
+    'GET /api/leaderboard': () => leaderboard(),
     'GET /api/monstars/mine': req => ({ monstars: registry.ownedBy(need(req)).map(m => m.toJSON()) }),
     'POST /api/mint/prepare': async req => { const w = need(req), b = await body(req), m = registry.get(Number(b.serial));
       if (!m || m.owner !== w) throw Error('You do not own that Monstar.'); if (m.asset) throw Error('Already minted.');
@@ -106,6 +108,20 @@ export function createServer({ config = CONFIG, chain = new SolanaChain(config.r
   
   };
 
+  let lbCache = null, lbAt = 0;
+  function leaderboard() {
+    if (lbCache && Date.now() - lbAt < 15_000) return lbCache;
+    const rows = db.prepare("SELECT stake, player_a a, player_b b, winner, shares, state FROM matches WHERE player_b IS NOT NULL AND player_b != 'AI' AND state IN ('settled','done','settling','settlement-needs-review')").all();
+    const by = new Map(), get = w => by.get(w) || (by.set(w, { wallet: w, net: 0n, earned: 0n, wins: 0, played: 0, staked: 0 }), by.get(w));
+    for (const r of rows) {
+      let sh = []; try { sh = JSON.parse(r.shares || '[]'); } catch {}
+      [r.a, r.b].forEach((w, i) => { if (!w) return; const p = get(w); p.played++; if (r.winner === i) p.wins++;
+        const stake = BigInt(r.stake || '0'); if (stake > 0n && sh[i] != null) { const d = BigInt(sh[i]) - stake; p.net += d; if (d > 0n) p.earned += d; p.staked++; } });
+    }
+    const list = [...by.values()].sort((x, y) => (y.net > x.net ? 1 : y.net < x.net ? -1 : y.wins - x.wins)).slice(0, 50)
+      .map((p, i) => ({ rank: i + 1, wallet: p.wallet, net: p.net.toString(), netSol: formatSol(p.net, 6), earnedSol: formatSol(p.earned, 6), wins: p.wins, played: p.played, staked: p.staked }));
+    lbAt = Date.now(); return (lbCache = { updatedAt: lbAt, players: list });
+  }
   function breedRow(code) { return db.prepare('SELECT * FROM breeds WHERE code=?').get(String(code || '').toUpperCase()); }
   function breedView(code, w) {
     const r = breedRow(code); if (!r || ![r.a, r.b].includes(w) && r.state !== 'open') throw Error('No breeding request with that code.');

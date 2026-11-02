@@ -3,7 +3,7 @@
 // Levels (EXP) are stored here; Legendary and Bred collections are created here too.
 import { createHash, randomBytes } from 'node:crypto';
 import { PublicKey } from '@solana/web3.js';
-import { SPECIES, GENESIS_IDS, LEGENDARY_IDS, WILD_IDS, RARITIES, Monstar, traitsFromDna, traitSignature, composeDna, rarityIndex, expForLevel } from '../shared/monstars.mjs';
+import { nftArt, SPECIES, GENESIS_IDS, LEGENDARY_IDS, WILD_IDS, RARITIES, Monstar, traitsFromDna, traitSignature, composeDna, rarityIndex, expForLevel } from '../shared/monstars.mjs';
 
 export function deriveDna(owner, speciesId, nonce) {
   return createHash('sha256').update(`pocketmonstars:dna:v1:${owner}:${speciesId}:${nonce}`).digest('hex');
@@ -54,7 +54,7 @@ export class Registry {
     return LEGENDARY_IDS.map(sid => {
       const existing = this.db.prepare('SELECT * FROM monstars WHERE origin_owner=? AND species=? AND genesis=1').get(owner, sid);
       if (existing) return this.toMonstar(existing);
-      return this.insertUnique({ speciesId: sid, originOwner: owner, owner, genesis: true, collection: 'legendary', exp: expForLevel(80),
+      return this.insertUnique({ speciesId: sid, originOwner: owner, owner, genesis: true, collection: SPECIES[sid].collection, exp: expForLevel(80),
         dnaFor: n => composeDna(deriveDna(owner, sid, n), { rarity: 'Legendary', ivs: [15, 15, 15, 15, 15, 15].map((v, k) => v - ((n + k) % 2)) }) });
     });
   }
@@ -126,11 +126,11 @@ export function metadataJson(monstar, publicUrl, royaltyBps) {
     name: monstar.displayName,
     symbol: 'MONSTAR',
     description: `${monstar.displayName}, a one-of-a-kind ${monstar.traits.rarity} ${monstar.type} ${monstar.className} (${monstar.stage.name}, level ${monstar.level}). ${monstar.cls.passive} Born to ${monstar.originOwner}.`,
-    image: `${publicUrl}/art/nft/${monstar.species.art}.png`,
+    image: `${publicUrl}/art/nft/${nftArt(monstar.species)}`,
     external_url: `${publicUrl}/play#monstar-${monstar.serial}`,
     seller_fee_basis_points: royaltyBps,
     attributes: monstar.toAttributes(),
-    properties: { category: 'image', files: [{ uri: `${publicUrl}/art/nft/${monstar.species.art}.png`, type: 'image/png' }],
+    properties: { category: 'image', files: [{ uri: `${publicUrl}/art/nft/${nftArt(monstar.species)}`, type: monstar.species.portrait ? 'image/jpeg' : 'image/png' }],
       creators: [{ address: monstar.originOwner, share: 100 }] },
   };
 }

@@ -46,7 +46,7 @@ pvp.innerHTML = `
    <div class="pv-field" id="pvField">
     <canvas id="pvCanvas" width="960" height="540" aria-label="Battle arena"></canvas>
     <div class="pv-pot" id="pvPot" hidden><div class="pv-potbar"><i id="pvP0" style="width:50%"></i><i id="pvP1" style="width:50%"></i></div><small id="pvPotTxt">Pot</small></div>
-    <div class="pv-touch"><div class="pv-stickzone" id="pvZone"><div class="pv-stick" id="pvStick"><i id="pvKnob"></i></div></div></div>
+    <div class="pv-touch"><div class="pv-stickzone" id="pvZone"></div></div>
    </div>
    <div class="pv-moves" id="pvMoves" hidden>
     <div class="pv-ask"><span>What will <b id="pvAsk">YOUR MONSTAR</b> do?</span><button class="pv-run" id="pvExit">Run</button></div>
@@ -54,7 +54,7 @@ pvp.innerHTML = `
    </div>
    <div class="pv-overlay" id="pvOverlay"><div class="big" id="pvBig">Ready to battle</div><div class="pv-note" id="pvSmall">Sign in with Phantom, pick your Monstar and create or join a match.</div><div class="pv-row" id="pvOvBtns"></div></div>
   </div>
-  <p class="pv-note" id="pvKeys">${coarse ? 'Your Monstar moves and dodges on its own. Tap a move card to attack. Drag on the battlefield any time to steer it yourself.' : 'Your Monstar moves and dodges on its own. Pick a move card or press <b>1</b>–<b>4</b> (also <b>J</b> attack · <b>K</b> special · <b>Space</b> dash · <b>L</b> guard). Hold <b>WASD</b> to steer · <b>Esc</b> to run.'}</p>
+  <p class="pv-note" id="pvKeys">${coarse ? 'Your Monstar moves and dodges on its own. Touch the arena with your finger to run it there (it follows your finger), and use your thumb on the move cards.' : 'Your Monstar moves and dodges on its own. <b>Click or hold the mouse</b> on the arena to move it there. Hit with the keyboard: <b>1</b>–<b>4</b> (or <b>Q</b>/<b>J</b> attack · <b>E</b>/<b>K</b> special · <b>Space</b> dash · <b>L</b> guard), <b>5</b>–<b>7</b> switch · <b>WASD</b> also steers · <b>Esc</b> to run.'}</p>
   <div class="panel"><div class="pv-row" style="justify-content:space-between"><h3>Your one-of-a-kind Monstars</h3><span class="pv-chip" id="pvCount">Sign in to reveal</span></div>
    <p class="pv-note" style="margin:6px 0 12px">Every wallet starts with three one-of-a-kind Monstars picked from its address, so no two players start the same. Catch the rest in the Wild Expedition: 103 species from common to divine. Mint any of yours as an NFT to trade or send.</p>
    <div id="pvCards"><div class="pv-empty">Sign in with Phantom to see your Monstars.</div></div></div>
@@ -109,8 +109,26 @@ mk.innerHTML = `<div class="topline"><div><div class="eyebrow">Buy · Sell · Se
 <div class="panel" style="margin-bottom:24px"><h3>Your minted Monstars</h3><p class="pv-note" style="margin:6px 0 12px">List for sale (Phantom approves the marketplace to transfer only that Monstar when someone pays), or send it to another player.</p><div class="pv-cards" id="pvMine"></div></div>`;
 marketSec.prepend(mk);
 
+// Leaderboard tab: connected wallets ranked by SOL earned in staked matches
+const lbBtn = el('button', { textContent: 'Leaderboard' }); lbBtn.dataset.tab = 'leaders';
+nav.insertBefore(lbBtn, nav.children[2] || null); lbBtn.onclick = () => tab('leaders');
+const lbSec = el('section', { id: 'leaders', className: 'view hidden' });
+lbSec.innerHTML = `<div class="topline"><div><div class="eyebrow">Connected wallets</div><h1>Leaderboard</h1>
+<p class="muted">Ranked by SOL earned in staked matches (what you finished with minus your stake), then by wins. Updates every few seconds.</p></div><button class="smallbtn" id="lbRefresh">Refresh</button></div>
+<div class="panel"><div class="lb-table" id="lbTable"><div class="pv-empty">Loading…</div></div></div>`;
+main.append(lbSec);
+async function refreshLeaders() {
+  const box = q('lbTable');
+  try {
+    const r = await fetch('/api/leaderboard').then(x => x.json()), me2 = S.session()?.wallet;
+    if (!r.players?.length) { box.innerHTML = '<div class="pv-empty">No staked matches yet. Win one to take the top spot.</div>'; return; }
+    box.innerHTML = '<div class="lb-row lb-head"><span>#</span><span>Wallet</span><span>Net SOL</span><span>Won</span><span>Wins</span><span>Played</span></div>' + r.players.map(p =>
+      `<div class="lb-row${p.wallet === me2 ? ' me' : ''}"><span class="lb-rank r${p.rank}">${p.rank}</span><span class="pv-addr">${esc(short(p.wallet))}${p.wallet === me2 ? ' <b>(you)</b>' : ''}</span><span class="${BigInt(p.net) >= 0n ? 'up' : 'dn'}">${BigInt(p.net) > 0n ? '+' : ''}${esc(p.netSol)}</span><span>${esc(p.earnedSol)}</span><span>${p.wins}</span><span>${p.played}</span></div>`).join('');
+  } catch { box.innerHTML = '<div class="pv-empty">Leaderboard unavailable right now.</div>'; }
+}
+q('lbRefresh').onclick = refreshLeaders;
 const baseTab4 = window.tab;
-window.tab = tab = function (id) { baseTab4(id); pvpBtn.classList.toggle('active', id === 'pvp'); if (id === 'pvp') { refreshMine(); draw(); } if (id === 'market') refreshMarket(); };
+window.tab = tab = function (id) { baseTab4(id); pvpBtn.classList.toggle('active', id === 'pvp'); lbBtn.classList.toggle('active', id === 'leaders'); if (id === 'leaders') refreshLeaders(); if (id === 'pvp') { refreshMine(); draw(); } if (id === 'market') refreshMarket(); };
 let pickedSpecies = 0, local = null, fightAt = 0;
 
 // ---------- state ----------
@@ -143,8 +161,8 @@ function statBars(st) {
 function expBar(m) { return `<div class="pv-xp" title="${m.expInto} / ${m.expNeed} EXP"><i style="width:${Math.min(100, m.expInto / Math.max(1, m.expNeed) * 100)}%"></i></div>`; }
 function cardHtml(m, extra = '') {
   return `<span class="pv-rar ${esc(m.traits.rarity)}">${esc(m.traits.rarity)}</span>${m.tier ? `<span class="pv-tier ${esc(m.tier)}">${esc(m.tier)}</span>` : ''}<span class="pv-lv">Lv${m.level} · ${esc(m.stage)}</span>
-  <img class="px nftimg" src="art/nft/${Monstars.SPECIES[m.speciesId].art}.png" alt="${esc(m.name)}" style="filter:hue-rotate(${m.traits.hue}deg)" loading="lazy">
-  <span class="nm">${esc(m.name)}</span><span class="sub">${esc(m.className)} · ${esc(m.type)} · ${esc(m.traits.aura)} ${esc(m.traits.pattern)} · ${esc(m.traits.nature)}</span>
+  <img class="px nftimg" src="art/nft/${Monstars.nftArt(Monstars.SPECIES[m.speciesId])}" alt="${esc(m.name)}" style="filter:hue-rotate(${m.traits.hue}deg)" loading="lazy">
+  <span class="nm">${esc(m.name)}</span><span class="sub">${esc(m.className)} · ${esc(m.type)} · ${esc(m.traits.aura)} ${esc(m.traits.pattern)} · ${esc(m.traits.nature)} · 🛡 ${m.traits.shield ?? 70}% shield</span>
   ${expBar(m)}${statBars(m.stats)}${extra}`;
 }
 async function refreshMine() {
@@ -154,7 +172,7 @@ async function refreshMine() {
   if (!picked || !mine.some(m => m.serial === picked)) picked = mine[0]?.serial ?? null;
   q('pvCount').textContent = mine.length + ' owned'; q('pvCount').classList.add('ok');
   const box = q('pvCards'); box.innerHTML = '';
-  const groups = [['mythic', 'Mythic collection'], ['legendary', 'Legendary collection'], ['frontier', 'Frontier collection (caught in the wild)'], ['bred', 'Bred collection'], ['genesis', 'Genesis collection']];
+  const groups = [['ascendants', 'Ascendants (founder legendaries)'], ['mythic', 'Mythic collection'], ['anunnaki', 'Anunnaki collection'], ['watchers', 'Watchers collection'], ['legendary', 'Legendary collection'], ['frontier', 'Frontier collection (caught in the wild)'], ['bred', 'Bred collection'], ['genesis', 'Genesis collection']];
   for (const [key, label] of groups) {
     const list = mine.filter(m => m.collection === key); if (!list.length) continue;
     box.append(el('h4', { className: 'pv-coll', textContent: `${label} · ${list.length}` }));
@@ -360,7 +378,7 @@ function onMsg(m) {
     snapPrev = snapCur; snapCur = m.s; snapAt = performance.now(); setShares(m.shares); return;
   }
   if (m.t === 'hit') { setShares(m.shares, m); return; }
-  if (m.t === 'switch' || m.t === 'status' || m.t === 'ult' || m.t === 'pickup') { battleEvent({ ...m, type: m.t }); return; }
+  if (m.t === 'switch' || m.t === 'status' || m.t === 'ult' || m.t === 'pickup' || m.t === 'blocked') { battleEvent({ ...m, type: m.t }); return; }
   if (m.t === 'miss' || m.t === 'level' || m.t === 'bonus') { battleEvent({ ...m, type: m.t }); if (m.t === 'level') refreshSoon(); return; }
   if (m.t === 'end') { if (practiceMoney() && vLedger) { vLedger.finish(m.winner == null ? null : m.winner); shares = vLedger.shares.map(String); showShares(); } ended = { ...m, at: performance.now() }; refreshSoon(); if (room) room.state = room.stake === '0' ? 'done' : 'settling'; renderRoom(); return; }
   if (m.t === 'settlement') { ended = { at: 0, ...(ended || {}), settlement: m }; if (room) room.state = m.ok ? (m.refund ? 'refunded' : 'settled') : 'needs review'; renderRoom(); refreshBalance(); return; }
@@ -488,31 +506,36 @@ function renderRoom() {
 }
 
 // ---------- input ----------
-const keys = {}, touch = { mx: 0, my: 0, atk: false, sp: false, dash: false, guard: false, sw: -1 }; let mouse = null, mouseBtn = { l: false, r: false };
+// Movement: touch the arena with a finger (or click / hold the mouse) and your Monstar runs to that spot and
+// follows your finger while it's down. Thumb (or keyboard 1-4, J K Space L) does the moves. Aim is automatic.
+const keys = {}, touch = { atk: false, sp: false, dash: false, guard: false, sw: -1 };
+let target = null; // { x, y, held, until } in arena coordinates
 addEventListener('keydown', e => { if (room?.state !== 'live') return; if (e.code === 'Escape') return leaveBattle(); keys[e.code] = true; if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) e.preventDefault(); });
 addEventListener('keyup', e => { keys[e.code] = false; });
 const cv = q('pvCanvas');
 const renderer = PA.createRenderer(cv, ARENA);
-cv.addEventListener('mousemove', e => { const r = cv.getBoundingClientRect(); mouse = { x: (e.clientX - r.left) / r.width * ARENA.w, y: (e.clientY - r.top) / r.height * ARENA.h, at: performance.now() }; });
-cv.addEventListener('mousedown', e => { if (e.button === 2) mouseBtn.r = true; else mouseBtn.l = true; });
-addEventListener('mouseup', e => { if (e.button === 2) mouseBtn.r = false; else mouseBtn.l = false; });
 cv.addEventListener('contextmenu', e => e.preventDefault());
-const zone = q('pvZone'), stick = q('pvStick'), knob = q('pvKnob'); let stickId = null, origin = null;
-zone.addEventListener('pointerdown', e => { stickId = e.pointerId; try { zone.setPointerCapture(e.pointerId); } catch {} const r = zone.getBoundingClientRect(); origin = { x: e.clientX, y: e.clientY }; stick.style.display = 'block'; stick.style.left = (e.clientX - r.left) + 'px'; stick.style.top = (e.clientY - r.top) + 'px'; });
-zone.addEventListener('pointermove', e => { if (e.pointerId !== stickId) return; let dx = e.clientX - origin.x, dy = e.clientY - origin.y; const d = Math.hypot(dx, dy), R = 50; if (d > R) { dx *= R / d; dy *= R / d; } touch.mx = dx / R; touch.my = dy / R; knob.style.transform = `translate(${dx}px,${dy}px)`; });
-const endStick = e => { if (e.pointerId !== stickId) return; stickId = null; touch.mx = touch.my = 0; stick.style.display = 'none'; knob.style.transform = ''; };
-zone.addEventListener('pointerup', endStick); zone.addEventListener('pointercancel', endStick);
+const zone = q('pvZone'); let movePointer = null;
+function toArena(e) { const r = cv.getBoundingClientRect(); return { x: Math.max(0, Math.min(ARENA.w, (e.clientX - r.left) / r.width * ARENA.w)), y: Math.max(0, Math.min(ARENA.h, (e.clientY - r.top) / r.height * ARENA.h)) }; }
+zone.addEventListener('pointerdown', e => { if (room?.state !== 'live') return; e.preventDefault(); movePointer = e.pointerId; try { zone.setPointerCapture(e.pointerId); } catch {} target = { ...toArena(e), held: true, until: 0 }; });
+zone.addEventListener('pointermove', e => { if (e.pointerId === movePointer && target) Object.assign(target, toArena(e)); });
+const endMove = e => { if (e.pointerId !== movePointer) return; movePointer = null; if (target) { target.held = false; target.until = performance.now() + 1200; } };
+zone.addEventListener('pointerup', endMove); zone.addEventListener('pointercancel', endMove);
+zone.addEventListener('contextmenu', e => e.preventDefault());
 
 let lastSent = '', lastSendAt = 0;
 function currentInput() {
   if (!snapCur) return {};
   let mx = (keys.KeyD || keys.ArrowRight ? 1 : 0) - (keys.KeyA || keys.ArrowLeft ? 1 : 0), my = (keys.KeyS || keys.ArrowDown ? 1 : 0) - (keys.KeyW || keys.ArrowUp ? 1 : 0);
-  if (Math.abs(touch.mx) > 0.12 || Math.abs(touch.my) > 0.12) { mx = touch.mx; my = touch.my; }
-  const meF = snapCur.f[room.you];
-  let ax = 0, ay = 0; // 0 = the Monstar aims at its rival on its own
-  if (mouse && !coarse && performance.now() - (mouse.at || 0) < 1500) { ax = mouse.x - meF.x; ay = mouse.y - meF.y; }
+  const meF = snapCur.f[room.local ? 0 : room.you];
+  if (target && !mx && !my) { // run to the finger / mouse; once there, hold the spot briefly, then the autopilot takes over again
+    const dx = target.x - meF.x, dy = target.y - meF.y, d = Math.hypot(dx, dy);
+    if (d > 16) { mx = dx / d; my = dy / d; } else if (!target.held && performance.now() > target.until) target = null; else { mx = 0.0001; my = 0; }
+    if (target && !target.held && d > 16 && performance.now() > target.until + 2500) target = null;
+  }
+  const ax = 0, ay = 0; // aim is automatic: the Monstar faces its rival
   const swKey = keys.Digit5 ? 0 : keys.Digit6 ? 1 : keys.Digit7 ? 2 : -1;
-  const i = { sw: touch.sw >= 0 ? touch.sw : swKey, mx, my, ax, ay, atk: !!(keys.KeyJ || keys.Digit1 || mouseBtn.l || touch.atk), sp: !!(keys.KeyK || keys.Digit2 || mouseBtn.r || touch.sp), dash: !!(keys.Space || keys.Digit3 || touch.dash), guard: !!(keys.KeyL || keys.Digit4 || touch.guard) };
+  const i = { sw: touch.sw >= 0 ? touch.sw : swKey, mx, my, ax, ay, atk: !!(keys.KeyJ || keys.Digit1 || keys.KeyQ || touch.atk), sp: !!(keys.KeyK || keys.Digit2 || keys.KeyE || touch.sp), dash: !!(keys.Space || keys.Digit3 || touch.dash), guard: !!(keys.KeyL || keys.Digit4 || touch.guard) };
   return i;
 }
 function sendInput() {
@@ -550,7 +573,7 @@ function draw() {
     const t = Math.min(1, (now - snapAt) / (room.local ? 34 : 66)), you = room.you;
     const faint = [0, 0];
     if (ended && ended.winner != null) faint[1 - ended.winner] = Math.min(1, (now - (ended.at || now)) / 1200);
-    renderer.draw(snapPrev, snapCur, t, { you, snapAt, hues: room.players.map(p => p.monstar.traits?.hue || 0), types: room.players.map(p => p.monstar.type), faint, fight: fightAt ? Math.max(0, 1.4 - (now - fightAt) / 1000) : 0 });
+    renderer.draw(snapPrev, snapCur, t, { target: target && { x: target.x, y: target.y }, rangeFor: you, you, snapAt, hues: room.players.map(p => p.monstar.traits?.hue || 0), types: room.players.map(p => p.monstar.type), faint, fight: fightAt ? Math.max(0, 1.4 - (now - fightAt) / 1000) : 0 });
     const meF = snapCur.f[you], foe = snapCur.f[1 - you];
     for (const [k, f] of [[0, meF], [1, foe]]) {
       const p = Math.max(0, f.hp / f.max), bar = q('pvH' + k);

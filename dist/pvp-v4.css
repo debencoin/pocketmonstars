@@ -405,3 +405,15 @@ img.px{image-rendering:auto}
 @keyframes ultPulse{to{box-shadow:0 0 0 3px #ffd84a,0 0 30px #ffd84aaa}}
 .pv-card img.nftimg{width:100%;height:auto;aspect-ratio:1;object-fit:cover;padding:0;border-radius:10px;background:#10172a;display:block}
 .pv-card{overflow:hidden}
+/* v13: finger / mouse movement layer over the whole arena while battling */
+.pv-stage.live .pv-touch{display:block!important;position:absolute;inset:0}
+.pv-stage.live .pv-stickzone{position:absolute;inset:0;width:auto;pointer-events:auto;cursor:crosshair;touch-action:none}
+.pv-stick{display:none!important}
+/* leaderboard */
+.lb-table{display:flex;flex-direction:column;gap:4px}
+.lb-row{display:grid;grid-template-columns:40px minmax(0,1.4fr) repeat(4,minmax(0,1fr));gap:8px;align-items:center;padding:10px 12px;border-radius:10px;background:#0c1222;font-size:14px}
+.lb-head{background:none;color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.06em}
+.lb-row.me{border:1px solid #ffd84a}
+.lb-rank{font-weight:800;color:var(--muted)}.lb-rank.r1{color:#ffd84a}.lb-rank.r2{color:#d8e0ec}.lb-rank.r3{color:#e8a060}
+.lb-row .up{color:#9ef0c8;font-weight:800}.lb-row .dn{color:#ff7b6b;font-weight:800}
+@media (max-width:560px){.lb-row{grid-template-columns:28px minmax(0,1.3fr) minmax(0,1fr) 44px;font-size:12px}.lb-row>span:nth-child(4),.lb-row>span:nth-child(6){display:none}}

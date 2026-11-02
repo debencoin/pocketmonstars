@@ -212,7 +212,7 @@ test('legendaries go only to the founder wallet, fully evolved; breeding gives e
   const reg = new Registry(openDb(':memory:'), { legendaryOwner: founder });
   const mine = reg.claimAll(founder), legends = mine.filter(m => m.species.legendary);
   assert.equal(legends.length, LEGENDARY_IDS.length);
-  for (const l of legends) { assert.equal(l.level, 80); assert.equal(l.stage.name, 'Ascended'); assert.equal(l.traits.rarity, 'Legendary'); assert.equal(l.collection, 'legendary'); }
+  for (const l of legends) { assert.equal(l.level, 80); assert.equal(l.stage.name, 'Ascended'); assert.equal(l.traits.rarity, 'Legendary'); assert.equal(l.collection, l.species.collection); }
   const other = wallet(); assert.equal(reg.claimAll(other).filter(m => m.species.legendary).length, 0);
   const pa = reg.claimGenesis(founder, 0), pb = reg.claimGenesis(other, 6);
   const [ca, cb] = reg.breed({ a: pa, b: pb, seed: 'test-seed' });
@@ -329,4 +329,24 @@ test('hit fees: tiny, grow with level, stats and move power, never above 0.00001
   const lv1 = hitFee({ level: 1, attack: 60, power: 9 }), lv25 = hitFee({ level: 25, attack: 120, power: 9 }), lv80 = hitFee({ level: 80, attack: 200, power: 9 });
   assert.ok(lv1 < lv25 && lv25 < lv80); assert.ok(hitFee({ level: 25, attack: 120, power: 25 }) > lv25);
   assert.ok(hitFee({ level: 99, attack: 400, power: 50, crit: true }) <= 10_000n && lv1 >= 100n);
+});
+
+test('shields differ per Monstar (from wallet DNA) and a raised shield can block a hit completely', async () => {
+  const S = await import('../shared/sim.mjs'), { Monstar } = await import('../shared/monstars.mjs');
+  const reg = new Registry(openDb(':memory:')), sh = new Set();
+  for (let i = 0; i < 8; i++) for (const m of reg.claimAll(wallet())) { assert.ok(m.traits.shield >= 55 && m.traits.shield <= 98); sh.add(m.traits.shield); }
+  assert.ok(sh.size > 6, 'shield strength varies');
+  const m = S.createMatch(new Monstar({ speciesId: 0, level: 5 }), new Monstar({ speciesId: 1, level: 5 }), { auto: false });
+  m.fighters[1].shield = 100; m.fighters[1].guardT = 99; const hp = m.fighters[1].hp; let blocked = 0;
+  m.fighters[1].x = m.fighters[0].x + 150; m.fighters[1].y = m.fighters[0].y;
+  for (let i = 0; i < 90; i++) { m.fighters[0].input = S.sanitizeInput({ atk: true }); m.fighters[1].guardT = 99; m.fighters[1].x = m.fighters[0].x + 150; m.fighters[1].y = m.fighters[0].y; blocked += S.step(m).filter(e => e.type === 'blocked').length; }
+  assert.ok(blocked > 0); assert.equal(m.fighters[1].hp, hp);
+});
+test('founder wallet holds the 20 Ascendants at level 80 with their portrait NFT art', async () => {
+  const { SPECIES, nftArt } = await import('../shared/monstars.mjs');
+  const founder = wallet(), reg = new Registry(openDb(':memory:'), { legendaryOwner: founder });
+  const asc = reg.claimAll(founder).filter(m => m.collection === 'ascendants');
+  assert.equal(asc.length, 20); assert.ok(asc.every(m => m.level === 80));
+  assert.equal(nftArt(SPECIES[asc[0].species.id]).endsWith('.jpg'), true);
+  assert.equal(reg.claimAll(wallet()).some(m => m.collection === 'ascendants'), false);
 });

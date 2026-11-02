@@ -137,3 +137,12 @@ Stats: HP, Attack, Defense, Sp. Atk, Sp. Def, Speed. Types: EMBER, GROVE, TIDE, 
 - **Per-hit SOL** (`hitFee` in `shared/stake.mjs`): no longer a share of the stake. Each hit moves lamports sized by the attacker's level, its attack stat for that move and the move's power (basic, special, Ultimate, crit; damage over time moves half). Lv1 jab ≈ 0.00000026 SOL, Lv25 special ≈ 0.0000047, Lv50+ specials reach the 0.00001 SOL cap. A KO still takes the whole pot.
 - **Starters**: each wallet now hatches three Genesis Monstars chosen from a hash of its address (different players start differently); guests get three at random on their device. Wallets that already had all nine keep them. Everything else is caught in the wild; the Genesis nine now also roam the wild.
 - **40 new species**: 20 **Anunnaki** (Mesopotamian sky lords, winged genies, lamassu guardians, fish-cloaked sages, chaos dragons) and 20 **Watchers** (Book of Enoch: many-eyed wheels, many-winged seers, fallen teachers, a Nephilim giant). New types ANCIENT (hits curse: −35% damage dealt) and WATCHER (hits mark: +25% damage taken). Anuvax and Semyazar are Divine; Enlilor and Azazelith Mythic. 105 species total, 103 in the wild.
+
+## v13: finger/mouse movement, range guides, DNA shields, leaderboard, Ascendants
+
+- **Movement**: touch the arena with a finger (or click/hold the mouse) and your Monstar runs there and follows the finger; thumb taps the move cards. Keyboard: 1-4 / Q,J / E,K / Space / L for moves, 5-7 switch, WASD steer. Aim is automatic.
+- **Range guides**: your basic reach as a dashed ring; when the special is ready its landing area (strike target ring, cone, beam lane, levitation radius). A blue ring marks where you sent it.
+- **Shields**: each Monstar has a DNA `shield` trait (55-98%), unique per wallet. With Guard up, a hit is blocked completely at that chance ("BLOCKED!", no damage, SOL or status); otherwise only 25% gets through.
+- **Leaderboard** tab (`GET /api/leaderboard`): connected wallets ranked by net SOL earned in staked matches, then wins.
+- **Ascendants**: 20 founder-supplied portraits (`dist/art/src/ascendants`) become legendary Monstars held by the founder wallet at Lv80. `scripts/make_portraits.py` puts each portrait's head on a drawn winged body so they animate like the others; their NFT picture is the original portrait (`art/nft/<name>.jpg`). Mint from the Monstars list to make each an NFT in the founder's wallet.
+- Battle lock (`dist/lock.js`): no zoom and Back can't leave while a battle is live.
