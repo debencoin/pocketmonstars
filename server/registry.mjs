@@ -20,6 +20,13 @@ export class Registry {
   constructor(db, { legendaryOwner = null } = {}) {
     this.db = db;
     this.legendaryOwner = legendaryOwner ? new PublicKey(legendaryOwner).toBase58() : null;
+    // one-time: legendaries used to hatch at level 80; reset those to level 1 Infants
+    db.exec('CREATE TABLE IF NOT EXISTS meta(k TEXT PRIMARY KEY, v TEXT)');
+    if (!db.prepare("SELECT 1 FROM meta WHERE k='legend-infants-v1'").get()) {
+      const ids = LEGENDARY_IDS.join(',') || '-1';
+      db.exec(`UPDATE monstars SET exp=0 WHERE genesis=1 AND species IN (${ids}) AND exp>=${expForLevel(80)}`);
+      db.prepare("INSERT INTO meta(k,v) VALUES('legend-infants-v1','done')").run();
+    }
   }
 
   /** Insert a Monstar with a DNA that no other Monstar shares (looks and stat rolls included). */
@@ -47,14 +54,14 @@ export class Registry {
     return this.insertUnique({ speciesId, originOwner: owner, owner, genesis: true, collection: 'genesis', dnaFor: n => deriveDna(owner, speciesId, n) });
   }
 
-  /** The founder wallet holds the Legendary collection, fully evolved (level 80, Ascended). */
+  /** The founder wallet holds the Legendary collections. They hatch as level 1 Infants with elite attributes (Legendary rarity, near-perfect rolls, +20% stats). */
   claimLegendaries(owner) {
     owner = new PublicKey(owner).toBase58();
     if (owner !== this.legendaryOwner) return [];
     return LEGENDARY_IDS.map(sid => {
       const existing = this.db.prepare('SELECT * FROM monstars WHERE origin_owner=? AND species=? AND genesis=1').get(owner, sid);
       if (existing) return this.toMonstar(existing);
-      return this.insertUnique({ speciesId: sid, originOwner: owner, owner, genesis: true, collection: SPECIES[sid].collection, exp: expForLevel(80),
+      return this.insertUnique({ speciesId: sid, originOwner: owner, owner, genesis: true, collection: SPECIES[sid].collection, exp: 0,
         dnaFor: n => composeDna(deriveDna(owner, sid, n), { rarity: 'Legendary', ivs: [15, 15, 15, 15, 15, 15].map((v, k) => v - ((n + k) % 2)) }) });
     });
   }

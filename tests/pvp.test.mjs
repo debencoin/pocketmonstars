@@ -212,7 +212,7 @@ test('legendaries go only to the founder wallet, fully evolved; breeding gives e
   const reg = new Registry(openDb(':memory:'), { legendaryOwner: founder });
   const mine = reg.claimAll(founder), legends = mine.filter(m => m.species.legendary);
   assert.equal(legends.length, LEGENDARY_IDS.length);
-  for (const l of legends) { assert.equal(l.level, 80); assert.equal(l.stage.name, 'Ascended'); assert.equal(l.traits.rarity, 'Legendary'); assert.equal(l.collection, l.species.collection); }
+  for (const l of legends) { assert.equal(l.level, 1); assert.equal(l.stage.name, 'Infant'); assert.equal(l.traits.rarity, 'Legendary'); assert.equal(l.collection, l.species.collection); }
   const other = wallet(); assert.equal(reg.claimAll(other).filter(m => m.species.legendary).length, 0);
   const pa = reg.claimGenesis(founder, 0), pb = reg.claimGenesis(other, 6);
   const [ca, cb] = reg.breed({ a: pa, b: pb, seed: 'test-seed' });
@@ -342,11 +342,12 @@ test('shields differ per Monstar (from wallet DNA) and a raised shield can block
   for (let i = 0; i < 90; i++) { m.fighters[0].input = S.sanitizeInput({ atk: true }); m.fighters[1].guardT = 99; m.fighters[1].x = m.fighters[0].x + 150; m.fighters[1].y = m.fighters[0].y; blocked += S.step(m).filter(e => e.type === 'blocked').length; }
   assert.ok(blocked > 0); assert.equal(m.fighters[1].hp, hp);
 });
-test('founder wallet holds the 20 Ascendants at level 80 as animated characters', async () => {
+test('founder wallet holds the 20 Ascendants as elite level 1 Infants', async () => {
   const { SPECIES, nftArt } = await import('../shared/monstars.mjs');
   const founder = wallet(), reg = new Registry(openDb(':memory:'), { legendaryOwner: founder });
   const asc = reg.claimAll(founder).filter(m => m.collection === 'ascendants');
-  assert.equal(asc.length, 20); assert.ok(asc.every(m => m.level === 80));
+  assert.equal(asc.length, 20); assert.ok(asc.every(m => m.level === 1));
+  const normal = reg.claimAll(wallet())[0]; assert.ok(asc[0].stats.hp > normal.stats.hp, 'elite Infant beats a normal Infant');
   assert.ok(SPECIES[asc[0].species.id].walker && nftArt(SPECIES[asc[0].species.id]).endsWith('.png'));
   assert.equal(reg.claimAll(wallet()).some(m => m.collection === 'ascendants'), false);
 });

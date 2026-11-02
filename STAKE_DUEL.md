@@ -149,3 +149,6 @@ Stats: HP, Attack, Defense, Sp. Atk, Sp. Def, Speed. Types: EMBER, GROVE, TIDE, 
 
 ## v14: Ascendants as animated pixel characters
 - The 20 Ascendants no longer use the photos in game or as NFT art. `scripts/make_walkers.py` draws each as a Game Boy-style pixel character inspired by its reference portrait (headdress, colours, glowing eyes, jewellery, staff/sword), with a 6-frame sheet in `dist/art/walk/`: two breathing idle frames and a 4-frame run cycle (striding legs, swinging arms, body bob). The renderer plays the run cycle while they move (faster on dashes) and the idle when they stop. They now run on the field (dart, charge, pounce, prance, stomp, skate) instead of hovering. The reference portraits stay in `dist/art/src/ascendants` but are not used.
+
+## v15: founder legendaries hatch as elite Infants
+- Legendary, Ascendant and other founder Monstars now start at level 1 (Infant) instead of 80, with elite attributes: Legendary rarity, near-perfect stat rolls and +20% stats at every level (`elite` in `statsAt`). Existing level-80 copies are reset to Infant once on server start (`meta` flag `legend-infants-v1`). They level up and evolve through play like everyone else.

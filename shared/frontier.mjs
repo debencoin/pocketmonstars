@@ -129,7 +129,7 @@ export const WATCHERS = [
 ];
 
 // Ascendants: 20 legendary portraits supplied by the founder (dist/art/src/ascendants). Held by the founder
-// wallet at level 80, never found in the wild. Battle sprites are framed medallions of each portrait.
+// wallet as elite level 1 Infants, never found in the wild. Drawn as animated pixel characters (scripts/make_walkers.py).
 // Ascendants run around the field (animated walk cycles) instead of floating.
 const RUN = { Nyxara: 'dart', Serqeth: 'skate', Kaelor: 'charge', Lumiyah: 'dart', Thothex: 'prance', Khonsar: 'pounce', Selenox: 'stomp', Amunrah: 'charge', Azarath: 'pounce', Setekh: 'dart',
   Horuskai: 'dart', Neferion: 'prance', Ptahmos: 'stomp', Khepron: 'pounce', Osirak: 'stomp', Isisra: 'skate', Rasolar: 'prance', Anuket: 'charge', Anupex: 'pounce', Nefertek: 'skate' };

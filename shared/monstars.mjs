@@ -263,7 +263,8 @@ export class Monstar {
 /** Stats for a Monstar at any level: base + DNA rolls, grown by level and evolution stage, shaped by nature. */
 export function statsAt(m, level) {
   const nat = NATURES.find(n => n.name === m.traits.nature) || NATURES[7];
-  const st = stageFor(level), growth = (1 + (level - 1) * 0.03) * (TIERS[m.species.tier]?.mult || 1); // rarer wild species are stronger
+  const elite = m.species.legendary ? 1.2 : 1; // founder legendaries: elite Infants, 20% stronger at every level
+  const st = stageFor(level), growth = (1 + (level - 1) * 0.03) * (TIERS[m.species.tier]?.mult || 1) * elite; // rarer wild species are stronger
   const out = {};
   STAT_KEYS.forEach((k, i) => {
     let v = (m.cls.base[i] + m.traits.ivs[i] + m.traits.rarityBonus) * growth * st.mult;
