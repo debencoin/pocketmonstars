@@ -341,6 +341,15 @@ img.px{image-rendering:auto}
 .wildgrid .w{background:#10172a;border:1px solid #2a3550;border-radius:12px;padding:8px 4px;display:flex;flex-direction:column;align-items:center;gap:3px;text-align:center}
 .wildgrid img{width:56px;height:56px;object-fit:contain}
 .wildgrid b{font-size:12px}.wildgrid small{font-size:10px;font-weight:700}
+/* phones: move buttons sit right under the arena, above the HP/SOL cards, never over the Monstars */
+@media (max-width:760px){
+  .mright{display:flex;flex-direction:column}
+  .mright .mask{order:1}.mright .mmoves{order:2}.mright .mcard.r{order:3}.mright .mcard:not(.r){order:4}
+  .mgrid{gap:8px}
+  body.mini-live .playbar{display:none}
+  .mmove{min-height:58px}
+}
+.mfield canvas,.mmove{touch-action:manipulation}
 </style>
 </head>
 <body>
@@ -489,7 +498,7 @@ img.px{image-rendering:auto}
   if (!phone && !inPhantom) document.getElementById('ctaNote').textContent = 'On desktop, install the Phantom browser extension. On a phone, this button opens the game inside the Phantom app. Currently on Solana devnet with free test SOL.';
 })();
 </script>
-<script src="/pixel-arena.js"></script>
+<script src="/lock.js"></script><script src="/pixel-arena.js"></script>
 <script type="module">
 // Playable mini battle on the front page: the real engine and renderer, your move cards, a practice SOL pot.
 import { createMatch, step, snapshot, sanitizeInput, aiInput, ARENA, TICK, STYLES } from '/shared/sim.mjs';
@@ -529,6 +538,7 @@ if (cv && window.PMArena) {
     prev = null; cur = snapshot(m); at = performance.now(); endAt = 0; fightAt = performance.now(); types = [a.type, b.type]; r.reset();
     [a, b].forEach((x, i) => { $('mN' + i).textContent = x.species.name.toUpperCase(); $('mPic' + i).src = PMArena.spriteSrc(x.species.id); $('mN' + i).textContent = x.species.name; const t = $('mT' + i); t.textContent = x.type; t.dataset.t = x.type; t.style.setProperty('--tc', TC[x.type]); });
     moves(a, b); $('mOver').hidden = true; sol();
+    window.PMLock?.on({ onBack: () => { $('mMsg').innerHTML = 'Finish the battle first!'; } }); document.body.classList.add('mini-live');
   }
   function sol(hit) {
     for (const i of [0, 1]) { $('mS' + i).textContent = formatSol(ledger.shares[i], 6) + ' SOL'; const d = ledger.shares[i] - STAKE, el = $('mD' + i);
@@ -546,7 +556,7 @@ if (cv && window.PMArena) {
     }
     prev = cur; cur = snapshot(m); at = performance.now();
     cur.f.forEach((f, i) => { if (f.ct < last[i] && f.ct < 0.3 && f.ck) { const t = $('mT' + i), sp = SPECIES[f.s]; t.textContent = (f.ck === 'special' ? sp.special : sp.move).toUpperCase(); t.classList.add('cast'); clearTimeout(t._t); t._t = setTimeout(() => { t.classList.remove('cast'); t.textContent = t.dataset.t; }, 1200); } last[i] = f.ct; });
-    if (m.over) { ledger.finish(m.winner); sol(); endAt = performance.now();
+    if (m.over) { ledger.finish(m.winner); sol(); endAt = performance.now(); window.PMLock?.off(); document.body.classList.remove('mini-live');
       const won = m.winner === 0; rec.wins += won ? 1 : 0; rec.streak = won ? rec.streak + 1 : 0; rec.best = Math.max(rec.best, rec.streak); try { localStorage.setItem(KEY, JSON.stringify(rec)); } catch {}
       $('mWins').textContent = rec.wins; $('mStreak').textContent = rec.streak; $('mBest').textContent = rec.best;
       setTimeout(() => { $('mBig').textContent = m.winner == null ? 'Draw' : won ? 'Victory!' : 'Defeated'; $('mSmall').innerHTML = `${won ? 'You took the practice pot: ' + formatSol(ledger.pot, 4) + ' SOL' : 'Your rival took the practice pot'} · +${m.fighters[0].expGained} EXP<br>Stake real SOL against a rival in Phantom.`; $('mGo').textContent = 'Battle again'; $('mOver').hidden = false; }, 1500); }

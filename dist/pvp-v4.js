@@ -427,6 +427,9 @@ function renderRoom() {
   const stage = q('pvStage'), full = !!room && room.state === 'live' && (!ended || fainting) || (!!ended && fainting) || stay;
   stage.classList.toggle('live', !!full);
   document.documentElement.classList.toggle('pv-battling', !!full);
+  // lock the page while the battle is on screen: no zoom, Back can't leave, no scrolling behind it
+  if (full && !window.PMLock?.active) window.PMLock?.on({ scroll: true, warn: room?.stake && room.stake !== '0', onBack: () => toast(room?.stake && room.stake !== '0' ? 'The match is live. Leaving counts as a loss, so tap Run if you really want to quit.' : 'Battle in progress. Tap Run to leave.') });
+  else if (!full && window.PMLock?.active) window.PMLock.off();
   if (full && stage.parentElement !== document.body) { stageHome ??= stage.parentElement; stageNext = stage.nextSibling; document.body.append(stage); }
   else if (!full && stageHome && stage.parentElement === document.body) stageHome.insertBefore(stage, stageNext);
   q('pvHud').hidden = !full; q('pvMoves').hidden = !full || stay; q('pvPot').hidden = !full;
