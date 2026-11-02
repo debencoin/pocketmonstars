@@ -351,3 +351,10 @@ test('founder wallet holds the 20 Ascendants as elite level 1 Infants', async ()
   assert.ok(SPECIES[asc[0].species.id].walker && nftArt(SPECIES[asc[0].species.id]).endsWith('.png'));
   assert.equal(reg.claimAll(wallet()).some(m => m.collection === 'ascendants'), false);
 });
+
+test('Ascendants evolve into a differently named form at each stage', async () => {
+  const { SPECIES, Monstar, formName } = await import('../shared/monstars.mjs');
+  const sp = SPECIES.find(s => s.walker);
+  assert.equal(sp.forms.length, 6); assert.equal(new Set(sp.forms).size, 6);
+  for (const [lv, st] of [[1, 0], [3, 1], [10, 2], [25, 3], [50, 4], [80, 5]]) assert.equal(new Monstar({ speciesId: sp.id, level: lv }).toJSON().form, formName(sp, st));
+});

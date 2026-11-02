@@ -162,7 +162,7 @@ function expBar(m) { return `<div class="pv-xp" title="${m.expInto} / ${m.expNee
 function cardHtml(m, extra = '') {
   return `<span class="pv-rar ${esc(m.traits.rarity)}">${esc(m.traits.rarity)}</span>${m.tier ? `<span class="pv-tier ${esc(m.tier)}">${esc(m.tier)}</span>` : ''}<span class="pv-lv">Lv${m.level} · ${esc(m.stage)}</span>
   <img class="px nftimg" src="art/nft/${Monstars.nftArt(Monstars.SPECIES[m.speciesId])}" alt="${esc(m.name)}" style="filter:hue-rotate(${m.traits.hue}deg)" loading="lazy">
-  <span class="nm">${esc(m.name)}</span><span class="sub">${esc(m.className)} · ${esc(m.type)} · ${esc(m.traits.aura)} ${esc(m.traits.pattern)} · ${esc(m.traits.nature)} · 🛡 ${m.traits.shield ?? 70}% shield</span>
+  <span class="nm">${esc(m.form && m.form !== Monstars.SPECIES[m.speciesId].name ? m.form : m.name)}</span><span class="sub">${esc(m.className)} · ${esc(m.type)} · ${esc(m.traits.aura)} ${esc(m.traits.pattern)} · ${esc(m.traits.nature)} · 🛡 ${m.traits.shield ?? 70}% shield</span>
   ${expBar(m)}${statBars(m.stats)}${extra}`;
 }
 async function refreshMine() {
@@ -304,7 +304,7 @@ function renderPicker() {
   Monstars.SPECIES.filter(usableSpecies).forEach(sp => {
     const own = ownedFor(sp.id), b = el('button', { className: 'pv-pick' + (sp.legendary ? ' legend' : ''), title: sp.name });
     b.setAttribute('aria-pressed', sp.id === pickedSpecies);
-    b.innerHTML = `<img class="px" src="${PA.spriteSrc(sp.id)}" alt="${sp.name}" style="filter:hue-rotate(${own?.traits.hue || 0}deg)">`;
+    b.innerHTML = `<img class="px" src="${PA.spriteSrc(sp.id, own?.stageId)}" alt="${sp.name}" style="filter:hue-rotate(${own?.traits.hue || 0}deg)">`;
     if (mode === '3v3' && teamPick.includes(sp.id)) b.classList.add('inteam');
     b.onclick = () => { pickedSpecies = sp.id; if (own) picked = own.serial;
       if (mode === '3v3' && !teamPick.includes(sp.id)) { if (teamPick.length >= 3) teamPick.shift(); teamPick.push(sp.id); }
@@ -390,7 +390,8 @@ let refreshT;
 function refreshSoon() { clearTimeout(refreshT); refreshT = setTimeout(() => { if (S.session()) refreshMine(); }, 1500); }
 function battleEvent(ev) {
   if (!snapCur) return;
-  if (ev.type === 'level') ev.name = Monstars.SPECIES[snapCur.f[ev.side]?.s ?? room?.players?.[ev.side]?.monstar?.speciesId ?? 0].name.toUpperCase();
+  if (ev.type === 'level') { const sp = Monstars.SPECIES[snapCur.f[ev.side]?.s ?? room?.players?.[ev.side]?.monstar?.speciesId ?? 0];
+    ev.name = Monstars.formName(sp, Math.max(0, (ev.stageId ?? 1) - 1)).toUpperCase(); if (sp.forms && ev.evolved) ev.formTo = Monstars.formName(sp, ev.stageId); else if (!sp.forms) ev.name = sp.name.toUpperCase(); }
   if (ev.type === 'switch') ev.name = Monstars.SPECIES[ev.speciesId].name.toUpperCase();
   if (ev.type === 'hit' && ev.fee == null && room && room.stake !== '0' && ev.feeLamports) ev.fee = sol(ev.feeLamports, 9);
   if (ev.type === 'hit' && practiceMoney() && vLedger && ev.fee == null) { // pretend pot for practice
@@ -548,9 +549,9 @@ setInterval(sendInput, 50);
 // ---------- 3v3: active Monstar names and the team strip (tap your own to switch) ----------
 const shownS = [null, null];
 function activeHud(you) {
-  [you, 1 - you].forEach((idx, k) => { const f = snapCur.f[idx]; if (!f || shownS[k] === f.s) return; shownS[k] = f.s;
+  [you, 1 - you].forEach((idx, k) => { const f = snapCur.f[idx]; if (!f || shownS[k] === f.s + ':' + f.sg) return; shownS[k] = f.s + ':' + f.sg; // changes when it evolves mid-battle
     const sp = Monstars.SPECIES[f.s], hue = room.players[idx]?.team?.find(x => x.speciesId === f.s)?.traits?.hue || 0;
-    q('pvN' + k).textContent = sp.name.toUpperCase(); q('pvPic' + k).src = PA.spriteSrc(f.s); q('pvPic' + k).style.filter = `hue-rotate(${hue}deg)`;
+    q('pvN' + k).textContent = Monstars.formName(sp, f.sg).toUpperCase(); q('pvPic' + k).src = PA.spriteSrc(f.s, f.sg); q('pvPic' + k).style.filter = `hue-rotate(${hue}deg)`;
     const t = q('pvT' + k); t.dataset.type = sp.type; if (!t.classList.contains('cast')) t.textContent = sp.type; t.style.setProperty('--tc', TYPE_COL[sp.type] || '#888'); });
   buildMoves(snapCur.f[you].s, snapCur.f[1 - you].s);
 }

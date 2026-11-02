@@ -43,7 +43,7 @@ D = {
   'nefertek': dict(skin=c('#e8dcc0'), robe=c('#2a8ab8'), trim=GOLD, eye=c('#c86a2a'), head='tallcrown', hc=c('#2a8ab8'), x=dict(circuit=c('#b08a40'), collar=GOLD)),
 }
 
-def frame(d, f):
+def frame(d, f, stage=2):
     """f: 0,1 idle (breathing) - 2..5 run cycle."""
     im = Image.new('RGBA', (GW, GH), (0, 0, 0, 0)); g = ImageDraw.Draw(im)
     P = lambda x, y, w=1, h=1, col=None: g.rectangle([x, y, x + w - 1, y + h - 1], fill=col)
@@ -52,8 +52,28 @@ def frame(d, f):
     stride = [3, 0, -3, 0][k] if run else 0         # +: left (front) leg forward
     lift = [1, 0, 1, 0][k] if run else 0
     swing = -stride                                 # arms swing opposite to legs
-    x = d['x']; skin, robe, trim, eye, hc = d['skin'], d['robe'], d['trim'], d['eye'], d['hc']
-    cx, by = 24, 31 + bob                           # body top
+    x = dict(d['x']); skin, robe, trim, eye, hc = d['skin'], d['robe'], d['trim'], d['eye'], d['hc']
+    # --- evolution forms: each stage is a different character ---
+    FACE = ('tears', 'facelines', 'facepaint', 'halfmask', 'mask', 'thirdeye', 'cyber', 'nosering')
+    if stage <= 1:                                   # Infant / Rookie: young, plain, no gear
+        keep = FACE + (('collar', 'scarab', 'ankh', 'beads', 'hoops') if stage == 1 else ())
+        x = {k: v for k, v in x.items() if k in keep}
+        robe = tint(robe, 0.35 if stage == 0 else 0.15)
+    if stage >= 3: x.setdefault('weapon', 'staff')    # Ultimate and up carry a weapon
+    TH, LH = (12, 5) if stage == 0 else (14, 6) if stage == 1 else (16, 8)
+    cx = 24; by = 56 - 2 - LH - (TH - 1) + bob      # body top (feet stay on the ground)
+    wingc = tint(hc, 0.35) if hc[:3] != skin[:3] else tint(trim, 0.2)
+    if stage >= 4:                                   # Mega: 2 great wings, Ascended: 4 wings + halo
+        for s2 in (-1, 1):
+            for row in range(9):
+                L = 16 - abs(row - 3) * 2
+                P(cx + (8 if s2 > 0 else -8 - L), by - 10 + row * 2, L, 2, wingc if row % 2 else shade(wingc, 0.18))
+            if stage >= 5:
+                for row in range(6): L = 11 - row; P(cx + (8 if s2 > 0 else -8 - L), by + 6 + row * 2, L, 2, tint(wingc, 0.3) if row % 2 else wingc)
+    if stage >= 5: g.ellipse([cx - 12, by - 33, cx + 14, by - 26], outline=GOLD, width=2)
+    if stage >= 3:                                   # cape behind the body
+        capec = shade(eye, 0.35) if stage == 3 else shade(robe, 0.45)
+        for row in range(TH + 4): w2 = 22 + row // 2; P(cx - w2 // 2, by + 1 + row, w2, 1, capec if row % 4 else shade(capec, 0.2))
     # back-layer extras
     if x.get('halo'): g.ellipse([cx - 13, 1 + bob, cx + 13, 25 + bob], outline=x['halo'], width=2)
     if x.get('moon'): g.ellipse([cx - 12, 0 + bob, cx + 12, 22 + bob], fill=x['moon'])
@@ -66,12 +86,16 @@ def frame(d, f):
     if x.get('fur'): P(cx - 13, by + 1, 26, 5, x['fur'])
     # legs (two, alternating) and feet
     for s, off in ((-1, stride), (1, -stride)):
-        lx = cx + s * 4 - 2 + off; ly = by + 15
-        leg_h = 8 - (lift if off > 0 else 0)
+        lx = cx + s * 4 - 2 + off; ly = by + TH - 1
+        leg_h = LH - (lift if off > 0 else 0)
         P(lx, ly, 5, leg_h, shade(robe, 0.35)); P(lx - (1 if s < 0 else 0), ly + leg_h, 6, 2, trim)
     # torso / robe
-    P(cx - 8, by, 16, 16, robe); P(cx - 8, by, 2, 16, shade(robe, 0.25)); P(cx + 6, by, 2, 16, tint(robe, 0.15))
-    P(cx - 9, by + 13, 18, 3, robe)                 # robe flare
+    P(cx - 8, by, 16, TH, robe); P(cx - 8, by, 2, TH, shade(robe, 0.25)); P(cx + 6, by, 2, TH, tint(robe, 0.15))
+    P(cx - 9, by + TH - 3, 18, 3, robe)             # robe flare
+    if stage >= 3:                                   # shoulder armour and gold chestplate
+        P(cx - 12, by - 2, 7, 5, trim); P(cx + 5, by - 2, 7, 5, trim); P(cx - 11, by - 2, 5, 1, tint(trim, 0.4)); P(cx + 6, by - 2, 5, 1, tint(trim, 0.4))
+        P(cx - 6, by + 2, 12, 7, trim); P(cx - 5, by + 3, 10, 5, shade(trim, 0.2)); P(cx - 1, by + 4, 2, 3, eye)
+    if stage >= 5: P(cx - 8, by + TH - 4, 16, 1, GOLD); P(cx - 1, by, 2, TH - 4, GOLD)
     P(cx - 8, by + 9, 16, 2, trim)                  # belt
     if x.get('glyphs'): [P(cx - 5 + i * 3, by + 3 + (i % 2) * 2, 1, 2, x['glyphs']) for i in range(4)]
     if x.get('circuit'): [P(cx - 6 + i * 4, by + 2, 1, 6, x['circuit']) or P(cx - 6 + i * 4, by + 7, 3, 1, x['circuit']) for i in range(3)]
@@ -97,8 +121,8 @@ def frame(d, f):
     if w == 'staff': hx = cx + 10 + (swing // 2 if run else 0); P(hx, by - 12, 2, 28, GOLD); P(hx - 1, by - 14, 4, 3, c('#fff0b0'))
     if w == 'sword': hx = cx + 10 + (swing // 2 if run else 0); P(hx, by - 10, 2, 22, c('#eef6ff')); P(hx - 2, by + 10, 6, 2, SILVER); P(hx, by - 9, 1, 18, c('#ffe0a0'))
     # head
-    hx, hy = cx + 1, 18 + bob                       # head centre
-    head = d['head']
+    hx, hy = cx + 1, by - 13                        # head centre
+    head = d['head'] if stage >= 2 or d['head'] == 'jackal' else 'cap' if stage == 0 else 'circlet'
     if head == 'jackal':                             # jackal head with tall ears and long snout
         P(hx - 6, hy - 18, 4, 10, hc); P(hx + 3, hy - 18, 4, 10, hc); P(hx - 5, hy - 16, 2, 6, skin); P(hx + 4, hy - 16, 2, 6, skin)
         g.ellipse([hx - 8, hy - 9, hx + 8, hy + 7], fill=skin); P(hx + 4, hy - 1, 9, 5, skin); P(hx + 11, hy, 2, 2, c('#202028'))
@@ -121,7 +145,11 @@ def frame(d, f):
         if x.get('beard'): P(hx - 4, hy + 6, 9, 6, x['beard']); P(hx - 3, hy + 7, 7, 4, tint(x['beard'], 0.3))
         if x.get('cyber'): g.ellipse([hx + 2, hy - 3, hx + 7, hy + 2], fill=c('#3a3a8a'), outline=GOLD)
         # headdress
-        if head == 'dome':
+        if head == 'cap':
+            g.chord([hx - 9, hy - 11, hx + 9, hy + 3], 180, 360, fill=hc); P(hx - 2, hy - 13, 4, 3, hc)
+        elif head == 'circlet':
+            g.chord([hx - 9, hy - 11, hx + 9, hy + 3], 180, 360, fill=hc); P(hx - 9, hy - 5, 19, 2, trim); P(hx - 1, hy - 7, 3, 3, eye)
+        elif head == 'dome':
             g.chord([hx - 10, hy - 13, hx + 10, hy + 5], 180, 360, fill=hc); P(hx - 10, hy - 4, 21, 2, trim); P(hx - 1, hy - 13, 3, 10, trim)
             for i in range(4): P(hx - 8 + i * 5, hy - 10 + (i % 2), 2, 2, trim)
             for s in (-1, 1): P(hx + s * 10 - 1, hy - 3, 2, 14, trim)
@@ -190,6 +218,10 @@ def frame(d, f):
         elif head == 'tallcrown':
             P(hx - 8, hy - 24, 17, 16, hc); P(hx - 9, hy - 9, 19, 2, GOLD); P(hx - 2, hy - 20, 5, 6, GOLD); P(hx - 1, hy - 19, 3, 4, c('#ffe890'))
             [P(hx - 7 + i * 4, hy - 22 + (i % 2) * 5, 1, 1, GOLD) for i in range(5)]
+    if stage >= 3:                                   # spiked crown above the headdress
+        for i, h2 in enumerate((4, 7, 4)): P(hx - 6 + i * 6, hy - 14 - h2 - (4 if head in ('twinplume', 'plume', 'tallcrown', 'jackal', 'sundisc') else 0), 2, h2, GOLD)
+    if stage >= 5:
+        for i in range(10): P((i * 17 + f * 5) % GW, (i * 11 + f * 7) % 30 + 2, 1, 1, GOLD if i % 2 else (255, 255, 255, 255))
     # 1px dark outline around the whole silhouette
     a = im.getchannel('A'); o = Image.new('RGBA', (GW, GH), (0, 0, 0, 0)); po = o.load(); pa = a.load()
     for yy in range(GH):
@@ -199,9 +231,11 @@ def frame(d, f):
     o.alpha_composite(im); return o
 
 for name, d in D.items():
-    frames = [frame(d, f) for f in range(6)]
+  for stage in range(6):
+    frames = [frame(d, f, stage) for f in range(6)]
     sheet = Image.new('RGBA', (GW * 6, GH), (0, 0, 0, 0))
     for i, fr in enumerate(frames): sheet.paste(fr, (i * GW, 0))
-    sheet.resize((GW * 6 * Z, GH * Z), Image.NEAREST).save(os.path.join(WALK, name + '.png'))
-    frames[0].resize((GW * Z, GH * Z), Image.NEAREST).save(os.path.join(HD, name + '.png'))
+    sheet.resize((GW * 6 * Z, GH * Z), Image.NEAREST).save(os.path.join(WALK, f'{name}_s{stage}.png'))
+    frames[0].resize((GW * Z, GH * Z), Image.NEAREST).save(os.path.join(HD, f'{name}_s{stage}.png'))
+    if stage == 2: frames[0].resize((GW * Z, GH * Z), Image.NEAREST).save(os.path.join(HD, name + '.png'))
 print('walkers', len(D))

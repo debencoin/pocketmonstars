@@ -142,9 +142,13 @@ export const SPECIES = [
 ];
 for (const [list, coll] of [[FRONTIER, 'frontier'], [MYTHIC, 'mythic'], [ANUNNAKI, 'anunnaki'], [WATCHERS, 'watchers'], [ASCENDANTS, 'ascendants']]) for (const f of list) {
   SPECIES.push({ id: SPECIES.length, name: f.name, type: f.type, art: f.name.toLowerCase(), cls: CLASS_BY_ID[f.cls], move: f.move, special: f.special,
-    basicStyle: f.basicStyle, specialStyle: f.specialStyle, motion: f.motion, collection: coll, tier: f.tier, mythic: ['Mythic', 'Divine'].includes(f.tier) || undefined, legendary: f.legendary || undefined, portrait: f.look.plan === 'portrait' || undefined, walker: f.look.plan === 'walker' || undefined, color: f.look.main });
+    basicStyle: f.basicStyle, specialStyle: f.specialStyle, motion: f.motion, collection: coll, tier: f.tier, mythic: ['Mythic', 'Divine'].includes(f.tier) || undefined, legendary: f.legendary || undefined, portrait: f.look.plan === 'portrait' || undefined, walker: f.look.plan === 'walker' || undefined, forms: f.look.plan === 'walker' ? walkerForms(f.name) : undefined, color: f.look.main });
 }
 export { TIERS };
+/** Ascendants evolve into a different character at every stage, each with its own name. */
+function walkerForms(name) { const r = name.replace(/[aeiouy]+[a-z]?$/i, '') || name; return [r + 'kit', r + 'ling', name, name + ' Prime', 'Mega ' + name, 'Ascended ' + name]; }
+/** Name of a species in a given evolution stage (0 Infant ... 5 Ascended). */
+export function formName(species, stageId = 2) { return species.forms?.[stageId] || species.name; }
 export const GENESIS_IDS = SPECIES.filter(s => s.collection === 'genesis').map(s => s.id);
 export const FRONTIER_IDS = SPECIES.filter(s => s.collection === 'frontier').map(s => s.id);
 export const MYTHIC_IDS = SPECIES.filter(s => s.collection === 'mythic').map(s => s.id);
@@ -253,7 +257,7 @@ export class Monstar {
   }
   toJSON() {
     const p = levelProgress(this.exp);
-    return { speciesId: this.species.id, tier: this.species.tier || null, name: this.displayName, type: this.type, className: this.className, passive: this.cls.passive,
+    return { form: formName(this.species, this.stage.id), speciesId: this.species.id, tier: this.species.tier || null, name: this.displayName, type: this.type, className: this.className, passive: this.cls.passive,
       dna: this.dna, serial: this.serial, originOwner: this.originOwner, owner: this.owner, asset: this.asset, traits: this.traits, stats: this.stats,
       level: this.level, exp: this.exp, expInto: p.into, expNeed: p.need, stage: this.stage.name, stageId: this.stage.id,
       collection: this.collection, legendary: !!this.species.legendary, parents: this.parents };

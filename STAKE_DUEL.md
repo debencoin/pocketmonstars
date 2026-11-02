@@ -152,3 +152,6 @@ Stats: HP, Attack, Defense, Sp. Atk, Sp. Def, Speed. Types: EMBER, GROVE, TIDE, 
 
 ## v15: founder legendaries hatch as elite Infants
 - Legendary, Ascendant and other founder Monstars now start at level 1 (Infant) instead of 80, with elite attributes: Legendary rarity, near-perfect stat rolls and +20% stats at every level (`elite` in `statsAt`). Existing level-80 copies are reset to Infant once on server start (`meta` flag `legend-infants-v1`). They level up and evolve through play like everyone else.
+
+## v16: Ascendants evolve into different characters
+- Each Ascendant has six forms with their own names and art (`forms`, `formName`): Infant (small child in a plain cap, e.g. Kaelkit), Rookie (apprentice with a circlet, Kaelling), Champion (full design, Kaelor), Ultimate (cape, gold chestplate, spiked crown, weapon: Kaelor Prime), Mega (two great wings: Mega Kaelor), Ascended (four wings, halo, sparkling aura: Ascended Kaelor). `scripts/make_walkers.py` draws a 6-frame run/idle sheet per form (`dist/art/walk/<name>_s0..5.png`, icons `dist/art/hd/<name>_s0..5.png`). In battle the sprite, HUD name and picture switch the moment it evolves, with an "X evolved into Y!" banner.
