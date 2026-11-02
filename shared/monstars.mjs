@@ -1,3 +1,4 @@
+import { kitFor } from './abilities.mjs';
 import { FRONTIER, MYTHIC, ANUNNAKI, WATCHERS, ASCENDANTS, TIERS } from './frontier.mjs';
 // PocketMonstars species, classes, evolution stages, EXP and DNA traits.
 // Pure ES module: runs in the browser (rendering) and in Node (authoritative server).
@@ -149,6 +150,7 @@ export { TIERS };
 function walkerForms(name) { const r = name.replace(/[aeiouy]+[a-z]?$/i, '') || name; return [r + 'kit', r + 'ling', name, name + ' Prime', 'Mega ' + name, 'Ascended ' + name]; }
 /** Name of a species in a given evolution stage (0 Infant ... 5 Ascended). */
 export function formName(species, stageId = 2) { return species.forms?.[stageId] || species.name; }
+{ const used = new Set(); for (const sp of SPECIES) sp.kit = kitFor(sp, used); } // every species gets its own ability kit
 export const GENESIS_IDS = SPECIES.filter(s => s.collection === 'genesis').map(s => s.id);
 export const FRONTIER_IDS = SPECIES.filter(s => s.collection === 'frontier').map(s => s.id);
 export const MYTHIC_IDS = SPECIES.filter(s => s.collection === 'mythic').map(s => s.id);

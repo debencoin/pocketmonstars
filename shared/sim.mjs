@@ -42,7 +42,7 @@ export const STATUS = Object.freeze({
 });
 export const TYPE_STATUS = Object.freeze({ SPARK: 'paralyze', FROST: 'freeze', EMBER: 'burn', DRACO: 'burn', VENOM: 'poison', GROVE: 'root',
   STONE: 'stun', STEEL: 'stun', SHADE: 'confuse', PSYCHIC: 'lift', TIDE: 'soak', GALE: 'soak', ASTRAL: 'dazzle', ANCIENT: 'weaken', WATCHER: 'mark' });
-export const ULT_GAIN = 1.4; // ULT meter per point of damage dealt (and 0.6 per point taken); a full meter powers up the next special
+export const ULT_GAIN = 1.0; // ULT meter per point of damage dealt (and 0.6 per point taken); a full meter powers up the next special
 export const BATTLE_HP = 1.7; // battle HP multiplier so a fight lasts close to the full minute
 export const PICKUP = Object.freeze({ every: 14, heal: 0.2, r: 34, life: 12 });
 export const BOUNDS = Object.freeze({ x0: 60, x1: 900, y0: 150, y1: 500 });
@@ -86,14 +86,14 @@ export function sanitizeInput(i = {}) {
   const m = Math.hypot(mx, my); if (m > 1) { mx /= m; my /= m; }
   const [ax, ay] = norm(num(i.ax), num(i.ay));
   const sw = Number.isInteger(i.sw) && i.sw >= 0 && i.sw < 3 ? i.sw : -1; // 3v3: switch to team slot
-  return { mx, my, ax, ay, atk: !!i.atk, sp: !!i.sp, dash: !!i.dash, guard: !!i.guard, sw };
+  return { mx, my, ax, ay, atk: !!i.atk, sp: !!i.sp, dash: !!i.dash, guard: !!i.guard, mega: !!i.mega, sw };
 }
 
 function makeFighter(monstar, side, teamMax = 0) {
   const s = monstar.stats, sp = monstar.species;
   return {
     shield: monstar.traits?.shield ?? 70, side, teamMax: Math.round((teamMax || s.hp) * BATTLE_HP), mon: monstar, speciesId: sp.id, type: monstar.type, mods: monstar.cls.mods, stats: s,
-    styles: { basic: sp.basicStyle || 'projectile', special: sp.specialStyle || 'beam' },
+    styles: { basic: sp.basicStyle || 'projectile', special: sp.specialStyle || 'beam' }, kit: sp.kit, burstT: 0, guardKind: null,
     motion: MOTION[sp.motion] ? sp.motion : 'pounce',
     level: monstar.level, exp: monstar.exp, expGained: 0,
     x: side === 0 ? 170 : ARENA.w - 170, y: ARENA.h / 2 + 20, vx: 0, vy: 0,
@@ -141,6 +141,55 @@ function updatePickups(m, dt, events) {
   }
   m.pickups = m.pickups.filter(p => p.life > 0);
 }
+// ---------- unique dash, guard and Mega Shot abilities ----------
+function doDash(m, f, foe, mx, my, events) {
+  const k = f.kit?.dash.kind || 'dash', [dx, dy] = (mx || my) ? norm(mx, my) : [f.fx, f.fy];
+  f.cd.dash = (f.kit?.dash.cd ?? 1.6) * f.mods.dashCd; f.actions++; f.dashKind = k; f.dashHit = false;
+  events.push({ type: 'dash', side: f.side, k, name: f.kit?.dash.name });
+  if (k === 'blink') { f.x += dx * 170 * (f.kit.dash.dist); f.y += dy * 120 * (f.kit.dash.dist); f.iframes = 0.3; f.blinkT = 0.35; collide(f); f.dashKind = null; return; }
+  if (k === 'shadow') { const [bx, by] = norm(foe.x - f.x, foe.y - f.y); f.x = foe.x + bx * 70; f.y = foe.y + by * 40; f.iframes = 0.3; f.blinkT = 0.35; collide(f); f.dashKind = null; return; }
+  if (k === 'burst') { f.burstT = 1.4 * f.kit.dash.dist; f.dashKind = null; return; }
+  f.dashT = k === 'leap' ? 0.34 : 0.18; f.iframes = k === 'phase' ? 0.65 : k === 'leap' ? 0.4 : 0.28; f.dvx = dx; f.dvy = dy;
+  if (k === 'mend') f.hp = Math.min(f.maxHp, f.hp + f.maxHp * 0.05);
+}
+function dashTick(m, f, foe, events) {
+  const d = Math.hypot(foe.x - f.x, foe.y - f.y);
+  if (f.dashKind === 'charge' && !f.dashHit && d < 70) { f.dashHit = true; const [nx, ny] = norm(foe.x - f.x, foe.y - f.y); land(m, f, foe, 'basic', 'whip', events, nx, ny, 260, 9); }
+  if (f.dashKind === 'trail' && !f.dashHit && d < 90) { f.dashHit = true; const sk = TYPE_STATUS[f.type]; if (sk) applyStatus(m, foe, sk, f, events, 0.7); }
+}
+function dashEnd(m, f, foe, events) {
+  const k = f.dashKind; f.dashKind = null;
+  if (k === 'leap' || k === 'shock') {
+    const d = Math.hypot(foe.x - f.x, foe.y - f.y); events.push({ type: 'quake', side: f.side, x: f.x, y: f.y });
+    if (d < (k === 'shock' ? 130 : 90)) { const [nx, ny] = norm(foe.x - f.x, foe.y - f.y); if (k === 'leap') land(m, f, foe, 'basic', 'strike', events, nx, ny, 160, 7); else { foe.vx += nx * 420 * foe.mods.knockback; foe.vy += ny * 420 * foe.mods.knockback; } }
+  }
+}
+function doGuard(m, f, foe, events) {
+  const k = f.kit?.guard.kind || 'shield', t = f.kit?.guard.time ?? 1;
+  f.energy -= 20; f.cd.guard = f.kit?.guard.cd ?? 6; f.actions++; f.guardKind = k;
+  f.guardT = 1.2 * f.mods.guardTime * t * (k === 'fortress' ? 2 : k === 'evade' ? 0.6 : 1);
+  if (k === 'evade') f.iframes = Math.max(f.iframes, f.guardT);
+  if (k === 'barrier') { const d = Math.hypot(foe.x - f.x, foe.y - f.y); if (d < 200) { const [nx, ny] = norm(foe.x - f.x, foe.y - f.y); foe.vx += nx * 520 * foe.mods.knockback; foe.vy += ny * 520 * foe.mods.knockback; } }
+  events.push({ type: 'guard', side: f.side, k, name: f.kit?.guard.name });
+}
+function megaShot(m, f, foe, events) {
+  const g = f.kit?.mega || { kind: 'nova', power: 1, size: 1 }, P = 30 * g.power, sz = g.size, k = g.kind;
+  f.castT = 0; f.castKind = 'special'; f.actions++;
+  events.push({ type: 'mega', side: f.side, k, name: g.name });
+  const fx = (x, y, style, extra = {}) => { const S = STYLES[style]; m.effects.push({ id: m.nextId++, owner: f.side, kind: 'special', style, type: f.type, sid: f.speciesId, x: f.x, y: f.y, dx: f.fx, dy: f.fy,
+    gx: clamp(x, 40, ARENA.w - 40), gy: clamp(y, BOUNDS.y0, BOUNDS.y1), t: 0, dur: S.dur, hit: false, nextTick: 0, thrown: 0, bolted: false, pw: P, mega: true, ...extra }); };
+  if (k === 'barrage') { for (let i = 0; i < 7; i++) { const a = Math.atan2(f.fy, f.fx) + (i - 3) * 0.16, sp = STYLES.projectile.speed * 1.1;
+    m.projectiles.push({ id: m.nextId++, owner: f.side, kind: 'special', style: 'projectile', type: f.type, sid: f.speciesId, x: f.x + Math.cos(a) * 36, y: f.y + Math.sin(a) * 36, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, r: 16, life: 1.4, hitDone: false, missDone: false, pw: P * 0.38, homing: true }); } }
+  else if (k === 'nova') fx(f.x, f.y, 'strike', { rad: 170 * sz, t: 0.25 });
+  else if (k === 'meteors') for (let i = 0; i < 4; i++) { const a = i * 1.57 + 0.4; fx(foe.x + Math.cos(a) * 60 * sz * (i ? 1 : 0), foe.y + Math.sin(a) * 40 * sz * (i ? 1 : 0), 'strike', { t: -i * 0.22, pw: P * 0.45, rad: 70 }); }
+  else if (k === 'vortex') { const [nx, ny] = norm(f.x - foe.x, f.y - foe.y); foe.vx += nx * 600 * Math.max(0.3, foe.mods.knockback); foe.vy += ny * 600 * Math.max(0.3, foe.mods.knockback); fx(f.x + f.fx * 90, f.y + f.fy * 60, 'strike', { rad: 130 * sz }); }
+  else if (k === 'chain') for (let i = 0; i < 3; i++) fx(foe.x, foe.y, 'bolt', { t: -i * 0.3, pw: P * 0.4, reach: 1.4 });
+  else if (k === 'lance') { fx(foe.x, foe.y, 'beam', { wid: 90 * sz, reach: 1.3 }); f.rootT = STYLES.beam.dur; }
+  else if (k === 'freeze') fx(foe.x, foe.y, 'strike', { rad: 110 * sz, pw: P * 0.7, then: (v, ev) => applyStatus(m, v, 'freeze', f, ev, 1.6) });
+  else if (k === 'drain') { fx(foe.x, foe.y, 'beam', { drain: true, pw: P * 0.85, wid: 60 * sz }); f.rootT = STYLES.beam.dur; }
+  else if (k === 'pillars') { const [nx, ny] = norm(foe.x - f.x, foe.y - f.y); for (let i = 1; i <= 5; i++) fx(f.x + nx * i * 95 * sz, f.y + ny * i * 70 * sz, 'strike', { t: -i * 0.12, pw: P * 0.4, rad: 60 }); }
+  else if (k === 'judgment') { applyStatus(m, foe, 'lift', f, events, 1); fx(foe.x, foe.y, 'strike', { t: -0.9, rad: 100 * sz, pw: P * 0.9 }); }
+}
 function teamHpFrac(m, side) { return m.roster[side].reduce((n, f, i) => n + (f ? f.hp : m.teams[side][i].stats.hp * BATTLE_HP), 0) / (m.teamMax[side] * BATTLE_HP); }
 
 function collide(f) {
@@ -173,12 +222,13 @@ function damageFor(att, vic, kind, style, powerOverride) {
   const D = kind === 'special' ? vic.stats.spDefense : vic.stats.defense;
   const eff = effectiveness(att.type, vic.type);
   const crit = Math.random() < 0.08;
-  let d = (powerOverride ?? STYLES[style].power) * (1 + (att.level - 1) * 0.03) * Math.sqrt(A / D) * eff * att.mods.damage * vic.mods.taken * DAMAGE_SCALE;
+  const kp = powerOverride != null ? 1 : kind === 'special' ? att.kit?.special.power ?? 1 : kind === 'basic' ? att.kit?.basic.power ?? 1 : 1;
+  let d = (powerOverride ?? STYLES[style].power) * kp * (1 + (att.level - 1) * 0.03) * Math.sqrt(A / D) * eff * att.mods.damage * vic.mods.taken * DAMAGE_SCALE;
   if (kind === 'special' && att.ultOn) d *= 1.7;
   if (att.status) d *= STATUS[att.status.k].out || 1;
   if (vic.status) d *= STATUS[vic.status.k].in || 1;
   if (crit) d *= 1.5;
-  if (vic.guardT > 0) d *= 0.25; // a guarded hit that gets through the shield is still mostly absorbed
+  if (vic.guardT > 0) d *= vic.guardKind === 'fortress' ? 0.1 : 0.25; // a guarded hit that gets through the shield is still mostly absorbed
   return { damage: Math.max(1, Math.round(d)), eff, crit };
 }
 
@@ -188,10 +238,23 @@ function applyStatus(m, vic, k, att, events, mult = 1) {
   vic.status = { k, t: S.dur * mult, max: S.dur * mult, src: att.side, ax: vic.x, ay: vic.y, ph: Math.random() * 6, acc: 0 };
   events.push({ type: 'status', side: vic.side, k, label: S.label });
 }
+// What each guard does when a hit meets it (blocked = the shield stopped the hit; amount = damage it would have done)
+function guardReact(m, g, att, events, amount, leaked = false) {
+  const k = g.guardKind;
+  if (k === 'counter' && !leaked && g.cd.counter <= 0) { g.cd.counter = 0.8; const [nx, ny] = norm(att.x - g.x, att.y - g.y); land(m, g, att, 'basic', 'whip', events, nx, ny, 160, 10); }
+  else if (k === 'thorns') { const dmg = Math.max(1, Math.round(amount * 0.45)); if (!leaked && att.iframes <= 0) { att.hp = Math.max(0, att.hp - dmg); events.push({ type: 'hit', attacker: g.side, victim: att.side, damage: dmg, kind: 'status', style: 'thorns', eff: 1, crit: false, exp: 0, victimMaxHp: att.teamMax || att.maxHp, lvl: g.level, atk: g.stats.defense, pw: 5 }); } }
+  else if (k === 'absorb' && !leaked) { g.ult = Math.min(100, g.ult + 18); g.energy = Math.min(100, g.energy + 15); }
+  else if (k === 'mirror' && !leaked) { const sk = TYPE_STATUS[g.type]; if (sk) applyStatus(m, att, sk, g, events); }
+}
 function land(m, att, vic, kind, style, events, dirx, diry, knock = 90, power) {
   if (vic.iframes > 0) { events.push({ type: 'miss', attacker: att.side, victim: vic.side, style }); return false; }
   // Shield up: blocked completely (no damage, no SOL, no status) with this Monstar's own shield chance
-  if (vic.guardT > 0 && Math.random() * 100 < vic.shield) { events.push({ type: 'blocked', attacker: att.side, victim: vic.side, style, shield: vic.shield }); return true; }
+  if (vic.guardT > 0 && Math.random() * 100 < vic.shield) {
+    events.push({ type: 'blocked', attacker: att.side, victim: vic.side, style, shield: vic.shield, guard: vic.guardKind });
+    guardReact(m, vic, att, events, damageFor(att, { ...vic, guardT: 0 }, kind, style, power).damage);
+    return true;
+  }
+  if (vic.guardT > 0 && vic.guardKind !== 'shield' && vic.guardKind !== 'fortress') guardReact(m, vic, att, events, 0, true);
   const { damage, eff, crit } = damageFor(att, vic, kind, style, power);
   vic.hp = Math.max(0, vic.hp - damage); att.hits++; vic.hurtT = 0.35;
   const heavy = style === 'beam' || style === 'strike' || style === 'levitate' || crit;
@@ -212,20 +275,23 @@ function land(m, att, vic, kind, style, events, dirx, diry, knock = 90, power) {
 
 function cast(m, f, kind) {
   const style = f.styles[kind], S = STYLES[style];
-  f.energy -= S.cost; f.cd[kind] = S.cd * (kind === 'special' ? f.mods.specialCd : 1); f.actions++;
+  f.energy -= S.cost; f.cd[kind] = S.cd * (kind === 'special' ? f.mods.specialCd : 1) * (f.kit?.[kind]?.cd ?? 1); f.actions++;
   f.castT = 0; f.castKind = kind;
   const id = m.nextId++;
   if (style === 'projectile') {
-    const sp = S.speed * f.mods.projectileSpeed;
-    m.projectiles.push({ id, owner: f.side, kind, style, type: f.type, sid: f.speciesId, x: f.x + f.fx * 36, y: f.y + f.fy * 36,
-      vx: f.fx * sp, vy: f.fy * sp, r: S.r, life: S.life, hitDone: false, missDone: false });
+    const sp = S.speed * f.mods.projectileSpeed * (kind === 'basic' ? f.kit?.basic.speed ?? 1 : 1), shots = kind === 'basic' ? f.kit?.basic.shots ?? 1 : 1;
+    for (let k = 0; k < shots; k++) {
+      const a = Math.atan2(f.fy, f.fx) + (shots > 1 ? (k - (shots - 1) / 2) * 0.22 : 0), dx = Math.cos(a), dy = Math.sin(a);
+      m.projectiles.push({ id: k ? m.nextId++ : id, owner: f.side, kind, style, type: f.type, sid: f.speciesId, x: f.x + dx * 36, y: f.y + dy * 36,
+        vx: dx * sp, vy: dy * sp, r: S.r, life: S.life, hitDone: false, missDone: false, homing: kind === 'basic' && f.kit?.basic.homing, pw: shots > 1 ? S.power * 0.62 : undefined });
+    }
     return;
   }
   const e = { id, owner: f.side, kind, style, type: f.type, sid: f.speciesId, x: f.x, y: f.y, dx: f.fx, dy: f.fy,
     gx: 0, gy: 0, t: 0, dur: S.dur, hit: false, nextTick: 0, thrown: 0, bolted: false };
   if (style === 'strike') {
     const vic = m.fighters[1 - f.side];
-    const along = clamp((vic.x - f.x) * f.fx + (vic.y - f.y) * f.fy, 90, S.range);
+    const along = clamp((vic.x - f.x) * f.fx + (vic.y - f.y) * f.fy, 90, S.range * (f.kit?.special.reach ?? 1) + 40);
     e.gx = clamp(f.x + f.fx * along, 30, ARENA.w - 30); e.gy = clamp(f.y + f.fy * along, 60, ARENA.h - 30);
   }
   if (style === 'levitate') f.levT = S.dur;
@@ -261,11 +327,12 @@ function runEffect(m, e, dt, events) {
   } else if (!e.hit && prevT < S.hitAt && e.t >= S.hitAt) {
     e.hit = true;
     if (e.style === 'strike') {
-      if (Math.hypot(vic.x - e.gx, vic.y - e.gy) < S.radius + R * 0.6) { const [nx, ny] = norm(vic.x - e.gx, vic.y - e.gy); land(m, att, vic, e.kind, e.style, events, nx, ny, 200); }
+      if (Math.hypot(vic.x - e.gx, vic.y - e.gy) < (e.rad || S.radius) + R * 0.6) { const [nx, ny] = norm(vic.x - e.gx, vic.y - e.gy);
+        if (land(m, att, vic, e.kind, e.style, events, nx, ny, 200, e.pw) && e.then) e.then(vic, events); }
       else events.push({ type: 'miss', attacker: att.side, victim: vic.side, style: e.style });
     } else {
-      const x2 = e.x + e.dx * S.range, y2 = e.y + e.dy * S.range;
-      if (segDist(vic.x, vic.y, e.x, e.y, x2, y2) < S.width / 2 + R) land(m, att, vic, e.kind, e.style, events, e.dx, e.dy, e.style === 'beam' ? 280 : 90);
+      const x2 = e.x + e.dx * S.range * (e.reach || 1), y2 = e.y + e.dy * S.range * (e.reach || 1);
+      if (segDist(vic.x, vic.y, e.x, e.y, x2, y2) < (e.wid || S.width) / 2 + R) { const hp0 = vic.hp; if (land(m, att, vic, e.kind, e.style, events, e.dx, e.dy, e.style === 'beam' ? 280 : 90, e.pw) && e.drain) att.hp = Math.min(att.maxHp, att.hp + (hp0 - vic.hp) * 0.5); }
       else if (e.style !== 'whip' || Math.hypot(vic.x - e.x, vic.y - e.y) < S.range + 60) events.push({ type: 'miss', attacker: att.side, victim: vic.side, style: e.style });
     }
   }
@@ -354,18 +421,21 @@ export function step(m, realDt = TICK) {
       if (inp.ax || inp.ay) { f.fx = inp.ax; f.fy = inp.ay; }
       else { const lead = 0.18; [f.fx, f.fy] = norm(foe.x + foe.vx * lead - f.x, foe.y + foe.vy * lead - f.y); }
     }
-    const speed = (140 + f.stats.speed * 1.4) * PACE * (f.rootT > 0 ? 0.2 : 1) * (f.status && SS.slow || 1);
-    if (wantDash && f.cd.dash === 0 && f.rootT === 0) {
-      const [dx, dy] = (mx || my) ? norm(mx, my) : [f.fx, f.fy];
-      f.dashT = 0.18; f.iframes = 0.28; f.cd.dash = 1.6 * mods.dashCd; f.dvx = dx; f.dvy = dy; f.actions++;
-    }
+    f.burstT = Math.max(0, f.burstT - dt);
+    const speed = (f.burstT > 0 ? 1.7 : 1) * (140 + f.stats.speed * 1.4) * PACE * (f.rootT > 0 ? 0.2 : 1) * (f.status && SS.slow || 1);
+    if (wantDash && f.cd.dash === 0 && f.rootT === 0) doDash(m, f, foe, mx, my, events);
     const ox = f.x, oy = f.y;
-    if (f.dashT > 0) { f.x += f.dvx * speed * 3.0 * dt; f.y += f.dvy * speed * 3.0 * dt; }
+    if (f.dashT > 0) { const ds = (f.kit?.dash.dist ?? 1) * (f.dashKind === 'leap' ? 2.2 : 3.0); f.x += f.dvx * speed * ds * dt; f.y += f.dvy * speed * ds * dt; dashTick(m, f, foe, events); }
+    else if (f.dashKind) dashEnd(m, f, foe, events);
     else { f.x += mx * speed * dt; f.y += my * speed * dt; }
     f.x += f.vx * dt; f.y += f.vy * dt; const damp = Math.pow(0.02, dt); f.vx *= damp; f.vy *= damp;
     collide(f);
     f.moving = Math.hypot(f.x - ox, f.y - oy) > 0.5;
-    if (inp.guard && !noAct && f.cd.guard === 0 && f.energy >= 20) { f.energy -= 20; f.cd.guard = 6; f.guardT = 1.2 * mods.guardTime; f.actions++; }
+    if (inp.guard && !noAct && f.cd.guard === 0 && f.energy >= 20) doGuard(m, f, foe, events);
+    if (f.guardT > 0) { if (f.guardKind === 'mend') f.hp = Math.min(f.maxHp, f.hp + f.maxHp * 0.06 * dt); if (f.guardKind === 'fortress') { f.x = ox; f.y = oy; } }
+    else f.guardKind = null;
+    f.cd.counter = Math.max(0, (f.cd.counter || 0) - dt);
+    if (inp.mega && !noAct && f.rootT === 0 && f.ult >= 100) { f.ult = 0; megaShot(m, f, foe, events); }
     if (f.rootT === 0 && !noAct) for (const kind of ['special', 'basic']) {
       const want = kind === 'basic' ? inp.atk : inp.sp;
       if (want && f.cd[kind] === 0 && f.energy >= STYLES[f.styles[kind]].cost) {
@@ -376,6 +446,8 @@ export function step(m, realDt = TICK) {
     }
   }
   for (const p of m.projectiles) {
+    if (p.homing) { const tg = m.fighters[1 - p.owner], sp = Math.hypot(p.vx, p.vy), [hx, hy] = norm(tg.x - p.x, tg.y - p.y), [cx, cy] = norm(p.vx, p.vy), tt = Math.min(1, 2.2 * dt);
+      const [nx, ny] = norm(cx + (hx - cx) * tt, cy + (hy - cy) * tt); p.vx = nx * sp; p.vy = ny * sp; }
     p.x += p.vx * dt; p.y += p.vy * dt; p.life -= dt;
     if (p.x < 0 || p.x > ARENA.w || p.y < 0 || p.y > ARENA.h) p.life = 0;
     for (const r of ARENA.rocks) if (Math.hypot(p.x - r.x, p.y - r.y) < r.r + p.r * 0.5) p.life = 0;
@@ -383,7 +455,9 @@ export function step(m, realDt = TICK) {
     const near = Math.hypot(p.x - vic.x, p.y - vic.y) < p.r + ARENA.radius * 0.9;
     if (p.life > 0 && !p.hitDone && near) {
       if (vic.iframes > 0) { if (!p.missDone) { p.missDone = true; events.push({ type: 'miss', attacker: att.side, victim: vic.side, style: p.style }); } }
-      else { const [nx, ny] = norm(p.vx, p.vy); if (land(m, att, vic, p.kind, p.style, events, nx, ny, p.style === 'debris' ? 160 : 90)) { p.hitDone = true; p.life = 0; } }
+      else if (vic.guardT > 0 && vic.guardKind === 'reflect' && !p.reflected) { // Mirror Shell sends it back
+        p.owner = vic.side; p.vx = -p.vx * 1.15; p.vy = -p.vy * 1.15; p.reflected = true; p.life = Math.max(p.life, 0.8); events.push({ type: 'blocked', attacker: att.side, victim: vic.side, style: p.style, guard: 'reflect' }); }
+      else { const [nx, ny] = norm(p.vx, p.vy); if (land(m, att, vic, p.kind, p.style, events, nx, ny, p.style === 'debris' ? 160 : 90, p.pw)) { p.hitDone = true; p.life = 0; } }
     }
   }
   m.projectiles = m.projectiles.filter(p => p.life > 0);
@@ -429,12 +503,12 @@ export function snapshot(m) {
       cd: { b: r(f.cd.basic), s: r(f.cd.special), d: r(f.cd.dash), g: r(f.cd.guard) }, i: f.iframes > 0, g: f.guardT > 0,
       mv: f.moving, ds: f.dashT > 0, ct: r(Math.min(f.castT, 9)), ck: f.castKind, hu: r(f.hurtT),
       lv: f.level, sg: stageFor(f.level).id, xi: p.into, xn: p.need, xg: f.expGained, fl: MOTION[f.motion].float || f.levT > 0, lt: r(f.levT), bk: r(f.blinkT), mo: f.motion,
-      bs: f.styles.basic, ss: f.styles.special, sh: f.shield ?? 0,
+      bs: f.styles.basic, ss: f.styles.special, sh: f.shield ?? 0, gk: f.guardT > 0 ? f.guardKind : null, bt: f.burstT > 0,
       st: f.status?.k || null, stt: f.status ? r(f.status.t / f.status.max) : 0, rc: f.recT > 0, ul: Math.round(f.ult), uo: f.ultOn && f.castT < 1.2 }; }),
     lim: m.limit, pk: m.pickups.map(q => ({ id: q.id, x: r(q.x), y: r(q.y), k: q.k, l: r(q.life) })), gs: GAME_SPEED,
     p: m.projectiles.map(p => ({ id: p.id, o: p.owner, k: p.kind, st: p.style, ty: p.type, sid: p.sid, x: r(p.x), y: r(p.y), vx: Math.round(p.vx), vy: Math.round(p.vy), r: p.r })),
     e: m.effects.map(e => ({ id: e.id, o: e.owner, k: e.kind, st: e.style, ty: e.type, sid: e.sid, x: r(e.x), y: r(e.y), dx: r(e.dx * 100) / 100, dy: r(e.dy * 100) / 100,
-      gx: r(e.gx), gy: r(e.gy), t: Math.round(e.t * 100) / 100, d: e.dur })) };
+      gx: r(e.gx), gy: r(e.gy), t: Math.round(e.t * 100) / 100, d: e.dur, ra: e.rad || 0, wd: e.wid || 0, mg: e.mega ? 1 : 0 })) };
 }
 
 /** Opponent brain for AI matches: movement is the autopilot; this decides when to attack. */
@@ -444,7 +518,7 @@ export function aiInput(m, side, mem = {}) {
   const reach = { whip: 230, bolt: 430, cone: 230, projectile: 560 }[me.styles.basic] || 500;
   const sst = me.styles.special, inRange = sst === 'cone' ? d < 230 : sst === 'beam' ? d < 600 : d < 480;
   const hard = mem.hard ? 1.6 : mem.level === 'easy' ? 0.55 : mem.level === 'hard' ? 1.45 : 1; // CPU difficulty; mythic wild Monstars fight smarter
-  return { mx: 0, my: 0, ax: 0, ay: 0, atk: d < reach && Math.random() < 0.45 * hard, sp: inRange && Math.random() < 0.05 * hard, dash: hard > 1.2 && foe.castT < 0.15 && Math.random() < 0.3,
+  return { mega: me.ult >= 100 && d < 520 && Math.random() < 0.06 * hard, mx: 0, my: 0, ax: 0, ay: 0, atk: d < reach && Math.random() < 0.45 * hard, sp: inRange && Math.random() < 0.05 * hard, dash: hard > 1.2 && foe.castT < 0.15 && Math.random() < 0.3,
     guard: me.hurtT > 0.3 && Math.random() < 0.03 * hard, sw: -1 };
 }
 

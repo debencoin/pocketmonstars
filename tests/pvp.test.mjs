@@ -73,7 +73,7 @@ test('Phantom sign-in verifies Ed25519 signatures and is single-use', () => {
 });
 
 test('simulation sanitises inputs and produces hits and a result', () => {
-  assert.deepEqual(sanitizeInput({ mx: 5, my: 0, ax: NaN }), { mx: 1, my: 0, ax: 0, ay: 0, atk: false, sp: false, dash: false, guard: false, sw: -1 });
+  assert.deepEqual(sanitizeInput({ mx: 5, my: 0, ax: NaN }), { mx: 1, my: 0, ax: 0, ay: 0, atk: false, sp: false, dash: false, guard: false, mega: false, sw: -1 });
   const m = createMatch(new Monstar({ speciesId: 0 }), new Monstar({ speciesId: 1 }), { auto: false });
   m.fighters[0].y = 60; m.fighters[1].y = 60; // clear line of fire above the centre rock
   m.fighters[0].input = sanitizeInput({ atk: true, sp: true, ax: 1, ay: 0 }); m.fighters[1].input = sanitizeInput({ mx: -0.3 });
@@ -357,4 +357,29 @@ test('Ascendants evolve into a differently named form at each stage', async () =
   const sp = SPECIES.find(s => s.walker);
   assert.equal(sp.forms.length, 6); assert.equal(new Set(sp.forms).size, 6);
   for (const [lv, st] of [[1, 0], [3, 1], [10, 2], [25, 3], [50, 4], [80, 5]]) assert.equal(new Monstar({ speciesId: sp.id, level: lv }).toJSON().form, formName(sp, st));
+});
+
+test('every Monstar has its own five abilities: no two kits, dashes, guards or Mega Shots are the same', async () => {
+  const { SPECIES } = await import('../shared/monstars.mjs'), { kitSignature } = await import('../shared/abilities.mjs');
+  const k = SPECIES.map(s => s.kit), u = f => new Set(k.map(f)).size;
+  assert.equal(u(kitSignature), SPECIES.length);
+  assert.equal(u(x => x.dash.name), SPECIES.length); assert.equal(u(x => x.guard.name), SPECIES.length); assert.equal(u(x => x.mega.name), SPECIES.length);
+  assert.equal(u(x => [x.dash.kind, x.dash.dist, x.dash.cd].join()), SPECIES.length);
+  assert.equal(u(x => [x.guard.kind, x.guard.time, x.guard.cd].join()), SPECIES.length);
+  assert.equal(u(x => [x.mega.kind, x.mega.power, x.mega.size].join()), SPECIES.length);
+  assert.equal(u(x => x.dash.kind + x.guard.kind + x.mega.kind), SPECIES.length);
+});
+test('Mega Shot fires from a full ULT meter; Mirror Shell reflects shots; Shadow Step lands behind the rival', async () => {
+  const S = await import('../shared/sim.mjs'), { Monstar, SPECIES } = await import('../shared/monstars.mjs');
+  const m = S.createMatch(new Monstar({ speciesId: 0, level: 10 }), new Monstar({ speciesId: 1, level: 10 }), { auto: false });
+  m.fighters[0].ult = 100; m.fighters[0].input = S.sanitizeInput({ mega: true });
+  const ev = S.step(m); assert.ok(ev.some(e => e.type === 'mega')); assert.equal(m.fighters[0].ult, 0);
+  const refl = SPECIES.find(s => s.kit.guard.kind === 'reflect'), shooter = SPECIES.find(s => s.basicStyle === 'projectile' && s.kit.basic.shots === 1);
+  const m2 = S.createMatch(new Monstar({ speciesId: shooter.id, level: 10 }), new Monstar({ speciesId: refl.id, level: 10 }), { auto: false });
+  m2.fighters[1].x = m2.fighters[0].x + 220; m2.fighters[1].y = m2.fighters[0].y; m2.fighters[1].input = S.sanitizeInput({ guard: true });
+  let reflected = false; for (let i = 0; i < 40 && !reflected; i++) { m2.fighters[0].input = S.sanitizeInput({ atk: true }); m2.fighters[1].guardT = Math.max(m2.fighters[1].guardT, 1); m2.fighters[1].guardKind = 'reflect'; reflected = S.step(m2).some(e => e.type === 'blocked' && e.guard === 'reflect'); }
+  assert.ok(reflected);
+  const sh = SPECIES.find(s => s.kit.dash.kind === 'shadow'), m3 = S.createMatch(new Monstar({ speciesId: sh.id }), new Monstar({ speciesId: 0 }), { auto: false });
+  const foe = m3.fighters[1]; m3.fighters[0].input = S.sanitizeInput({ dash: true }); S.step(m3);
+  assert.ok(Math.hypot(m3.fighters[0].x - foe.x, m3.fighters[0].y - foe.y) < 110);
 });

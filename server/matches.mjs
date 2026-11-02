@@ -180,6 +180,7 @@ export class MatchManager {
     if (ev.type === 'status') return this.emit(room, { t: 'status', side: ev.side, k: ev.k, label: ev.label });
     if (ev.type === 'ult') return this.emit(room, { t: 'ult', side: ev.side });
     if (ev.type === 'pickup') return this.emit(room, { t: 'pickup', side: ev.side, k: ev.k, amount: ev.amount, x: ev.x, y: ev.y });
+    if (['dash', 'guard', 'mega', 'quake'].includes(ev.type)) return this.emit(room, { ...ev, t: ev.type, type: undefined });
     if (ev.type !== 'hit') return;
     if (ev.type === 'switch') return this.emit(room, { t: 'switch', side: ev.side, slot: ev.slot, speciesId: ev.speciesId, reason: ev.reason });
     const fee = room.ledger.hit(ev.attacker, ev.damage, ev.victimMaxHp, ev);

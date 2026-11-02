@@ -417,3 +417,9 @@ img.px{image-rendering:auto}
 .lb-rank{font-weight:800;color:var(--muted)}.lb-rank.r1{color:#ffd84a}.lb-rank.r2{color:#d8e0ec}.lb-rank.r3{color:#e8a060}
 .lb-row .up{color:#9ef0c8;font-weight:800}.lb-row .dn{color:#ff7b6b;font-weight:800}
 @media (max-width:560px){.lb-row{grid-template-columns:28px minmax(0,1.3fr) minmax(0,1fr) 44px;font-size:12px}.lb-row>span:nth-child(4),.lb-row>span:nth-child(6){display:none}}
+/* v17: five abilities (Mega Shot spans the row) */
+.pv-mgrid .pv-mv.mega{grid-column:1/-1;border-color:#ffd84a;background:linear-gradient(90deg,#1c1530,#0a0d17)}
+.pv-mv.mega .mv-ty{background:#ffd84a;color:#14161f;text-shadow:none}
+.pv-mv.mega.cool{opacity:.6}
+.pv-note .kit{display:block;margin:6px 0;line-height:1.55}
+@media (orientation:landscape) and (min-width:700px){.pv-stage.live .pv-mgrid{grid-template-columns:1fr 1fr}.pv-stage.live .pv-mv .mv-e{display:none}}

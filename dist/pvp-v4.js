@@ -54,7 +54,7 @@ pvp.innerHTML = `
    </div>
    <div class="pv-overlay" id="pvOverlay"><div class="big" id="pvBig">Ready to battle</div><div class="pv-note" id="pvSmall">Sign in with Phantom, pick your Monstar and create or join a match.</div><div class="pv-row" id="pvOvBtns"></div></div>
   </div>
-  <p class="pv-note" id="pvKeys">${coarse ? 'Your Monstar moves and dodges on its own. Touch the arena with your finger to run it there (it follows your finger), and use your thumb on the move cards.' : 'Your Monstar moves and dodges on its own. <b>Click or hold the mouse</b> on the arena to move it there. Hit with the keyboard: <b>1</b>–<b>4</b> (or <b>Q</b>/<b>J</b> attack · <b>E</b>/<b>K</b> special · <b>Space</b> dash · <b>L</b> guard), <b>5</b>–<b>7</b> switch · <b>WASD</b> also steers · <b>Esc</b> to run.'}</p>
+  <p class="pv-note" id="pvKeys">${coarse ? 'Your Monstar moves and dodges on its own. Touch the arena with your finger to run it there (it follows your finger), and use your thumb on the move cards.' : 'Your Monstar moves and dodges on its own. <b>Click or hold the mouse</b> on the arena to move it there. Hit with the keyboard: <b>1</b>–<b>5</b> (or <b>Q</b>/<b>J</b> attack · <b>E</b>/<b>K</b> special · <b>Space</b> dash · <b>L</b> guard · <b>R</b> Mega Shot), <b>6</b>–<b>8</b> switch · <b>WASD</b> also steers · <b>Esc</b> to run.'}</p>
   <div class="panel"><div class="pv-row" style="justify-content:space-between"><h3>Your one-of-a-kind Monstars</h3><span class="pv-chip" id="pvCount">Sign in to reveal</span></div>
    <p class="pv-note" style="margin:6px 0 12px">Every wallet starts with three one-of-a-kind Monstars picked from its address, so no two players start the same. Catch the rest in the Wild Expedition: 103 species from common to divine. Mint any of yours as an NFT to trade or send.</p>
    <div id="pvCards"><div class="pv-empty">Sign in with Phantom to see your Monstars.</div></div></div>
@@ -224,12 +224,13 @@ function buildMoves(meSid, foeSid) {
   const cards = [
     { k: 'atk', n: sp.move, ty: sp.type, c: bs.cost ? '⚡' + bs.cost : '⚡0', e: effTxt },
     { k: 'sp', n: sp.special, ty: sp.type, c: '⚡' + ss.cost, e: effTxt },
-    { k: 'dash', n: 'Quick dash', ty: 'NORMAL', c: 'Dodge', e: 'Dash through attacks' },
-    { k: 'guard', n: 'Guard', ty: 'NORMAL', c: 'Block', e: 'Halves the next hit' },
+    { k: 'dash', n: sp.kit.dash.name, ty: 'NORMAL', c: 'Dash', e: sp.kit.dash.note },
+    { k: 'guard', n: sp.kit.guard.name, ty: 'NORMAL', c: 'Guard', e: sp.kit.guard.note },
+    { k: 'mega', n: sp.kit.mega.name, ty: sp.type, c: 'MEGA', e: 'Mega Shot · ' + sp.kit.mega.note + ' Needs a full ULT meter.' },
   ];
   q('pvAsk').textContent = sp.name.toUpperCase();
-  q('pvMGrid').innerHTML = cards.map((c, i) => `<button class="pv-mv" data-k="${c.k}" style="--tc:${TYPE_COL[c.ty] || '#888'}"><span class="mv-n">${esc(c.n)}</span><span class="mv-k">${i + 1}</span>
-    <span class="mv-row"><span class="mv-ty">${c.ty === 'NORMAL' ? 'MOVE' : esc(c.ty)}</span><span class="mv-c">${esc(c.c)}</span></span><span class="mv-e">${c.e}</span><i class="mv-cd"></i></button>`).join('');
+  q('pvMGrid').innerHTML = cards.map((c, i) => `<button class="pv-mv${c.k === 'mega' ? ' mega' : ''}" data-k="${c.k}" style="--tc:${TYPE_COL[c.ty] || '#888'}"><span class="mv-n">${esc(c.n)}</span><span class="mv-k">${i + 1}</span>
+    <span class="mv-row"><span class="mv-ty">${c.k === 'mega' ? 'MEGA SHOT' : c.ty === 'NORMAL' ? (c.k === 'dash' ? 'DASH' : 'GUARD') : esc(c.ty)}</span><span class="mv-c">${esc(c.c)}</span></span><span class="mv-e">${c.e}</span><i class="mv-cd"></i></button>`).join('');
   q('pvMGrid').querySelectorAll('.pv-mv').forEach(b => { const k = b.dataset.k; let at = 0;
     b.addEventListener('pointerdown', e => { e.preventDefault(); touch[k] = true; at = performance.now(); b.classList.add('on'); try { b.setPointerCapture(e.pointerId); } catch {} });
     const up = () => { b.classList.remove('on'); setTimeout(() => { touch[k] = false; }, Math.max(0, 160 - (performance.now() - at))); };
@@ -243,11 +244,13 @@ function updateMoves(f) {
   const spc = grid.children[1];
   if (spc) { const u = Math.min(100, f.ul || 0); spc.classList.toggle('ult', u >= 100); let bar = spc.querySelector('.mv-ult'); if (!bar) { bar = el('span', { className: 'mv-ult' }); spc.append(bar); } bar.innerHTML = u >= 100 ? '<b>ULT READY</b>' : `ULT ${u}%<i style="width:${u}%"></i>`; }
   const sp = Monstars.SPECIES[f.s], cost = { b: Sim.STYLES[sp.basicStyle].cost, s: Sim.STYLES[sp.specialStyle].cost, d: 0, g: 0 };
+  const mg = grid.children[4]; if (mg) { const u = Math.min(100, f.ul || 0); mg.classList.toggle('cool', u < 100); mg.classList.toggle('ult', u >= 100); mg.querySelector('.mv-cd').style.width = (100 - u) + '%'; }
   ['b', 's', 'd', 'g'].forEach((k, i) => { const b = grid.children[i]; if (!b) return; const cd = f.cd[k] || 0; cdMax[k] = Math.max(cd, cd > 0 ? cdMax[k] : 0.01);
     const cool = cd > 0.05 || f.en < cost[k]; b.classList.toggle('cool', cool); b.querySelector('.mv-cd').style.width = (cd > 0 ? cd / cdMax[k] * 100 : 0) + '%'; });
 }
 function hudNames() {
   shownS[0] = shownS[1] = null; stripKey = ['', ''];
+  PA.preload?.((room?.players || []).flatMap(p => (p.team || [p.monstar]).map(x => x.speciesId)));
   if (!room?.players || room.players.length < 2) return;
   const order = room.local || room.ai ? [0, 1] : [room.you, 1 - room.you];
   buildMoves();
@@ -312,7 +315,9 @@ function renderPicker() {
     box.append(b);
   });
   const sp = Monstars.SPECIES[pickedSpecies], m = monFor(pickedSpecies), j = m.toJSON();
-  q('pvPickInfo').innerHTML = `<b>${esc(m.displayName)}</b> · Lv${j.level} ${esc(j.stage)} · ${sp.cls.label} · ${sp.type}${expBar(j)}A: ${esc(sp.move)} · B: ${esc(sp.special)}<br>${esc(sp.cls.passive)}`;
+  const K = sp.kit;
+  q('pvPickInfo').innerHTML = `<b>${esc(j.form || m.displayName)}</b> · Lv${j.level} ${esc(j.stage)} · ${sp.cls.label} · ${sp.type}${expBar(j)}
+    <span class="kit"><b>Attack</b> ${esc(K.basic.name)}${K.basic.shots > 1 ? ' (double shot)' : ''}${K.basic.homing ? ' (homing)' : ''}<br><b>Special</b> ${esc(K.special.name)}<br><b>Dash</b> ${esc(K.dash.name)}: ${esc(K.dash.note)}<br><b>Guard</b> ${esc(K.guard.name)}: ${esc(K.guard.note)}<br><b>Mega Shot</b> ${esc(K.mega.name)}: ${esc(K.mega.note)}</span>${esc(sp.cls.passive)}`;
 }
 q('pvPractice').onclick = () => startPractice();
 let lastPractice = null;
@@ -378,7 +383,7 @@ function onMsg(m) {
     snapPrev = snapCur; snapCur = m.s; snapAt = performance.now(); setShares(m.shares); return;
   }
   if (m.t === 'hit') { setShares(m.shares, m); return; }
-  if (m.t === 'switch' || m.t === 'status' || m.t === 'ult' || m.t === 'pickup' || m.t === 'blocked') { battleEvent({ ...m, type: m.t }); return; }
+  if (['switch', 'status', 'ult', 'pickup', 'blocked', 'dash', 'guard', 'mega', 'quake'].includes(m.t)) { battleEvent({ ...m, type: m.t }); return; }
   if (m.t === 'miss' || m.t === 'level' || m.t === 'bonus') { battleEvent({ ...m, type: m.t }); if (m.t === 'level') refreshSoon(); return; }
   if (m.t === 'end') { if (practiceMoney() && vLedger) { vLedger.finish(m.winner == null ? null : m.winner); shares = vLedger.shares.map(String); showShares(); } ended = { ...m, at: performance.now() }; refreshSoon(); if (room) room.state = room.stake === '0' ? 'done' : 'settling'; renderRoom(); return; }
   if (m.t === 'settlement') { ended = { at: 0, ...(ended || {}), settlement: m }; if (room) room.state = m.ok ? (m.refund ? 'refunded' : 'settled') : 'needs review'; renderRoom(); refreshBalance(); return; }
@@ -451,7 +456,7 @@ function renderRoom() {
   else if (!full && window.PMLock?.active) window.PMLock.off();
   if (full && stage.parentElement !== document.body) { stageHome ??= stage.parentElement; stageNext = stage.nextSibling; document.body.append(stage); }
   else if (!full && stageHome && stage.parentElement === document.body) stageHome.insertBefore(stage, stageNext);
-  q('pvHud').hidden = !full; q('pvMoves').hidden = !full || stay; q('pvPot').hidden = !full;
+  q('pvHud').hidden = !full || stay; q('pvMoves').hidden = !full || stay; q('pvPot').hidden = !full || stay;
   if (full) { if (!shares || (practiceMoney() && !vLedger)) resetVirtual(); showShares(); }
   if (room?.local || room?.ai) {
     q('pvRoom').hidden = true; q('pvLobby').hidden = false;
@@ -509,7 +514,7 @@ function renderRoom() {
 // ---------- input ----------
 // Movement: touch the arena with a finger (or click / hold the mouse) and your Monstar runs to that spot and
 // follows your finger while it's down. Thumb (or keyboard 1-4, J K Space L) does the moves. Aim is automatic.
-const keys = {}, touch = { atk: false, sp: false, dash: false, guard: false, sw: -1 };
+const keys = {}, touch = { atk: false, sp: false, dash: false, guard: false, mega: false, sw: -1 };
 let target = null; // { x, y, held, until } in arena coordinates
 addEventListener('keydown', e => { if (room?.state !== 'live') return; if (e.code === 'Escape') return leaveBattle(); keys[e.code] = true; if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) e.preventDefault(); });
 addEventListener('keyup', e => { keys[e.code] = false; });
@@ -535,8 +540,8 @@ function currentInput() {
     if (target && !target.held && d > 16 && performance.now() > target.until + 2500) target = null;
   }
   const ax = 0, ay = 0; // aim is automatic: the Monstar faces its rival
-  const swKey = keys.Digit5 ? 0 : keys.Digit6 ? 1 : keys.Digit7 ? 2 : -1;
-  const i = { sw: touch.sw >= 0 ? touch.sw : swKey, mx, my, ax, ay, atk: !!(keys.KeyJ || keys.Digit1 || keys.KeyQ || touch.atk), sp: !!(keys.KeyK || keys.Digit2 || keys.KeyE || touch.sp), dash: !!(keys.Space || keys.Digit3 || touch.dash), guard: !!(keys.KeyL || keys.Digit4 || touch.guard) };
+  const swKey = keys.Digit6 ? 0 : keys.Digit7 ? 1 : keys.Digit8 ? 2 : -1;
+  const i = { sw: touch.sw >= 0 ? touch.sw : swKey, mx, my, ax, ay, atk: !!(keys.KeyJ || keys.Digit1 || keys.KeyQ || touch.atk), sp: !!(keys.KeyK || keys.Digit2 || keys.KeyE || touch.sp), dash: !!(keys.Space || keys.Digit3 || touch.dash), guard: !!(keys.KeyL || keys.Digit4 || touch.guard), mega: !!(keys.Digit5 || keys.KeyR || touch.mega) };
   return i;
 }
 function sendInput() {
