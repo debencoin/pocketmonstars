@@ -404,3 +404,22 @@ test('session tokens are signed and keep working after a server restart (same se
   assert.equal(new Auth({ secret: 's2' }).wallet(token), null);
   assert.equal(new Auth({ secret: 's1' }).wallet(token.slice(0, -2) + 'xx'), null);
 });
+
+test('HP never comes back on its own: only healing powers restore it, and fights end with a KO at 0 HP', async () => {
+  const S = await import('../shared/sim.mjs'), { Monstar, SPECIES } = await import('../shared/monstars.mjs');
+  const healers = new Set(SPECIES.filter(s => s.kit.dash.kind === 'mend' || s.kit.guard.kind === 'mend' || s.kit.mega.kind === 'drain').map(s => s.id));
+  const pool = SPECIES.filter(s => !healers.has(s.id) && ['support', 'seraph', 'deity'].includes(s.cls.id)).map(s => s.id);
+  let kos = 0;
+  for (let k = 0; k < 12; k++) {
+    const m = S.createMatch(new Monstar({ speciesId: pool[k % pool.length], level: 5 }), new Monstar({ speciesId: pool[(k + 1) % pool.length], level: 5 })), mem = [{}, {}];
+    let last = m.fighters.map(f => f.hp), lv = m.fighters.map(f => f.level + ':' + f.speciesId);
+    while (!m.over) {
+      for (const i of [0, 1]) m.fighters[i].input = S.sanitizeInput({ ...S.aiInput(m, i, mem[i]), mega: false });
+      S.step(m);
+      m.fighters.forEach((f, i) => { if (f.level + ':' + f.speciesId === lv[i]) assert.ok(f.hp <= last[i] + 1e-9, 'HP went up without a healing power'); });
+      last = m.fighters.map(f => f.hp); lv = m.fighters.map(f => f.level + ':' + f.speciesId);
+    }
+    if (m.reason === 'ko') { kos++; assert.ok(m.fighters[1 - m.winner].hp <= 0); }
+  }
+  assert.ok(kos > 0);
+});

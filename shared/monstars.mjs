@@ -89,8 +89,8 @@ export class Arcanist extends MonstarClass {
 }
 export class Support extends MonstarClass {
   static id = 'support'; static label = 'Support'; static base = [110, 59, 65, 80, 88, 76];
-  static passive = 'Slowly regenerates HP (0.8% per second).';
-  static mods = { ...MonstarClass.mods, regen: 0.008 };
+  static passive = 'Guards last 40% longer and energy refills 20% faster.';
+  static mods = { ...MonstarClass.mods, guardTime: 1.4, energyRegen: 1.2 };
 }
 export class Titan extends MonstarClass {
   static id = 'titan'; static label = 'Titan'; static base = [155, 95, 85, 110, 92, 72];
@@ -100,8 +100,8 @@ export class Titan extends MonstarClass {
 // Legendary classes
 export class Seraph extends MonstarClass {
   static id = 'seraph'; static label = 'Seraph'; static base = [150, 92, 88, 118, 104, 96];
-  static passive = 'Four wings: regenerates HP and takes 10% less damage.';
-  static mods = { ...MonstarClass.mods, taken: 0.9, regen: 0.006, specialCd: 0.85 };
+  static passive = 'Four wings: takes 10% less damage and its special recharges 15% faster.';
+  static mods = { ...MonstarClass.mods, taken: 0.9, specialCd: 0.85 };
 }
 export class Psion extends MonstarClass {
   static id = 'psion'; static label = 'Psion'; static base = [132, 80, 76, 126, 98, 104];
@@ -110,8 +110,8 @@ export class Psion extends MonstarClass {
 }
 export class Deity extends MonstarClass {
   static id = 'deity'; static label = 'Deity'; static base = [170, 110, 100, 135, 120, 110];
-  static passive = 'Divine: immune to knockback, regenerates HP and takes 15% less damage.';
-  static mods = { ...MonstarClass.mods, knockback: 0, taken: 0.85, regen: 0.007, specialCd: 0.85 };
+  static passive = 'Divine: immune to knockback and takes 15% less damage.';
+  static mods = { ...MonstarClass.mods, knockback: 0, taken: 0.85, specialCd: 0.85 };
 }
 export const CLASSES = [Striker, Warden, Skirmisher, Ranger, Mystic, Sentinel, Arcanist, Support, Titan, Seraph, Psion, Deity];
 const CLASS_BY_ID = Object.fromEntries(CLASSES.map(c => [c.id, c]));

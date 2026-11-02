@@ -209,7 +209,7 @@ function gainExp(m, f, amount, events) {
     const before = stageFor(f.level), ratio = f.hp / f.maxHp;
     f.level++;
     f.stats = statsAt(f.mon, f.level);
-    f.maxHp = Math.round(f.stats.hp * BATTLE_HP); f.hp = Math.min(f.maxHp, Math.round(f.maxHp * ratio + f.maxHp * 0.1));
+    f.maxHp = Math.round(f.stats.hp * BATTLE_HP); f.hp = Math.min(f.maxHp, f.maxHp * ratio); // no free heal on level-up: keeps the same share of HP
     const after = stageFor(f.level), evolved = after.id !== before.id;
     if (evolved) { f.iframes = Math.max(f.iframes, 0.8); f.energy = 100; }
     events.push({ type: 'level', side: f.side, level: f.level, stage: after.name, stageId: after.id, evolved });
@@ -383,7 +383,7 @@ export function step(m, realDt = TICK) {
   const events = [];
   m.t += realDt;
   const dt = realDt * GAME_SPEED; // everything below runs at game speed
-  updatePickups(m, dt, events);
+  // HP never comes back on its own: only healing powers (Mending Step, Renewal guard, Soul Drain) restore it
   for (const side of [0, 1]) { // 3v3 manual switch
     m.swCd[side] = Math.max(0, m.swCd[side] - dt);
     const want = m.fighters[side].input.sw;
@@ -397,7 +397,7 @@ export function step(m, realDt = TICK) {
     const st = f.status, SS = st ? STATUS[st.k] : null;
     if (st) {
       st.t -= dt;
-      if (SS.dot) { st.acc += f.maxHp * SS.dot * dt; if (st.acc >= 2) { const dmg = Math.min(Math.floor(st.acc), Math.max(0, Math.ceil(f.hp) - 1)); st.acc -= Math.floor(st.acc);
+      if (SS.dot) { st.acc += f.maxHp * SS.dot * dt; if (st.acc >= 2) { const dmg = Math.min(Math.floor(st.acc), Math.ceil(f.hp)); // burn/poison can finish a Monstar off st.acc -= Math.floor(st.acc);
         if (dmg > 0) { f.hp -= dmg; const src = m.fighters[st.src]; events.push({ type: 'hit', attacker: st.src, victim: f.side, damage: dmg, kind: 'status', style: st.k, eff: 1, crit: false, exp: 0, victimMaxHp: f.teamMax || f.maxHp, lvl: src?.level || 1, atk: src?.stats.spAttack || 80, pw: 6 }); if (src) src.ult = Math.min(100, src.ult + dmg * 0.5); } } }
       if (SS.lift) { // carried around in the air by psychic force, can't do anything
         st.ph += dt * 4.2; const holder = m.fighters[st.src];
@@ -410,7 +410,6 @@ export function step(m, realDt = TICK) {
     const stopped = !!(f.status && SS.stop) || f.recT > 0, noAct = !!(f.status && SS.act) || f.recT > 0;
     f.castT += dt;
     f.energy = Math.min(100, f.energy + 14 * mods.energyRegen * dt);
-    if (mods.regen) f.hp = Math.min(f.maxHp, f.hp + f.maxHp * mods.regen * dt);
     // movement: player steering wins, otherwise the Monstar moves on its own
     let mx = inp.mx, my = inp.my, wantDash = inp.dash;
     if (m.auto && !mx && !my) { const a = autoMove(m, f, foe); mx = a.mx; my = a.my; wantDash = wantDash || a.dash; }
