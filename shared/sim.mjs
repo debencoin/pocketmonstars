@@ -17,18 +17,20 @@ import { Monstar, effectiveness, statsAt, stageFor, expForLevel, expToNext, MAX_
 export const ARENA = Object.freeze({ w: 960, h: 540, radius: 30, roundSeconds: 90,
   rocks: [{ x: 300, y: 170, r: 24 }, { x: 660, y: 380, r: 24 }] });
 export const TICK = 1 / 30;
+// Overall pace: lower = slower battles. Applied to movement, dashes and projectile speed.
+export const PACE = 0.8;
 export const BOUNDS = Object.freeze({ x0: 60, x1: 900, y0: 150, y1: 500 });
 export const EXP_RULES = Object.freeze({ perDamage: 1.2, critBonus: 1.5, koBonus: 40, finishBonus: 15 });
 
 export const STYLES = Object.freeze({
-  projectile: { cd: 0.5, cost: 0, power: 9, speed: 520, r: 12, life: 1.15 },
-  bolt: { cd: 0.65, cost: 0, power: 9, range: 420, width: 26, hitAt: 0.08, dur: 0.22 },
-  whip: { cd: 0.55, cost: 0, power: 11, range: 220, width: 34, hitAt: 0.12, dur: 0.3 },
+  projectile: { cd: 0.6, cost: 0, power: 9, speed: 520 * PACE, r: 12, life: 1.15 / PACE },
+  bolt: { cd: 0.78, cost: 0, power: 9, range: 420, width: 26, hitAt: 0.08, dur: 0.22 },
+  whip: { cd: 0.66, cost: 0, power: 11, range: 220, width: 34, hitAt: 0.12, dur: 0.3 },
   cone: { cd: 5, cost: 40, power: 6, range: 230, angle: 0.5, dur: 0.95, tick: 0.19, root: true },
   beam: { cd: 5, cost: 40, power: 25, range: 640, width: 44, hitAt: 0.42, dur: 0.85, root: true },
   strike: { cd: 5, cost: 40, power: 25, range: 460, radius: 74, hitAt: 0.6, dur: 1.0 },
   levitate: { cd: 5.5, cost: 45, power: 9, dur: 1.5, throws: [0.7, 0.86, 1.02], boltAt: 1.22, boltPower: 11, range: 560, root: true },
-  debris: { power: 9, speed: 720, r: 16, life: 0.9 },
+  debris: { power: 9, speed: 720 * PACE, r: 16, life: 0.9 / PACE },
 });
 
 const MOTION = {
@@ -247,13 +249,13 @@ export function step(m, dt = TICK) {
       if (inp.ax || inp.ay) { f.fx = inp.ax; f.fy = inp.ay; }
       else { const lead = 0.18; [f.fx, f.fy] = norm(foe.x + foe.vx * lead - f.x, foe.y + foe.vy * lead - f.y); }
     }
-    const speed = (140 + f.stats.speed * 1.4) * (f.rootT > 0 ? 0.2 : 1);
+    const speed = (140 + f.stats.speed * 1.4) * PACE * (f.rootT > 0 ? 0.2 : 1);
     if (wantDash && f.cd.dash === 0 && f.rootT === 0) {
       const [dx, dy] = (mx || my) ? norm(mx, my) : [f.fx, f.fy];
-      f.dashT = 0.16; f.iframes = 0.26; f.cd.dash = 1.4 * mods.dashCd; f.dvx = dx; f.dvy = dy; f.actions++;
+      f.dashT = 0.18; f.iframes = 0.28; f.cd.dash = 1.6 * mods.dashCd; f.dvx = dx; f.dvy = dy; f.actions++;
     }
     const ox = f.x, oy = f.y;
-    if (f.dashT > 0) { f.x += f.dvx * speed * 3.4 * dt; f.y += f.dvy * speed * 3.4 * dt; }
+    if (f.dashT > 0) { f.x += f.dvx * speed * 3.0 * dt; f.y += f.dvy * speed * 3.0 * dt; }
     else { f.x += mx * speed * dt; f.y += my * speed * dt; }
     f.x += f.vx * dt; f.y += f.vy * dt; const damp = Math.pow(0.02, dt); f.vx *= damp; f.vy *= damp;
     collide(f);

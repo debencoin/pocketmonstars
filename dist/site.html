@@ -72,7 +72,7 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
 .pot .bar{height:9px;display:flex}
 .pot .bar i:first-child{background:var(--sol);border-radius:0;width:64%}.pot .bar i:last-child{background:var(--loss);border-radius:0;width:36%}
 .pot small{display:block;text-align:center;font-size:11px;color:#fffc}
-@media (max-width:860px){.hero .wrap{grid-template-columns:1fr}.duel{order:-1}}
+@media (max-width:860px){.hero .wrap{grid-template-columns:1fr}.duel,.live{order:-1}}
 
 /* sections */
 section{padding-block:clamp(48px,7vw,90px);border-top:1px solid var(--line)}
@@ -177,6 +177,33 @@ img.px{image-rendering:pixelated;image-rendering:crisp-edges}
 .mon img{background:repeating-conic-gradient(#78c850 0 25%,#70c048 0 50%) 0 0/12px 12px;border-radius:10px;padding:14%;border:3px solid #283028}
 .mon h3{font-family:'Press Start 2P',monospace;font-size:12px;letter-spacing:0;margin-top:4px}
 @media (prefers-reduced-motion:reduce){.fx i,.duel .a,.duel .b{animation:none}}
+
+/* live gameplay demo in the hero (real engine and renderer) */
+.live{position:relative;aspect-ratio:16/9;border:4px solid #283028;border-radius:14px;overflow:hidden;background:#0b0d18;max-width:100%;box-shadow:0 18px 40px #0008}
+.live canvas{display:block;width:100%;height:100%;image-rendering:pixelated;image-rendering:crisp-edges}
+.dh{position:absolute;left:0;right:0;top:0;display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);gap:6px;align-items:start;padding:6px 8px;background:linear-gradient(#0b0d18cc,#0b0d1800);font-family:'Press Start 2P',monospace;color:#fff;pointer-events:none}
+.dside{display:flex;gap:6px;align-items:flex-start;min-width:0}.dside.r{flex-direction:row-reverse;text-align:right}
+.dside img{width:clamp(20px,3.6vw,32px);height:clamp(20px,3.6vw,32px);object-fit:contain;background:#1e2238;border:2px solid #fff;border-radius:5px;padding:1px;flex:none}
+.dside>div{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px}.dside.r>div{align-items:flex-end}
+.dside b{font-weight:400;font-size:clamp(6px,1.1vw,10px);text-shadow:1px 1px 0 #000;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+.dbar{width:100%;height:clamp(5px,0.9vw,8px);background:#1a1c28;border:2px solid #0a0a10;border-radius:3px;overflow:hidden;display:flex}.dside.r .dbar{justify-content:flex-end}
+.dbar i{display:block;height:100%;background:#58d858;transition:width .2s}
+.dlv{font-size:clamp(5px,0.75vw,7px);color:#c8d0ff;text-shadow:1px 1px 0 #000}
+.dclock{font-size:clamp(7px,1.1vw,10px);background:#0b0d18;border:2px solid #ffffff55;border-radius:8px;padding:3px 6px}
+.dpot{position:absolute;left:8px;right:8px;bottom:26px;display:grid;grid-template-columns:auto 1fr auto;gap:8px;align-items:center;font-family:'Press Start 2P',monospace;pointer-events:none}
+.dsol{background:#0b0d18e6;border:2px solid #9ef0c8;border-radius:8px;padding:4px 7px;color:#9ef0c8;font-size:clamp(7px,1.2vw,11px);font-variant-numeric:tabular-nums;white-space:nowrap}
+.dsol.r{border-color:#ff9b8b;color:#ffb3a6}
+.dsol small{font-size:.7em;margin-left:4px;opacity:.8}
+.dsol.up{animation:solUp .45s}.dsol.down{animation:solDown .45s}
+@keyframes solUp{0%{transform:scale(1.18);background:#1e5a40}100%{transform:none}}
+@keyframes solDown{0%{transform:scale(.9);background:#5a2420}100%{transform:none}}
+.dpotbar{height:10px;border:2px solid #283028;border-radius:6px;overflow:hidden;display:flex;background:#0008}
+.dpotbar i:first-child{background:#9ef0c8;width:50%;transition:width .25s}.dpotbar i:last-child{background:#ff7b6b;flex:1}
+.dcap{position:absolute;left:0;right:0;bottom:6px;text-align:center;font-family:'Press Start 2P',monospace;font-size:clamp(5px,0.8vw,7px);color:#ffffffcc;text-shadow:1px 1px 0 #000;pointer-events:none}
+.dwin{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;background:#0b0d18aa;font-family:'Press Start 2P',monospace;text-align:center;color:#fff;padding:12px}
+.dwin b{color:#ffd23f;font-size:clamp(12px,2.6vw,22px);font-weight:400;text-shadow:3px 3px 0 #000}
+.dwin span{color:#9ef0c8;font-size:clamp(8px,1.4vw,12px)}
+[hidden]{display:none!important}
 </style>
 </head>
 <body>
@@ -198,17 +225,16 @@ img.px{image-rendering:pixelated;image-rendering:crisp-edges}
     </div>
     <p class="cta-note" id="ctaNote">On a phone, the game opens inside the Phantom app so your wallet can connect. Currently on Solana devnet with free test SOL.</p>
   </div>
-  <div class="duel" aria-hidden="true">
-    <div class="ring"></div>
-    <img class="a px" src="/art/pixel/cindercub.png" alt="" width="48" height="47">
-    <img class="b px" src="/art/pixel/voltwing.png" alt="" width="48" height="34">
-    <div class="hud">
-      <div><div>Cindercub</div><div class="bar"><i style="width:82%"></i></div><div class="solv">0.012800 SOL</div></div>
-      <div class="clock">64<small>SECONDS</small></div>
-      <div class="r"><div>Voltwing</div><div class="bar"><i style="width:46%"></i></div><div class="solv">0.007200 SOL</div></div>
+  <div class="live" id="demo">
+    <canvas id="demoCv" width="640" height="360" aria-label="Live demo: two Monstars battling for a 0.02 SOL pot"></canvas>
+    <div class="dh">
+      <div class="dside"><img class="px" id="dPic0" alt=""><div><b id="dN0">—</b><div class="dbar"><i id="dH0"></i></div><span class="dlv" id="dL0"></span></div></div>
+      <div class="dclock" id="dClock">1:30</div>
+      <div class="dside r"><img class="px" id="dPic1" alt=""><div><b id="dN1">—</b><div class="dbar"><i id="dH1"></i></div><span class="dlv" id="dL1"></span></div></div>
     </div>
-    <div class="pop">+0.000400 SOL</div><div class="fx" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div>
-    <div class="pot"><div class="bar"><i></i><i></i></div><small>Your share 64% of 0.02 SOL pot</small></div>
+    <div class="dpot"><div class="dsol"><span id="dS0">0.010000</span><small>SOL</small></div><div class="dpotbar"><i id="dP0"></i><i id="dP1"></i></div><div class="dsol r"><span id="dS1">0.010000</span><small>SOL</small></div></div>
+    <div class="dcap" id="dCap">Live demo · 0.01 SOL each · winner takes the pot</div>
+    <div class="dwin" id="dWin" hidden></div>
   </div>
 </div></div>
 
@@ -318,6 +344,55 @@ img.px{image-rendering:pixelated;image-rendering:crisp-edges}
   if (inPhantom) document.querySelectorAll('[data-play]').forEach(a => { if (a.textContent.includes('Phantom')) a.textContent = 'Play now'; });
   if (!phone && !inPhantom) document.getElementById('ctaNote').textContent = 'On desktop, install the Phantom browser extension. On a phone, this button opens the game inside the Phantom app. Currently on Solana devnet with free test SOL.';
 })();
+</script>
+<script src="/pixel-arena.js"></script>
+<script type="module">
+// Live hero demo: the real game engine plays an AI-vs-AI match for a 0.01 SOL stake each, showing the pot move on every hit.
+import { createMatch, step, snapshot, sanitizeInput, aiInput, ARENA, TICK } from '/shared/sim.mjs';
+import { Monstar, SPECIES, GENESIS_IDS, STAGES } from '/shared/monstars.mjs';
+import { StakeLedger, formatSol } from '/shared/stake.mjs';
+const $ = id => document.getElementById(id);
+const cv = $('demoCv'); if (cv && window.PMArena) {
+  const r = PMArena.createRenderer(cv, ARENA), STAKE = 10_000_000n;
+  let m, ledger, prev, cur, at, mem, endAt = 0, hues = [0, 0], types = [], fightAt = 0, visible = true;
+  new IntersectionObserver(es => { visible = es[0].isIntersecting; }).observe(cv);
+  function start() {
+    const pool = [...GENESIS_IDS].sort(() => Math.random() - 0.5), lv = [3, 10, 25, 50, 80][Math.floor(Math.random() * 5)];
+    const a = new Monstar({ speciesId: pool[0], level: lv }), b = new Monstar({ speciesId: pool[1], level: Math.max(1, lv + Math.floor(Math.random() * 5) - 2) });
+    m = createMatch(a, b, { arena: Math.floor(Math.random() * 4) }); ledger = new StakeLedger(STAKE); mem = [{}, {}];
+    prev = null; cur = snapshot(m); at = performance.now(); endAt = 0; fightAt = performance.now(); types = [a.type, b.type]; r.reset();
+    [a, b].forEach((x, i) => { $('dN' + i).textContent = x.species.name.toUpperCase(); $('dPic' + i).src = PMArena.spriteSrc(x.species.id); });
+    $('dWin').hidden = true; sol();
+  }
+  function sol(hit) {
+    for (const i of [0, 1]) { const el = $('dS' + i); el.textContent = formatSol(ledger.shares[i], 6);
+      if (hit) { const box = el.parentElement; box.classList.remove('up', 'down'); void box.offsetWidth; box.classList.add(hit.attacker === i ? 'up' : 'down'); } }
+    $('dP0').style.width = Number(ledger.shares[0] * 1000n / ledger.pot) / 10 + '%';
+  }
+  setInterval(() => {
+    if (!visible || !m) return;
+    if (m.over) { if (performance.now() - endAt > 3200) start(); return; }
+    for (const i of [0, 1]) { const ai = aiInput(m, i, mem[i]); m.fighters[i].input = sanitizeInput(ai); }
+    for (const ev of step(m)) {
+      if (ev.type === 'hit') { const fee = ledger.hit(ev.attacker, ev.damage, ev.victimMaxHp); r.event({ ...ev, fee: formatSol(fee, 6) }, cur); sol(ev); }
+      else r.event({ ...ev, name: SPECIES[m.fighters[ev.side ?? 0].speciesId].name.toUpperCase() }, cur);
+    }
+    prev = cur; cur = snapshot(m); at = performance.now();
+    if (m.over) { ledger.finish(m.winner); sol(); endAt = performance.now();
+      const w = m.winner == null ? null : SPECIES[m.fighters[m.winner].speciesId].name;
+      $('dWin').innerHTML = w ? `<b>${w} wins!</b><span>Takes the pot: +${formatSol(ledger.pot, 4)} SOL</span><span style="color:#8fd0ff">+${m.fighters[m.winner].expGained} EXP</span>` : '<b>Draw</b><span>Each keeps their share</span>';
+      $('dWin').hidden = false; }
+  }, TICK * 1000);
+  (function frame() {
+    if (m && visible) {
+      r.draw(prev, cur, Math.min(1, (performance.now() - at) / 34), { you: 0, snapAt: at, hues, types, faint: m.over && m.winner != null ? [m.winner === 1 ? Math.min(1, (performance.now() - endAt) / 1200) : 0, m.winner === 0 ? Math.min(1, (performance.now() - endAt) / 1200) : 0] : [0, 0], fight: Math.max(0, 1.4 - (performance.now() - fightAt) / 1000) });
+      cur.f.forEach((f, i) => { $('dH' + i).style.width = Math.max(0, f.hp / f.max * 100) + '%'; $('dH' + i).style.background = f.hp / f.max > 0.5 ? '#58d858' : f.hp / f.max > 0.2 ? '#f8c838' : '#f85838'; $('dL' + i).textContent = `Lv${f.lv} ${STAGES[f.sg].name}`; });
+      const left = Math.max(0, Math.ceil(ARENA.roundSeconds - cur.t)); $('dClock').textContent = `${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}`;
+    }
+    requestAnimationFrame(frame);
+  })();
+  PMArena.onReady(start);
+}
 </script>
 </body>
 </html>

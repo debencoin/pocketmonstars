@@ -163,7 +163,7 @@ function createRenderer(canvas, arena) {
     else if (ev.eff < 1) say(x, y - 26, 'NOT VERY EFFECTIVE', '#b0b0c0', 1.1, 5);
     // earnings over the attacker: SOL (paid when the match ends) and EXP
     const ax = a.x * K, ay = a.y * K - 34;
-    if (ev.fee) say(ax, ay, '+' + ev.fee + ' SOL', '#9ef0c8', 1.4, 6);
+    if (ev.fee) { say(ax, ay, '+' + ev.fee + ' SOL', '#9ef0c8', 1.4, 6); say(x, y + 12, '-' + ev.fee + ' SOL', '#ff6b6b', 1.4, 6); } // earned by the attacker, deducted from the one hit
     if (ev.exp) say(ax, ay + (ev.fee ? 9 : 0), '+' + ev.exp + ' EXP', '#8fd0ff', 1.4, 6);
     shake = Math.max(shake, ev.style === 'beam' || ev.style === 'strike' ? 0.3 : 0.12);
   }
