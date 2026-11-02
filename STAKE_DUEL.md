@@ -146,3 +146,6 @@ Stats: HP, Attack, Defense, Sp. Atk, Sp. Def, Speed. Types: EMBER, GROVE, TIDE, 
 - **Leaderboard** tab (`GET /api/leaderboard`): connected wallets ranked by net SOL earned in staked matches, then wins.
 - **Ascendants**: 20 founder-supplied portraits (`dist/art/src/ascendants`) become legendary Monstars held by the founder wallet at Lv80. `scripts/make_portraits.py` puts each portrait's head on a drawn winged body so they animate like the others; their NFT picture is the original portrait (`art/nft/<name>.jpg`). Mint from the Monstars list to make each an NFT in the founder's wallet.
 - Battle lock (`dist/lock.js`): no zoom and Back can't leave while a battle is live.
+
+## v14: Ascendants as animated pixel characters
+- The 20 Ascendants no longer use the photos in game or as NFT art. `scripts/make_walkers.py` draws each as a Game Boy-style pixel character inspired by its reference portrait (headdress, colours, glowing eyes, jewellery, staff/sword), with a 6-frame sheet in `dist/art/walk/`: two breathing idle frames and a 4-frame run cycle (striding legs, swinging arms, body bob). The renderer plays the run cycle while they move (faster on dashes) and the idle when they stop. They now run on the field (dart, charge, pounce, prance, stomp, skate) instead of hovering. The reference portraits stay in `dist/art/src/ascendants` but are not used.

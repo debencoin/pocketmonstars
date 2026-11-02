@@ -4,7 +4,7 @@ import os, json, subprocess
 from PIL import Image, ImageDraw, ImageFilter
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SRC, OUT = os.path.join(ROOT, 'dist/art/hd'), os.path.join(ROOT, 'dist/art/nft'); os.makedirs(OUT, exist_ok=True)
-species = json.loads(subprocess.check_output(['node', '-e', "import('./shared/monstars.mjs').then(M => process.stdout.write(JSON.stringify(M.SPECIES.filter(s => !s.portrait).map(s => [s.art, s.color]))))"], cwd=ROOT))
+species = json.loads(subprocess.check_output(['node', '-e', "import('./shared/monstars.mjs').then(M => process.stdout.write(JSON.stringify(M.SPECIES.map(s => [s.art, s.color]))))"], cwd=ROOT))
 N = 512
 for art, color in species:
     c = tuple(int(color.lstrip('#')[i:i + 2], 16) for i in (0, 2, 4))

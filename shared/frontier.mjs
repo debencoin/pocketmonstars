@@ -130,8 +130,11 @@ export const WATCHERS = [
 
 // Ascendants: 20 legendary portraits supplied by the founder (dist/art/src/ascendants). Held by the founder
 // wallet at level 80, never found in the wild. Battle sprites are framed medallions of each portrait.
+// Ascendants run around the field (animated walk cycles) instead of floating.
+const RUN = { Nyxara: 'dart', Serqeth: 'skate', Kaelor: 'charge', Lumiyah: 'dart', Thothex: 'prance', Khonsar: 'pounce', Selenox: 'stomp', Amunrah: 'charge', Azarath: 'pounce', Setekh: 'dart',
+  Horuskai: 'dart', Neferion: 'prance', Ptahmos: 'stomp', Khepron: 'pounce', Osirak: 'stomp', Isisra: 'skate', Rasolar: 'prance', Anuket: 'charge', Anupex: 'pounce', Nefertek: 'skate' };
 const A = (name, file, type, cls, move, special, basicStyle, specialStyle, accent) =>
-  ({ ...F(name, type, cls, move, special, basicStyle, specialStyle, 'hover', 'portrait', accent, '#ffffff', accent, { file }), legendary: true });
+  ({ ...F(name, type, cls, move, special, basicStyle, specialStyle, RUN[name] || 'pounce', 'walker', accent, '#ffffff', accent, { file }), legendary: true });
 export const ASCENDANTS = [
   A('Nyxara', '5e80ff12', 'SHADE', 'psion', 'Violet tear', 'Gilded night', 'projectile', 'strike', '#8a4ae0'),
   A('Serqeth', 'd376a656', 'PSYCHIC', 'psion', 'Serpent gaze', 'Mind lock', 'projectile', 'levitate', '#a060ff'),

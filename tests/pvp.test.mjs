@@ -342,11 +342,11 @@ test('shields differ per Monstar (from wallet DNA) and a raised shield can block
   for (let i = 0; i < 90; i++) { m.fighters[0].input = S.sanitizeInput({ atk: true }); m.fighters[1].guardT = 99; m.fighters[1].x = m.fighters[0].x + 150; m.fighters[1].y = m.fighters[0].y; blocked += S.step(m).filter(e => e.type === 'blocked').length; }
   assert.ok(blocked > 0); assert.equal(m.fighters[1].hp, hp);
 });
-test('founder wallet holds the 20 Ascendants at level 80 with their portrait NFT art', async () => {
+test('founder wallet holds the 20 Ascendants at level 80 as animated characters', async () => {
   const { SPECIES, nftArt } = await import('../shared/monstars.mjs');
   const founder = wallet(), reg = new Registry(openDb(':memory:'), { legendaryOwner: founder });
   const asc = reg.claimAll(founder).filter(m => m.collection === 'ascendants');
   assert.equal(asc.length, 20); assert.ok(asc.every(m => m.level === 80));
-  assert.equal(nftArt(SPECIES[asc[0].species.id]).endsWith('.jpg'), true);
+  assert.ok(SPECIES[asc[0].species.id].walker && nftArt(SPECIES[asc[0].species.id]).endsWith('.png'));
   assert.equal(reg.claimAll(wallet()).some(m => m.collection === 'ascendants'), false);
 });
