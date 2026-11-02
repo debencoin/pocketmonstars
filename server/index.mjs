@@ -17,9 +17,16 @@ import { randomBytes } from 'node:crypto';
 import { PublicKey, SystemProgram, Transaction } from '@solana/web3.js';
 import { TICK } from '../shared/sim.mjs';
 
+// Session signing secret: PM_SESSION_SECRET if set (survives redeploys), else one saved in the data folder.
+function sessionSecret() {
+  if (process.env.PM_SESSION_SECRET) return process.env.PM_SESSION_SECRET;
+  const f = path.join(DATA_DIR, 'keys', 'session-secret');
+  try { return fs.readFileSync(f, 'utf8').trim(); } catch {}
+  const s = randomBytes(32).toString('hex'); try { fs.writeFileSync(f, s, { mode: 0o600 }); } catch {} return s;
+}
 export function createServer({ config = CONFIG, chain = new SolanaChain(config.rpc), dbFile = path.join(DATA_DIR, 'pocketmonstars.db'), keys = serverKeys() } = {}) {
   const db = openDb(dbFile);
-  const registry = new Registry(db, { legendaryOwner: config.legendaryOwner }), auth = new Auth();
+  const registry = new Registry(db, { legendaryOwner: config.legendaryOwner }), auth = new Auth({ secret: sessionSecret() });
   const matches = new MatchManager({ db, registry, chain, config });
   const nft = new NftService({ config, keys, chain });
   const roots = { '/shared/': path.resolve('shared'), '/': path.resolve('dist') };
@@ -158,9 +165,10 @@ export function createServer({ config = CONFIG, chain = new SolanaChain(config.r
   const wss = new WebSocketServer({ server, path: '/ws', maxPayload: 4096 });
   wss.on('connection', (ws, req) => {
     const wallet = auth.wallet(new URL(req.url, 'http://x').searchParams.get('token'));
-    if (!wallet) { ws.close(4001, 'Sign in first'); return; }
+    if (!wallet) { ws.close(4001, 'Sign in again'); return; }
     matches.attach(wallet, ws);
     const reply = msg => { try { ws.send(JSON.stringify(msg)); } catch {} };
+    { const room = matches.roomOf(wallet); reply(room ? matches.publicRoom(room, wallet) : { t: 'noroom' }); } // lets a reconnecting player resume or reset
     const roomUpdate = room => { matches.attach(wallet, ws); for (const p of room.players) for (const s of p.sockets) { try { s.send(JSON.stringify(matches.publicRoom(room, p.wallet))); } catch {} } };
     ws.on('message', async raw => {
       let msg; try { msg = JSON.parse(raw); } catch { return; }
@@ -179,7 +187,7 @@ export function createServer({ config = CONFIG, chain = new SolanaChain(config.r
   });
 
   let n = 0;
-  const loop = setInterval(() => { matches.tick(TICK); if (++n % 2 === 0) matches.broadcastStates(); }, TICK * 1000);
+  const loop = setInterval(() => { try { matches.tick(TICK); if (++n % 2 === 0) matches.broadcastStates(); } catch (e) { console.error('loop error:', e?.stack || e); } }, TICK * 1000);
   server.on('close', () => { clearInterval(loop); wss.close(); db.close(); });
   return { server, db, registry, auth, matches, nft };
 }

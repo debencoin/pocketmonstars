@@ -49,6 +49,7 @@ export async function signIn() {
   try { sessionStorage.setItem('pm-token', token); sessionStorage.setItem('pm-wallet', wallet); } catch {}
   return wallet;
 }
+export function signOut() { token = null; wallet = null; try { sessionStorage.removeItem('pm-token'); sessionStorage.removeItem('pm-wallet'); } catch {} }
 export function session() {
   const p = window.phantom?.solana;
   if (token && wallet && p?.publicKey && p.publicKey.toBase58() !== wallet) { token = null; wallet = null; } // account switched in Phantom
@@ -138,4 +139,4 @@ export async function wildPay() {
 export const explorer = sig => `https://explorer.solana.com/tx/${sig}?cluster=devnet`;
 
 if (typeof window !== 'undefined') window.PMStake = { signIn, session, balance, getConfig, myMonstars, mint, syncOwner, listings, list, cancelListing, buy,
-  connectSocket, deposit, explorer, phantomBrowseLink, breedCreate, breedJoin, breedStatus, breedPay, wildPay, Monstars, Stake, ARENA, Sim };
+  connectSocket, deposit, explorer, phantomBrowseLink, breedCreate, breedJoin, breedStatus, breedPay, wildPay, signOut, Monstars, Stake, ARENA, Sim };

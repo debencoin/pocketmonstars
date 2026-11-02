@@ -383,3 +383,24 @@ test('Mega Shot fires from a full ULT meter; Mirror Shell reflects shots; Shadow
   const foe = m3.fighters[1]; m3.fighters[0].input = S.sanitizeInput({ dash: true }); S.step(m3);
   assert.ok(Math.hypot(m3.fighters[0].x - foe.x, m3.fighters[0].y - foe.y) < 110);
 });
+
+test('a player in a new match never receives messages from an old one; finished matches are not re-broadcast', async () => {
+  const db = openDb(':memory:'), registry = new Registry(db), chain = new MockChain();
+  const mm = new MatchManager({ db, registry, chain, config: { disconnectGraceMs: 1e9, depositTimeoutMs: 1e9 } });
+  const w = wallet(), mine = registry.claimAll(w), got = [], sock = { send: s => got.push(JSON.parse(s)) };
+  const r1 = mm.createAi(w, { serial: mine[0].serial }); mm.attach(w, sock);
+  for (let i = 0; i < 120; i++) mm.tick();
+  mm.leave(w); const r2 = mm.createAi(w, { serial: mine[1].serial }); mm.attach(w, sock);
+  got.length = 0;
+  for (let i = 0; i < 300; i++) { mm.tick(); if (i % 2) mm.broadcastStates(); }
+  assert.ok(got.length > 0); assert.ok(got.every(m => !m.code || m.code === r2.code), 'only the new match talks to this player');
+});
+test('session tokens are signed and keep working after a server restart (same secret)', async () => {
+  const { Auth } = await import('../server/auth.mjs');
+  const kp = Keypair.generate(), a1 = new Auth({ secret: 's1' }), msg = a1.challenge(kp.publicKey.toBase58());
+  const { ed25519 } = await import('@noble/curves/ed25519'), bs58 = (await import('bs58')).default;
+  const { token } = a1.verify(kp.publicKey.toBase58(), bs58.encode(ed25519.sign(Buffer.from(msg), kp.secretKey.slice(0, 32))));
+  assert.equal(new Auth({ secret: 's1' }).wallet(token), kp.publicKey.toBase58());
+  assert.equal(new Auth({ secret: 's2' }).wallet(token), null);
+  assert.equal(new Auth({ secret: 's1' }).wallet(token.slice(0, -2) + 'xx'), null);
+});

@@ -70,7 +70,7 @@ export class MatchManager {
     const room = { id: randomBytes(16).toString('hex'), code, stake: 0n, state: 'countdown', countdown: 2.5, createdAt: this.now(), ai: true, wild, mode: team.length > 1 ? '3v3' : '1v1',
       players: [{ wallet, monstar, team, deposit: null, sockets: new Set(), lastSeen: this.now() }, { wallet: 'AI', ai: true, monstar: bot, team: bots, sockets: new Set(), lastSeen: Infinity }],
       escrow: null, sim: null, ledger: null, seq: 0, aiMem: { hard, level } };
-    this.rooms.set(code, room); this.byWallet.set(wallet, code);
+    this.rooms.set(code, room); this.byWallet.set(wallet, code); this.release(wallet);
     this.db.prepare('INSERT INTO matches(id,code,stake,player_a,player_b,monstar_a,monstar_b,state,created_at) VALUES(?,?,?,?,?,?,?,?,?)')
       .run(room.id, code, '0', wallet, 'AI', String(monstar.serial ?? 'species:' + monstar.species.id), 'species:' + sid, 'countdown', room.createdAt);
     return room;
@@ -85,7 +85,7 @@ export class MatchManager {
     const escrow = stake > 0n ? newEscrow() : null;
     const room = { id: randomBytes(16).toString('hex'), code, stake, state: 'waiting', createdAt: this.now(), mode: team.length > 1 ? '3v3' : '1v1',
       players: [{ wallet, monstar, team, deposit: null, sockets: new Set(), lastSeen: this.now() }], escrow, sim: null, ledger: null, seq: 0, countdown: 0 };
-    this.rooms.set(code, room); this.byWallet.set(wallet, code);
+    this.rooms.set(code, room); this.byWallet.set(wallet, code); this.release(wallet);
     this.db.prepare('INSERT INTO matches(id,code,stake,player_a,monstar_a,escrow,escrow_secret,state,created_at) VALUES(?,?,?,?,?,?,?,?,?)')
       .run(room.id, code, stake.toString(), wallet, String(monstar.serial ?? 'species:' + monstar.species.id), escrow?.address ?? null, escrow?.secret ?? null, 'waiting', room.createdAt);
     return room;
@@ -100,7 +100,7 @@ export class MatchManager {
     if (this.byWallet.has(wallet)) this.leave(wallet);
     const team = this.resolveTeam(wallet, { ...msg, mode: room.mode }, room.stake > 0n), monstar = team[0];
     room.players.push({ wallet, monstar, team, deposit: null, sockets: new Set(), lastSeen: this.now() });
-    this.byWallet.set(wallet, room.code);
+    this.byWallet.set(wallet, room.code); this.release(wallet);
     room.state = room.stake > 0n ? 'deposit' : 'countdown';
     if (room.state === 'countdown') room.countdown = 3;
     this.db.prepare('UPDATE matches SET player_b=?, monstar_b=?, state=? WHERE id=?')
@@ -138,16 +138,27 @@ export class MatchManager {
     const room = this.roomOf(wallet);
     if (!room) return;
     const idx = room.players.findIndex(p => p.wallet === wallet);
-    if (room.state === 'live') { forfeit(room.sim, idx); return; } // the tick loop ends and settles it
+    if (room.state === 'live') { forfeit(room.sim, idx); this.byWallet.delete(wallet); return; } // the tick loop ends and settles it
     if (['waiting', 'deposit', 'countdown'].includes(room.state)) this.cancel(room, 'left');
   }
 
+  /** A player starting or joining another match stops receiving anything from their previous one. */
+  release(wallet) { for (const room of this.rooms.values()) for (const p of room.players) if (p.wallet === wallet && this.byWallet.get(wallet) !== room.code) p.sockets.clear(); }
   roomOf(wallet) { const c = this.byWallet.get(wallet); return c ? this.rooms.get(c) : null; }
 
   // ---------- loop ----------
   tick(dt = TICK) {
-    const now = this.now();
     for (const room of this.rooms.values()) {
+      try { this.tickRoom(room, dt); }
+      catch (e) { // one broken match must never take the server down for everyone
+        console.error('match', room.code, 'error:', e?.stack || e);
+        try { if (room.state === 'live') { forfeit(room.sim, 1); this.end(room); } else this.cancel(room, 'error'); } catch { this.rooms.delete(room.code); }
+      }
+    }
+  }
+  tickRoom(room, dt) {
+    const now = this.now();
+    {
       if (room.state === 'countdown') {
         room.countdown -= dt;
         if (room.countdown <= 0) this.start(room);
@@ -271,9 +282,9 @@ export class MatchManager {
   }
 
   // ---------- sockets ----------
-  attach(wallet, ws) { const room = this.roomOf(wallet); const p = room?.players.find(q => q.wallet === wallet); if (p) { p.sockets.add(ws); p.lastSeen = this.now(); } }
+  attach(wallet, ws) { this.release(wallet); const room = this.roomOf(wallet); const p = room?.players.find(q => q.wallet === wallet); if (p) { p.sockets.add(ws); p.lastSeen = this.now(); } }
   detach(wallet, ws) { const room = this.roomOf(wallet); const p = room?.players.find(q => q.wallet === wallet); if (p) { p.sockets.delete(ws); p.lastSeen = this.now(); } }
-  emit(room, msg) { const s = JSON.stringify(msg); for (const p of room.players) for (const ws of p.sockets) { try { ws.send(s); } catch {} } }
+  emit(room, msg) { const s = JSON.stringify({ ...msg, code: room.code }); for (const p of room.players) for (const ws of p.sockets) { try { ws.send(s); } catch {} } }
 
   publicRoom(room, wallet) {
     return { t: 'room', code: room.code, state: room.state, stake: room.stake.toString(), escrow: room.escrow?.address ?? null,
@@ -285,7 +296,7 @@ export class MatchManager {
   broadcastStates() {
     for (const room of this.rooms.values()) {
       if (room.state === 'live') this.emit(room, { t: 'state', s: snapshot(room.sim), shares: room.ledger.shares.map(String) });
-      else for (const p of room.players) for (const ws of p.sockets) { try { ws.send(JSON.stringify(this.publicRoom(room, p.wallet))); } catch {} }
+      else if (['waiting', 'deposit', 'countdown'].includes(room.state)) for (const p of room.players) if (this.byWallet.get(p.wallet) === room.code) for (const ws of p.sockets) { try { ws.send(JSON.stringify(this.publicRoom(room, p.wallet))); } catch {} }
     }
   }
 }

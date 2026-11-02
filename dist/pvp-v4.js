@@ -257,7 +257,7 @@ function hudNames() {
   order.forEach((pi, k) => { const m = room.players[pi].monstar; q('pvN' + k).textContent = Monstars.SPECIES[m.speciesId].name.toUpperCase(); const t = q('pvT' + k); if (!t.classList.contains('cast')) t.textContent = m.type; t.dataset.type = m.type; t.style.setProperty('--tc', TYPE_COL[m.type] || '#888');
     q('pvPic' + k).src = PA.spriteSrc(m.speciesId); q('pvPic' + k).style.filter = `hue-rotate(${m.traits?.hue || 0}deg)`; });
 }
-function leaveBattle() { if (room?.local) { room = null; local = null; ended = null; snapCur = null; renderRoom(); renderer.idle(); return; } try { sendWs({ t: 'leave' }); } catch {} room = null; ended = null; renderRoom(); }
+function leaveBattle() { if (room?.code && !room.local) doneCodes.add(room.code); if (room?.local) { room = null; local = null; ended = null; snapCur = null; renderRoom(); renderer.idle(); return; } try { sendWs({ t: 'leave' }); } catch {} room = null; ended = null; renderRoom(); }
 q('pvLeave').onclick = q('pvExit').onclick = leaveBattle;
 // One deposit per match. If the server hasn't seen it on-chain yet, re-check the SAME signature; never send a second transfer.
 let pendingDeposit = null, depositRetries = 0;
@@ -326,7 +326,12 @@ function startPractice(opt = null) {
   const own = ownedFor(pickedSpecies);
   if (!opt && mode === '3v3' && teamPick.length < 3) { fillTeam(); renderPicker(); }
   const ownTeam = mode === '3v3' ? teamPick.map(ownedFor) : [own];
-  if (!opt && S.session() && ownTeam.length === (mode === '3v3' ? 3 : 1) && ownTeam.every(Boolean)) { try { sendWs({ t: 'ai', mode, level: cpuLevel, serial: own?.serial, serials: ownTeam.map(m => m.serial) }); ended = null; fightAt = 0; renderer.reset(); resetVirtual(); } catch (e) { fail(e); } return; }
+  if (!opt && S.session() && ownTeam.length === (mode === '3v3' ? 3 : 1) && ownTeam.every(Boolean) && ws?.readyState === 1) {
+    try { sendWs({ t: 'ai', mode, level: cpuLevel, serial: own?.serial, serials: ownTeam.map(m => m.serial) }); ended = null; fightAt = 0; renderer.reset(); resetVirtual();
+      const asked = performance.now(); setTimeout(() => { if (!room && performance.now() - asked > 2400) { toast('Server is slow, playing practice on this device.'); startPractice({ ...(opt || {}), forceLocal: true }); } }, 2500);
+    } catch (e) { fail(e); } return; }
+  if (!opt && S.session() && ws?.readyState !== 1) openSocket(); // reconnect in the background; this practice runs locally
+  if (opt?.forceLocal) opt = null;
   if (!usableSpecies(Monstars.SPECIES[pickedSpecies])) pickedSpecies = 0;
   const three = !opt && mode === '3v3';
   if (three && teamPick.length < 3) { fillTeam(); renderPicker(); }
@@ -365,19 +370,38 @@ setInterval(() => {
   }
 }, 1000 / 30);
 
+let retry = 0, retryT = null;
 function openSocket() {
   if (ws && ws.readyState <= 1) return;
+  clearTimeout(retryT);
   ws = S.connectSocket(onMsg);
-  ws.onclose = () => { if (room && room.state === 'live') toast('Connection lost. Reconnecting…', true); setTimeout(() => { if (S.session()) openSocket(); }, 1500); };
+  ws.onopen = () => { retry = 0; };
+  ws.onclose = e => {
+    if (e.code === 4001) { // the server no longer accepts this sign-in: clear it once, no reconnect loop
+      S.signOut?.(); me = null; serverLost('Your sign-in expired. Tap "Connect Phantom & sign in" to sign in again. Practice still works.'); return; }
+    if (!S.session()) return;
+    if (room && !room.local && room.state === 'live' && retry === 0) toast('Connection lost. Reconnecting…', true);
+    retry++; if (retry > 6) { serverLost('Lost connection to the game server. Practice runs on your phone until it is back.'); retry = 0; return; }
+    retryT = setTimeout(openSocket, Math.min(8000, 800 * retry)); // back off instead of hammering
+  };
+}
+function serverLost(msg) {
+  if (room && !room.local) { room = null; ended = null; snapCur = null; snapPrev = null; renderRoom(); renderer.idle(); }
+  q('pvSignIn').textContent = S.session() ? 'Signed in · switch wallet' : 'Connect Phantom & sign in';
+  toast(msg, true);
 }
 
+const doneCodes = new Set(); // matches this player has finished or left: ignore anything they still send
 function onMsg(m) {
+  if (m.code && doneCodes.has(m.code)) return;
+  if (m.code && room && !room.local && m.code !== room.code && m.t !== 'room') return; // belongs to another match
   if (m.t === 'error') {
     if (/not found yet/i.test(m.error) && window.PMWild?.retry?.()) return toast('Waiting for Solana to confirm your entry fee…');
     if (/not found yet/i.test(m.error) && pendingDeposit && depositRetries < 10) { depositRetries++; setTimeout(() => sendWs({ t: 'deposit', signature: pendingDeposit.sig }), 3000); return toast('Waiting for Solana to confirm your deposit…'); }
     return toast(m.error, true);
   }
-  if (m.t === 'room') { room = m; shares = practiceMoney() ? (vLedger ? vLedger.shares.map(String) : null) : m.shares; renderRoom(); return; }
+  if (m.t === 'noroom') { if (room && !room.local) { serverLost('That match ended because the game server restarted. Start a new one.'); } return; }
+  if (m.t === 'room') { if (room?.local) return; if (room && room.code !== m.code && ['live', 'countdown'].includes(room.state) && !ended && ['done', 'cancelled', 'settled', 'refunded'].includes(m.state)) return; room = m; shares = practiceMoney() ? (vLedger ? vLedger.shares.map(String) : null) : m.shares; renderRoom(); return; }
   if (m.t === 'state') {
     if (room && room.state !== 'live') { room.state = 'live'; fightAt = performance.now(); renderer.reset(); renderRoom(); }
     snapPrev = snapCur; snapCur = m.s; snapAt = performance.now(); setShares(m.shares); return;
@@ -385,7 +409,7 @@ function onMsg(m) {
   if (m.t === 'hit') { setShares(m.shares, m); return; }
   if (['switch', 'status', 'ult', 'pickup', 'blocked', 'dash', 'guard', 'mega', 'quake'].includes(m.t)) { battleEvent({ ...m, type: m.t }); return; }
   if (m.t === 'miss' || m.t === 'level' || m.t === 'bonus') { battleEvent({ ...m, type: m.t }); if (m.t === 'level') refreshSoon(); return; }
-  if (m.t === 'end') { if (practiceMoney() && vLedger) { vLedger.finish(m.winner == null ? null : m.winner); shares = vLedger.shares.map(String); showShares(); } ended = { ...m, at: performance.now() }; refreshSoon(); if (room) room.state = room.stake === '0' ? 'done' : 'settling'; renderRoom(); return; }
+  if (m.t === 'end') { if (m.code) setTimeout(() => doneCodes.add(m.code), 60000); if (practiceMoney() && vLedger) { vLedger.finish(m.winner == null ? null : m.winner); shares = vLedger.shares.map(String); showShares(); } ended = { ...m, at: performance.now() }; refreshSoon(); if (room) room.state = room.stake === '0' ? 'done' : 'settling'; renderRoom(); return; }
   if (m.t === 'settlement') { ended = { at: 0, ...(ended || {}), settlement: m }; if (room) room.state = m.ok ? (m.refund ? 'refunded' : 'settled') : 'needs review'; renderRoom(); refreshBalance(); return; }
   if (m.t === 'cancelled') { toast('Match cancelled (' + m.reason + ').' + (room?.players?.some(p => p.deposited) ? ' Deposits are being refunded.' : '')); if (room) room.state = 'cancelled'; renderRoom(); }
   if (m.t === 'left') { room = null; renderRoom(); }
