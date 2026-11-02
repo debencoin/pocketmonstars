@@ -1,4 +1,4 @@
-// PocketMonstars species, classes and DNA traits.
+// PocketMonstars species, classes, evolution stages, EXP and DNA traits.
 // Pure ES module: runs in the browser (rendering) and in Node (authoritative server).
 // The server derives DNA; this file only turns a DNA hex string into traits and stats.
 
@@ -7,13 +7,34 @@ export const STAT_LABELS = { hp: 'HP', attack: 'Attack', defense: 'Defense', spA
 
 export const TYPE_CHART = {
   EMBER: ['GROVE', 'FROST'], TIDE: ['EMBER', 'STONE'], GROVE: ['TIDE', 'STONE'], SPARK: ['TIDE'],
-  STONE: ['SPARK', 'EMBER'], FROST: ['GROVE'], SHADE: ['ASTRAL'], ASTRAL: ['SHADE'],
+  STONE: ['SPARK', 'EMBER'], FROST: ['GROVE'], SHADE: ['ASTRAL', 'PSYCHIC'], ASTRAL: ['SHADE'],
+  PSYCHIC: ['STONE', 'EMBER'],
 };
 export function effectiveness(attackType, defendType) {
   if (TYPE_CHART[attackType]?.includes(defendType)) return 1.5;
   if (TYPE_CHART[defendType]?.includes(attackType)) return 0.7;
   return 1;
 }
+
+// ---------- Evolution stages ----------
+// Every Monstar hatches as an Infant and evolves at levels 3, 10, 25, 50 and 80.
+export const STAGES = [
+  { id: 0, name: 'Infant', minLevel: 1, scale: 0.6, mult: 1.0 },
+  { id: 1, name: 'Rookie', minLevel: 3, scale: 0.72, mult: 1.08 },
+  { id: 2, name: 'Champion', minLevel: 10, scale: 0.85, mult: 1.18 },
+  { id: 3, name: 'Ultimate', minLevel: 25, scale: 1.0, mult: 1.32 },
+  { id: 4, name: 'Mega', minLevel: 50, scale: 1.12, mult: 1.5 },
+  { id: 5, name: 'Ascended', minLevel: 80, scale: 1.25, mult: 1.75 },
+];
+export const MAX_LEVEL = 100;
+export function stageFor(level) { let s = STAGES[0]; for (const st of STAGES) if (level >= st.minLevel) s = st; return s; }
+/** EXP needed to go from `level` to `level + 1`. */
+export function expToNext(level) { return Math.round(12 * Math.pow(level, 1.5)); }
+/** Total EXP needed to reach `level` from level 1. */
+export function expForLevel(level) { let t = 0; for (let l = 1; l < level; l++) t += expToNext(l); return t; }
+export function levelForExp(exp) { let l = 1, need = expToNext(1), left = exp; while (l < MAX_LEVEL && left >= need) { left -= need; l++; need = expToNext(l); } return l; }
+/** Progress inside the current level: { level, into, need }. */
+export function levelProgress(exp) { const level = levelForExp(exp); return { level, into: exp - expForLevel(level), need: level >= MAX_LEVEL ? 1 : expToNext(level) }; }
 
 // ---------- Classes ----------
 // Each class sets base stats and a combat passive that the authoritative simulation applies.
@@ -22,7 +43,6 @@ export class MonstarClass {
   static label = 'Monstar';
   static base = [100, 60, 60, 60, 60, 60];
   static passive = '';
-  // Combat modifiers read by shared/sim.mjs
   static mods = { damage: 1, taken: 1, dashCd: 1, specialCd: 1, projectileSpeed: 1, energyRegen: 1, guardTime: 1, knockback: 1, regen: 0 };
 }
 export class Striker extends MonstarClass {
@@ -70,20 +90,41 @@ export class Titan extends MonstarClass {
   static passive = 'Immune to knockback.';
   static mods = { ...MonstarClass.mods, knockback: 0 };
 }
-export const CLASSES = [Striker, Warden, Skirmisher, Ranger, Mystic, Sentinel, Arcanist, Support, Titan];
+// Legendary classes
+export class Seraph extends MonstarClass {
+  static id = 'seraph'; static label = 'Seraph'; static base = [150, 92, 88, 118, 104, 96];
+  static passive = 'Four wings: regenerates HP and takes 10% less damage.';
+  static mods = { ...MonstarClass.mods, taken: 0.9, regen: 0.006, specialCd: 0.85 };
+}
+export class Psion extends MonstarClass {
+  static id = 'psion'; static label = 'Psion'; static base = [132, 80, 76, 126, 98, 104];
+  static passive = 'Levitates: immune to knockback, special recharges 20% faster.';
+  static mods = { ...MonstarClass.mods, knockback: 0, specialCd: 0.8, energyRegen: 1.15 };
+}
+export const CLASSES = [Striker, Warden, Skirmisher, Ranger, Mystic, Sentinel, Arcanist, Support, Titan, Seraph, Psion];
 
-// ---------- Species (order matches dist/art and the existing game) ----------
+// ---------- Species ----------
+// `motion` is how the Monstar moves on its own when the player isn't steering.
+export const COLLECTIONS = {
+  genesis: { name: 'Genesis', note: 'The original nine. Every wallet hatches its own version of each.' },
+  legendary: { name: 'Legendary', note: 'One-of-a-kind legends held by the founder wallet.' },
+  bred: { name: 'Bred', note: 'Infants hatched by breeding two players\' Monstars.' },
+};
 export const SPECIES = [
-  { id: 0, name: 'Cindercub', type: 'EMBER', art: 'cindercub', cls: Striker, move: 'Ember volley', special: 'Inferno bloom', basicStyle: 'projectile', specialStyle: 'cone', color: '#ec975b' },
-  { id: 1, name: 'Mossprout', type: 'GROVE', art: 'mossprout', cls: Warden, move: 'Vine lash', special: 'Ancient roots', basicStyle: 'whip', specialStyle: 'strike', color: '#a7c76d' },
-  { id: 2, name: 'Ripplefin', type: 'TIDE', art: 'ripplefin', cls: Skirmisher, move: 'Tidal pulse', special: 'Maelstrom', basicStyle: 'projectile', specialStyle: 'beam', color: '#7dc8d4' },
-  { id: 3, name: 'Voltwing', type: 'SPARK', art: 'voltwing', cls: Ranger, move: 'Arc flash', special: 'Thunder crown', basicStyle: 'bolt', specialStyle: 'strike', color: '#e4cc68' },
-  { id: 4, name: 'Duskhorn', type: 'SHADE', art: 'duskhorn', cls: Mystic, move: 'Dusk bolt', special: 'Eclipse fall', basicStyle: 'projectile', specialStyle: 'strike', color: '#b8a1d5' },
-  { id: 5, name: 'Pebblit', type: 'STONE', art: 'pebblit', cls: Sentinel, move: 'Stone barrage', special: 'Meteor break', basicStyle: 'projectile', specialStyle: 'strike', color: '#bbb19a' },
-  { id: 6, name: 'Frostuft', type: 'FROST', art: 'frostuft', cls: Arcanist, move: 'Frost lance', special: 'Polar nova', basicStyle: 'projectile', specialStyle: 'beam', color: '#b8dce8' },
-  { id: 7, name: 'Bloomtail', type: 'GROVE', art: 'bloomtail', cls: Support, move: 'Petal storm', special: 'Spring eruption', basicStyle: 'projectile', specialStyle: 'strike', color: '#e5a4b8' },
-  { id: 8, name: 'Soloryx', type: 'ASTRAL', art: 'soloryx', cls: Titan, move: 'Solar ray', special: 'Supernova', basicStyle: 'bolt', specialStyle: 'beam', color: '#e9c779' },
+  { id: 0, name: 'Cindercub', type: 'EMBER', art: 'cindercub', cls: Striker, move: 'Ember volley', special: 'Inferno bloom', basicStyle: 'projectile', specialStyle: 'cone', motion: 'pounce', collection: 'genesis', color: '#ec975b' },
+  { id: 1, name: 'Mossprout', type: 'GROVE', art: 'mossprout', cls: Warden, move: 'Vine lash', special: 'Ancient roots', basicStyle: 'whip', specialStyle: 'strike', motion: 'stomp', collection: 'genesis', color: '#a7c76d' },
+  { id: 2, name: 'Ripplefin', type: 'TIDE', art: 'ripplefin', cls: Skirmisher, move: 'Tidal pulse', special: 'Maelstrom', basicStyle: 'projectile', specialStyle: 'beam', motion: 'glide', collection: 'genesis', color: '#7dc8d4' },
+  { id: 3, name: 'Voltwing', type: 'SPARK', art: 'voltwing', cls: Ranger, move: 'Arc flash', special: 'Thunder crown', basicStyle: 'bolt', specialStyle: 'strike', motion: 'dart', collection: 'genesis', color: '#e4cc68' },
+  { id: 4, name: 'Duskhorn', type: 'SHADE', art: 'duskhorn', cls: Mystic, move: 'Dusk bolt', special: 'Eclipse fall', basicStyle: 'projectile', specialStyle: 'strike', motion: 'blink', collection: 'genesis', color: '#b8a1d5' },
+  { id: 5, name: 'Pebblit', type: 'STONE', art: 'pebblit', cls: Sentinel, move: 'Stone barrage', special: 'Meteor break', basicStyle: 'projectile', specialStyle: 'strike', motion: 'stomp', collection: 'genesis', color: '#bbb19a' },
+  { id: 6, name: 'Frostuft', type: 'FROST', art: 'frostuft', cls: Arcanist, move: 'Frost lance', special: 'Polar nova', basicStyle: 'projectile', specialStyle: 'beam', motion: 'skate', collection: 'genesis', color: '#b8dce8' },
+  { id: 7, name: 'Bloomtail', type: 'GROVE', art: 'bloomtail', cls: Support, move: 'Petal storm', special: 'Spring eruption', basicStyle: 'projectile', specialStyle: 'strike', motion: 'prance', collection: 'genesis', color: '#e5a4b8' },
+  { id: 8, name: 'Soloryx', type: 'ASTRAL', art: 'soloryx', cls: Titan, move: 'Solar ray', special: 'Supernova', basicStyle: 'bolt', specialStyle: 'beam', motion: 'charge', collection: 'genesis', color: '#e9c779' },
+  { id: 9, name: 'Seraphon', type: 'ASTRAL', art: 'seraphon', cls: Seraph, move: 'Holy lance', special: 'Heaven\'s judgment', basicStyle: 'bolt', specialStyle: 'strike', motion: 'hover', collection: 'legendary', legendary: true, color: '#f4f0ff' },
+  { id: 10, name: 'Psyvolt', type: 'PSYCHIC', art: 'psyvolt', cls: Psion, move: 'Psy orb', special: 'Levitation storm', basicStyle: 'projectile', specialStyle: 'levitate', motion: 'hover', collection: 'legendary', legendary: true, color: '#c9a6ff' },
 ];
+export const GENESIS_IDS = SPECIES.filter(s => s.collection === 'genesis').map(s => s.id);
+export const LEGENDARY_IDS = SPECIES.filter(s => s.legendary).map(s => s.id);
 
 // ---------- DNA traits ----------
 export const RARITIES = [
@@ -100,6 +141,7 @@ export const NATURES = [
 ];
 
 function byteAt(hex, i) { return parseInt(hex.slice(i * 2, i * 2 + 2), 16); }
+export function rarityIndex(name) { return Math.max(0, RARITIES.findIndex(r => r.name === name)); }
 
 /** Turn a 64-char DNA hex into visual and stat traits. Deterministic and identical on client and server. */
 export function traitsFromDna(dna) {
@@ -119,33 +161,40 @@ export function traitsFromDna(dna) {
   };
 }
 
+/** Build a DNA string that decodes to the given rarity and stat rolls (used for breeding and legendaries). */
+export function composeDna(baseHex, { rarity, ivs }) {
+  const bytes = baseHex.match(/../g).map(h => parseInt(h, 16));
+  if (rarity) {
+    const idx = rarityIndex(rarity); let lo = 0; for (let i = 0; i < idx; i++) lo += RARITIES[i].weight;
+    const roll = lo + (bytes[0] % RARITIES[idx].weight); // any value inside the rarity's band
+    bytes[0] = (roll >> 8) & 0xff; bytes[1] = roll & 0xff;
+  }
+  if (ivs) ivs.forEach((v, k) => { bytes[6 + k] = (bytes[6 + k] & 0xf0) | (v & 0x0f); });
+  return bytes.map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
 /** Canonical string of everything a player can see or feel. The registry keeps it UNIQUE. */
 export function traitSignature(speciesId, t) {
   return [speciesId, t.rarity, t.aura, t.pattern, t.nature, t.hue, t.markings, t.ivs.join('.')].join('|');
 }
 
-/** A specific, owned Monstar: species + class + DNA. */
+/** A specific, owned Monstar: species + class + DNA + level. */
 export class Monstar {
-  constructor({ speciesId, dna = null, serial = null, originOwner = null, owner = null, asset = null, level = 1 }) {
+  constructor({ speciesId, dna = null, serial = null, originOwner = null, owner = null, asset = null, level = null, exp = 0, collection = null, parents = null }) {
     const sp = SPECIES[speciesId];
     if (!sp) throw Error('Unknown species ' + speciesId);
     this.species = sp; this.cls = sp.cls; this.dna = dna; this.serial = serial;
-    this.originOwner = originOwner; this.owner = owner; this.asset = asset; this.level = level;
+    this.originOwner = originOwner; this.owner = owner; this.asset = asset;
+    this.exp = Math.max(0, Math.floor(exp || 0));
+    this.level = level ?? levelForExp(this.exp);
+    if (level != null && this.exp < expForLevel(level)) this.exp = expForLevel(level);
+    this.collection = collection || sp.collection; this.parents = parents;
     this.traits = dna ? traitsFromDna(dna) : { rarity: 'Unclaimed', rarityBonus: 0, aura: '—', pattern: '—', nature: 'Balanced', hue: 0, markings: 2, ivs: [0, 0, 0, 0, 0, 0] };
   }
   get type() { return this.species.type; }
   get className() { return this.cls.label; }
-  get stats() {
-    const nat = NATURES.find(n => n.name === this.traits.nature) || NATURES[7];
-    const out = {};
-    STAT_KEYS.forEach((k, i) => {
-      let v = this.cls.base[i] + this.traits.ivs[i] + this.traits.rarityBonus + (this.level - 1) * (i === 0 ? 5 : 2);
-      if (nat.up === i) v *= 1.1;
-      if (nat.down === i) v *= 0.9;
-      out[k] = Math.round(v);
-    });
-    return out;
-  }
+  get stage() { return stageFor(this.level); }
+  get stats() { return statsAt(this, this.level); }
   get displayName() { return this.serial != null ? `${this.species.name} #${this.serial}` : this.species.name; }
   /** Metaplex-style attribute list for NFT metadata. */
   toAttributes() {
@@ -153,6 +202,8 @@ export class Monstar {
     return [
       { trait_type: 'Species', value: this.species.name }, { trait_type: 'Type', value: this.type },
       { trait_type: 'Class', value: this.className }, { trait_type: 'Rarity', value: t.rarity },
+      { trait_type: 'Collection', value: COLLECTIONS[this.collection]?.name || this.collection },
+      { trait_type: 'Stage', value: this.stage.name }, { trait_type: 'Level', value: String(this.level) },
       { trait_type: 'Aura', value: t.aura }, { trait_type: 'Pattern', value: t.pattern },
       { trait_type: 'Nature', value: t.nature }, { trait_type: 'Hue', value: String(t.hue) },
       ...STAT_KEYS.map(k => ({ trait_type: STAT_LABELS[k], value: String(s[k]) })),
@@ -160,7 +211,24 @@ export class Monstar {
     ];
   }
   toJSON() {
+    const p = levelProgress(this.exp);
     return { speciesId: this.species.id, name: this.displayName, type: this.type, className: this.className, passive: this.cls.passive,
-      dna: this.dna, serial: this.serial, originOwner: this.originOwner, owner: this.owner, asset: this.asset, traits: this.traits, stats: this.stats };
+      dna: this.dna, serial: this.serial, originOwner: this.originOwner, owner: this.owner, asset: this.asset, traits: this.traits, stats: this.stats,
+      level: this.level, exp: this.exp, expInto: p.into, expNeed: p.need, stage: this.stage.name, stageId: this.stage.id,
+      collection: this.collection, legendary: !!this.species.legendary, parents: this.parents };
   }
+}
+
+/** Stats for a Monstar at any level: base + DNA rolls, grown by level and evolution stage, shaped by nature. */
+export function statsAt(m, level) {
+  const nat = NATURES.find(n => n.name === m.traits.nature) || NATURES[7];
+  const st = stageFor(level), growth = 1 + (level - 1) * 0.03;
+  const out = {};
+  STAT_KEYS.forEach((k, i) => {
+    let v = (m.cls.base[i] + m.traits.ivs[i] + m.traits.rarityBonus) * growth * st.mult;
+    if (nat.up === i) v *= 1.1;
+    if (nat.down === i) v *= 0.9;
+    out[k] = Math.round(v);
+  });
+  return out;
 }

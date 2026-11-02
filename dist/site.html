@@ -111,7 +111,7 @@ section{padding-block:clamp(48px,7vw,90px);border-top:1px solid var(--line)}
 @media (max-width:480px){.roster{grid-template-columns:repeat(2,minmax(0,1fr))}.mon p{display:none}}
 
 /* features */
-.feats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+.feats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
 .feat{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:22px;display:flex;flex-direction:column;gap:10px;min-width:0}
 .feat h3{font-size:20px}
 .feat p{color:var(--muted);font-size:15px}
@@ -191,7 +191,7 @@ img.px{image-rendering:pixelated;image-rendering:crisp-edges}
   <div>
     <div class="eyebrow">Real-time 1v1 · Solana · Phantom</div>
     <h1>Every hit moves <em>SOL</em>. Winner takes the pot.</h1>
-    <p class="lead">Classic 2D pixel Monstars battling in real time. Move, dodge and unleash fire, lightning, vines and meteors with your thumbs. Stake SOL against a rival: every hit pulls lamports from their share into yours, and a KO wins it all.</p>
+    <p class="lead">Pixel Monstars that move and dodge on their own while you call the attacks. Every hit earns EXP, and your Monstar evolves from Infant to Ascended. Stake SOL against a rival: every hit moves lamports to your side, paid when the match ends.</p>
     <div class="cta">
       <a class="btn primary" data-play href="/play">Play in Phantom</a>
       <a class="btn ghost" data-practice href="/play">Practice free vs AI</a>
@@ -254,6 +254,7 @@ img.px{image-rendering:pixelated;image-rendering:crisp-edges}
   <div class="feats">
     <div class="feat"><span class="stat">5%</span><h3>Royalty to the origin wallet</h3><p>Every resale in the market pays the wallet the Monstar was born to, no matter how many times it changes hands.</p></div>
     <div class="feat"><span class="stat">1 lamport</span><h3>Company fee per sale</h3><p>The smallest fee Solana allows. Seller, royalty and fee are paid in the same transaction as the transfer, or nothing moves.</p></div>
+    <div class="feat"><span class="stat">0.01 SOL</span><h3>Breed a new Infant</h3><p>Pair your Monstar with another player's. You each get an Infant whose stats mix both parents, so it can come out stronger or weaker.</p></div>
     <div class="feat"><span class="stat">Free</span><h3>Send to another player</h3><p>Gift a minted Monstar to any Solana wallet. No royalty, no fee, just the network cost.</p></div>
   </div>
 </div></section>
@@ -277,6 +278,8 @@ img.px{image-rendering:pixelated;image-rendering:crisp-edges}
   <details><summary>Why doesn't my Phantom balance change on every hit?</summary><p>Each Solana transaction costs at least 5,000 lamports and needs a wallet approval. Sending one per hit would cost more than the hit is worth and interrupt the fight. The game tracks your live share of the escrowed pot, then pays it out in one transaction at the end.</p></details>
   <details><summary>What's the minimum stake?</summary><p>0.001 SOL. Solana needs a new account to hold about 0.00089 SOL, and each match uses its own escrow account. Free matches with no stake are also available.</p></details>
   <details><summary>What happens if my rival leaves?</summary><p>If they disconnect for 15 seconds during a duel, you win the pot. If a match never starts, deposits are refunded minus the 0.000005 SOL network fee, with no company fee.</p></details>
+  <details><summary>How does evolving work?</summary><p>Every Monstar hatches as an Infant. Landing hits earns EXP, and it evolves at level 3 (Rookie), 10 (Champion), 25 (Ultimate), 50 (Mega) and 80 (Ascended). Its stats grow every level, and it can evolve in the middle of a match.</p></details>
+  <details><summary>Can I leave a staked match early?</summary><p>No. SOL moves to the winner when the match ends. If you leave or disconnect for 15 seconds, it counts as a loss and your rival takes the pot.</p></details>
   <details><summary>Can someone copy my Monstar?</summary><p>No. Each Monstar's DNA and visible traits are unique in the registry, and only registry Monstars can be minted into the official collection.</p></details>
 </div></section>
 

@@ -121,7 +121,16 @@ export async function deposit() {
   const { transaction } = await api('/api/stake/deposit-tx', {});
   return signAndSend(transaction);
 }
+// ---------- Breeding ----------
+export const breedCreate = serial => api('/api/breed/create', { serial });
+export const breedJoin = (code, serial) => api('/api/breed/join', { code, serial });
+export const breedStatus = code => api('/api/breed/status', { code });
+export async function breedPay(code) {
+  const { transaction } = await api('/api/breed/fee-tx', { code });
+  const signature = await signAndSend(transaction);
+  return api('/api/breed/confirm', { code, signature });
+}
 export const explorer = sig => `https://explorer.solana.com/tx/${sig}?cluster=devnet`;
 
 if (typeof window !== 'undefined') window.PMStake = { signIn, session, balance, getConfig, myMonstars, mint, syncOwner, listings, list, cancelListing, buy,
-  connectSocket, deposit, explorer, phantomBrowseLink, Monstars, Stake, ARENA, Sim };
+  connectSocket, deposit, explorer, phantomBrowseLink, breedCreate, breedJoin, breedStatus, breedPay, Monstars, Stake, ARENA, Sim };

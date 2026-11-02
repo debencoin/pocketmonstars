@@ -12,12 +12,14 @@ import { Auth } from './auth.mjs';
 import { SolanaChain } from './escrow.mjs';
 import { MatchManager } from './matches.mjs';
 import { NftService } from './nft.mjs';
-import { STAKE_POLICY } from '../shared/stake.mjs';
+import { STAKE_POLICY, formatSol } from '../shared/stake.mjs';
+import { randomBytes } from 'node:crypto';
+import { PublicKey, SystemProgram, Transaction } from '@solana/web3.js';
 import { TICK } from '../shared/sim.mjs';
 
 export function createServer({ config = CONFIG, chain = new SolanaChain(config.rpc), dbFile = path.join(DATA_DIR, 'pocketmonstars.db'), keys = serverKeys() } = {}) {
   const db = openDb(dbFile);
-  const registry = new Registry(db), auth = new Auth();
+  const registry = new Registry(db, { legendaryOwner: config.legendaryOwner }), auth = new Auth();
   const matches = new MatchManager({ db, registry, chain, config });
   const nft = new NftService({ config, keys, chain });
   const roots = { '/shared/': path.resolve('shared'), '/': path.resolve('dist') };
@@ -65,7 +67,47 @@ export function createServer({ config = CONFIG, chain = new SolanaChain(config.r
       db.prepare("UPDATE listings SET state='sold', buyer=?, signature=?, closed_at=? WHERE id=?").run(w, b.signature, Date.now(), l.id);
       const m = registry.byAsset(l.asset); return m ? registry.setOwner(m.serial, w).toJSON() : { ok: true }; },
     'POST /api/stake/deposit-tx': async req => ({ transaction: await matches.depositTransaction(need(req)) }),
+    // ---------- breeding: two players, one Infant each, 0.01 SOL fee per player to the company ----------
+    'POST /api/breed/create': async req => { const w = need(req), b = await body(req), m = registry.get(Number(b.serial));
+      if (!m || m.owner !== w) throw Error('You do not own that Monstar.');
+      const code = [...randomBytes(5)].map(x => 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'[x % 32]).join('');
+      db.prepare("INSERT INTO breeds(code,a,a_serial,state,created_at) VALUES(?,?,?,'open',?)").run(code, w, m.serial, Date.now());
+      return breedView(code, w); },
+    'POST /api/breed/join': async req => { const w = need(req), b = await body(req), m = registry.get(Number(b.serial)), r = breedRow(b.code);
+      if (!r || r.state !== 'open') throw Error('No open breeding request with that code.');
+      if (r.a === w) throw Error('Ask another player to join with their Monstar.');
+      if (!m || m.owner !== w) throw Error('You do not own that Monstar.');
+      db.prepare("UPDATE breeds SET b=?, b_serial=?, state='fees' WHERE code=? AND state='open'").run(w, m.serial, r.code);
+      return breedView(r.code, w); },
+    'POST /api/breed/status': async req => { const w = need(req), b = await body(req); return breedView(String(b.code || '').toUpperCase(), w); },
+    'POST /api/breed/fee-tx': async req => { const w = need(req), b = await body(req), r = breedRow(b.code);
+      if (!r || r.state !== 'fees' || ![r.a, r.b].includes(w)) throw Error('This breeding request is not waiting for your fee.');
+      if (!config.treasury) throw Error('The company fee wallet is not set up yet, so breeding is paused.');
+      const { blockhash } = await chain.latestBlockhash();
+      const tx = new Transaction({ feePayer: new PublicKey(w), recentBlockhash: blockhash }).add(SystemProgram.transfer({ fromPubkey: new PublicKey(w), toPubkey: new PublicKey(config.treasury), lamports: config.breedFeeLamports }));
+      return { transaction: tx.serialize({ requireAllSignatures: false, verifySignatures: false }).toString('base64'), feeSol: formatSol(config.breedFeeLamports, 4) }; },
+    'POST /api/breed/confirm': async req => { const w = need(req), b = await body(req), r = breedRow(b.code);
+      if (!r || r.state !== 'fees' || ![r.a, r.b].includes(w)) throw Error('This breeding request is not waiting for your fee.');
+      await chain.verifyDeposit(b.signature, { from: w, to: config.treasury, lamports: config.breedFeeLamports });
+      db.prepare(`UPDATE breeds SET fee_${r.a === w ? 'a' : 'b'}=? WHERE code=?`).run(b.signature, r.code); // UNIQUE: a fee can't be reused
+      const now = breedRow(r.code);
+      if (now.fee_a && now.fee_b && now.state === 'fees') {
+        const pa = registry.get(now.a_serial), pb = registry.get(now.b_serial);
+        if (pa?.owner !== now.a || pb?.owner !== now.b) throw Error('A parent changed owner. Contact support for a refund.');
+        const [ca, cb] = registry.breed({ a: pa, b: pb });
+        db.prepare("UPDATE breeds SET state='hatched', child_a=?, child_b=? WHERE code=?").run(ca.serial, cb.serial, r.code);
+      }
+      return breedView(r.code, w); },
+  
   };
+
+  function breedRow(code) { return db.prepare('SELECT * FROM breeds WHERE code=?').get(String(code || '').toUpperCase()); }
+  function breedView(code, w) {
+    const r = breedRow(code); if (!r || ![r.a, r.b].includes(w) && r.state !== 'open') throw Error('No breeding request with that code.');
+    const j = s => (s ? registry.get(s)?.toJSON() : null);
+    return { code: r.code, state: r.state, you: r.a === w ? 'a' : 'b', feeSol: formatSol(config.breedFeeLamports, 4),
+      parents: [j(r.a_serial), j(r.b_serial)], paid: [!!r.fee_a, !!r.fee_b], children: [j(r.child_a), j(r.child_b)] };
+  }
 
   const server = http.createServer(async (req, res) => {
     try {
@@ -105,6 +147,7 @@ export function createServer({ config = CONFIG, chain = new SolanaChain(config.r
         if (msg.t === 'input') return matches.input(wallet, msg.i);
         if (msg.t === 'create') return roomUpdate(matches.create(wallet, msg));
         if (msg.t === 'join') return roomUpdate(matches.join(wallet, msg));
+        if (msg.t === 'ai') return roomUpdate(matches.createAi(wallet, msg));
         if (msg.t === 'deposit') return roomUpdate(await matches.confirmDeposit(wallet, msg.signature));
         if (msg.t === 'leave') { matches.leave(wallet); return reply({ t: 'left' }); }
         if (msg.t === 'ping') return reply({ t: 'pong', at: msg.at });

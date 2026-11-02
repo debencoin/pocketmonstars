@@ -25,6 +25,10 @@ export const CONFIG = {
   // Creator royalty paid to the wallet each Monstar was born to, on every marketplace resale.
   royaltyBps: Number(env.PM_ROYALTY_BPS || stored.royaltyBps || 500),
   collection: env.PM_COLLECTION || stored.collection || null,
+  // Wallet that holds the Legendary collection (Seraphon and Psyvolt, fully evolved).
+  legendaryOwner: env.PM_LEGENDARY_OWNER || 'Dc9s1YwNHE2xDBzpprDvyruzxj8j5HvBSvfbvdups5LJ',
+  // Breeding fee each player pays to the company treasury, in lamports (0.01 SOL).
+  breedFeeLamports: BigInt(env.PM_BREED_FEE_LAMPORTS || 10_000_000),
   depositTimeoutMs: 3 * 60 * 1000,
   disconnectGraceMs: 15 * 1000,
 };

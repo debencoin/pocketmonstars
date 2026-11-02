@@ -90,3 +90,13 @@ Stats: HP, Attack, Defense, Sp. Atk, Sp. Def, Speed. Types: EMBER, GROVE, TIDE, 
 - `src/stake-client.js` → `dist/stake-client.js` browser client (window.PMStake)
 - `dist/pvp-v4.js`, `dist/pvp-v4.css` the 1v1 Stake tab, touch controls, Monstar cards, market UI
 - `tests/pvp.test.mjs`
+
+## v7 gameplay: autopilot, EXP, evolution, legendaries, breeding
+
+- **Autopilot movement.** Each species moves and dodges on its own in its style (pounce, dart, glide, stomp, blink-teleport, skate, prance, charge, hover). Players tap A (attack) and B (special); dragging or WASD takes over movement until released. Aim is automatic unless a desktop player moves the mouse.
+- **EXP and levels.** Each landed hit earns EXP (≈1.2 × damage, ×1.5 on a critical). Finishing a match gives +15, a win +40. EXP to the next level is `12 × level^1.5`. Levels persist on registered Monstars (online matches and signed-in Practice vs AI); guest practice saves on the device.
+- **Evolution.** Infant (Lv1) → Rookie (3) → Champion (10) → Ultimate (25) → Mega (50) → Ascended (80). Stats grow 3% per level and by a stage multiplier (×1.0 → ×1.75). A Monstar can evolve mid-match: it flashes, grows and gets a short invulnerability window. Looks: Infant sits in an egg shell, Ultimate gets a glowing outline, Mega grows two wings, Ascended has four wings, a gold glow and a halo.
+- **SOL is paid only at the end.** Per-hit lamports show live as "SOL at end"; leaving or disconnecting for 15 s forfeits the pot.
+- **Legendary collection.** Seraphon (four-winged Seraph, holy lance + Heaven's Judgment) and Psyvolt (Psion that levitates boulders and hurls them, then finishes with chained lightning) are created only for `PM_LEGENDARY_OWNER` (default Dc9s1YwNHE2xDBzpprDvyruzxj8j5HvBSvfbvdups5LJ), at Lv80 Ascended with Legendary rarity.
+- **Breeding.** Player A starts with one Monstar and gets a code; player B joins with one of theirs. Each pays `PM_BREED_FEE_LAMPORTS` (default 0.01 SOL) to `PM_TREASURY`, verified on-chain. Each player receives a new Infant (Bred collection): species from either parent, stat rolls averaged with a −3..+3 mutation, rarity can move one tier up or down. Breeding is paused until `PM_TREASURY` is set.
+- **Arenas.** Stone Coliseum, Dust Bowl, Grass Pitch and Cosmic Dome, picked at random per match.

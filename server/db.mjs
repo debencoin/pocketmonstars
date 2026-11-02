@@ -45,6 +45,16 @@ export function openDb(file) {
       created_at INTEGER NOT NULL, closed_at INTEGER
     );
     CREATE UNIQUE INDEX IF NOT EXISTS one_active_listing ON listings(asset) WHERE state='active';
+    CREATE TABLE IF NOT EXISTS breeds(
+      code TEXT PRIMARY KEY,
+      a TEXT NOT NULL, a_serial INTEGER NOT NULL, b TEXT, b_serial INTEGER,
+      fee_a TEXT UNIQUE, fee_b TEXT UNIQUE, state TEXT NOT NULL,
+      child_a INTEGER, child_b INTEGER, created_at INTEGER NOT NULL
+    );
   `);
+  // migrations for databases created before levels and collections existed
+  for (const sql of ["ALTER TABLE monstars ADD COLUMN exp INTEGER NOT NULL DEFAULT 0", "ALTER TABLE monstars ADD COLUMN collection TEXT NOT NULL DEFAULT 'genesis'", "ALTER TABLE monstars ADD COLUMN parents TEXT"]) {
+    try { db.exec(sql); } catch {}
+  }
   return db;
 }

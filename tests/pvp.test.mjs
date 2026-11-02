@@ -15,7 +15,7 @@ import { saleSplit } from '../server/nft.mjs';
 const wallet = () => Keypair.generate().publicKey.toBase58();
 
 test('nine species map to nine distinct classes with six stats', () => {
-  assert.equal(SPECIES.length, 9); assert.equal(new Set(SPECIES.map(s => s.cls)).size, 9); assert.equal(CLASSES.length, 9);
+  assert.equal(SPECIES.filter(s => s.collection === 'genesis').length, 9); assert.equal(new Set(SPECIES.map(s => s.cls)).size, 11); assert.equal(CLASSES.length, 11);
   const m = new Monstar({ speciesId: 8, dna: deriveDna(wallet(), 8, 0), serial: 1 });
   assert.deepEqual(Object.keys(m.stats), ['hp', 'attack', 'defense', 'spAttack', 'spDefense', 'speed']);
   assert.equal(m.className, 'Titan'); assert.ok(m.toAttributes().some(a => a.trait_type === 'DNA' && a.value === m.dna));
@@ -73,10 +73,10 @@ test('Phantom sign-in verifies Ed25519 signatures and is single-use', () => {
 
 test('simulation sanitises inputs and produces hits and a result', () => {
   assert.deepEqual(sanitizeInput({ mx: 5, my: 0, ax: NaN }), { mx: 1, my: 0, ax: 0, ay: 0, atk: false, sp: false, dash: false, guard: false });
-  const m = createMatch(new Monstar({ speciesId: 0 }), new Monstar({ speciesId: 1 }));
+  const m = createMatch(new Monstar({ speciesId: 0 }), new Monstar({ speciesId: 1 }), { auto: false });
   m.fighters[0].y = 60; m.fighters[1].y = 60; // clear line of fire above the centre rock
   m.fighters[0].input = sanitizeInput({ atk: true, sp: true, ax: 1, ay: 0 }); m.fighters[1].input = sanitizeInput({ mx: -0.3 });
-  let hits = 0; for (let i = 0; i < 30 * 90 && !m.over; i++) hits += step(m).length;
+  let hits = 0; for (let i = 0; i < 30 * 90 && !m.over; i++) hits += step(m).filter(e => e.type === 'hit').length;
   assert.ok(hits > 5); assert.ok(m.over); assert.equal(m.winner, 0);
 });
 
@@ -92,7 +92,7 @@ class MockChain {
 
 async function playOut(mm, room) {
   room.sim.fighters[0].y = room.sim.fighters[1].y = 60;
-  mm.input(room.players[0].wallet, { atk: true, sp: true, ax: 1, ay: 0 }); mm.input(room.players[1].wallet, { mx: -0.3 });
+  mm.input(room.players[0].wallet, { atk: true, sp: true }); mm.input(room.players[1].wallet, { mx: -0.3, my: 0.01 });
   for (let i = 0; i < 30 * 95 && room.state === 'live'; i++) mm.tick();
 }
 
@@ -168,12 +168,68 @@ test('mint transaction is co-signed by the asset key and collection authority, p
 test('every species lands both of its powers (projectile, bolt, whip, cone, beam, strike)', () => {
   for (const sp of SPECIES) {
     for (const key of ['atk', 'sp']) {
-      const m = createMatch(new Monstar({ speciesId: sp.id }), new Monstar({ speciesId: 5 }));
-      const [a, b] = m.fighters; a.x = 300; a.y = 70; b.x = 480; b.y = 70; a.cd.special = 0;
+      const m = createMatch(new Monstar({ speciesId: sp.id }), new Monstar({ speciesId: 5 }), { auto: false });
+      const [a, b] = m.fighters; a.x = 300; a.y = 300; b.x = 480; b.y = 300; a.cd.special = 0;
       a.input = sanitizeInput({ [key]: true, ax: 1, ay: 0 });
       step(m); a.input = sanitizeInput({ ax: 1, ay: 0 });
-      let hits = 0; for (let i = 0; i < 45; i++) { b.x = 480; b.y = 70; b.vx = b.vy = 0; hits += step(m).length; }
+      let hits = 0; for (let i = 0; i < 60; i++) { b.x = 480; b.y = 300; b.vx = b.vy = 0; hits += step(m).filter(e => e.type === 'hit').length; }
       assert.ok(hits >= 1, `${sp.name} ${key === 'atk' ? sp.basicStyle : sp.specialStyle} should hit`);
     }
   }
+});
+
+
+import { STAGES, stageFor, expForLevel, levelForExp, LEGENDARY_IDS } from '../shared/monstars.mjs';
+
+test('six stages evolve at 1, 3, 10, 25, 50, 80 and stats grow with level', () => {
+  assert.deepEqual(STAGES.map(s => s.minLevel), [1, 3, 10, 25, 50, 80]);
+  assert.equal(stageFor(2).name, 'Infant'); assert.equal(stageFor(3).name, 'Rookie'); assert.equal(stageFor(80).name, 'Ascended');
+  for (const l of [1, 3, 10, 25, 50, 80]) assert.equal(levelForExp(expForLevel(l)), l);
+  const a = new Monstar({ speciesId: 0, level: 1 }), b = new Monstar({ speciesId: 0, level: 25 });
+  assert.ok(b.stats.hp > a.stats.hp * 1.8 && b.stats.attack > a.stats.attack * 1.8);
+});
+
+test('hits earn EXP, and a Monstar levels up and evolves during the match', () => {
+  const m = createMatch(new Monstar({ speciesId: 0, level: 2 }), new Monstar({ speciesId: 5, level: 30 }), { auto: false });
+  const [a, b] = m.fighters; a.x = 300; a.y = 300; b.x = 420; b.y = 300;
+  const evs = [];
+  for (let i = 0; i < 30 * 20 && !m.over; i++) { a.input = sanitizeInput({ atk: true }); b.x = 420; b.y = 300; b.vx = b.vy = 0; evs.push(...step(m)); }
+  const hit = evs.find(e => e.type === 'hit'); assert.ok(hit.exp >= 1);
+  const lvl = evs.find(e => e.type === 'level' && e.evolved); assert.ok(lvl, 'should evolve from Infant to Rookie'); assert.equal(lvl.stage, 'Rookie');
+  assert.ok(a.level >= 3 && a.maxHp > new Monstar({ speciesId: 0, level: 2 }).stats.hp);
+});
+
+test('Monstars move on their own when the player is not steering', () => {
+  const m = createMatch(new Monstar({ speciesId: 3 }), new Monstar({ speciesId: 5 }));
+  const x0 = m.fighters[0].x, y0 = m.fighters[0].y;
+  for (let i = 0; i < 60; i++) step(m);
+  assert.ok(Math.hypot(m.fighters[0].x - x0, m.fighters[0].y - y0) > 30);
+});
+
+test('legendaries go only to the founder wallet, fully evolved; breeding gives each player a mixed Infant', () => {
+  const founder = 'Dc9s1YwNHE2xDBzpprDvyruzxj8j5HvBSvfbvdups5LJ';
+  const reg = new Registry(openDb(':memory:'), { legendaryOwner: founder });
+  const mine = reg.claimAll(founder), legends = mine.filter(m => m.species.legendary);
+  assert.equal(legends.length, LEGENDARY_IDS.length);
+  for (const l of legends) { assert.equal(l.level, 80); assert.equal(l.stage.name, 'Ascended'); assert.equal(l.traits.rarity, 'Legendary'); assert.equal(l.collection, 'legendary'); }
+  const other = wallet(); assert.equal(reg.claimAll(other).filter(m => m.species.legendary).length, 0);
+  const pa = reg.claimGenesis(founder, 0), pb = reg.claimGenesis(other, 6);
+  const [ca, cb] = reg.breed({ a: pa, b: pb, seed: 'test-seed' });
+  assert.equal(ca.owner, founder); assert.equal(cb.owner, other); assert.equal(ca.level, 1); assert.equal(ca.collection, 'bred');
+  assert.ok([0, 6].includes(ca.species.id) && [0, 6].includes(cb.species.id));
+  ca.traits.ivs.forEach((v, k) => assert.ok(Math.abs(v - (pa.traits.ivs[k] + pb.traits.ivs[k]) / 2) <= 3.5));
+  assert.throws(() => reg.breed({ a: pa, b: reg.claimGenesis(founder, 1) }), /two different players/);
+});
+
+test('AI practice on the server saves the EXP the Monstar earned', async () => {
+  const db = openDb(':memory:'), registry = new Registry(db), chain = new MockChain();
+  const mm = new MatchManager({ db, registry, chain, config: { disconnectGraceMs: 1e9, depositTimeoutMs: 1e9 } });
+  const w = wallet(), [m0] = registry.claimAll(w);
+  const room = mm.create ? mm.createAi(w, { serial: m0.serial }) : null;
+  room.players[0].sockets.add({ send() {} });
+  for (let i = 0; i < 200 && room.state !== 'live'; i++) mm.tick();
+  assert.equal(room.state, 'live');
+  for (let i = 0; i < 30 * 95 && room.state === 'live'; i++) { mm.input(w, { atk: true, sp: true }); mm.tick(); }
+  assert.notEqual(room.state, 'live');
+  assert.ok(registry.get(m0.serial).exp > 0);
 });
