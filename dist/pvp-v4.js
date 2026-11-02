@@ -140,7 +140,7 @@ function statBars(st) {
 function expBar(m) { return `<div class="pv-xp" title="${m.expInto} / ${m.expNeed} EXP"><i style="width:${Math.min(100, m.expInto / Math.max(1, m.expNeed) * 100)}%"></i></div>`; }
 function cardHtml(m, extra = '') {
   return `<span class="pv-rar ${esc(m.traits.rarity)}">${esc(m.traits.rarity)}</span><span class="pv-lv">Lv${m.level} · ${esc(m.stage)}</span>
-  <img class="px" src="art/pixel/${Monstars.SPECIES[m.speciesId].art}.png" alt="${esc(m.name)}" style="filter:hue-rotate(${m.traits.hue}deg)" loading="lazy">
+  <img class="px" src="art/hd/${Monstars.SPECIES[m.speciesId].art}.png" alt="${esc(m.name)}" style="filter:hue-rotate(${m.traits.hue}deg)" loading="lazy">
   <span class="nm">${esc(m.name)}</span><span class="sub">${esc(m.className)} · ${esc(m.type)} · ${esc(m.traits.aura)} ${esc(m.traits.pattern)} · ${esc(m.traits.nature)}</span>
   ${expBar(m)}${statBars(m.stats)}${extra}`;
 }

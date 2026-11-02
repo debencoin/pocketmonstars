@@ -108,3 +108,10 @@ Stats: HP, Attack, Defense, Sp. Atk, Sp. Def, Speed. Types: EMBER, GROVE, TIDE, 
 - **Powers** (`dist/pixel-arena.js`): smooth full-resolution layer on top of the pixel arena: dust clouds, impact star flashes, shockwave rings, flying rock chunks and cracked craters, thick glowing curved lightning, swirling water streams for Maelstrom, glowing fireball with flame trail, dash dust and ghost trails, broken stone pillars in the Stone Coliseum. Sprites are the cleaner `art/hd` set, drawn larger.
 - **Wild Expedition** (`dist/wild.js`): replaces the old Adventure mode. Four zones (Grass Pitch, Dust Bowl, Stone Coliseum, Cosmic Dome), three wild battles and a boss per zone, using the same engine, HUD and move cards. Progress is saved on the device. `/play#wild` opens it.
 - **Front page** (`dist/site.html`): notice bar, pixel title with Monstar picker icons, a playable mini battle with move cards, wins/streak, speed and full screen controls, and CTA cards on the right.
+
+## v9: blue theme and reference-style UI
+
+- Whole site and game moved from green to the navy palette (`#080c18` / `#10172a` / `#2a3550`, yellow `#ffd84a` buttons, cyan accents) with Inter type instead of the pixel font for HUD, cards and text.
+- Move cards are dark with a type-coloured border, type pill, number badge and cyan ⚡ cost; cooling-down moves show dashed. The message box reads "A wild X appeared!" then "What will X do?".
+- Front page header: title, subtitle and Monstar picker icons; the mini battle has the arena on the left and the HP/SOL cards, message box and moves on the right, with wins/streak/best and Speed / Auto / Full screen.
+- Smooth `art/hd` sprites are used everywhere (cards, roster, picker); in-canvas numbers use Inter.

@@ -452,19 +452,19 @@ function createRenderer(canvas, arena) {
     }
     g.globalAlpha = 1; parts = parts.filter(p => p.life > 0); if (parts.length > 700) parts = parts.slice(-700);
     ctx.textAlign = 'center';
-    for (const tx of texts) { tx.t -= dt; tx.y -= 12 * dt; g.globalAlpha = Math.min(1, tx.t * 3); ctx.font = tx.size + 'px "Press Start 2P", monospace';
+    for (const tx of texts) { tx.t -= dt; tx.y -= 12 * dt; g.globalAlpha = Math.min(1, tx.t * 3); ctx.font = '800 ' + Math.round(tx.size * 1.35) + 'px Inter, system-ui, sans-serif';
       ctx.fillStyle = '#141018'; ctx.fillText(tx.txt, R(tx.x) + 1, R(tx.y) + 1); ctx.fillStyle = tx.col; ctx.fillText(tx.txt, R(tx.x), R(tx.y)); }
     g.globalAlpha = 1; texts = texts.filter(tx => tx.t > 0);
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     if (flash > 0) { g.globalAlpha = flash; g.fillStyle = '#ffffff'; g.fillRect(0, 0, CW, CH); g.globalAlpha = 1; flash = Math.max(0, flash - dt * 1.5); }
     if (view.fight > 0) { // "FIGHT!" splash
       const a = Math.min(1, view.fight * 2), s = 1 + (1 - Math.min(1, (1.4 - view.fight) * 4)) * 0.6;
-      ctx.save(); ctx.translate(CW / 2, CH / 2); ctx.scale(s, s); ctx.globalAlpha = a; ctx.font = '40px "Press Start 2P", monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.save(); ctx.translate(CW / 2, CH / 2); ctx.scale(s, s); ctx.globalAlpha = a; ctx.font = 'italic 900 64px Inter, system-ui, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
       ctx.fillStyle = '#1a1024'; ctx.fillText('FIGHT!', 4, 4); ctx.fillStyle = '#ffd23f'; ctx.fillText('FIGHT!', 0, 0); ctx.restore(); ctx.globalAlpha = 1;
     }
     if (banner) { banner.t -= dt; const a = Math.min(1, banner.t * 2);
       ctx.globalAlpha = a; ctx.fillStyle = '#141018dd'; ctx.fillRect(0, CH / 2 - 26, CW, 52); ctx.fillStyle = '#ffd23f'; ctx.fillRect(0, CH / 2 - 26, CW, 2); ctx.fillRect(0, CH / 2 + 24, CW, 2);
-      ctx.font = '13px "Press Start 2P", monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = '#ffffff'; ctx.fillText(banner.txt, CW / 2, CH / 2 + 1); ctx.textBaseline = 'alphabetic';
+      ctx.font = '800 22px Inter, system-ui, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = '#ffffff'; ctx.fillText(banner.txt, CW / 2, CH / 2 + 1); ctx.textBaseline = 'alphabetic';
       ctx.globalAlpha = 1; if (banner.t <= 0) banner = null; }
   }
   function reset() { fx = []; parts = []; decals = []; texts = []; trails = [[], []]; impacts.clear(); shake = 0; flash = 0; banner = null; grow = [0, 0]; }

@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#101714">
+<meta name="theme-color" content="#080c18">
 <title>PocketMonstars</title>
 <meta name="description" content="Original creature arena battles on Solana. Stake SOL in real-time 1v1 duels, own one-of-a-kind Monstars, and trade them with royalties.">
 <meta property="og:title" content="PocketMonstars">
@@ -11,10 +11,10 @@
 <meta property="og:image" content="/art/pixel/soloryx.png">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><rect rx=%2225%22 width=%22100%22 height=%22100%22 fill=%22%23dfff84%22/><text y=%2275%22 x=%2215%22 font-size=%2270%22>✦</text></svg>">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=Press+Start+2P&family=Space+Grotesk:wght@500;600;700&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=DM+Sans:wght@400;500;700&family=Press+Start+2P&family=Space+Grotesk:wght@500;600;700&display=swap">
 <style>
 /* Same tokens as the game (dist/index.html) so site and game read as one product. */
-:root{--bg:#101714;--panel:#19221d;--panel2:#141c17;--line:#303c33;--muted:#9aa99d;--lime:#dfff84;--white:#f4f6e9;--sol:#9ef0c8;--gold:#f5d488;--loss:#ff7b6b;
+:root{--bg:#080c18;--panel:#10172a;--panel2:#0c1222;--line:#2a3550;--muted:#b9c3d9;--lime:#ffd84a;--white:#f5f7fc;--sol:#9ef0c8;--gold:#f5d488;--loss:#ff7b6b;
 --display:'Space Grotesk',system-ui,sans-serif;--body:'DM Sans',system-ui,sans-serif;color-scheme:dark}
 *{box-sizing:border-box}
 html{scroll-behavior:smooth}
@@ -27,13 +27,13 @@ p{margin:0}
 .eyebrow{font:600 12px var(--display);letter-spacing:.16em;text-transform:uppercase;color:var(--lime)}
 .muted{color:var(--muted)}
 .btn{display:inline-flex;align-items:center;justify-content:center;gap:10px;border-radius:9px;padding:15px 22px;font:700 16px var(--display);text-decoration:none;border:1px solid transparent;cursor:pointer;min-height:52px}
-.btn.primary{background:var(--lime);color:#17240f}
-.btn.ghost{border-color:#43513f;background:#1d2720;color:var(--white)}
+.btn.primary{background:var(--lime);color:#14161f}
+.btn.ghost{border-color:#3a4670;background:#141c34;color:var(--white)}
 .btn:focus-visible{outline:3px solid var(--lime);outline-offset:3px}
-@media (hover:hover){.btn.primary:hover{background:#ecffad}.btn.ghost:hover{border-color:var(--lime)}}
+@media (hover:hover){.btn.primary:hover{background:#ffe580}.btn.ghost:hover{border-color:var(--lime)}}
 
 /* top bar */
-.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;background:#101714e6;backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
+.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;background:#080c18e6;backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
 body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:21;background:var(--bg)}
 .top .wrap{display:flex;align-items:center;gap:20px;height:64px}
 .brand{font:700 21px var(--display);letter-spacing:-1px;display:flex;align-items:center;gap:8px;text-decoration:none}
@@ -49,10 +49,10 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
 .hero .wrap{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,.95fr);gap:clamp(24px,5vw,60px);align-items:center}
 .hero h1{font-size:clamp(40px,7.2vw,82px);line-height:.98;margin:14px 0 18px}
 .hero h1 em{font-style:normal;color:var(--lime)}
-.hero .lead{font-size:clamp(17px,2vw,20px);color:#cdd6cb;max-width:34ch}
+.hero .lead{font-size:clamp(17px,2vw,20px);color:#d0d8ea;max-width:34ch}
 .cta{display:flex;flex-wrap:wrap;gap:12px;margin-top:28px}
 .cta-note{margin-top:12px;font-size:13px;color:var(--muted);max-width:46ch}
-.duel{position:relative;aspect-ratio:1/0.82;border-radius:22px;border:1px solid #4a5c43;background:radial-gradient(120% 90% at 50% 40%,#2f4a35,#16241b 70%);overflow:hidden;max-width:100%}
+.duel{position:relative;aspect-ratio:1/0.82;border-radius:22px;border:1px solid #3a4670;background:radial-gradient(120% 90% at 50% 40%,#22305a,#0c1222 70%);overflow:hidden;max-width:100%}
 .duel .ring{position:absolute;left:50%;top:52%;width:62%;aspect-ratio:1;transform:translate(-50%,-50%);border:2px solid #ffffff14;border-radius:50%}
 .duel img{position:absolute;width:52%;height:auto;bottom:14%;filter:drop-shadow(0 14px 10px #0008)}
 .duel .a{left:-2%;animation:bobA 3.2s ease-in-out infinite}
@@ -83,7 +83,7 @@ section{padding-block:clamp(48px,7vw,90px);border-top:1px solid var(--line)}
 /* steps */
 .steps{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;counter-reset:s}
 .step{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:20px;display:flex;flex-direction:column;gap:8px;min-width:0}
-.step::before{counter-increment:s;content:counter(s);font:700 13px var(--display);width:30px;height:30px;border-radius:50%;display:grid;place-items:center;background:#263128;color:var(--lime);margin-bottom:6px}
+.step::before{counter-increment:s;content:counter(s);font:700 13px var(--display);width:30px;height:30px;border-radius:50%;display:grid;place-items:center;background:#1c2645;color:var(--lime);margin-bottom:6px}
 .step h3{font-size:18px}
 .step p{color:var(--muted);font-size:15px}
 @media (max-width:940px){.steps{grid-template-columns:repeat(2,minmax(0,1fr))}}
@@ -95,7 +95,7 @@ section{padding-block:clamp(48px,7vw,90px);border-top:1px solid var(--line)}
 .ledger div{display:flex;justify-content:space-between;gap:14px;padding:14px 18px;border-top:1px solid var(--line);font-size:15px}
 .ledger div:first-child{border-top:0}
 .ledger span:last-child{font-variant-numeric:tabular-nums;text-align:right;color:var(--sol);font-weight:600}
-.formula{background:var(--panel2);border:1px dashed #43513f;border-radius:14px;padding:22px;display:flex;flex-direction:column;gap:12px}
+.formula{background:var(--panel2);border:1px dashed #3a4670;border-radius:14px;padding:22px;display:flex;flex-direction:column;gap:12px}
 .formula code{font:600 clamp(15px,2vw,18px) var(--display);color:var(--lime);word-break:break-word}
 .formula p{color:var(--muted);font-size:15px}
 @media (max-width:820px){.money{grid-template-columns:1fr}}
@@ -134,14 +134,14 @@ details[open] summary::after{content:'–'}
 details p{color:var(--muted);margin-top:10px;max-width:70ch}
 summary:focus-visible{outline:3px solid var(--lime);outline-offset:4px}
 
-.banner{background:#1d2720;border:1px solid #43513f;border-radius:12px;padding:12px 16px;font-size:14px;color:#cdd6cb;display:flex;gap:10px;align-items:flex-start}
+.banner{background:#141c34;border:1px solid #3a4670;border-radius:12px;padding:12px 16px;font-size:14px;color:#d0d8ea;display:flex;gap:10px;align-items:flex-start}
 .banner b{color:var(--gold)}
 footer{border-top:1px solid var(--line);padding-block:30px calc(30px + env(safe-area-inset-bottom,0px));color:var(--muted);font-size:13px}
 footer .wrap{display:flex;flex-wrap:wrap;gap:12px 24px;justify-content:space-between}
 /* sticky play bar on phones */
 .playbar{display:none}
 @media (max-width:640px){
-  .playbar{display:flex;position:fixed;left:0;right:0;bottom:0;z-index:30;padding:10px max(14px,env(safe-area-inset-right,0px)) calc(10px + env(safe-area-inset-bottom,0px)) max(14px,env(safe-area-inset-left,0px));background:#101714f2;border-top:1px solid var(--line)}
+  .playbar{display:flex;position:fixed;left:0;right:0;bottom:0;z-index:30;padding:10px max(14px,env(safe-area-inset-right,0px)) calc(10px + env(safe-area-inset-bottom,0px)) max(14px,env(safe-area-inset-left,0px));background:#080c18f2;border-top:1px solid var(--line)}
   .playbar .btn{width:100%}
   footer{padding-bottom:calc(96px + env(safe-area-inset-bottom,0px))}
 }
@@ -212,7 +212,7 @@ img.px{image-rendering:pixelated;image-rendering:crisp-edges}
 .title{text-align:center;margin-bottom:22px}
 .title h1{font:400 clamp(22px,4.4vw,46px)/1.25 'Press Start 2P',monospace;letter-spacing:0;margin:0 0 12px;text-shadow:4px 4px 0 #000}
 .title h1 em{font-style:normal;color:#ffd23f}
-.title .lead{margin:0 auto;max-width:60ch;color:#cdd6cb}
+.title .lead{margin:0 auto;max-width:60ch;color:#d0d8ea}
 .icons{display:flex;justify-content:center;flex-wrap:wrap;gap:8px;margin-top:16px}
 .icons button{width:54px;height:54px;border-radius:50%;background:radial-gradient(#3a4080,#1b1e3c);border:2px solid #4a50a0;padding:5px;cursor:pointer}
 .icons button img{width:100%;height:100%;object-fit:contain}
@@ -269,35 +269,103 @@ img.px{image-rendering:pixelated;image-rendering:crisp-edges}
 .cta-card.hot{background:linear-gradient(135deg,#3a2e7a,#1b1e3c);border-color:#ffd23f}
 .cta-card.hot b{color:#ffd23f}
 @media (hover:hover){a.cta-card:hover{border-color:var(--lime);transform:translateY(-2px)}}
-.cta-card ol{margin:0;padding-left:18px;color:#cdd6cb;font-size:14px;display:flex;flex-direction:column;gap:4px}
+.cta-card ol{margin:0;padding-left:18px;color:#d0d8ea;font-size:14px;display:flex;flex-direction:column;gap:4px}
+
+/* ===== v9: navy theme, Inter type and layout like the reference site ===== */
+body{font-family:Inter,system-ui,-apple-system,'Segoe UI',Roboto,sans-serif}
+h1,h2,h3,.btn,summary,.eyebrow{font-family:Inter,system-ui,sans-serif}
+.notice{background:#10172a;color:#f5f7fc;font:600 13px Inter,system-ui,sans-serif;border-bottom:1px solid #2a3550}
+.top{background:radial-gradient(60% 150% at 22% 0,#2a4372 0,#2a437200 70%),linear-gradient(#141d36,#0c1222);border-bottom:1px solid #2a3550}
+.top .wrap{gap:14px;height:auto;min-height:64px;flex-wrap:wrap;padding-block:8px}
+.brand{font:800 clamp(18px,2.4vw,24px) Inter,system-ui,sans-serif;letter-spacing:-.02em}
+.top .sub{color:#8fd8ff;font-weight:600;font-size:14px}
+.top nav{display:none}
+.top .icons{margin:0 0 0 auto;gap:4px}
+.top .icons button{width:38px;height:38px;padding:3px;border-width:1px}
+.top .btn{margin-left:0}
+@media (max-width:820px){.top .sub{display:none}.top .icons{order:3;width:100%;justify-content:flex-start;margin:0}.top .btn{margin-left:auto}}
+.minilead{color:#b9c3d9;margin:0 0 10px}
+.hero{padding-block:16px 50px}
+.icons button{background:radial-gradient(#22305a,#0c1222);border:2px solid #2a3550}
+.icons button[aria-pressed=true]{border-color:#ffd84a;box-shadow:0 0 0 2px #ffd84a55}
+.arena-grid{grid-template-columns:minmax(0,1fr) 320px}
+@media (max-width:980px){.arena-grid{grid-template-columns:1fr}}
+.mini{background:none;border:0;padding:0;font-family:Inter,system-ui,sans-serif;gap:10px}
+.mini:fullscreen{background:#080c18;padding:18px}
+.mtopbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between}
+.mrec{color:#8fd8ff;font-weight:700;font-size:14px}.mrec b{color:#ffd84a}
+.mctl{display:flex;gap:6px;flex-wrap:wrap}
+.mctl button{font:700 14px Inter,system-ui,sans-serif;background:transparent;border:1px solid #2a3550;border-radius:999px;padding:8px 14px;color:#f5f7fc}
+.mctl button[aria-pressed=true]{border-color:#ffd84a;color:#ffd84a}
+.mgrid{display:grid;grid-template-columns:minmax(0,1.55fr) minmax(250px,1fr);gap:12px;align-items:start}
+@media (max-width:760px){.mgrid{grid-template-columns:1fr}}
+.mfield{border-radius:12px;box-shadow:0 0 0 1px #2a3550}
+.mclock{position:absolute;top:8px;left:50%;transform:translateX(-50%);background:#10172ae6;border:1px solid #2a3550;border-radius:999px;padding:3px 12px;font:800 13px Inter,system-ui,sans-serif}
+.mover b{font:800 clamp(22px,3vw,32px) Inter,system-ui,sans-serif;color:#ffd84a;text-shadow:0 3px 0 #000}
+.mover span{font:600 14px/1.5 Inter,system-ui,sans-serif}
+.mover .btn{font:800 16px Inter,system-ui,sans-serif}
+.mright{display:flex;flex-direction:column;gap:8px;min-width:0}
+.mcard,.mcard.r{flex-direction:row;text-align:left;background:#10172a;border:1px solid #2a3550;border-radius:12px;padding:8px 10px}
+.mcard.r{flex-direction:row-reverse}
+.mcard img{border:2px solid #2a3550;background:radial-gradient(#22305a,#0c1222)}
+.mtop,.mcard.r .mtop{flex-direction:row}
+.mtop b{font:800 15px Inter,system-ui,sans-serif}
+.mlv{font:600 13px Inter,system-ui,sans-serif;color:#b9c3d9}
+.mty,.mcard.r .mty{font:700 12px Inter,system-ui,sans-serif;border-radius:8px;padding:2px 8px;margin-left:auto;margin-right:0}
+.mhp{display:flex;align-items:center;gap:8px}.mhp span{font:800 14px Inter,system-ui,sans-serif;flex:none}
+.mbar{flex:1;height:8px;border:0;background:#1c2645;border-radius:6px}.mcard.r .mbar{justify-content:flex-start}
+.mbar i{background:#5fd38a}.mxp{height:3px;border:0;background:#1c2645}.mcard.r .mxp{justify-content:flex-start}
+.msol,.mcard.r .msol{flex-direction:row;font:700 13px Inter,system-ui,sans-serif}
+.mask{font:800 clamp(15px,1.8vw,19px)/1.3 Inter,system-ui,sans-serif;background:#10172a;border:1px solid #2a3550;border-radius:12px;padding:12px 14px}
+.mask b{color:#ffd84a;font-weight:800}
+.mmoves,.mmoves{grid-template-columns:1fr 1fr}
+.mmove{font-family:Inter,system-ui,sans-serif;background:#0a0d17;color:#f5f7fc;border:2px solid var(--tc,#888);border-radius:12px;box-shadow:none;padding:7px 9px}
+.mmove .n{font:800 15px Inter,system-ui,sans-serif;padding-right:14px}
+.mmove .k{position:absolute;top:5px;right:8px;font:700 12px Inter,system-ui,sans-serif;color:#7c86a6}
+.mmove .t{font:700 12px Inter,system-ui,sans-serif}.mmove .t em{border-radius:8px;padding:2px 8px}.mmove .t span{color:#48d0ff;font-weight:800;font-size:13px}
+.mty,.mmove .t em{color:#fff;text-shadow:0 1px 1px #0009}
+img.px{image-rendering:auto}
+.mmove.on{transform:none;background:#0a0d17;box-shadow:0 0 0 3px #48d0ff}.mmove.cool{filter:none;opacity:.55;border-style:dashed}
+@media (hover:hover){.mmove:hover{background:#121a33}}
+.cta-card{background:#10172a;border:1px solid #2a3550}
+.cta-card b{font:800 18px Inter,system-ui,sans-serif}
+.cta-card .k{color:#8fd8ff}
+.cta-card.hot{background:linear-gradient(135deg,#1d2f58,#10172a);border:1px solid #ffd84a}
+.cta-card.hot b{color:#ffd84a}
+.mon{background:#10172a}
+.mon img{background:radial-gradient(#22305a,#0c1222);border:2px solid #2a3550;image-rendering:auto}
+.mon h3{font:800 16px Inter,system-ui,sans-serif}
+.btn.primary{background:#ffd84a;color:#14161f}
+@media (hover:hover){.btn.primary:hover{background:#ffe580}}
 </style>
 </head>
 <body>
+<div class="notice" role="note"><b>Devnet beta</b> · Free test SOL only · Never type your seed phrase into any site</div>
 <header class="top"><div class="wrap">
-  <a class="brand" href="/"><b>✦</b>pocketmonstars</a>
+  <a class="brand" href="/">PocketMonstars Arena</a><span class="sub">Official site · Solana devnet beta</span>
   <nav aria-label="Sections"><a href="#how">How it works</a><a href="#money">The money</a><a href="#monstars">Monstars</a><a href="#market">Market</a><a href="#faq">FAQ</a></nav>
+  <div class="icons" id="pickRow" role="group" aria-label="Choose your Monstar for the mini battle"></div>
   <a class="btn primary" data-play href="/play">Play now</a>
 </div></header>
 
 <main>
-<div class="notice" role="note"><b>Devnet beta</b> · Free test SOL only · Never type your seed phrase into any site</div>
 <div class="hero"><div class="wrap">
-  <div class="title">
-    <h1>Pocket<em>Monstars</em> Arena</h1>
-    <p class="lead">Real-time Monstar battles on Solana. Your Monstar moves on its own; you call the moves. Every hit moves SOL and earns EXP.</p>
-    <div class="icons" id="pickRow" role="group" aria-label="Choose your Monstar for the mini battle"></div>
-  </div>
+  <p class="minilead">Mini battle, just for fun. Pick a Monstar up top, then tap its moves. Practice SOL only, so nothing real moves here.</p>
   <div class="arena-grid">
    <div class="mini" id="mini">
-    <div class="mhud">
-      <div class="mcard"><img id="mPic0" alt=""><div><div class="mtop"><b id="mN0">—</b><span class="mlv" id="mL0"></span><span class="mty" id="mT0"></span></div><div class="mbar"><i id="mH0"></i></div><div class="mxp"><i id="mX0"></i></div><div class="msol"><span id="mS0">0.005000 SOL</span><small id="mD0"></small></div></div></div>
-      <div class="mmid"><div class="mclock" id="mClock">1:30</div><div class="mstreak">WINS <b id="mWins">0</b> · STREAK <b id="mStreak">0</b></div></div>
-      <div class="mcard r"><img id="mPic1" alt=""><div><div class="mtop"><b id="mN1">—</b><span class="mlv" id="mL1"></span><span class="mty" id="mT1"></span></div><div class="mbar"><i id="mH1"></i></div><div class="mxp"><i id="mX1"></i></div><div class="msol"><span id="mS1">0.005000 SOL</span><small id="mD1"></small></div></div></div>
+    <div class="mtopbar"><span class="mrec"><b id="mWins">0</b> wins all time · win streak <b id="mStreak">0</b> · best <b id="mBest">0</b></span>
+     <span class="mctl"><button id="mSpeed" aria-label="Game speed">Speed 1x</button><button id="mAuto" aria-pressed="false">Auto moves</button><button id="mFull">⛶ Full screen</button></span></div>
+    <div class="mgrid">
+     <div class="mfield"><canvas id="demoCv" width="960" height="540" aria-label="Mini battle"></canvas>
+      <div class="mclock" id="mClock">1:30</div>
+      <div class="mover" id="mOver"><b id="mBig">Mini battle</b><span id="mSmall">Tap Battle!, then pick moves. Your Monstar moves on its own.</span><button class="btn primary" id="mGo">Battle!</button></div></div>
+     <div class="mright">
+      <div class="mcard r"><img id="mPic1" alt=""><div><div class="mtop"><b id="mN1">—</b><span class="mlv" id="mL1"></span><span class="mty" id="mT1"></span></div><div class="mhp"><span id="mHN1"></span><div class="mbar"><i id="mH1"></i></div></div><div class="mxp"><i id="mX1"></i></div><div class="msol"><span id="mS1">0.005000 SOL</span><small id="mD1"></small></div></div></div>
+      <div class="mcard"><img id="mPic0" alt=""><div><div class="mtop"><b id="mN0">—</b><span class="mlv" id="mL0"></span><span class="mty" id="mT0"></span></div><div class="mhp"><span id="mHN0"></span><div class="mbar"><i id="mH0"></i></div></div><div class="mxp"><i id="mX0"></i></div><div class="msol"><span id="mS0">0.005000 SOL</span><small id="mD0"></small></div></div></div>
+      <div class="mask" id="mMsg">What will <b id="mAsk">—</b> do?</div>
+      <div class="mmoves" id="mMoves"></div>
+     </div>
     </div>
-    <div class="mfield"><canvas id="demoCv" width="960" height="540" aria-label="Mini battle"></canvas>
-      <div class="mover" id="mOver"><b id="mBig">Mini battle</b><span id="mSmall">Pick a Monstar above, then tap a move. Practice SOL only.</span><button class="btn primary" id="mGo">Battle!</button></div></div>
-    <div class="mpanel"><div class="mask">What will <b id="mAsk">—</b> do?</div><div class="mmoves" id="mMoves"></div></div>
-    <div class="mctl"><button id="mSpeed" aria-label="Game speed">Speed 1x</button><button id="mAuto" aria-pressed="false">Auto moves</button><button id="mFull">Full screen</button><span class="mhint">Keys 1–4 · practice pot 0.01 SOL (not real)</span></div>
    </div>
    <aside class="side">
     <a class="cta-card hot" data-play href="/play"><span class="k">Stake SOL</span><b>Play in Phantom</b><span>Duel a real rival for a SOL pot. Every hit moves lamports to your side. Winner takes the pot when the match ends.</span></a>
@@ -401,7 +469,7 @@ img.px{image-rendering:pixelated;image-rendering:crisp-edges}
   const r = document.getElementById('roster');
   for (const [n, t, c, p, a] of species) {
     const d = document.createElement('div'); d.className = 'mon';
-    d.innerHTML = `<img class="px" src="/art/pixel/${a}.png" alt="${n}" loading="lazy" width="48" height="48"><h3>${n}</h3><span class="tag"><b>${c}</b> · ${t}</span><p>${p}</p>`;
+    d.innerHTML = `<img class="px" src="/art/hd/${a}.png" alt="${n}" loading="lazy" width="48" height="48"><h3>${n}</h3><span class="tag"><b>${c}</b> · ${t}</span><p>${p}</p>`;
     r.append(d);
   }
   // Play buttons: inside Phantom go straight in; on a phone open the game in Phantom's browser.
@@ -426,7 +494,7 @@ const TC = { EMBER: '#e8582c', TIDE: '#3a8ae0', GROVE: '#4caa3a', SPARK: '#d8b01
 const cv = $('demoCv');
 if (cv && window.PMArena) {
   const r = PMArena.createRenderer(cv, ARENA), STAKE = 5_000_000n, KEY = 'pm-site-mini';
-  let rec = { wins: 0, streak: 0 }; try { rec = { ...rec, ...JSON.parse(localStorage.getItem(KEY) || '{}') }; } catch {}
+  let rec = { wins: 0, streak: 0, best: 0 }; try { rec = { ...rec, ...JSON.parse(localStorage.getItem(KEY) || '{}') }; } catch {}
   let pick = GENESIS_IDS[Math.floor(Math.random() * GENESIS_IDS.length)], m = null, ledger, prev, cur, at, mem = {}, endAt = 0, types = [], fightAt = 0, speed = 1, auto = false, visible = true;
   const inp = { atk: false, sp: false, dash: false, guard: false }, keys = {};
   new IntersectionObserver(es => { visible = es[0].isIntersecting; }).observe(cv);
@@ -434,12 +502,12 @@ if (cv && window.PMArena) {
   GENESIS_IDS.forEach(id => { const b = document.createElement('button'); b.title = SPECIES[id].name; b.innerHTML = `<img src="${PMArena.spriteSrc(id)}" alt="${SPECIES[id].name}">`;
     b.onclick = () => { pick = id; paintPick(); start(); }; row.append(b); });
   const paintPick = () => [...row.children].forEach((b, i) => b.setAttribute('aria-pressed', GENESIS_IDS[i] === pick));
-  paintPick(); $('mWins').textContent = rec.wins; $('mStreak').textContent = rec.streak;
+  paintPick(); $('mWins').textContent = rec.wins; $('mStreak').textContent = rec.streak; $('mBest').textContent = rec.best;
   function moves(a, b) {
     const sp = a.species, eff = effectiveness(sp.type, b.type), e = eff > 1 ? '▲' : eff < 1 ? '▼' : '';
     const list = [['atk', sp.move, sp.type, '⚡' + STYLES[sp.basicStyle].cost + ' ' + e], ['sp', sp.special, sp.type, '⚡' + STYLES[sp.specialStyle].cost + ' ' + e], ['dash', 'Quick dash', 'NORMAL', 'Dodge'], ['guard', 'Guard', 'NORMAL', 'Block']];
-    $('mAsk').textContent = sp.name.toUpperCase();
-    $('mMoves').innerHTML = list.map(([k, n, t, c], i) => `<button class="mmove" data-k="${k}" style="--tc:${TC[t]}"><span class="n">${i + 1}. ${n}</span><span class="t"><em>${t === 'NORMAL' ? 'MOVE' : t}</em><span>${c}</span></span><i class="cd"></i></button>`).join('');
+    $('mMsg').innerHTML = `A wild <b>${b.species.name}</b> appeared!`; setTimeout(() => { $('mMsg').innerHTML = `What will <b>${sp.name}</b> do?`; }, 1600);
+    $('mMoves').innerHTML = list.map(([k, n, t, c], i) => `<button class="mmove" data-k="${k}" style="--tc:${TC[t]}"><span class="n">${n}</span><span class="k">${i + 1}</span><span class="t"><em>${t === 'NORMAL' ? 'MOVE' : t}</em><span>${c}</span></span><i class="cd"></i></button>`).join('');
     $('mMoves').querySelectorAll('.mmove').forEach(bt => { const k = bt.dataset.k; let t0 = 0;
       bt.addEventListener('pointerdown', e => { e.preventDefault(); inp[k] = true; t0 = performance.now(); bt.classList.add('on'); if (!m || m.over) start(); });
       const up = () => { bt.classList.remove('on'); setTimeout(() => inp[k] = false, Math.max(0, 160 - (performance.now() - t0))); };
@@ -450,7 +518,7 @@ if (cv && window.PMArena) {
     const a = new Monstar({ speciesId: pick, level: lv }), b = new Monstar({ speciesId: foe, level: lv });
     m = createMatch(a, b, { arena: Math.floor(Math.random() * 4) }); ledger = new StakeLedger(STAKE); mem = {};
     prev = null; cur = snapshot(m); at = performance.now(); endAt = 0; fightAt = performance.now(); types = [a.type, b.type]; r.reset();
-    [a, b].forEach((x, i) => { $('mN' + i).textContent = x.species.name.toUpperCase(); $('mPic' + i).src = PMArena.spriteSrc(x.species.id); const t = $('mT' + i); t.textContent = x.type; t.dataset.t = x.type; t.style.setProperty('--tc', TC[x.type]); });
+    [a, b].forEach((x, i) => { $('mN' + i).textContent = x.species.name.toUpperCase(); $('mPic' + i).src = PMArena.spriteSrc(x.species.id); $('mN' + i).textContent = x.species.name; const t = $('mT' + i); t.textContent = x.type; t.dataset.t = x.type; t.style.setProperty('--tc', TC[x.type]); });
     moves(a, b); $('mOver').hidden = true; sol();
   }
   function sol(hit) {
@@ -470,15 +538,15 @@ if (cv && window.PMArena) {
     prev = cur; cur = snapshot(m); at = performance.now();
     cur.f.forEach((f, i) => { if (f.ct < last[i] && f.ct < 0.3 && f.ck) { const t = $('mT' + i), sp = SPECIES[f.s]; t.textContent = (f.ck === 'special' ? sp.special : sp.move).toUpperCase(); t.classList.add('cast'); clearTimeout(t._t); t._t = setTimeout(() => { t.classList.remove('cast'); t.textContent = t.dataset.t; }, 1200); } last[i] = f.ct; });
     if (m.over) { ledger.finish(m.winner); sol(); endAt = performance.now();
-      const won = m.winner === 0; rec.wins += won ? 1 : 0; rec.streak = won ? rec.streak + 1 : 0; try { localStorage.setItem(KEY, JSON.stringify(rec)); } catch {}
-      $('mWins').textContent = rec.wins; $('mStreak').textContent = rec.streak;
+      const won = m.winner === 0; rec.wins += won ? 1 : 0; rec.streak = won ? rec.streak + 1 : 0; rec.best = Math.max(rec.best, rec.streak); try { localStorage.setItem(KEY, JSON.stringify(rec)); } catch {}
+      $('mWins').textContent = rec.wins; $('mStreak').textContent = rec.streak; $('mBest').textContent = rec.best;
       setTimeout(() => { $('mBig').textContent = m.winner == null ? 'Draw' : won ? 'Victory!' : 'Defeated'; $('mSmall').innerHTML = `${won ? 'You took the practice pot: ' + formatSol(ledger.pot, 4) + ' SOL' : 'Your rival took the practice pot'} · +${m.fighters[0].expGained} EXP<br>Stake real SOL against a rival in Phantom.`; $('mGo').textContent = 'Battle again'; $('mOver').hidden = false; }, 1500); }
   }
   setInterval(() => { if (!visible && !document.fullscreenElement) return; for (let i = 0; i < speed; i++) tick(); }, TICK * 1000);
   (function frame() {
     if (visible || document.fullscreenElement) {
       if (m) { r.draw(prev, cur, Math.min(1, (performance.now() - at) / 34), { you: 0, snapAt: at, hues: [0, 0], types, faint: m.over && m.winner != null ? [m.winner === 1 ? Math.min(1, (performance.now() - endAt) / 1200) : 0, m.winner === 0 ? Math.min(1, (performance.now() - endAt) / 1200) : 0] : [0, 0], fight: Math.max(0, 1.4 - (performance.now() - fightAt) / 1000) });
-        cur.f.forEach((f, i) => { const p = Math.max(0, f.hp / f.max); $('mH' + i).style.width = p * 100 + '%'; $('mH' + i).style.background = p > 0.5 ? '#58d858' : p > 0.2 ? '#f8c838' : '#f85838'; $('mX' + i).style.width = Math.min(100, f.xi / Math.max(1, f.xn) * 100) + '%'; $('mL' + i).textContent = 'Lv' + f.lv; });
+        cur.f.forEach((f, i) => { const p = Math.max(0, f.hp / f.max); $('mH' + i).style.width = p * 100 + '%'; $('mHN' + i).textContent = Math.ceil(Math.max(0, f.hp)) + '/' + f.max; $('mH' + i).style.background = p > 0.5 ? '#58d858' : p > 0.2 ? '#f8c838' : '#f85838'; $('mX' + i).style.width = Math.min(100, f.xi / Math.max(1, f.xn) * 100) + '%'; $('mL' + i).textContent = 'Lv' + f.lv; });
         const left = Math.max(0, Math.ceil(ARENA.roundSeconds - cur.t)); $('mClock').textContent = `${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}`;
         const f = cur.f[0], sp = SPECIES[f.s], cost = [STYLES[sp.basicStyle].cost, STYLES[sp.specialStyle].cost, 0, 0];
         [...$('mMoves').children].forEach((b, i) => { const cd = [f.cd.b, f.cd.s, f.cd.d, f.cd.g][i] || 0; b.classList.toggle('cool', cd > 0.05 || f.en < cost[i]); b.querySelector('.cd').style.width = Math.min(100, cd * 20) + '%'; });
