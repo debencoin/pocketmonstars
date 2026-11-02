@@ -59,13 +59,14 @@ export function sanitizeInput(i = {}) {
   let mx = clamp(num(i.mx), -1, 1), my = clamp(num(i.my), -1, 1);
   const m = Math.hypot(mx, my); if (m > 1) { mx /= m; my /= m; }
   const [ax, ay] = norm(num(i.ax), num(i.ay));
-  return { mx, my, ax, ay, atk: !!i.atk, sp: !!i.sp, dash: !!i.dash, guard: !!i.guard };
+  const sw = Number.isInteger(i.sw) && i.sw >= 0 && i.sw < 3 ? i.sw : -1; // 3v3: switch to team slot
+  return { mx, my, ax, ay, atk: !!i.atk, sp: !!i.sp, dash: !!i.dash, guard: !!i.guard, sw };
 }
 
-function makeFighter(monstar, side) {
+function makeFighter(monstar, side, teamMax = 0) {
   const s = monstar.stats, sp = monstar.species;
   return {
-    side, mon: monstar, speciesId: sp.id, type: monstar.type, mods: monstar.cls.mods, stats: s,
+    side, teamMax: teamMax || s.hp, mon: monstar, speciesId: sp.id, type: monstar.type, mods: monstar.cls.mods, stats: s,
     styles: { basic: sp.basicStyle || 'projectile', special: sp.specialStyle || 'beam' },
     motion: MOTION[sp.motion] ? sp.motion : 'pounce',
     level: monstar.level, exp: monstar.exp, expGained: 0,
@@ -78,10 +79,25 @@ function makeFighter(monstar, side) {
   };
 }
 
+/** 1v1: pass two Monstars. 3v3: pass two arrays of up to three; the next one comes in when one faints. */
 export function createMatch(monstarA, monstarB, opts = {}) {
+  const teams = [monstarA, monstarB].map(x => (Array.isArray(x) ? x.slice(0, 3) : [x]));
+  const teamMax = teams.map(t => t.reduce((n, mo) => n + mo.stats.hp, 0));
+  const fighters = [makeFighter(teams[0][0], 0, teamMax[0]), makeFighter(teams[1][0], 1, teamMax[1])];
   return { t: 0, over: false, winner: null, reason: null, auto: opts.auto !== false, arena: opts.arena ?? 0,
-    fighters: [makeFighter(monstarA, 0), makeFighter(monstarB, 1)], projectiles: [], effects: [], nextId: 1, finished: false };
+    teams, teamMax, roster: teams.map((t, side) => t.map((_, i) => (i === 0 ? fighters[side] : null))), slot: [0, 0], swCd: [0, 0],
+    fighters, projectiles: [], effects: [], nextId: 1, finished: false };
 }
+const alive = (m, side, i) => { const f = m.roster[side][i]; return !f || f.hp > 0; };
+function switchIn(m, side, slot, events, reason) {
+  const old = m.fighters[side];
+  const nf = (m.roster[side][slot] ||= makeFighter(m.teams[side][slot], side, m.teamMax[side]));
+  nf.x = old.x; nf.y = old.y; nf.vx = nf.vy = 0; nf.iframes = Math.max(nf.iframes, 1.0); nf.input = old.input; nf.castT = 9;
+  if (reason === 'faint') nf.x = side === 0 ? 170 : ARENA.w - 170;
+  m.fighters[side] = nf; m.slot[side] = slot; m.swCd[side] = 3;
+  events.push({ type: 'switch', side, slot, speciesId: nf.speciesId, reason });
+}
+function teamHpFrac(m, side) { return m.roster[side].reduce((n, f, i) => n + (f ? f.hp : m.teams[side][i].stats.hp), 0) / m.teamMax[side]; }
 
 function collide(f) {
   const R = ARENA.radius;
@@ -125,7 +141,7 @@ function land(m, att, vic, kind, style, events, dirx, diry, knock = 90, power) {
   vic.hp = Math.max(0, vic.hp - damage); att.hits++; vic.hurtT = 0.35;
   const kb = knock * vic.mods.knockback; vic.vx += dirx * kb; vic.vy += diry * kb;
   const exp = Math.max(1, Math.round(damage * EXP_RULES.perDamage * (crit ? EXP_RULES.critBonus : 1)));
-  events.push({ type: 'hit', attacker: att.side, victim: vic.side, damage, kind, style, eff, crit, exp, victimMaxHp: vic.maxHp });
+  events.push({ type: 'hit', attacker: att.side, victim: vic.side, damage, kind, style, eff, crit, exp, victimMaxHp: vic.teamMax || vic.maxHp });
   gainExp(m, att, exp, events);
   return true;
 }
@@ -233,6 +249,11 @@ export function step(m, dt = TICK) {
   if (m.over) return [];
   const events = [];
   m.t += dt;
+  for (const side of [0, 1]) { // 3v3 manual switch
+    m.swCd[side] = Math.max(0, m.swCd[side] - dt);
+    const want = m.fighters[side].input.sw;
+    if (want >= 0 && want < m.teams[side].length && want !== m.slot[side] && m.swCd[side] === 0 && alive(m, side, want)) switchIn(m, side, want, events, 'switch');
+  }
   for (const f of m.fighters) {
     const foe = m.fighters[1 - f.side];
     const inp = f.input, mods = f.mods;
@@ -280,13 +301,17 @@ export function step(m, dt = TICK) {
   m.projectiles = m.projectiles.filter(p => p.life > 0);
   for (const e of m.effects) runEffect(m, e, dt, events);
   m.effects = m.effects.filter(e => e.t < e.dur);
-  const [a, b] = m.fighters;
-  if (a.hp <= 0 || b.hp <= 0) {
+  const out = [false, false];
+  for (const side of [0, 1]) if (m.fighters[side].hp <= 0) { // fainted: send in the next team member, if any
+    const next = m.teams[side].findIndex((_, i) => i !== m.slot[side] && alive(m, side, i));
+    if (next >= 0) switchIn(m, side, next, events, 'faint'); else out[side] = true;
+  }
+  if (out[0] || out[1]) {
     m.over = true; m.reason = 'ko';
-    m.winner = a.hp <= 0 && b.hp <= 0 ? null : a.hp <= 0 ? 1 : 0;
+    m.winner = out[0] && out[1] ? null : out[0] ? 1 : 0;
   } else if (m.t >= ARENA.roundSeconds) {
     m.over = true; m.reason = 'time';
-    const pa = a.hp / a.maxHp, pb = b.hp / b.maxHp;
+    const pa = teamHpFrac(m, 0), pb = teamHpFrac(m, 1);
     m.winner = Math.abs(pa - pb) < 1e-9 ? null : pa > pb ? 0 : 1;
   }
   if (m.over) finishExp(m, events);
@@ -295,10 +320,11 @@ export function step(m, dt = TICK) {
 
 function finishExp(m, events) {
   if (m.finished) return; m.finished = true;
-  for (const f of m.fighters) {
+  for (const f of m.roster.flat().filter(Boolean)) { // every team member that took part
     let bonus = m.reason === 'forfeit' && m.winner !== f.side ? 0 : EXP_RULES.finishBonus;
     if (m.winner === f.side) bonus += EXP_RULES.koBonus;
-    if (bonus) { events.push({ type: 'bonus', side: f.side, exp: bonus }); gainExp(m, f, bonus, events); }
+    const active = m.fighters[f.side] === f;
+    if (bonus) { if (active) events.push({ type: 'bonus', side: f.side, exp: bonus }); gainExp(m, f, bonus, active ? events : []); }
   }
 }
 
@@ -308,7 +334,9 @@ export function forfeit(m, side) { if (!m.over) { m.over = true; m.reason = 'for
 /** Compact snapshot for clients. */
 export function snapshot(m) {
   const r = v => Math.round(v * 10) / 10;
-  return { t: r(m.t), over: m.over, winner: m.winner, reason: m.reason, ar: m.arena,
+  const tm = m.teams[0].length > 1 || m.teams[1].length > 1
+    ? m.teams.map((t, side) => t.map((mo, i) => { const f = m.roster[side][i]; return { s: mo.species.id, hp: f ? Math.max(0, Math.round(f.hp)) : mo.stats.hp, mx: f ? f.maxHp : mo.stats.hp, lv: f ? f.level : mo.level }; })) : null;
+  return { t: r(m.t), over: m.over, winner: m.winner, reason: m.reason, ar: m.arena, tm, sl: m.slot.slice(), sc: m.swCd.map(r),
     f: m.fighters.map(f => { const p = expProgress(f); return { s: f.speciesId, x: r(f.x), y: r(f.y), fx: r(f.fx), fy: r(f.fy), hp: r(f.hp), max: f.maxHp, en: Math.round(f.energy),
       cd: { b: r(f.cd.basic), s: r(f.cd.special), d: r(f.cd.dash), g: r(f.cd.guard) }, i: f.iframes > 0, g: f.guardT > 0,
       mv: f.moving, ds: f.dashT > 0, ct: r(Math.min(f.castT, 9)), ck: f.castKind, hu: r(f.hurtT),
@@ -324,7 +352,9 @@ export function aiInput(m, side, mem = {}) {
   const d = Math.hypot(foe.x - me.x, foe.y - me.y);
   const reach = { whip: 230, bolt: 430, cone: 230, projectile: 560 }[me.styles.basic] || 500;
   const sst = me.styles.special, inRange = sst === 'cone' ? d < 230 : sst === 'beam' ? d < 600 : d < 480;
-  return { mx: 0, my: 0, ax: 0, ay: 0, atk: d < reach && Math.random() < 0.45, sp: inRange && Math.random() < 0.05, dash: false, guard: me.hurtT > 0.3 && Math.random() < 0.03 };
+  const hard = mem.hard ? 1.6 : 1; // mythic wild Monstars fight smarter
+  return { mx: 0, my: 0, ax: 0, ay: 0, atk: d < reach && Math.random() < 0.45 * hard, sp: inRange && Math.random() < 0.05 * hard, dash: !!mem.hard && foe.castT < 0.15 && Math.random() < 0.3,
+    guard: me.hurtT > 0.3 && Math.random() < 0.03 * hard, sw: -1 };
 }
 
 export { Monstar };

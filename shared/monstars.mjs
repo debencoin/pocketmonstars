@@ -1,3 +1,4 @@
+import { FRONTIER, MYTHIC, TIERS } from './frontier.mjs';
 // PocketMonstars species, classes, evolution stages, EXP and DNA traits.
 // Pure ES module: runs in the browser (rendering) and in Node (authoritative server).
 // The server derives DNA; this file only turns a DNA hex string into traits and stats.
@@ -7,9 +8,12 @@ export const STAT_LABELS = { hp: 'HP', attack: 'Attack', defense: 'Defense', spA
 
 export const TYPE_CHART = {
   EMBER: ['GROVE', 'FROST'], TIDE: ['EMBER', 'STONE'], GROVE: ['TIDE', 'STONE'], SPARK: ['TIDE'],
-  STONE: ['SPARK', 'EMBER'], FROST: ['GROVE'], SHADE: ['ASTRAL', 'PSYCHIC'], ASTRAL: ['SHADE'],
-  PSYCHIC: ['STONE', 'EMBER'],
+  STONE: ['SPARK', 'EMBER', 'GALE'], FROST: ['GROVE', 'DRACO', 'GALE'], SHADE: ['ASTRAL', 'PSYCHIC'], ASTRAL: ['SHADE', 'DRACO'],
+  PSYCHIC: ['STONE', 'EMBER', 'VENOM'],
+  // Frontier types
+  VENOM: ['GROVE', 'TIDE'], STEEL: ['FROST', 'STONE'], GALE: ['GROVE', 'VENOM'], DRACO: ['DRACO', 'STEEL'],
 };
+TYPE_CHART.EMBER.push('STEEL'); TYPE_CHART.SPARK.push('GALE', 'STEEL');
 export function effectiveness(attackType, defendType) {
   if (TYPE_CHART[attackType]?.includes(defendType)) return 1.5;
   if (TYPE_CHART[defendType]?.includes(attackType)) return 0.7;
@@ -101,7 +105,13 @@ export class Psion extends MonstarClass {
   static passive = 'Levitates: immune to knockback, special recharges 20% faster.';
   static mods = { ...MonstarClass.mods, knockback: 0, specialCd: 0.8, energyRegen: 1.15 };
 }
-export const CLASSES = [Striker, Warden, Skirmisher, Ranger, Mystic, Sentinel, Arcanist, Support, Titan, Seraph, Psion];
+export class Deity extends MonstarClass {
+  static id = 'deity'; static label = 'Deity'; static base = [170, 110, 100, 135, 120, 110];
+  static passive = 'Divine: immune to knockback, regenerates HP and takes 15% less damage.';
+  static mods = { ...MonstarClass.mods, knockback: 0, taken: 0.85, regen: 0.007, specialCd: 0.85 };
+}
+export const CLASSES = [Striker, Warden, Skirmisher, Ranger, Mystic, Sentinel, Arcanist, Support, Titan, Seraph, Psion, Deity];
+const CLASS_BY_ID = Object.fromEntries(CLASSES.map(c => [c.id, c]));
 
 // ---------- Species ----------
 // `motion` is how the Monstar moves on its own when the player isn't steering.
@@ -109,6 +119,8 @@ export const COLLECTIONS = {
   genesis: { name: 'Genesis', note: 'The original nine. Every wallet hatches its own version of each.' },
   legendary: { name: 'Legendary', note: 'One-of-a-kind legends held by the founder wallet.' },
   bred: { name: 'Bred', note: 'Infants hatched by breeding two players\' Monstars.' },
+  frontier: { name: 'Frontier', note: 'Fifty wild Monstars caught in the Wild Expedition. Rarer ones are stronger.' },
+  mythic: { name: 'Mythic', note: 'Three angels and a god. Very rare in the wild and very hard to beat.' },
 };
 export const SPECIES = [
   { id: 0, name: 'Cindercub', type: 'EMBER', art: 'cindercub', cls: Striker, move: 'Ember volley', special: 'Inferno bloom', basicStyle: 'projectile', specialStyle: 'cone', motion: 'pounce', collection: 'genesis', color: '#ec975b' },
@@ -123,7 +135,23 @@ export const SPECIES = [
   { id: 9, name: 'Seraphon', type: 'ASTRAL', art: 'seraphon', cls: Seraph, move: 'Holy lance', special: 'Heaven\'s judgment', basicStyle: 'bolt', specialStyle: 'strike', motion: 'hover', collection: 'legendary', legendary: true, color: '#f4f0ff' },
   { id: 10, name: 'Psyvolt', type: 'PSYCHIC', art: 'psyvolt', cls: Psion, move: 'Psy orb', special: 'Levitation storm', basicStyle: 'projectile', specialStyle: 'levitate', motion: 'hover', collection: 'legendary', legendary: true, color: '#c9a6ff' },
 ];
+for (const [list, coll] of [[FRONTIER, 'frontier'], [MYTHIC, 'mythic']]) for (const f of list) {
+  SPECIES.push({ id: SPECIES.length, name: f.name, type: f.type, art: f.name.toLowerCase(), cls: CLASS_BY_ID[f.cls], move: f.move, special: f.special,
+    basicStyle: f.basicStyle, specialStyle: f.specialStyle, motion: f.motion, collection: coll, tier: f.tier, mythic: coll === 'mythic' || undefined, color: f.look.main });
+}
+export { TIERS };
 export const GENESIS_IDS = SPECIES.filter(s => s.collection === 'genesis').map(s => s.id);
+export const FRONTIER_IDS = SPECIES.filter(s => s.collection === 'frontier').map(s => s.id);
+export const MYTHIC_IDS = SPECIES.filter(s => s.collection === 'mythic').map(s => s.id);
+export const WILD_IDS = [...FRONTIER_IDS, ...MYTHIC_IDS];
+/** Weighted random wild species (rarer tiers show up less often). `rand` is 0..1. */
+export function rollWild(rand = Math.random()) {
+  const total = WILD_IDS.reduce((t, id) => t + TIERS[SPECIES[id].tier].weight / tierCount(SPECIES[id].tier), 0);
+  let r = rand * total;
+  for (const id of WILD_IDS) { r -= TIERS[SPECIES[id].tier].weight / tierCount(SPECIES[id].tier); if (r <= 0) return id; }
+  return WILD_IDS[0];
+}
+const _tc = {}; function tierCount(t) { return (_tc[t] ??= WILD_IDS.filter(id => SPECIES[id].tier === t).length); }
 export const LEGENDARY_IDS = SPECIES.filter(s => s.legendary).map(s => s.id);
 
 // ---------- DNA traits ----------
@@ -212,7 +240,7 @@ export class Monstar {
   }
   toJSON() {
     const p = levelProgress(this.exp);
-    return { speciesId: this.species.id, name: this.displayName, type: this.type, className: this.className, passive: this.cls.passive,
+    return { speciesId: this.species.id, tier: this.species.tier || null, name: this.displayName, type: this.type, className: this.className, passive: this.cls.passive,
       dna: this.dna, serial: this.serial, originOwner: this.originOwner, owner: this.owner, asset: this.asset, traits: this.traits, stats: this.stats,
       level: this.level, exp: this.exp, expInto: p.into, expNeed: p.need, stage: this.stage.name, stageId: this.stage.id,
       collection: this.collection, legendary: !!this.species.legendary, parents: this.parents };
@@ -222,7 +250,7 @@ export class Monstar {
 /** Stats for a Monstar at any level: base + DNA rolls, grown by level and evolution stage, shaped by nature. */
 export function statsAt(m, level) {
   const nat = NATURES.find(n => n.name === m.traits.nature) || NATURES[7];
-  const st = stageFor(level), growth = 1 + (level - 1) * 0.03;
+  const st = stageFor(level), growth = (1 + (level - 1) * 0.03) * (TIERS[m.species.tier]?.mult || 1); // rarer wild species are stronger
   const out = {};
   STAT_KEYS.forEach((k, i) => {
     let v = (m.cls.base[i] + m.traits.ivs[i] + m.traits.rarityBonus) * growth * st.mult;

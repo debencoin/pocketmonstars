@@ -1,7 +1,9 @@
 // 1v1 Stake Duel rooms: lobby, escrow deposits, authoritative 30 Hz simulation, live per-hit pot shares, settlement.
 import { randomBytes } from 'node:crypto';
 import { createMatch, step, snapshot, sanitizeInput, forfeit, aiInput, TICK } from '../shared/sim.mjs';
-import { Monstar, GENESIS_IDS, stageFor } from '../shared/monstars.mjs';
+import { Monstar, GENESIS_IDS, SPECIES, TIERS, rollWild, stageFor } from '../shared/monstars.mjs';
+
+export const WILD_ZONE_MIN = [1, 6, 14, 26];
 import { StakeLedger, STAKE_POLICY, validateStake, settlementSplit, formatSol } from '../shared/stake.mjs';
 import { newEscrow, buildSettlement, buildDeposit } from './escrow.mjs';
 
@@ -28,45 +30,76 @@ export class MatchManager {
     return new Monstar({ speciesId: sid }); // free play: plain species stats
   }
 
-  /** Practice vs AI run by the server, so the EXP your Monstar earns is saved to it. */
-  createAi(wallet, { serial, speciesId }) {
+  /** 1v1 picks one Monstar; 3v3 sends `serials` (or `speciesIds` for free play) with up to three. */
+  resolveTeam(wallet, msg, staked) {
+    if (msg.mode !== '3v3') return [this.resolveMonstar(wallet, msg, staked)];
+    const serials = Array.isArray(msg.serials) ? msg.serials.slice(0, 3) : [], sids = Array.isArray(msg.speciesIds) ? msg.speciesIds.slice(0, 3) : [];
+    const team = serials.length ? serials.map(serial => this.resolveMonstar(wallet, { serial }, staked)) : sids.map(speciesId => this.resolveMonstar(wallet, { speciesId }, staked));
+    if (team.length !== 3) throw Error('Pick three Monstars for a 3v3.');
+    if (serials.length && new Set(serials.map(Number)).size !== 3) throw Error('Pick three different Monstars.');
+    return team;
+  }
+
+  /** Practice vs AI run by the server, so the EXP your Monstars earn is saved to them. */
+  createAi(wallet, msg) {
     if (this.byWallet.has(wallet)) this.leave(wallet);
-    const monstar = this.resolveMonstar(wallet, { serial, speciesId }, false);
-    const pool = GENESIS_IDS.filter(id => id !== monstar.species.id), sid = pool[Math.floor(Math.random() * pool.length)];
-    const lvl = Math.max(1, monstar.level + Math.floor(Math.random() * 3) - 1);
-    const bot = new Monstar({ speciesId: sid, level: lvl });
+    const team = this.resolveTeam(wallet, msg, false), monstar = team[0];
+    const pick = () => { const pool = GENESIS_IDS.filter(id => !team.some(t => t.species.id === id)); return pool[Math.floor(Math.random() * pool.length)]; };
+    const lvl = () => Math.max(1, monstar.level + Math.floor(Math.random() * 3) - 1);
+    const bots = team.map(() => new Monstar({ speciesId: pick(), level: lvl() })), bot = bots[0], sid = bot.species.id;
+    return this.aiRoom(wallet, team, bots, {});
+  }
+
+  /** Wild Expedition: a paid (0.0001 SOL) battle against a random wild Monstar. Win it for a chance to catch it. */
+  async createWild(wallet, { serial, signature, zone = 0 }) {
+    if (!this.config.treasury) throw Error('The company fee wallet is not set up yet, so the wild is closed.');
+    const sig = String(signature || '');
+    if (this.db.prepare('SELECT 1 FROM wild_runs WHERE signature=?').get(sig)) throw Error('That entry fee was already used.');
+    const monstar = this.resolveMonstar(wallet, { serial }, true);
+    await this.chain.verifyDeposit(sig, { from: wallet, to: this.config.treasury, lamports: this.config.wildFeeLamports });
+    const z = Math.max(0, Math.min(WILD_ZONE_MIN.length - 1, Number(zone) || 0)), sid = rollWild(), tier = TIERS[SPECIES[sid].tier];
+    const level = WILD_ZONE_MIN[z] + Math.floor(Math.random() * 4) + tier.lvl;
+    this.db.prepare('INSERT INTO wild_runs(signature,wallet,species,level,created_at) VALUES(?,?,?,?,?)').run(sig, wallet, sid, level, this.now());
+    if (this.byWallet.has(wallet)) this.leave(wallet);
+    return this.aiRoom(wallet, [monstar], [new Monstar({ speciesId: sid, level })], { wild: { signature: sig, speciesId: sid, level, tier: SPECIES[sid].tier }, hard: tier.lvl >= 12 });
+  }
+
+  aiRoom(wallet, team, bots, { wild = null, hard = false }) {
+    const monstar = team[0], bot = bots[0], sid = bot.species.id;
     let code; do code = 'AI' + newCode().slice(0, 4); while (this.rooms.has(code));
-    const room = { id: randomBytes(16).toString('hex'), code, stake: 0n, state: 'countdown', countdown: 2.5, createdAt: this.now(), ai: true,
-      players: [{ wallet, monstar, deposit: null, sockets: new Set(), lastSeen: this.now() }, { wallet: 'AI', ai: true, monstar: bot, sockets: new Set(), lastSeen: Infinity }],
-      escrow: null, sim: null, ledger: null, seq: 0, aiMem: {} };
+    const room = { id: randomBytes(16).toString('hex'), code, stake: 0n, state: 'countdown', countdown: 2.5, createdAt: this.now(), ai: true, wild, mode: team.length > 1 ? '3v3' : '1v1',
+      players: [{ wallet, monstar, team, deposit: null, sockets: new Set(), lastSeen: this.now() }, { wallet: 'AI', ai: true, monstar: bot, team: bots, sockets: new Set(), lastSeen: Infinity }],
+      escrow: null, sim: null, ledger: null, seq: 0, aiMem: { hard } };
     this.rooms.set(code, room); this.byWallet.set(wallet, code);
     this.db.prepare('INSERT INTO matches(id,code,stake,player_a,player_b,monstar_a,monstar_b,state,created_at) VALUES(?,?,?,?,?,?,?,?,?)')
       .run(room.id, code, '0', wallet, 'AI', String(monstar.serial ?? 'species:' + monstar.species.id), 'species:' + sid, 'countdown', room.createdAt);
     return room;
   }
 
-  create(wallet, { stakeLamports = '0', serial, speciesId }) {
+  create(wallet, msg) {
+    const { stakeLamports = '0' } = msg;
     if (this.byWallet.has(wallet)) this.leave(wallet);
     const stake = validateStake(BigInt(stakeLamports), this.policy);
-    const monstar = this.resolveMonstar(wallet, { serial, speciesId }, stake > 0n);
+    const team = this.resolveTeam(wallet, msg, stake > 0n), monstar = team[0];
     let code; do code = newCode(); while (this.rooms.has(code));
     const escrow = stake > 0n ? newEscrow() : null;
-    const room = { id: randomBytes(16).toString('hex'), code, stake, state: 'waiting', createdAt: this.now(),
-      players: [{ wallet, monstar, deposit: null, sockets: new Set(), lastSeen: this.now() }], escrow, sim: null, ledger: null, seq: 0, countdown: 0 };
+    const room = { id: randomBytes(16).toString('hex'), code, stake, state: 'waiting', createdAt: this.now(), mode: team.length > 1 ? '3v3' : '1v1',
+      players: [{ wallet, monstar, team, deposit: null, sockets: new Set(), lastSeen: this.now() }], escrow, sim: null, ledger: null, seq: 0, countdown: 0 };
     this.rooms.set(code, room); this.byWallet.set(wallet, code);
     this.db.prepare('INSERT INTO matches(id,code,stake,player_a,monstar_a,escrow,escrow_secret,state,created_at) VALUES(?,?,?,?,?,?,?,?,?)')
       .run(room.id, code, stake.toString(), wallet, String(monstar.serial ?? 'species:' + monstar.species.id), escrow?.address ?? null, escrow?.secret ?? null, 'waiting', room.createdAt);
     return room;
   }
 
-  join(wallet, { code, serial, speciesId }) {
+  join(wallet, msg) {
+    const { code } = msg;
     const room = this.rooms.get(String(code || '').toUpperCase());
     if (!room) throw Error('No match with that code.');
     if (room.players.length > 1 || room.state !== 'waiting') throw Error('That match is already full.');
     if (room.players[0].wallet === wallet) throw Error('Use a second wallet to play yourself.');
     if (this.byWallet.has(wallet)) this.leave(wallet);
-    const monstar = this.resolveMonstar(wallet, { serial, speciesId }, room.stake > 0n);
-    room.players.push({ wallet, monstar, deposit: null, sockets: new Set(), lastSeen: this.now() });
+    const team = this.resolveTeam(wallet, { ...msg, mode: room.mode }, room.stake > 0n), monstar = team[0];
+    room.players.push({ wallet, monstar, team, deposit: null, sockets: new Set(), lastSeen: this.now() });
     this.byWallet.set(wallet, room.code);
     room.state = room.stake > 0n ? 'deposit' : 'countdown';
     if (room.state === 'countdown') room.countdown = 3;
@@ -132,7 +165,8 @@ export class MatchManager {
   }
 
   start(room) {
-    room.sim = createMatch(room.players[0].monstar, room.players[1].monstar, { arena: Math.floor(Math.random() * 4) });
+    const side = p => (p.team?.length > 1 ? p.team : p.monstar);
+    room.sim = createMatch(side(room.players[0]), side(room.players[1]), { arena: room.wild ? [2, 1, 0, 3][Math.floor(Math.random() * 4)] : Math.floor(Math.random() * 4) });
     room.ledger = new StakeLedger(room.stake, this.policy);
     room.state = 'live'; room.startedAt = this.now();
     this.persistState(room);
@@ -142,10 +176,11 @@ export class MatchManager {
     if (ev.type === 'miss') return this.emit(room, { t: 'miss', attacker: ev.attacker, style: ev.style });
     if (ev.type === 'level') return this.emit(room, { t: 'level', side: ev.side, level: ev.level, stage: ev.stage, stageId: ev.stageId, evolved: ev.evolved });
     if (ev.type === 'bonus') return this.emit(room, { t: 'bonus', side: ev.side, exp: ev.exp });
+    if (ev.type === 'switch') return this.emit(room, { t: 'switch', side: ev.side, slot: ev.slot, speciesId: ev.speciesId, reason: ev.reason });
     const fee = room.ledger.hit(ev.attacker, ev.damage, ev.victimMaxHp);
     const seq = room.seq++;
     this.db.prepare('INSERT INTO hit_log(match_id,seq,t,attacker,damage,fee) VALUES(?,?,?,?,?,?)').run(room.id, seq, room.sim.t, ev.attacker, ev.damage, fee.toString());
-    this.emit(room, { t: 'hit', attacker: ev.attacker, damage: ev.damage, kind: ev.kind, style: ev.style, eff: ev.eff, crit: ev.crit, exp: ev.exp, fee: fee.toString(), shares: room.ledger.shares.map(String) });
+    this.emit(room, { t: 'hit', attacker: ev.attacker, victimMaxHp: ev.victimMaxHp, damage: ev.damage, kind: ev.kind, style: ev.style, eff: ev.eff, crit: ev.crit, exp: ev.exp, fee: fee.toString(), shares: room.ledger.shares.map(String) });
   }
 
   end(room) {
@@ -156,12 +191,20 @@ export class MatchManager {
     this.db.prepare('UPDATE matches SET state=?, winner=?, reason=?, shares=?, hits=?, ended_at=? WHERE id=?')
       .run(room.state, sim.winner, sim.reason, JSON.stringify(shares.map(String)), JSON.stringify(room.ledger.hits), this.now(), room.id);
     // Save the EXP each registered Monstar earned (levels and evolutions persist).
-    const progress = sim.fighters.map((f, i) => {
-      const p = room.players[i], m = p.monstar;
-      if (!p.ai && m.serial != null && this.registry.get(m.serial)?.owner === p.wallet) this.registry.setExp(m.serial, f.exp);
-      return { gained: f.expGained, level: f.level, stage: stageFor(f.level).name, saved: !p.ai && m.serial != null };
+    const progress = sim.fighters.map((active, i) => {
+      const p = room.players[i];
+      for (const f of sim.roster[i]) { const m = f?.mon; if (f && !p.ai && m.serial != null && this.registry.get(m.serial)?.owner === p.wallet) this.registry.setExp(m.serial, f.exp); }
+      const f = sim.roster[i][0] || active;
+      return { gained: sim.roster[i].reduce((n, x) => n + (x?.expGained || 0), 0), level: f.level, stage: stageFor(f.level).name, saved: !p.ai && p.monstar.serial != null };
     });
-    this.emit(room, { t: 'end', winner: sim.winner, reason: sim.reason, shares: shares.map(String), stake: room.stake.toString(), progress });
+    let caught;
+    if (room.wild) { // win a wild battle for a chance to catch it (as an Infant)
+      const won = sim.winner === 0, chance = TIERS[room.wild.tier].catch;
+      caught = { won, chance, speciesId: room.wild.speciesId, tier: room.wild.tier, ok: false };
+      if (won && Math.random() < chance) { const c = this.registry.catchWild(room.players[0].wallet, room.wild.speciesId); caught.ok = true; caught.monstar = c.toJSON(); }
+      this.db.prepare('UPDATE wild_runs SET won=?, caught_serial=? WHERE signature=?').run(won ? 1 : 0, caught.monstar?.serial ?? null, room.wild.signature);
+    }
+    this.emit(room, { t: 'end', winner: sim.winner, reason: sim.reason, shares: shares.map(String), stake: room.stake.toString(), progress, caught });
     if (room.stake > 0n) this.settle(room, shares, sim.winner).catch(e => this.emit(room, { t: 'settlement', ok: false, error: e.message }));
     else this.close(room);
   }
@@ -229,7 +272,8 @@ export class MatchManager {
   publicRoom(room, wallet) {
     return { t: 'room', code: room.code, state: room.state, stake: room.stake.toString(), escrow: room.escrow?.address ?? null,
       you: room.players.findIndex(p => p.wallet === wallet), countdown: Math.max(0, Math.ceil(room.countdown || 0)),
-      ai: !!room.ai, players: room.players.map(p => ({ wallet: p.wallet, ai: !!p.ai, deposited: !!p.deposit, monstar: p.monstar.toJSON() })),
+      ai: !!room.ai, mode: room.mode || '1v1', wild: room.wild ? { speciesId: room.wild.speciesId, level: room.wild.level, tier: room.wild.tier } : null,
+      players: room.players.map(p => ({ wallet: p.wallet, ai: !!p.ai, deposited: !!p.deposit, monstar: p.monstar.toJSON(), team: (p.team || [p.monstar]).map(x => x.toJSON()) })),
       shares: room.ledger ? room.ledger.shares.map(String) : room.players.map(() => room.stake.toString()) };
   }
   broadcastStates() {

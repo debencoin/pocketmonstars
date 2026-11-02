@@ -2,7 +2,7 @@
 // PocketMonstars pixel arena renderer: a 320x180 native-resolution battlefield scaled up with crisp pixels.
 // Draws animated pixel Monstars and a hand-built animation for every power. Exposes window.PMArena.
 (() => {
-const NAMES = ['cindercub', 'mossprout', 'ripplefin', 'voltwing', 'duskhorn', 'pebblit', 'frostuft', 'bloomtail', 'soloryx', 'seraphon', 'psyvolt'];
+const NAMES = ["cindercub", "mossprout", "ripplefin", "voltwing", "duskhorn", "pebblit", "frostuft", "bloomtail", "soloryx", "seraphon", "psyvolt", "blazebuck", "cinderwyrm", "pyrofinch", "magmole", "emberjack", "coralisk", "bubblyn", "clawtide", "abyssquid", "wavewing", "thornox", "fernling", "mantiseed", "acornaut", "lilypadra", "zapurr", "ohmoth", "voltusk", "joltail", "gloomwisp", "nocturrow", "shadefang", "hexmask", "quarrox", "fossilith", "geodillo", "cragcrab", "glacielk", "snowpuff", "icicrow", "rimewyrm", "cometail", "lunaroo", "orbitron", "mindmoth", "oracub", "prismeye", "toxitoad", "mycospore", "stingrex", "viperoot", "gearhound", "rivetbot", "bladewing", "ironshell", "zephyrkit", "galeon", "whirlwisp", "drakelet", "skyrex", "aurielle", "valkyra", "nimbiel", "aeonox"]; // generated from shared/monstars.mjs SPECIES order
 const W = 320, H = 180, K = 1 / 3; // world (960x540) -> logical pixels; the canvas is 2x (640x360) so sprites keep fine detail
 const CW = 960, CH = 540, Z = 3, U = Z / 2; // U scales hand-tuned canvas-pixel sizes from the old 640 canvas
 const SPR = 0.95; // 96px battle sprites are drawn at ~65px tall on the 960 canvas (Ultimate stage)
@@ -16,7 +16,13 @@ const PAL = {
   FROST: ['#ffffff', '#dff8ff', '#9be6ff', '#4ab0e0', '#20607e'], ASTRAL: ['#ffffff', '#fff3c4', '#ffd97a', '#f0a030', '#8a4a10'],
   PETAL: ['#ffffff', '#ffd6e6', '#ff9cc2', '#e0568e', '#7a2048'],
   PSYCHIC: ['#ffffff', '#ead8ff', '#c08cff', '#8a4ae0', '#3a1870'], HOLY: ['#ffffff', '#fffbe6', '#ffe9a0', '#f0c050', '#8a6a20'],
+  VENOM: ['#f4ffe0', '#c8f070', '#9ad040', '#7a3ab0', '#3a1450'], STEEL: ['#ffffff', '#e0e6f0', '#a8b4c8', '#6a7890', '#323a4a'],
+  GALE: ['#ffffff', '#e8fff4', '#a8f0d8', '#58c8a8', '#206a5a'], DRACO: ['#fff0f0', '#ffb0a0', '#e85a5a', '#8a2ab0', '#3a1050'],
 };
+// Frontier and Mythic Monstars borrow the look of an original power by type (ids 0-10 have their own).
+const TYPE_FX = { EMBER: 0, GROVE: 7, TIDE: 2, SPARK: 3, SHADE: 4, STONE: 5, FROST: 6, ASTRAL: 8, PSYCHIC: 10, VENOM: 4, STEEL: 5, GALE: 2, DRACO: 0 };
+const MYTHIC_FIRST = 61;
+const vidOf = o => (o.sid < 11 ? o.sid : o.sid >= MYTHIC_FIRST && o.st !== 'whip' ? 9 : TYPE_FX[o.ty] ?? 0);
 const STY = { projectile: { r: 12 }, bolt: { range: 420, hitAt: 0.08, dur: 0.22 }, whip: { range: 220, hitAt: 0.12, dur: 0.3 },
   cone: { range: 230, angle: 0.5, dur: 0.95 }, beam: { range: 640, width: 44, hitAt: 0.42, dur: 0.85 }, strike: { radius: 74, hitAt: 0.6, dur: 1.0 }, levitate: { dur: 1.5, throws: [0.7, 0.86, 1.02], boltAt: 1.22 } };
 
@@ -35,7 +41,7 @@ function sprite(sid, hue = 0, white = false) {
 function stageSprite(sid, hue, stage, pal, white = false) {
   const base = sprite(sid, hue, white); if (!base) return null;
   const key = 'st|' + sid + '|' + hue + '|' + stage + '|' + white; let c = cache.get(key); if (c) return c;
-  const u = base.width / 48, legend = sid >= 9, wings = legend ? 0 : stage >= 5 ? 4 : stage >= 4 ? 2 : 0, pad = Math.round((wings ? 34 : 4) * u);
+  const u = base.width / 48, legend = sid === 9 || sid === 10 || sid >= MYTHIC_FIRST, wings = legend ? 0 : stage >= 5 ? 4 : stage >= 4 ? 2 : 0, pad = Math.round((wings ? 34 : 4) * u);
   c = document.createElement('canvas'); c.width = base.width + pad * 2; c.height = base.height + pad + Math.round(6 * u);
   const x = c.getContext('2d'); x.imageSmoothingEnabled = false; const ox = pad, oy = pad;
   const P = (px_, py_, w, h, col) => { x.fillStyle = white ? '#ffffff' : col; x.fillRect(Math.round(px_), Math.round(py_), w, h); };
@@ -192,7 +198,7 @@ function createRenderer(canvas, arena) {
 
   function part(x, y, vx, vy, life, col, size = 1, grav = 0) { parts.push({ x, y, vx, vy, life, max: life, col, size, grav }); }
   function burst(x, y, pal, n = 10, spd = 40) { for (let i = 0; i < n; i++) { const a = Math.random() * 6.283, s = spd * (0.4 + Math.random()); part(x, y, Math.cos(a) * s, Math.sin(a) * s, 0.3 + Math.random() * 0.3, pal[1 + (i % 3)], Math.random() < 0.3 ? 2 : 1); } }
-  function palFor(ty, sid) { return sid === 7 ? PAL.PETAL : sid === 9 ? PAL.HOLY : PAL[ty] || PAL.STONE; }
+  function palFor(ty, sid) { return sid === 7 ? PAL.PETAL : sid === 9 || (sid >= MYTHIC_FIRST && ty === 'ASTRAL') ? PAL.HOLY : PAL[ty] || PAL.STONE; }
   function say(x, y, txt, col, t = 1, size = 8) { texts.push({ x, y, txt, col, t, size }); }
 
   /** Battle events from the server or the local practice engine. */
@@ -205,6 +211,8 @@ function createRenderer(canvas, arena) {
       else say(f.x * K, f.y * K - 38, `LEVEL UP! Lv${ev.level}`, '#ffe14a', 1.3, 8);
       return;
     }
+    if (ev.type === 'switch') { const f = snap.f[ev.side]; if (!f) return; trails[ev.side] = []; grow[ev.side] = 1.0;
+      puffs(f.x * K, f.y * K, 14, '#ffffff', 60, 12, 0.7); wave(f.x * K, f.y * K + 6, '#ffd84a', 90); say(f.x * K, f.y * K - 40, ev.reason === 'faint' ? 'GO, ' + (ev.name || '') + '!' : 'SWITCH: ' + (ev.name || ''), '#ffd84a', 1.5, 6); return; }
     if (ev.type === 'bonus') { const f = snap.f[ev.side]; say(f.x * K, f.y * K - 30, `+${ev.exp} EXP bonus`, '#8fd0ff', 1.4, 6); return; }
     const v = snap.f[ev.victim], a = snap.f[ev.attacker]; if (!v || !a) return;
     const x = v.x * K, y = v.y * K - 10;
@@ -282,32 +290,32 @@ function createRenderer(canvas, arena) {
   }
 
   function projectile(p, x, y, now) {
-    const pal = palFor(p.ty, p.sid), a = Math.atan2(p.vy, p.vx), fl = Math.floor(now * 20) % 2;
+    const pal = palFor(p.ty, p.sid), a = Math.atan2(p.vy, p.vx), fl = Math.floor(now * 20) % 2, v = vidOf(p);
     y -= 8;
-    if (p.sid === 0) { // fireball with a glowing core and flame trail
+    if (v === 0) { // fireball with a glowing core and flame trail
       FULL(); ctx.save(); ctx.globalCompositeOperation = 'lighter'; glow(x * Z, y * Z, 22 * U, '#fff6a8', '#ff8a1f', 0.9); ctx.restore(); LOG();
       disc(x, y, 4 + fl, pal[3]); disc(x, y, 3, pal[2]); disc(x + Math.cos(a), y, 1 + fl, pal[0]);
       for (let k = 0; k < 2; k++) part(x - Math.cos(a) * 5, y + (Math.random() - 0.5) * 4, -p.vx * K * 0.25 + (Math.random() - 0.5) * 10, (Math.random() - 0.5) * 10 - 6, 0.35, null, 2, -10);
       part(x - Math.cos(a) * 4, y + (Math.random() - 0.5) * 3, -p.vx * K * 0.1, -8 - Math.random() * 10, 0.3, pal[1 + (Math.random() * 3 | 0)], 2);
-    } else if (p.sid === 2) { // water pulse
+    } else if (v === 2) { // water pulse
       FULL(); glow(x * Z, y * Z, 16 * U, '#ffffff', '#5ec2ff', 0.6); LOG();
       ring(x, y, 5, 5, pal[2]); ring(x, y, 3 + fl, 3 + fl, pal[1]); px(x - 2, y - 2, 2, 1, '#fff');
       if (Math.random() < 0.5) part(x, y, (Math.random() - 0.5) * 10, 10, 0.3, pal[2], 1, 60);
-    } else if (p.sid === 4) { // shadow orb
+    } else if (v === 4) { // shadow orb
       FULL(); glow(x * Z, y * Z, 18 * U, '#b98cff', '#3a1e6e', 0.7); LOG();
       disc(x, y, 5, pal[3]); disc(x, y, 3, pal[4]); for (let k = 0; k < 4; k++) { const b = now * 9 + k * 1.57; px(x + Math.cos(b) * 7, y + Math.sin(b) * 7, 2, 2, pal[1]); }
-    } else if (p.sid === 5) { // rock
+    } else if (v === 5) { // rock
       const rot = Math.floor(now * 12) % 2; disc(x, y, 4, pal[3]); px(x - 2 + rot, y - 3, 3, 2, pal[1]); px(x + 1, y + 1 - rot, 2, 2, pal[4]);
       if (Math.random() < 0.4) part(x, y + 3, -p.vx * K * 0.05, 0, 0.3, pal[1]);
-    } else if (p.sid === 6) { // ice shard
+    } else if (v === 6) { // ice shard
       const c = Math.cos(a), s = Math.sin(a); line(x - c * 6, y - s * 6, x + c * 6, y + s * 6, pal[3], 2); line(x - c * 4, y - s * 4, x + c * 5, y + s * 5, pal[0], 1);
       if (Math.random() < 0.6) part(x - c * 6, y - s * 6, 0, 0, 0.25, pal[1]);
-    } else if (p.sid === 7) { // petal storm
+    } else if (v === 7) { // petal storm
       for (let k = 0; k < 3; k++) { const b = now * 14 + k * 2.09; const qx = x + Math.cos(b) * 4, qy = y + Math.sin(b) * 4; px(qx, qy, 2, 2, pal[2]); px(qx, qy, 1, 1, pal[1]); }
     } else if (p.st === 'debris') { // psychic-hurled boulder
       const fl2 = Math.floor(now * 16) % 2; ring(x, y, 7 + fl2, 7 + fl2, PAL.PSYCHIC[2]); disc(x, y, 5, '#6e665c'); disc(x - 1, y - 1, 3, '#9a9284'); px(x + 2, y + 1, 2, 2, '#4e483e');
       if (Math.random() < 0.7) part(x, y, -p.vx * K * 0.05, -p.vy * K * 0.05, 0.3, PAL.PSYCHIC[1 + (Math.random() * 2 | 0)], 1);
-    } else if (p.sid === 10) { // psy orb
+    } else if (v === 10) { // psy orb
       FULL(); ctx.save(); ctx.globalCompositeOperation = 'lighter'; glow(x * Z, y * Z, 18 * U, '#ffffff', '#c08cff', 0.8); ctx.restore(); LOG();
       disc(x, y, 4 + fl, PAL.PSYCHIC[3]); disc(x, y, 3, PAL.PSYCHIC[2]); px(x - 1, y - 1, 2, 2, '#fff');
       for (let k = 0; k < 3; k++) { const b = now * 10 + k * 2.09; px(x + Math.cos(b) * 6, y + Math.sin(b) * 6, 1, 1, PAL.PSYCHIC[1]); }
@@ -315,15 +323,15 @@ function createRenderer(canvas, arena) {
   }
 
   function effect(e, lt, now) {
-    const pal = palFor(e.ty, e.sid), ox = e.x * K, oy = e.y * K - 8, dx = e.dx, dy = e.dy, S = STY[e.st];
+    const v = vidOf(e), pal = palFor(e.ty, e.sid), ox = e.x * K, oy = e.y * K - 8, dx = e.dx, dy = e.dy, S = STY[e.st];
     if (e.st === 'bolt') {
       const len = S.range * K, fade = 1 - lt / S.dur; g.globalAlpha = Math.max(0, fade);
-      if (e.sid === 3) { // thick curved lightning arc with glow and an impact flash at the tip
+      if (v === 3) { // thick curved lightning arc with glow and an impact flash at the tip
         const seed = e.id * 31 + Math.floor(now / 55), pts = boltPath(ox, oy, ox + dx * len, oy + dy * len, seed, 7, 0.18 * (e.id % 2 ? 1 : -1));
         strokeGlow(pts, '#ffd23f', '#fff27a', 3.2, Math.max(0, fade));
         strokeGlow(boltPath(ox, oy, ox + dx * len * 0.6, oy + dy * len * 0.6 + 8, seed + 5, 6, 0.1), '#ffd23f', '#fff6a0', 1.4, Math.max(0, fade) * 0.7);
         FULL(); glow((ox + dx * len) * Z, (oy + dy * len) * Z, 30 * U * (0.6 + fade), '#ffffff', '#ffe14a', fade); glow(ox * Z, oy * Z, 18 * U, '#ffffff', '#ffe14a', fade); LOG();
-      } else if (e.sid === 9) { // holy lance: white spear of light with feathers
+      } else if (v === 9) { // holy lance: white spear of light with feathers
         strokeGlow([[ox * Z, oy * Z], [(ox + dx * len) * Z, (oy + dy * len) * Z]], '#ffd97a', '#fff3c4', 3, Math.max(0, fade));
         const tx = ox + dx * len, ty = oy + dy * len; px(tx - 2, ty - 2, 5, 5, PAL.HOLY[1]);
         if (Math.random() < 0.6) { const d = Math.random() * len; part(ox + dx * d, oy + dy * d, (Math.random() - 0.5) * 12, 8, 0.5, '#ffffff', 2, 10); }
@@ -340,7 +348,7 @@ function createRenderer(canvas, arena) {
       px(lx - 1, ly - 1, 3, 3, pal[2]);
     } else if (e.st === 'cone') { // flamethrower
       if (lt < S.dur) for (let k = 0; k < 6; k++) { const a = Math.atan2(dy, dx) + (Math.random() - 0.5) * S.angle * 1.6, sp = S.range * K * (2.4 + Math.random());
-        part(ox + dx * 6, oy + dy * 6, Math.cos(a) * sp, Math.sin(a) * sp - 6, 0.36, null, 2 + (Math.random() < 0.3 ? 1 : 0), -20, 'flame'); }
+        part(ox + dx * 6, oy + dy * 6, Math.cos(a) * sp, Math.sin(a) * sp - 6, 0.36, v === 0 && e.ty !== 'DRACO' ? null : pal[1 + (Math.random() * 3 | 0)], 2 + (Math.random() < 0.3 ? 1 : 0), -20, 'flame'); }
     } else if (e.st === 'beam') {
       const len = S.range * K, wid = R(S.width * K);
       if (lt < S.hitAt) { // charge
@@ -348,10 +356,10 @@ function createRenderer(canvas, arena) {
         for (let k = 0; k < 3; k++) { const a = Math.random() * 6.283, d = 18 * (1 - p) + 6; part(ox + dx * 8 + Math.cos(a) * d, oy + dy * 8 + Math.sin(a) * d, -Math.cos(a) * 40, -Math.sin(a) * 40, 0.15, pal[1]); }
       } else {
         const p = (lt - S.hitAt) / (S.dur - S.hitAt), w = Math.max(1, R(wid * (p < 0.15 ? p / 0.15 : 1 - Math.max(0, (p - 0.6) / 0.4))));
-        if (e.sid === 2) { // maelstrom: three twisting water/wind streams with spray, like a whirlpool driven forward
+        if (v === 2) { // maelstrom: three twisting water/wind streams with spray, like a whirlpool driven forward
           FULL(); ctx.save(); ctx.translate((ox + dx * 6) * Z, (oy + dy * 6) * Z); ctx.rotate(Math.atan2(dy, dx)); ctx.globalCompositeOperation = 'lighter'; ctx.lineCap = 'round';
           const Lz = len * Z, Wz = wid * Z * 0.5 * (w / Math.max(1, wid));
-          for (let k = 0; k < 3; k++) for (const [col, lw, al] of [['#2b7be0', 9, 0.35], ['#5ec2ff', 5, 0.8], ['#ffffff', 2, 0.9]]) {
+          for (let k = 0; k < 3; k++) for (const [col, lw, al] of [[pal[3], 9, 0.35], [pal[2], 5, 0.8], ['#ffffff', 2, 0.9]]) {
             ctx.strokeStyle = col; ctx.lineWidth = lw * U; ctx.globalAlpha = al; ctx.beginPath();
             for (let s = 0; s <= Lz; s += 6) { const o = Math.sin(s * 0.018 - now * 0.012 + k * 2.09) * Wz * Math.min(1, s / 60); s ? ctx.lineTo(s, o) : ctx.moveTo(s, o); } ctx.stroke(); }
           ctx.restore(); LOG();
@@ -363,10 +371,10 @@ function createRenderer(canvas, arena) {
         g.fillStyle = pal[3]; g.fillRect(0, -R(w / 2) - 1, len, w + 2); g.fillStyle = pal[2]; g.fillRect(0, -R(w / 2), len, w);
         g.fillStyle = pal[1]; g.fillRect(0, -R(w / 4), len, Math.max(1, R(w / 2))); g.fillStyle = pal[0]; g.fillRect(0, 0, len, 1);
         const scroll = (now / 8) % 12;
-        if (e.sid === 2) { g.fillStyle = '#ffffff'; for (let s = -scroll; s < len; s += 12) { g.fillRect(R(s), -R(w / 3), 5, 1); g.fillRect(R(s + 6), R(w / 4), 4, 1); } } // hydro jet streaks
-        if (e.sid === 6) { for (let s = 10 - scroll; s < len; s += 16) { g.fillStyle = pal[0]; g.fillRect(R(s), -R(w / 2) - 3, 1, 3); g.fillRect(R(s) - 1, -R(w / 2) - 2, 3, 1); g.fillRect(R(s), R(w / 2) + 1, 1, 3); g.fillRect(R(s) - 1, R(w / 2) + 2, 3, 1); } } // ice crystals
+        if (v === 2) { g.fillStyle = '#ffffff'; for (let s = -scroll; s < len; s += 12) { g.fillRect(R(s), -R(w / 3), 5, 1); g.fillRect(R(s + 6), R(w / 4), 4, 1); } } // hydro jet streaks
+        if (v === 6) { for (let s = 10 - scroll; s < len; s += 16) { g.fillStyle = pal[0]; g.fillRect(R(s), -R(w / 2) - 3, 1, 3); g.fillRect(R(s) - 1, -R(w / 2) - 2, 3, 1); g.fillRect(R(s), R(w / 2) + 1, 1, 3); g.fillRect(R(s) - 1, R(w / 2) + 2, 3, 1); } } // ice crystals
         g.restore();
-        if (e.sid === 8 && p < 0.2) flash = Math.max(flash, 0.35); // supernova flash
+        if (v === 8 && p < 0.2) flash = Math.max(flash, 0.35); // supernova flash
         disc(ox + dx * 6, oy + dy * 6, R(w / 2) + 2, pal[1]);
       }
     } else if (e.st === 'levitate') { // debris rises around the user, gets hurled, then lightning chains to the rival
@@ -390,29 +398,29 @@ function createRenderer(canvas, arena) {
       if (lt < S.hitAt) { // telegraph
         const p = lt / S.hitAt, blink = Math.floor(now / 90) % 2;
         ring(gx, gy, rad * (1.4 - p * 0.4), rad * 0.5 * (1.4 - p * 0.4), blink ? pal[2] : '#ffffff');
-        if (e.sid === 5) { // meteor falls in
+        if (v === 5) { // meteor falls in
           ellipse(gx, gy, R(rad * p * 0.8) + 1, R(rad * p * 0.3) + 1, '#00000044');
           const my = gy - 120 * (1 - p); disc(gx + (1 - p) * 30, my, 5, pal[3]); disc(gx + (1 - p) * 30 - 1, my - 1, 3, pal[1]);
           part(gx + (1 - p) * 30, my - 4, 8, -10, 0.25, PAL.EMBER[2], 2);
         }
-        if (e.sid === 9) { g.globalAlpha = 0.4 + 0.3 * Math.sin(now / 60); g.fillStyle = PAL.HOLY[1]; g.fillRect(R(gx - 2), 18, 4, R(gy - 18)); g.globalAlpha = 1; }
-        if (e.sid === 3 || e.sid === 4) { ellipse(gx, 10, 18, 5, e.sid === 3 ? '#4a4a5a' : '#2a1640'); ellipse(gx - 6, 8, 10, 4, e.sid === 3 ? '#5a5a6e' : '#3a1e56'); } // storm cloud / eclipse
+        if (v === 9) { g.globalAlpha = 0.4 + 0.3 * Math.sin(now / 60); g.fillStyle = PAL.HOLY[1]; g.fillRect(R(gx - 2), 18, 4, R(gy - 18)); g.globalAlpha = 1; }
+        if (v === 3 || v === 4) { ellipse(gx, 10, 18, 5, v === 3 ? '#4a4a5a' : '#2a1640'); ellipse(gx - 6, 8, 10, 4, v === 3 ? '#5a5a6e' : '#3a1e56'); } // storm cloud / eclipse
       } else {
         const p = (lt - S.hitAt) / (S.dur - S.hitAt);
         if (!impacts.has(e.id)) { impacts.add(e.id); shake = Math.max(shake, 0.35);
           burst(gx, gy - 4, pal, 22, 70); star(gx, gy - 6, pal[1], 80, 18); wave(gx, gy, pal[1], 110); wave(gx, gy, '#ffffff', 70);
-          puffs(gx, gy, 16, e.sid === 4 ? '#8a6ab8' : e.sid === 9 ? '#fff6d8' : e.sid === 7 ? '#ffd6e6' : '#d9c9a6', 70, 11, 0.9);
-          if (e.sid === 5 || e.sid === 1 || e.sid === 3) chunks(gx, gy, e.sid === 5 ? 12 : 7, e.sid === 1 ? ['#6a4a2a', '#8a6a40', '#4f8a3a'] : undefined, e.sid === 5 ? 150 : 110);
-          if (e.sid === 5 || e.sid === 3 || e.sid === 1) decals.push({ x: gx, y: gy, r: rad, kind: e.sid === 1 ? 'roots' : 'crater', life: 8 });
+          puffs(gx, gy, 16, v === 4 ? '#8a6ab8' : v === 9 ? '#fff6d8' : v === 7 ? '#ffd6e6' : '#d9c9a6', 70, 11, 0.9);
+          if (v === 5 || v === 1 || v === 3) chunks(gx, gy, v === 5 ? 12 : 7, v === 1 ? ['#6a4a2a', '#8a6a40', '#4f8a3a'] : undefined, v === 5 ? 150 : 110);
+          if (v === 5 || v === 3 || v === 1) decals.push({ x: gx, y: gy, r: rad, kind: v === 1 ? 'roots' : 'crater', life: 8 });
           if (decals.length > 10) decals.shift(); }
         g.globalAlpha = Math.max(0, 1 - p);
-        if (e.sid === 3) { const sd = e.id + Math.floor(now / 40), a1 = Math.max(0, 1 - p); for (let k = 0; k < 3; k++) strokeGlow(boltPath(gx + (k - 1) * 10, 0, gx + (k - 1) * 4, gy - 4, sd + k, 9, 0.08 * (k - 1)), '#ffd23f', '#fff27a', k === 1 ? 4 : 2, a1);
+        if (v === 3) { const sd = e.id + Math.floor(now / 40), a1 = Math.max(0, 1 - p); for (let k = 0; k < 3; k++) strokeGlow(boltPath(gx + (k - 1) * 10, 0, gx + (k - 1) * 4, gy - 4, sd + k, 9, 0.08 * (k - 1)), '#ffd23f', '#fff27a', k === 1 ? 4 : 2, a1);
           FULL(); glow(gx * Z, gy * Z, rad * Z * 0.8, '#ffffff', '#ffe14a', a1); LOG(); }
-        else if (e.sid === 4) { g.fillStyle = pal[3]; g.fillRect(R(gx - rad / 2), 0, R(rad), R(gy)); g.fillStyle = pal[4]; g.fillRect(R(gx - rad / 4), 0, R(rad / 2), R(gy)); ellipse(gx, gy, rad, R(rad / 2), pal[2]); }
-        else if (e.sid === 1) { for (let k = 0; k < 6; k++) { const a = k / 6 * 6.283, h = R((p < 0.3 ? p / 0.3 : 1) * (10 + (k % 3) * 4)), rx = gx + Math.cos(a) * rad * 0.6, ry = gy + Math.sin(a) * rad * 0.25;
+        else if (v === 4) { g.fillStyle = pal[3]; g.fillRect(R(gx - rad / 2), 0, R(rad), R(gy)); g.fillStyle = pal[4]; g.fillRect(R(gx - rad / 4), 0, R(rad / 2), R(gy)); ellipse(gx, gy, rad, R(rad / 2), pal[2]); }
+        else if (v === 1) { for (let k = 0; k < 6; k++) { const a = k / 6 * 6.283, h = R((p < 0.3 ? p / 0.3 : 1) * (10 + (k % 3) * 4)), rx = gx + Math.cos(a) * rad * 0.6, ry = gy + Math.sin(a) * rad * 0.25;
           px(rx - 1, ry - h, 3, h, PAL.GROVE[4]); px(rx, ry - h, 1, h, '#7a5a30'); px(rx - 2, ry - h, 2, 2, PAL.GROVE[2]); px(rx + 1, ry - h + 2, 2, 2, PAL.GROVE[1]); } }
-        else if (e.sid === 7) { for (let k = 0; k < 8; k++) { const a = k / 8 * 6.283 + p * 3, d = rad * (0.2 + p); px(gx + Math.cos(a) * d, gy - 6 + Math.sin(a) * d * 0.5, 3, 2, pal[2]); px(gx + Math.cos(a) * d, gy - 6 + Math.sin(a) * d * 0.5, 1, 1, pal[0]); } disc(gx, gy - 6, R(4 * (1 - p)) + 1, '#ffe14a'); }
-        else if (e.sid === 9) { // heaven's judgment: column of light and falling feathers
+        else if (v === 7) { for (let k = 0; k < 8; k++) { const a = k / 8 * 6.283 + p * 3, d = rad * (0.2 + p); px(gx + Math.cos(a) * d, gy - 6 + Math.sin(a) * d * 0.5, 3, 2, pal[2]); px(gx + Math.cos(a) * d, gy - 6 + Math.sin(a) * d * 0.5, 1, 1, pal[0]); } disc(gx, gy - 6, R(4 * (1 - p)) + 1, '#ffe14a'); }
+        else if (v === 9) { // heaven's judgment: column of light and falling feathers
           const w2 = R(rad * (1 - p * 0.5)); g.fillStyle = PAL.HOLY[2]; g.fillRect(R(gx - w2 / 2), 0, w2, R(gy)); g.fillStyle = '#ffffff'; g.fillRect(R(gx - w2 / 4), 0, R(w2 / 2), R(gy));
           ellipse(gx, gy, rad, R(rad / 2), PAL.HOLY[1]); if (Math.random() < 0.8) part(gx + (Math.random() - 0.5) * rad * 2, gy - 50 - Math.random() * 30, (Math.random() - 0.5) * 10, 18, 0.9, '#ffffff', 2, 0);
         }

@@ -1,66 +1,80 @@
 'use strict';
-// Wild Expedition: a run of wild Monstar battles across four arenas, using the same battle engine,
-// move cards, effects and HUD as the Arena. Progress is kept on this device.
+// Wild Expedition: random wild Monstars from the 50 Frontier species (plus very rare angels and a god).
+// Signed in: pay 0.0001 SOL, the server runs the battle and a win can catch the wild Monstar (it hatches as an Infant).
+// Not signed in: practice runs on this device, no catching.
 (() => {
-const S = window.PMStake, PA = window.PMArena; if (!S || !PA || !window.PMStartBattle) return;
-const { Monstars } = S;
+const S = window.PMStake, PA = window.PMArena, API = window.PMArenaApi; if (!S || !PA || !window.PMStartBattle || !API) return;
+const { Monstars } = S, { SPECIES, TIERS, WILD_IDS, rollWild } = Monstars;
 const q = id => document.getElementById(id);
-const KEY = 'pm-wild-v1';
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const KEY = 'pm-wild-v2';
 const ZONES = [
-  { name: 'Grass Pitch', theme: 2, pool: [1, 7, 2, 6], min: 1, boss: 7, blurb: 'Soft turf and young wild Monstars. A good place to start.' },
-  { name: 'Dust Bowl', theme: 1, pool: [5, 0, 3, 1], min: 6, boss: 5, blurb: 'Hot dirt, loose rock and fast hitters.' },
-  { name: 'Stone Coliseum', theme: 0, pool: [4, 6, 5, 3], min: 14, boss: 4, blurb: 'Broken pillars and old champions.' },
-  { name: 'Cosmic Dome', theme: 3, pool: [8, 4, 3, 2], min: 26, boss: 8, blurb: 'The strongest wild Monstars live under the stars.' },
+  { name: 'Grass Pitch', theme: 2, min: 1, blurb: 'Young wild Monstars. Start here.' },
+  { name: 'Dust Bowl', theme: 1, min: 6, blurb: 'Hot dirt and faster hitters.' },
+  { name: 'Stone Coliseum', theme: 0, min: 14, blurb: 'Broken pillars and old champions.' },
+  { name: 'Cosmic Dome', theme: 3, min: 26, blurb: 'The strongest wild Monstars, and where the angels are seen most.' },
 ];
-const STEPS = 4; // three wild battles then the zone boss
-const load = () => { try { return { z: 0, s: 0, wins: 0, best: 0, loops: 0, ...JSON.parse(localStorage.getItem(KEY) || '{}') }; } catch { return { z: 0, s: 0, wins: 0, best: 0, loops: 0 }; } };
-const save = st => { try { localStorage.setItem(KEY, JSON.stringify(st)); } catch {} };
-let st = load();
-
-function foeFor(z = st.z, s = st.s) {
-  const Z = ZONES[z], boss = s === STEPS - 1;
-  return { foeId: boss ? Z.boss : Z.pool[(s + st.wins) % Z.pool.length], foeLevel: Z.min + s * 2 + (boss ? 3 : 0) + st.loops * 30, arena: Z.theme, zone: z, step: s, boss };
-}
-const label = () => { const Z = ZONES[st.z]; return `${Z.name} · ${st.s === STEPS - 1 ? 'Zone boss' : 'Battle ' + (st.s + 1) + ' of ' + (STEPS - 1)} next`; };
+const TIER_ORDER = ['Common', 'Uncommon', 'Rare', 'Epic', 'Mythic', 'Divine'];
+const TIER_COL = { Common: '#b9c3d9', Uncommon: '#5fd38a', Rare: '#48d0ff', Epic: '#c08cff', Mythic: '#ffd84a', Divine: '#ff7ad8' };
+const load = () => { try { return { z: 0, wins: 0, caught: [], ...JSON.parse(localStorage.getItem(KEY) || '{}') }; } catch { return { z: 0, wins: 0, caught: [] }; } };
+const save = () => { try { localStorage.setItem(KEY, JSON.stringify(st)); } catch {} };
+let st = load(), cfg = null, pending = null, retries = 0, busy = false;
+S.getConfig().then(c => { cfg = c; render(); }).catch(() => {});
+const feeSol = () => (Number(cfg?.wildFeeLamports || 100000) / 1e9).toString();
+const totalW = Object.fromEntries(TIER_ORDER.map(t => [t, 0])); for (const id of WILD_IDS) totalW[SPECIES[id].tier]++;
+const allW = TIER_ORDER.reduce((n, t) => n + (totalW[t] ? TIERS[t].weight : 0), 0);
 
 const sec = q('play'); if (!sec) return;
-const box = document.createElement('div'); box.id = 'pvWild';
-sec.prepend(box);
+const box = document.createElement('div'); box.id = 'pvWild'; sec.prepend(box);
 
 function render() {
-  const f = foeFor(), sp = Monstars.SPECIES[f.foeId];
+  const Z = ZONES[st.z], signed = API.signedIn(), mine = API.ownedPick();
+  const dex = TIER_ORDER.map(t => {
+    const ids = WILD_IDS.filter(id => SPECIES[id].tier === t); if (!ids.length) return '';
+    return `<div class="wx-tierrow"><div class="wx-tierhead"><b style="color:${TIER_COL[t]}">${t}</b><span>${ids.length} species · seen ${(TIERS[t].weight / allW * 100).toFixed(t === 'Divine' ? 1 : 0)}% · catch ${Math.round(TIERS[t].catch * 100)}% · stats ×${TIERS[t].mult}</span></div>
+      <div class="wx-dex">${ids.map(id => `<span class="wx-mon${st.caught.includes(id) ? ' got' : ''}" title="${esc(SPECIES[id].name)} · ${SPECIES[id].type}"><img src="${PA.spriteSrc(id)}" alt="${esc(SPECIES[id].name)}" loading="lazy"><small>${esc(SPECIES[id].name)}</small></span>`).join('')}</div></div>`;
+  }).join('');
   box.innerHTML = `<div class="topline"><div><div class="eyebrow">Wild Expedition</div><h1>Into the wild</h1>
-  <p class="muted">Battle wild Monstars across four arenas with the same moves, powers and live HUD as the Arena. Win to push deeper. Every hit earns EXP, so your Monstar levels up and evolves on the way.</p></div>
-  <span class="pill"><i class="dot"></i> ${st.wins} WINS · BEST ZONE ${Math.min(ZONES.length, st.best + 1)}</span></div>
+  <p class="muted">Fifty wild Monstars roam here, from common to epic, plus three angels and a god that almost never appear. Beat a wild Monstar for a chance to catch it. Rarer ones are stronger, fight harder and are harder to catch. Everything you catch hatches as an Infant.</p></div>
+  <span class="pill"><i class="dot"></i> ${st.wins} WINS · ${st.caught.length} CAUGHT</span></div>
   <div class="wx-grid">
    <div class="wx-next panel">
-    <div class="wx-next-art"><img src="${PA.spriteSrc(f.foeId)}" alt=""><span class="wx-tag ${f.boss ? 'boss' : ''}">${f.boss ? 'ZONE BOSS' : 'WILD'}</span></div>
-    <div class="wx-next-body"><div class="eyebrow">${ZONES[st.z].name}${st.loops ? ' · Round ' + (st.loops + 1) : ''}</div>
-     <h2>Wild ${sp.name} <small>Lv${f.foeLevel}</small></h2>
-     <p class="pv-note">${sp.type} · ${sp.cls.label} · uses <b>${sp.move}</b> and <b>${sp.special}</b></p>
-     <div class="wx-steps">${Array.from({ length: STEPS }, (_, i) => `<i class="${i < st.s ? 'done' : i === st.s ? 'cur' : ''}">${i === STEPS - 1 ? '★' : i + 1}</i>`).join('')}</div>
-     <p class="pv-note" style="margin:10px 0">Your Monstar: pick one in the Arena tab (currently the one selected there).</p>
-     <button class="primary" id="wxGo">Battle wild ${sp.name}</button></div>
+    <div class="wx-next-art"><span class="wx-q">?</span><span class="wx-tag">WILD</span></div>
+    <div class="wx-next-body"><div class="eyebrow">${Z.name} · wild Lv${Z.min}+</div>
+     <h2>A wild Monstar is out there…</h2>
+     <p class="pv-note">${signed ? (mine ? `You'll battle with <b>${esc(mine.name)}</b> (Lv${mine.level}). Change it in the Arena tab.` : 'You need a Monstar first. Sign in on the Arena tab.') : 'Practice for free, or sign in with Phantom to catch what you beat.'}</p>
+     <div class="pv-row" style="margin-top:12px">
+      ${signed ? `<button class="primary" id="wxPay" ${mine ? '' : 'disabled'}>Enter the wild · ${feeSol()} SOL</button>` : ''}
+      <button class="${signed ? 'smallbtn' : 'primary'}" id="wxFree">Practice run (free, no catching)</button></div>
+     <p class="pv-note" style="margin-top:8px">The entry fee goes to PocketMonstars and is paid in Phantom on devnet. A practice run never catches anything.</p></div>
    </div>
-   <div class="wx-zones">${ZONES.map((Z, i) => `<button class="wx-zone t${Z.theme} ${i === st.z ? 'on' : ''} ${i > st.best ? 'locked' : ''}" data-z="${i}" ${i > st.best ? 'disabled' : ''}>
-     <span class="wx-zn">${i + 1}. ${Z.name}</span><span class="wx-zb">${Z.blurb}</span><span class="wx-zl">Lv${Z.min}+ ${i > st.best ? '· locked' : i < st.best ? '· cleared' : ''}</span>
-     <span class="wx-mons">${Z.pool.slice(0, 3).map(id => `<img src="${PA.spriteSrc(id)}" alt="">`).join('')}</span></button>`).join('')}</div>
-  </div>`;
-  q('wxGo').onclick = () => window.PMStartBattle(foeFor());
-  box.querySelectorAll('.wx-zone:not([disabled])').forEach(b => b.onclick = () => { st.z = +b.dataset.z; st.s = 0; save(st); render(); });
+   <div class="wx-zones">${ZONES.map((z, i) => `<button class="wx-zone t${z.theme} ${i === st.z ? 'on' : ''}" data-z="${i}"><span class="wx-zn">${i + 1}. ${z.name}</span><span class="wx-zb">${z.blurb}</span><span class="wx-zl">Wild Lv${z.min}+</span></button>`).join('')}</div>
+  </div>
+  <div class="panel wx-dexpanel"><h3>Wild Monstars · ${WILD_IDS.length}</h3><p class="pv-note" style="margin:6px 0 12px">Ones you've caught are lit up.</p>${dex}</div>`;
+  box.querySelectorAll('.wx-zone').forEach(b => b.onclick = () => { st.z = +b.dataset.z; save(); render(); });
+  q('wxFree').onclick = () => practice();
+  const pay = q('wxPay'); if (pay) pay.onclick = () => enter(pay);
+}
+
+function practice() { // local battle against a random wild Monstar, no catch
+  const sid = rollWild(), tier = TIERS[SPECIES[sid].tier], Z = ZONES[st.z];
+  window.PMStartBattle({ foeId: sid, foeLevel: Z.min + Math.floor(Math.random() * 4) + tier.lvl, arena: Z.theme, hard: tier.lvl >= 12, speciesId: sid, practice: true });
+}
+async function enter(btn) {
+  if (busy) return; busy = true; const t = btn.textContent; btn.disabled = true; btn.textContent = 'Approve in Phantom…';
+  try { const sig = await S.wildPay(); pending = { sig, zone: st.z }; retries = 0; API.startServerWild(sig, st.z); }
+  catch (e) { const m = e?.message || String(e); alert(/4001|reject|declin/i.test(m) ? 'Request declined in Phantom. Nothing was sent.' : m.slice(0, 200)); }
+  finally { busy = false; btn.disabled = false; btn.textContent = t; }
 }
 
 window.PMWild = {
-  result(won, opt) {
-    if (!won || opt.zone !== st.z || opt.step !== st.s) return;
-    st.wins++; st.s++;
-    if (st.s >= STEPS) { st.s = 0; st.best = Math.max(st.best, st.z + 1); if (st.z < ZONES.length - 1) st.z++; else { st.z = 0; st.loops++; } }
-    st.best = Math.min(st.best, ZONES.length - 1); save(st); render();
-  },
-  next() { window.PMStartBattle(foeFor()); },
+  result() {}, label: () => ZONES[st.z].name, feeSol,
+  next() { if (API.signedIn() && API.ownedPick()) { render(); window.tab?.('play'); q('wxPay')?.scrollIntoView({ block: 'center' }); } else practice(); },
   map() { render(); window.tab?.('play'); },
-  label,
+  record(won, c) { if (won) st.wins++; if (c?.ok && !st.caught.includes(c.speciesId)) st.caught.push(c.speciesId); save(); render(); },
+  retry() { if (!pending || retries >= 8) return false; retries++; setTimeout(() => API.startServerWild(pending.sig, pending.zone), 3000); return true; },
 };
+const baseTab = window.tab; window.tab = function (id) { baseTab(id); if (id === 'play') render(); };
 render();
 if (location.hash === '#wild') setTimeout(() => window.tab?.('play'), 0);
 })();

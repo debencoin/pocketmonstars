@@ -115,3 +115,10 @@ Stats: HP, Attack, Defense, Sp. Atk, Sp. Def, Speed. Types: EMBER, GROVE, TIDE, 
 - Move cards are dark with a type-coloured border, type pill, number badge and cyan ⚡ cost; cooling-down moves show dashed. The message box reads "A wild X appeared!" then "What will X do?".
 - Front page header: title, subtitle and Monstar picker icons; the mini battle has the arena on the left and the HP/SOL cards, message box and moves on the right, with wins/streak/best and Speed / Auto / Full screen.
 - Smooth `art/hd` sprites are used everywhere (cards, roster, picker); in-canvas numbers use Inter.
+
+## v10: Frontier (50 wild Monstars), Mythics, 3v3, paid wild catching
+
+- **54 new species** (`shared/frontier.mjs`): 50 Frontier Monstars in four rarity tiers (Common, Uncommon, Rare, Epic) plus Mythic angels Aurielle, Valkyra and Nimbiel and the Divine god Aeonox (new Deity class). Four new types: VENOM, STEEL, GALE, DRACO. Tiers set how often they appear, a stat multiplier (×0.94 to ×1.45) and the catch chance (60% to 3%). Sprites are drawn by `scripts/make_frontier.py`.
+- **Wild Expedition**: signed-in players pay **0.0001 SOL** (`PM_WILD_FEE_LAMPORTS`, default 100,000) to the treasury; the server verifies the transfer on-chain, refuses reused signatures (`wild_runs` table), picks a weighted random wild Monstar, runs the battle, and on a win rolls the catch. Caught Monstars always hatch as Infants. Mythic and Divine ones are higher level and fight harder. Guests can practice locally with no catching.
+- **3v3**: `createMatch` takes teams; the next member comes in on a faint, players can switch (tap the team strip, or keys 5–7) with a 3 s cooldown; per-hit SOL fees use the whole team's HP so the pot still moves in proportion. Works for practice, server AI and free or staked PvP rooms (`mode: '3v3'`, `serials`).
+- The 50 wild species and the Mythics are only playable once caught; Genesis stays free for everyone.

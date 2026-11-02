@@ -15,7 +15,8 @@ import { saleSplit } from '../server/nft.mjs';
 const wallet = () => Keypair.generate().publicKey.toBase58();
 
 test('nine species map to nine distinct classes with six stats', () => {
-  assert.equal(SPECIES.filter(s => s.collection === 'genesis').length, 9); assert.equal(new Set(SPECIES.map(s => s.cls)).size, 11); assert.equal(CLASSES.length, 11);
+  assert.equal(SPECIES.filter(s => s.collection === 'genesis').length, 9); assert.equal(new Set(SPECIES.map(s => s.cls)).size, 12); assert.equal(CLASSES.length, 12);
+  assert.equal(SPECIES.filter(s => s.collection === 'frontier').length, 50); assert.equal(SPECIES.filter(s => s.collection === 'mythic').length, 4);
   const m = new Monstar({ speciesId: 8, dna: deriveDna(wallet(), 8, 0), serial: 1 });
   assert.deepEqual(Object.keys(m.stats), ['hp', 'attack', 'defense', 'spAttack', 'spDefense', 'speed']);
   assert.equal(m.className, 'Titan'); assert.ok(m.toAttributes().some(a => a.trait_type === 'DNA' && a.value === m.dna));
@@ -72,7 +73,7 @@ test('Phantom sign-in verifies Ed25519 signatures and is single-use', () => {
 });
 
 test('simulation sanitises inputs and produces hits and a result', () => {
-  assert.deepEqual(sanitizeInput({ mx: 5, my: 0, ax: NaN }), { mx: 1, my: 0, ax: 0, ay: 0, atk: false, sp: false, dash: false, guard: false });
+  assert.deepEqual(sanitizeInput({ mx: 5, my: 0, ax: NaN }), { mx: 1, my: 0, ax: 0, ay: 0, atk: false, sp: false, dash: false, guard: false, sw: -1 });
   const m = createMatch(new Monstar({ speciesId: 0 }), new Monstar({ speciesId: 1 }), { auto: false });
   m.fighters[0].y = 60; m.fighters[1].y = 60; // clear line of fire above the centre rock
   m.fighters[0].input = sanitizeInput({ atk: true, sp: true, ax: 1, ay: 0 }); m.fighters[1].input = sanitizeInput({ mx: -0.3 });
@@ -232,4 +233,70 @@ test('AI practice on the server saves the EXP the Monstar earned', async () => {
   for (let i = 0; i < 30 * 95 && room.state === 'live'; i++) { mm.input(w, { atk: true, sp: true }); mm.tick(); }
   assert.notEqual(room.state, 'live');
   assert.ok(registry.get(m0.serial).exp > 0);
+});
+
+test('3v3: next team member comes in on a faint, match ends when a whole team is out, fees use team HP', async () => {
+  const { createMatch, step, sanitizeInput } = await import('../shared/sim.mjs');
+  const { Monstar } = await import('../shared/monstars.mjs');
+  const team = ids => ids.map(id => new Monstar({ speciesId: id, level: 3 }));
+  const m = createMatch(team([0, 1, 2]), team([3, 4, 5]), { auto: false });
+  assert.equal(m.teamMax[1], m.teams[1].reduce((n, x) => n + x.stats.hp, 0));
+  let switches = 0, firstMax = null;
+  for (let i = 0; i < 30 * 400 && !m.over; i++) {
+    m.fighters[0].input = sanitizeInput({ atk: true, sp: true }); m.fighters[1].input = sanitizeInput({});
+    m.fighters[1].x = m.fighters[0].x + 200; m.fighters[1].y = m.fighters[0].y;
+    for (const e of step(m)) { if (e.type === 'switch') switches++; if (e.type === 'hit' && e.attacker === 0) firstMax ??= e.victimMaxHp; }
+  }
+  assert.equal(firstMax, m.teamMax[1]);
+  assert.ok(switches >= 1, 'a replacement came in');
+  if (m.reason === 'ko') assert.equal(m.winner, 0);
+});
+test('wild: rarity tiers are weighted and rarer species are stronger', async () => {
+  const { rollWild, SPECIES, Monstar, TIERS } = await import('../shared/monstars.mjs');
+  const n = {}; for (let i = 0; i < 4000; i++) { const t = SPECIES[rollWild(i / 4000)].tier; n[t] = (n[t] || 0) + 1; }
+  assert.ok(n.Common > n.Rare && n.Rare > n.Mythic && n.Mythic > n.Divine);
+  const god = new Monstar({ speciesId: SPECIES.find(s => s.tier === 'Divine').id, level: 1 });
+  const common = new Monstar({ speciesId: SPECIES.find(s => s.tier === 'Common').id, level: 1 });
+  assert.ok(god.stats.hp > common.stats.hp * 1.5 && god.level === 1 && TIERS.Divine.catch < TIERS.Common.catch);
+});
+
+test('wild: paid entry is checked once, the server runs the battle, a win can catch the wild Monstar as an Infant', async () => {
+  const db = openDb(':memory:'), registry = new Registry(db), chain = new MockChain();
+  const mm = new MatchManager({ db, registry, chain, config: { treasury: wallet(), wildFeeLamports: 100_000n, disconnectGraceMs: 1e9, depositTimeoutMs: 1e9 } });
+  const a = wallet(), [ma] = registry.claimAll(a);
+  await assert.rejects(mm.createWild(a, { serial: ma.serial, signature: 'bad-fee' }));
+  let caught = null;
+  for (let run = 0; run < 40 && !caught; run++) {
+    const room = await mm.createWild(a, { serial: ma.serial, signature: 'fee-' + run, zone: 0 });
+    assert.ok(room.wild && room.players[1].monstar.species.collection !== 'genesis');
+    if (run === 0) await assert.rejects(mm.createWild(a, { serial: ma.serial, signature: 'fee-0' }), /already used/);
+    const seen = []; room.players[0].sockets.add({ send: s => seen.push(JSON.parse(s)) });
+    for (let i = 0; i < 100 && room.state === 'countdown'; i++) mm.tick();
+    room.sim.fighters[1].hp = 1; room.sim.fighters[1].iframes = 0; // let the player win quickly
+    room.sim.fighters[0].x = room.sim.fighters[1].x - 200; room.sim.fighters[0].y = room.sim.fighters[1].y;
+    for (let i = 0; i < 30 * 95 && room.state === 'live'; i++) { mm.input(a, { atk: true }); mm.tick(); }
+    const end = seen.find(m => m.t === 'end');
+    if (end?.caught?.ok) caught = end.caught;
+  }
+  assert.ok(caught, 'caught something within 40 wins');
+  const m = registry.get(caught.monstar.serial);
+  assert.equal(m.owner, a); assert.equal(m.level, 1); assert.equal(m.stage.name, 'Infant'); assert.ok(['frontier', 'mythic'].includes(m.collection));
+});
+
+test('3v3 rooms: both players bring three, the server runs a team match and saves EXP for every member used', async () => {
+  const db = openDb(':memory:'), registry = new Registry(db), chain = new MockChain();
+  const mm = new MatchManager({ db, registry, chain, config: { disconnectGraceMs: 1e9, depositTimeoutMs: 1e9 } });
+  const a = wallet(), b = wallet(), ta = registry.claimAll(a).slice(0, 3), tb = registry.claimAll(b).slice(3, 6);
+  assert.throws(() => mm.create(a, { mode: '3v3', serials: [ta[0].serial] }), /three/);
+  const room = mm.create(a, { mode: '3v3', serials: ta.map(m => m.serial) });
+  mm.join(b, { code: room.code, serials: tb.map(m => m.serial) });
+  for (let i = 0; i < 200 && room.state !== 'live'; i++) mm.tick();
+  assert.equal(room.sim.teams[0].length, 3); assert.equal(room.sim.teams[1].length, 3);
+  const pub = mm.publicRoom(room, a); assert.equal(pub.mode, '3v3'); assert.equal(pub.players[1].team.length, 3);
+  for (let i = 0; i < 30 * 200 && room.state === 'live'; i++) {
+    room.sim.fighters[1].x = room.sim.fighters[0].x + 200; room.sim.fighters[1].y = room.sim.fighters[0].y;
+    mm.input(a, { atk: true, sp: true }); mm.tick();
+  }
+  assert.notEqual(room.state, 'live');
+  assert.ok(registry.get(ta[0].serial).exp > 0);
 });

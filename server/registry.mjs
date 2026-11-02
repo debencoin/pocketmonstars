@@ -3,7 +3,7 @@
 // Levels (EXP) are stored here; Legendary and Bred collections are created here too.
 import { createHash, randomBytes } from 'node:crypto';
 import { PublicKey } from '@solana/web3.js';
-import { SPECIES, GENESIS_IDS, LEGENDARY_IDS, RARITIES, Monstar, traitsFromDna, traitSignature, composeDna, rarityIndex, expForLevel } from '../shared/monstars.mjs';
+import { SPECIES, GENESIS_IDS, LEGENDARY_IDS, WILD_IDS, RARITIES, Monstar, traitsFromDna, traitSignature, composeDna, rarityIndex, expForLevel } from '../shared/monstars.mjs';
 
 export function deriveDna(owner, speciesId, nonce) {
   return createHash('sha256').update(`pocketmonstars:dna:v1:${owner}:${speciesId}:${nonce}`).digest('hex');
@@ -74,6 +74,15 @@ export class Registry {
         dnaFor: n => composeDna(createHash('sha256').update(`pocketmonstars:breed:${seed}:${i}:${n}`).digest('hex'), { rarity: RARITIES[rIdx].name, ivs }) }));
     }
     return children;
+  }
+
+  /** A wild Monstar caught in the Wild Expedition. It always hatches as an Infant with its own unique DNA. */
+  catchWild(owner, speciesId) {
+    owner = new PublicKey(owner).toBase58();
+    if (!WILD_IDS.includes(speciesId)) throw Error('That is not a wild species.');
+    const seed = randomBytes(8).toString('hex'), sp = SPECIES[speciesId];
+    return this.insertUnique({ speciesId, originOwner: owner, owner, genesis: false, collection: sp.collection, exp: 0,
+      dnaFor: n => createHash('sha256').update(`pocketmonstars:wild:${owner}:${speciesId}:${seed}:${n}`).digest('hex') });
   }
 
   get(serial) { const row = this.db.prepare('SELECT * FROM monstars WHERE serial=?').get(serial); return row ? this.toMonstar(row) : null; }

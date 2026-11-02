@@ -361,3 +361,34 @@ img.px{image-rendering:auto}
   .hb-hp span{font-size:11px;min-width:0}
   .hb-pot{white-space:normal;text-align:center;max-width:80px}
 }
+/* ===== v10: 3v3 teams, tiers, wild dex ===== */
+.pv-mode{grid-template-columns:1fr 1fr;margin-bottom:10px}
+.pv-team{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:8px;font-size:13px;color:var(--muted)}
+.pv-team button,.pv-team i{width:44px;height:44px;border-radius:50%;border:2px solid #ffd84a;background:radial-gradient(#22305a,#0c1222);display:grid;place-items:center;padding:3px;font-style:normal;color:var(--muted)}
+.pv-team i{border-style:dashed;border-color:var(--line)}
+.pv-team img{width:100%;height:100%;object-fit:contain}
+.pv-team small{flex-basis:100%;font-size:11px}
+.pv-pick.inteam{border-color:#ffd84a;box-shadow:0 0 0 2px #ffd84a55}
+.hb-tm{display:flex;gap:4px;margin-top:2px}
+.hb.r .hb-tm{justify-content:flex-end}
+.hb-tm:empty{display:none}
+.hb-tm button{position:relative;width:30px;height:30px;border-radius:50%;padding:2px;border:2px solid #2a3550;background:radial-gradient(#22305a,#0c1222);pointer-events:auto;cursor:pointer;overflow:hidden}
+.hb-tm button img{width:100%;height:100%;object-fit:contain}
+.hb-tm button i{position:absolute;left:0;bottom:0;height:3px;background:#5fd38a}
+.hb-tm button.on{border-color:#48d0ff}
+.hb-tm button.out{filter:grayscale(1) brightness(.5)}
+.hb-tm button:disabled{cursor:default}
+.pv-stage.live .pv-hud{pointer-events:none}
+.pv-stage.live .hb-tm{pointer-events:auto}
+.pv-tier{position:absolute;top:30px;left:8px;font-size:10px;font-weight:800;padding:2px 7px;border-radius:20px;background:#0a0f1e;border:1px solid var(--line)}
+.pv-tier.Uncommon{color:#5fd38a}.pv-tier.Rare{color:#48d0ff}.pv-tier.Epic{color:#c08cff}.pv-tier.Mythic{color:#ffd84a;border-color:#7d6a3a}.pv-tier.Divine{color:#ff7ad8;border-color:#7a3a6a}
+.wx-q{font:900 64px Inter,system-ui,sans-serif;color:#ffd84a}
+.wx-dexpanel{margin-bottom:24px}
+.wx-tierrow{margin-top:14px}
+.wx-tierhead{display:flex;gap:10px;align-items:baseline;flex-wrap:wrap;font-size:13px;color:var(--muted)}
+.wx-tierhead b{font-size:15px}
+.wx-dex{display:grid;grid-template-columns:repeat(auto-fill,minmax(74px,1fr));gap:6px;margin-top:8px}
+.wx-mon{display:flex;flex-direction:column;align-items:center;gap:2px;padding:6px 2px;border-radius:10px;background:#0c1222;border:1px solid var(--line);filter:grayscale(.55) brightness(.85)}
+.wx-mon.got{filter:none;border-color:#ffd84a}
+.wx-mon img{width:48px;height:48px;object-fit:contain}
+.wx-mon small{font-size:10px;color:var(--muted);text-align:center;line-height:1.2}

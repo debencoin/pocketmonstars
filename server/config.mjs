@@ -29,6 +29,7 @@ export const CONFIG = {
   legendaryOwner: env.PM_LEGENDARY_OWNER || 'Dc9s1YwNHE2xDBzpprDvyruzxj8j5HvBSvfbvdups5LJ',
   // Breeding fee each player pays to the company treasury, in lamports (0.01 SOL).
   breedFeeLamports: BigInt(env.PM_BREED_FEE_LAMPORTS || 10_000_000),
+  wildFeeLamports: BigInt(env.PM_WILD_FEE_LAMPORTS || 100_000), // 0.0001 SOL to enter the wild (paid to the company wallet)
   depositTimeoutMs: 3 * 60 * 1000,
   disconnectGraceMs: 15 * 1000,
 };

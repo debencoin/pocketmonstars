@@ -337,6 +337,10 @@ img.px{image-rendering:auto}
 .mon h3{font:800 16px Inter,system-ui,sans-serif}
 .btn.primary{background:#ffd84a;color:#14161f}
 @media (hover:hover){.btn.primary:hover{background:#ffe580}}
+.wildgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(86px,1fr));gap:8px}
+.wildgrid .w{background:#10172a;border:1px solid #2a3550;border-radius:12px;padding:8px 4px;display:flex;flex-direction:column;align-items:center;gap:3px;text-align:center}
+.wildgrid img{width:56px;height:56px;object-fit:contain}
+.wildgrid b{font-size:12px}.wildgrid small{font-size:10px;font-weight:700}
 </style>
 </head>
 <body>
@@ -370,7 +374,7 @@ img.px{image-rendering:auto}
    <aside class="side">
     <a class="cta-card hot" data-play href="/play"><span class="k">Stake SOL</span><b>Play in Phantom</b><span>Duel a real rival for a SOL pot. Every hit moves lamports to your side. Winner takes the pot when the match ends.</span></a>
     <a class="cta-card" data-practice href="/play"><span class="k">Free</span><b>Practice vs AI</b><span>Full game, no wallet needed. Level up and watch your Monstar evolve.</span></a>
-    <a class="cta-card" href="/play#wild" data-wild><span class="k">Adventure</span><b>Wild Expedition</b><span>Fight wild Monstars across four arenas and beat each zone boss.</span></a>
+    <a class="cta-card" href="/play#wild" data-wild><span class="k">Adventure · 0.0001 SOL</span><b>Wild Expedition</b><span>54 wild Monstars to catch, from common to three angels and a god.</span></a>
     <div class="cta-card info"><span class="k">How it works</span><ol><li>Connect Phantom (devnet)</li><li>Hatch your one-of-a-kind Monstars</li><li>Stake, battle, evolve, trade</li></ol><p class="cta-note" id="ctaNote">On a phone, the game opens inside the Phantom app so your wallet can connect.</p></div>
    </aside>
   </div>
@@ -411,6 +415,8 @@ img.px{image-rendering:auto}
 <section id="monstars"><div class="wrap">
   <div class="sec-head"><div class="eyebrow">Nine species · nine classes</div><h2>No two Monstars are ever the same</h2><p>Your Monstars' DNA comes from your wallet address. It sets rarity, aura, pattern, nature, color and six stats, and the registry refuses any repeat.</p></div>
   <div class="roster" id="roster"></div>
+  <div class="sec-head" style="margin-top:48px"><div class="eyebrow">Wild Expedition · 54 to catch</div><h2>Fifty wild Monstars, three angels and a god</h2><p>Pay 0.0001 SOL to enter the wild. Beat a wild Monstar for a chance to catch it. Rarer ones are stronger and harder to catch, and everything you catch hatches as an Infant. You can also battle 3v3 in the Arena.</p></div>
+  <div class="wildgrid" id="wildGrid"></div>
 </div></section>
 
 <section id="market"><div class="wrap">
@@ -488,6 +494,9 @@ img.px{image-rendering:auto}
 // Playable mini battle on the front page: the real engine and renderer, your move cards, a practice SOL pot.
 import { createMatch, step, snapshot, sanitizeInput, aiInput, ARENA, TICK, STYLES } from '/shared/sim.mjs';
 import { Monstar, SPECIES, GENESIS_IDS, STAGES, effectiveness } from '/shared/monstars.mjs';
+{ const TC = { Common: '#b9c3d9', Uncommon: '#5fd38a', Rare: '#48d0ff', Epic: '#c08cff', Mythic: '#ffd84a', Divine: '#ff7ad8' }, order = Object.keys(TC);
+  const g = document.getElementById('wildGrid');
+  if (g) g.innerHTML = SPECIES.filter(x => x.tier).sort((a, b) => order.indexOf(a.tier) - order.indexOf(b.tier)).map(x => `<div class="w"><img src="/art/hd/${x.art}.png" alt="" loading="lazy"><b>${x.name}</b><small style="color:${TC[x.tier]}">${x.tier} · ${x.type}</small></div>`).join(''); }
 import { StakeLedger, formatSol } from '/shared/stake.mjs';
 const $ = id => document.getElementById(id);
 const TC = { EMBER: '#e8582c', TIDE: '#3a8ae0', GROVE: '#4caa3a', SPARK: '#d8b018', SHADE: '#7a4ad8', STONE: '#9a8458', FROST: '#5ab8d8', ASTRAL: '#d89a30', PSYCHIC: '#c050c8', NORMAL: '#8a8a9a' };

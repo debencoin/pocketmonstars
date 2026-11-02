@@ -45,6 +45,9 @@ export function openDb(file) {
       created_at INTEGER NOT NULL, closed_at INTEGER
     );
     CREATE UNIQUE INDEX IF NOT EXISTS one_active_listing ON listings(asset) WHERE state='active';
+    CREATE TABLE IF NOT EXISTS wild_runs(
+      signature TEXT PRIMARY KEY, wallet TEXT NOT NULL, species INTEGER, level INTEGER, won INTEGER, caught_serial INTEGER, created_at INTEGER NOT NULL
+    );
     CREATE TABLE IF NOT EXISTS breeds(
       code TEXT PRIMARY KEY,
       a TEXT NOT NULL, a_serial INTEGER NOT NULL, b TEXT, b_serial INTEGER,

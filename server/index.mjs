@@ -33,7 +33,7 @@ export function createServer({ config = CONFIG, chain = new SolanaChain(config.r
   const waitConfirmed = async sig => { for (let i = 0; i < 30; i++) { const s = await chain.status(sig); if (s?.err) throw Error('Transaction failed on-chain.'); if (['confirmed', 'finalized'].includes(s?.confirmationStatus)) return; await new Promise(r => setTimeout(r, 1000)); } throw Error('Not confirmed yet. Try again in a moment.'); };
 
   const routes = {
-    'GET /api/config': () => ({ cluster: config.cluster, treasury: config.treasury, royaltyBps: config.royaltyBps, collection: config.collection,
+    'GET /api/config': () => ({ wildFeeLamports: config.wildFeeLamports.toString(), cluster: config.cluster, treasury: config.treasury, royaltyBps: config.royaltyBps, collection: config.collection,
       marketAuthority: keys.marketAuthority.publicKey.toBase58(), policy: { minStake: STAKE_POLICY.minStake, maxStake: STAKE_POLICY.maxStake, companyFeeLamports: STAKE_POLICY.companyFeeLamports, networkFeeLamports: STAKE_POLICY.networkFeeLamports } }),
     'POST /api/auth/challenge': async req => ({ message: auth.challenge((await body(req)).wallet) }),
     'POST /api/auth/verify': async req => { const b = await body(req); const s = auth.verify(b.wallet, b.signature); registry.claimAll(s.wallet); return s; },
@@ -80,6 +80,11 @@ export function createServer({ config = CONFIG, chain = new SolanaChain(config.r
       db.prepare("UPDATE breeds SET b=?, b_serial=?, state='fees' WHERE code=? AND state='open'").run(w, m.serial, r.code);
       return breedView(r.code, w); },
     'POST /api/breed/status': async req => { const w = need(req), b = await body(req); return breedView(String(b.code || '').toUpperCase(), w); },
+    'POST /api/wild/fee-tx': async req => { const w = need(req);
+      if (!config.treasury) throw Error('The company fee wallet is not set up yet, so the wild is closed.');
+      const { blockhash } = await chain.latestBlockhash();
+      const tx = new Transaction({ feePayer: new PublicKey(w), recentBlockhash: blockhash }).add(SystemProgram.transfer({ fromPubkey: new PublicKey(w), toPubkey: new PublicKey(config.treasury), lamports: config.wildFeeLamports }));
+      return { transaction: tx.serialize({ requireAllSignatures: false, verifySignatures: false }).toString('base64'), feeSol: formatSol(config.wildFeeLamports, 4) }; },
     'POST /api/breed/fee-tx': async req => { const w = need(req), b = await body(req), r = breedRow(b.code);
       if (!r || r.state !== 'fees' || ![r.a, r.b].includes(w)) throw Error('This breeding request is not waiting for your fee.');
       if (!config.treasury) throw Error('The company fee wallet is not set up yet, so breeding is paused.');
@@ -148,6 +153,7 @@ export function createServer({ config = CONFIG, chain = new SolanaChain(config.r
         if (msg.t === 'create') return roomUpdate(matches.create(wallet, msg));
         if (msg.t === 'join') return roomUpdate(matches.join(wallet, msg));
         if (msg.t === 'ai') return roomUpdate(matches.createAi(wallet, msg));
+        if (msg.t === 'wild') return roomUpdate(await matches.createWild(wallet, msg));
         if (msg.t === 'deposit') return roomUpdate(await matches.confirmDeposit(wallet, msg.signature));
         if (msg.t === 'leave') { matches.leave(wallet); return reply({ t: 'left' }); }
         if (msg.t === 'ping') return reply({ t: 'pong', at: msg.at });

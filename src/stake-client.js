@@ -130,7 +130,12 @@ export async function breedPay(code) {
   const signature = await signAndSend(transaction);
   return api('/api/breed/confirm', { code, signature });
 }
+/** Pay the 0.0001 SOL wild entry fee in Phantom. Returns the signature the server checks on-chain. */
+export async function wildPay() {
+  const { transaction } = await api('/api/wild/fee-tx', {});
+  return signAndSend(transaction);
+}
 export const explorer = sig => `https://explorer.solana.com/tx/${sig}?cluster=devnet`;
 
 if (typeof window !== 'undefined') window.PMStake = { signIn, session, balance, getConfig, myMonstars, mint, syncOwner, listings, list, cancelListing, buy,
-  connectSocket, deposit, explorer, phantomBrowseLink, breedCreate, breedJoin, breedStatus, breedPay, Monstars, Stake, ARENA, Sim };
+  connectSocket, deposit, explorer, phantomBrowseLink, breedCreate, breedJoin, breedStatus, breedPay, wildPay, Monstars, Stake, ARENA, Sim };
