@@ -7,3 +7,4 @@ node_modules/
 *.sqlite-wal
 .openai/local*
 data/
+node_modules

@@ -164,3 +164,16 @@ test('mint transaction is co-signed by the asset key and collection authority, p
   assert.ok(tx.signatures.some(s => s.publicKey.toBase58() === owner && !s.signature)); // player still has to approve in Phantom
   assert.equal(tx.instructions[0].programId.toBase58(), 'CoREENxT6tW1HoK8ypY1SxRMZTcVPm7R94rH4PZNhX7d');
 });
+
+test('every species lands both of its powers (projectile, bolt, whip, cone, beam, strike)', () => {
+  for (const sp of SPECIES) {
+    for (const key of ['atk', 'sp']) {
+      const m = createMatch(new Monstar({ speciesId: sp.id }), new Monstar({ speciesId: 5 }));
+      const [a, b] = m.fighters; a.x = 300; a.y = 70; b.x = 480; b.y = 70; a.cd.special = 0;
+      a.input = sanitizeInput({ [key]: true, ax: 1, ay: 0 });
+      step(m); a.input = sanitizeInput({ ax: 1, ay: 0 });
+      let hits = 0; for (let i = 0; i < 45; i++) { b.x = 480; b.y = 70; b.vx = b.vy = 0; hits += step(m).length; }
+      assert.ok(hits >= 1, `${sp.name} ${key === 'atk' ? sp.basicStyle : sp.specialStyle} should hit`);
+    }
+  }
+});

@@ -2,14 +2,14 @@
 // v4 overlay: 1v1 Stake Duel (live per-hit SOL shares), one-of-a-kind Monstars per wallet, royalty marketplace.
 (() => {
 const S = window.PMStake; if (!S) return;
-const { Monstars, Stake, ARENA } = S;
+const { Monstars, Stake, ARENA, Sim } = S;
+const PA = window.PMArena;
 const q = id => document.getElementById(id);
 const el = (tag, attrs = {}, html = '') => { const e = document.createElement(tag); Object.assign(e, attrs); if (html) e.innerHTML = html; return e; };
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const short = a => a ? a.slice(0, 4) + '…' + a.slice(-4) : '—';
 const sol = (l, d = 6) => Stake.formatSol(BigInt(l), d);
 const coarse = matchMedia('(pointer:coarse)').matches; if (coarse) document.body.classList.add('coarse');
-const art = (window.creatureArt && window.creatureArt.length === 9) ? window.creatureArt : Monstars.SPECIES.map(s => { const i = new Image(); i.src = 'art/' + s.art + '.png'; return i; });
 let toastT;
 function toast(msg, err = false) { let t = q('pvToast'); if (!t) { t = el('div', { id: 'pvToast', className: 'pv-toast', role: 'status' }); document.body.append(t); } t.textContent = msg; t.classList.toggle('err', err); t.hidden = false; clearTimeout(toastT); toastT = setTimeout(() => t.hidden = true, 4200); }
 function fail(e) { const m = e?.message || String(e); toast(/4001|reject|declin/i.test(m) ? 'Request declined in Phantom. Nothing was sent.' : m.slice(0, 300), true); }
@@ -17,31 +17,32 @@ async function busy(btn, fn) { const t = btn.textContent; btn.disabled = true; b
 
 // ---------- nav + sections ----------
 const nav = document.querySelector('nav');
-const pvpBtn = el('button', { textContent: '1v1 Stake' }); pvpBtn.dataset.tab = 'pvp';
-nav.insertBefore(pvpBtn, nav.children[1]);
+const pvpBtn = el('button', { textContent: 'Arena' }); pvpBtn.dataset.tab = 'pvp';
+nav.insertBefore(pvpBtn, nav.children[0]);
+const oldPlay = nav.querySelector('[data-tab=play]'); if (oldPlay) oldPlay.textContent = 'Adventure';
 pvpBtn.onclick = () => tab('pvp');
 const main = document.querySelector('main');
 const pvp = el('section', { id: 'pvp', className: 'view hidden' });
 pvp.innerHTML = `
-<div class="topline"><div><div class="eyebrow">Real-time 1v1 · Solana devnet</div><h1>Stake Duel</h1>
-<p class="muted">Both players stake the same SOL. Every hit you land takes lamports from your rival's share. KO them and the whole pot is yours.</p></div>
+<div class="topline"><div><div class="eyebrow">Real-time 1v1 · Solana devnet</div><h1>Monstar Arena</h1>
+<p class="muted">Practice against the computer, or stake SOL against a real rival. Every hit you land takes lamports from their share. KO them and the whole pot is yours.</p></div>
 <span class="pill" id="pvNet"><i class="dot"></i> DEVNET TEST SOL</span></div>
 <div class="pv-grid">
  <div class="pv-col">
   <div class="pv-stage" id="pvStage">
-   <canvas id="pvCanvas" width="960" height="540" aria-label="1v1 arena"></canvas>
+   <canvas id="pvCanvas" width="320" height="180" aria-label="Battle arena"></canvas>
    <div class="pv-hud" id="pvHud" hidden>
-    <div class="pv-side"><b id="pvN0">You</b><div class="pv-bar"><i id="pvH0"></i></div><div class="pv-bar en"><i id="pvE0"></i></div><span class="pv-sol" id="pvS0">0</span></div>
-    <div class="pv-mid"><span id="pvClock">90</span><small>SECONDS</small></div>
-    <div class="pv-side r"><b id="pvN1">Rival</b><div class="pv-bar"><i id="pvH1"></i></div><div class="pv-bar en"><i id="pvE1"></i></div><span class="pv-sol" id="pvS1">0</span></div>
+    <div class="gb-box"><div class="gb-name"><b id="pvN0">You</b><span id="pvL0">Lv5</span></div><div class="gb-hp"><em>HP</em><div class="gb-bar"><i id="pvH0"></i></div></div><div class="gb-row"><span class="pv-sol" id="pvS0"></span><span id="pvHN0"></span></div><div class="gb-en"><i id="pvE0"></i></div></div>
+    <div class="gb-clock" id="pvClock">90</div>
+    <div class="gb-box r"><div class="gb-name"><b id="pvN1">Rival</b><span id="pvL1">Lv5</span></div><div class="gb-hp"><em>HP</em><div class="gb-bar"><i id="pvH1"></i></div></div><div class="gb-row"><span class="pv-sol" id="pvS1"></span><span id="pvHN1"></span></div><div class="gb-en"><i id="pvE1"></i></div></div>
    </div>
    <div class="pv-pot" id="pvPot" hidden><div class="pv-potbar"><i id="pvP0" style="width:50%"></i><i id="pvP1" style="width:50%"></i></div><small id="pvPotTxt">Pot</small></div>
    <div class="pv-touch"><div class="pv-stickzone" id="pvZone"><div class="pv-stick" id="pvStick"><i id="pvKnob"></i></div></div>
-    <div class="pv-btns"><button class="pv-btn grd" data-k="guard">GUARD</button><button class="pv-btn spl" data-k="sp">SPECIAL</button><button class="pv-btn dash" data-k="dash">DASH</button><button class="pv-btn atk" data-k="atk">ATTACK</button></div></div>
+    <div class="pv-btns"><button class="pv-btn grd" data-k="guard">G</button><button class="pv-btn spl" data-k="sp" id="pvSpBtn">B</button><button class="pv-btn dash" data-k="dash">DASH</button><button class="pv-btn atk" data-k="atk" id="pvAtkBtn">A</button></div></div>
    <button class="smallbtn pv-exit" id="pvExit">Leave</button>
-   <div class="pv-overlay" id="pvOverlay"><div class="big" id="pvBig">Ready to duel</div><div class="pv-note" id="pvSmall">Sign in with Phantom, pick your Monstar and create or join a match.</div><div class="pv-row" id="pvOvBtns"></div></div>
+   <div class="pv-overlay" id="pvOverlay"><div class="big" id="pvBig">Ready to battle</div><div class="pv-note" id="pvSmall">Sign in with Phantom, pick your Monstar and create or join a match.</div><div class="pv-row" id="pvOvBtns"></div></div>
   </div>
-  <p class="pv-note" id="pvKeys">${coarse ? 'Left thumb: drag anywhere to move. Right thumb: attack (hold), special, dash, guard. Attacks auto-aim at your rival.' : 'Move <b>WASD</b> · Attack <b>J</b> or click · Special <b>K</b> or right-click · Dash <b>Space</b> · Guard <b>L</b>. Your mouse aims.'}</p>
+  <p class="pv-note" id="pvKeys">${coarse ? 'Battles open full screen. Left thumb drags to move. A attacks (hold), B uses your special, DASH dodges, G guards. Attacks aim at your rival.' : 'Battles open full screen. Move <b>WASD</b> · Attack <b>J</b> or click · Special <b>K</b> or right-click · Dash <b>Space</b> · Guard <b>L</b> · Leave <b>Esc</b>. Your mouse aims.'}</p>
   <div class="panel"><div class="pv-row" style="justify-content:space-between"><h3>Your one-of-a-kind Monstars</h3><span class="pv-chip" id="pvCount">Sign in to reveal</span></div>
    <p class="pv-note" style="margin:6px 0 12px">Every wallet gets its own version of all nine species. DNA comes from your address, and the registry refuses any repeat look or stat roll, so no two Monstars are ever the same. Mint one to own it as an NFT you can trade or send.</p>
    <div class="pv-cards" id="pvCards"><div class="pv-empty">Sign in with Phantom to see your Monstars.</div></div></div>
@@ -51,7 +52,12 @@ pvp.innerHTML = `
    <div id="pvWallet" class="pv-note" style="margin:8px 0">Not signed in.</div>
    <button class="primary wide" id="pvSignIn">Connect Phantom &amp; sign in</button>
    <p class="pv-note" id="pvPhantomHint" style="margin-top:8px">Signing in only signs a message. It never moves funds.</p></div>
-  <div class="panel" id="pvLobby"><h3>Start a match</h3>
+  <div class="panel" id="pvLobby"><h3>Choose your Monstar</h3>
+   <div class="pv-picker" id="pvPicker" role="group" aria-label="Choose your Monstar"></div>
+   <p class="pv-note" id="pvPickInfo" style="margin:8px 0 12px"></p>
+   <button class="primary wide" id="pvPractice">Practice vs AI</button>
+   <p class="pv-note" style="margin:6px 0 16px">Free, no wallet needed.</p>
+   <h3>Battle a real rival</h3>
    <label class="fieldlabel" for="pvStake" style="display:block;margin:10px 0 6px">Stake per player (SOL)</label>
    <div class="pv-presets" id="pvPresets"><button data-v="0">Free</button><button data-v="0.001" aria-pressed="true">0.001</button><button data-v="0.01">0.01</button><button data-v="0.05">0.05</button></div>
    <input class="pv-input" id="pvStake" inputmode="decimal" value="0.001" style="margin-top:8px">
@@ -85,6 +91,7 @@ marketSec.prepend(mk);
 
 const baseTab4 = window.tab;
 window.tab = tab = function (id) { baseTab4(id); pvpBtn.classList.toggle('active', id === 'pvp'); if (id === 'pvp') { refreshMine(); draw(); } if (id === 'market') refreshMarket(); };
+let pickedSpecies = 0, local = null;
 
 // ---------- state ----------
 let me = null, mine = [], picked = null, ws = null, room = null, cfg = null;
@@ -115,7 +122,7 @@ function statBars(st) {
 }
 function cardHtml(m, extra = '') {
   return `<span class="pv-rar ${esc(m.traits.rarity)}">${esc(m.traits.rarity)}</span>
-  <img src="art/${Monstars.SPECIES[m.speciesId].art}.png" alt="${esc(m.name)}" style="filter:hue-rotate(${m.traits.hue}deg)" loading="lazy">
+  <img class="px" src="art/pixel/${Monstars.SPECIES[m.speciesId].art}.png" alt="${esc(m.name)}" style="filter:hue-rotate(${m.traits.hue}deg)" loading="lazy">
   <span class="nm">${esc(m.name)}</span><span class="sub">${esc(m.className)} · ${esc(m.type)} · ${esc(m.traits.aura)} ${esc(m.traits.pattern)} · ${esc(m.traits.nature)}</span>
   ${statBars(m.stats)}${extra}`;
 }
@@ -129,12 +136,12 @@ async function refreshMine() {
   for (const m of mine) {
     const c = el('div', { className: 'pv-card' }); c.setAttribute('aria-pressed', m.serial === picked);
     c.innerHTML = cardHtml(m, `<div class="acts"><button class="smallbtn" data-a="pick">${m.serial === picked ? 'Selected' : 'Use in duel'}</button>${m.asset ? '<span class="pv-chip ok">Minted NFT</span>' : '<button class="smallbtn" data-a="mint">Mint NFT</button>'}</div>`);
-    c.querySelector('[data-a=pick]').onclick = () => { picked = m.serial; refreshMine(); };
+    c.querySelector('[data-a=pick]').onclick = () => { picked = m.serial; pickedSpecies = m.speciesId; refreshMine(); renderPicker(); };
     const mb = c.querySelector('[data-a=mint]');
     if (mb) mb.onclick = () => busy(mb, async () => { await S.mint(m.serial); toast(m.name + ' minted to your wallet.'); refreshMine(); refreshBalance(); });
     box.append(c);
   }
-  renderMineMarket();
+  renderMineMarket(); renderPicker();
 }
 
 // ---------- lobby ----------
@@ -149,7 +156,8 @@ function needSocket() { if (!S.session()) throw Error('Sign in with Phantom firs
 function sendWs(msg) { needSocket(); const go = () => ws.send(JSON.stringify(msg)); ws.readyState === 1 ? go() : ws.addEventListener('open', go, { once: true }); }
 q('pvCreate').onclick = () => { try { const lam = Stake.toLamports(q('pvStake').value || '0'); sendWs({ t: 'create', stakeLamports: lam.toString(), serial: lam > 0n ? picked : undefined, speciesId: mine.find(m => m.serial === picked)?.speciesId ?? 0 }); } catch (e) { fail(e); } };
 q('pvJoin').onclick = () => { try { sendWs({ t: 'join', code: q('pvJoinCode').value.trim().toUpperCase(), serial: picked, speciesId: mine.find(m => m.serial === picked)?.speciesId ?? 0 }); } catch (e) { fail(e); } };
-q('pvLeave').onclick = q('pvExit').onclick = () => { try { sendWs({ t: 'leave' }); } catch {} room = null; ended = null; renderRoom(); };
+function leaveBattle() { if (room?.local) { room = null; local = null; ended = null; snapCur = null; renderRoom(); renderer.idle(); return; } try { sendWs({ t: 'leave' }); } catch {} room = null; ended = null; renderRoom(); }
+q('pvLeave').onclick = q('pvExit').onclick = leaveBattle;
 // One deposit per match. If the server hasn't seen it on-chain yet, re-check the SAME signature; never send a second transfer.
 let pendingDeposit = null, depositRetries = 0;
 q('pvDeposit').onclick = e => busy(e.target, async () => {
@@ -157,6 +165,42 @@ q('pvDeposit').onclick = e => busy(e.target, async () => {
   const sig = await S.deposit(); pendingDeposit = { code: room?.code, sig }; depositRetries = 0;
   sendWs({ t: 'deposit', signature: sig }); toast('Deposit sent. Waiting for confirmation…'); refreshBalance();
 });
+
+function monFor(sid) {
+  const own = mine.find(m => m.speciesId === sid);
+  return own ? new Monstars.Monstar({ speciesId: sid, dna: own.dna, serial: own.serial }) : new Monstars.Monstar({ speciesId: sid });
+}
+function renderPicker() {
+  const box = q('pvPicker'); if (!box) return; box.innerHTML = '';
+  Monstars.SPECIES.forEach(sp => {
+    const own = mine.find(m => m.speciesId === sp.id), b = el('button', { className: 'pv-pick', title: sp.name });
+    b.setAttribute('aria-pressed', sp.id === pickedSpecies);
+    b.innerHTML = `<img class="px" src="${PA.spriteSrc(sp.id)}" alt="${sp.name}" style="filter:hue-rotate(${own?.traits.hue || 0}deg)">`;
+    b.onclick = () => { pickedSpecies = sp.id; if (own) picked = own.serial; renderPicker(); if (own) refreshMine(); };
+    box.append(b);
+  });
+  const sp = Monstars.SPECIES[pickedSpecies], m = monFor(pickedSpecies);
+  q('pvPickInfo').innerHTML = `<b>${esc(m.displayName)}</b> · ${sp.cls.label} · ${sp.type}<br>A: ${esc(sp.move)} · B: ${esc(sp.special)}<br>${esc(sp.cls.passive)}`;
+}
+q('pvPractice').onclick = () => startPractice();
+function startPractice() {
+  const others = Monstars.SPECIES.filter(x => x.id !== pickedSpecies), foe = others[Math.floor(Math.random() * others.length)];
+  const a = monFor(pickedSpecies), b = new Monstars.Monstar({ speciesId: foe.id });
+  local = { m: Sim.createMatch(a, b), mem: {} };
+  room = { local: true, state: 'live', you: 0, stake: '0', code: 'AI', players: [{ wallet: me || 'You', monstar: a.toJSON() }, { wallet: 'AI', monstar: b.toJSON() }] };
+  ended = null; snapPrev = null; snapCur = Sim.snapshot(local.m); snapAt = performance.now(); renderer.reset();
+  renderRoom(); draw();
+}
+setInterval(() => {
+  if (!local || room?.state !== 'live' || ended) return;
+  const m = local.m;
+  m.fighters[0].input = Sim.sanitizeInput(currentInput());
+  m.fighters[1].input = Sim.sanitizeInput(Sim.aiInput(m, 1, local.mem));
+  const evs = Sim.step(m);
+  snapPrev = snapCur; snapCur = Sim.snapshot(m); snapAt = performance.now();
+  for (const ev of evs) renderer.hit(ev, snapCur);
+  if (m.over) { ended = { winner: m.winner, reason: m.reason, at: performance.now(), local: true }; renderRoom(); }
+}, 1000 / 30);
 
 function openSocket() {
   if (ws && ws.readyState <= 1) return;
@@ -175,8 +219,8 @@ function onMsg(m) {
     snapPrev = snapCur; snapCur = m.s; snapAt = performance.now(); setShares(m.shares); return;
   }
   if (m.t === 'hit') { setShares(m.shares, m); return; }
-  if (m.t === 'end') { ended = { ...m }; if (room) room.state = room.stake === '0' ? 'done' : 'settling'; renderRoom(); return; }
-  if (m.t === 'settlement') { ended = { ...(ended || {}), settlement: m }; if (room) room.state = m.ok ? (m.refund ? 'refunded' : 'settled') : 'needs review'; renderRoom(); refreshBalance(); return; }
+  if (m.t === 'end') { ended = { ...m, at: performance.now() }; if (room) room.state = room.stake === '0' ? 'done' : 'settling'; renderRoom(); return; }
+  if (m.t === 'settlement') { ended = { at: 0, ...(ended || {}), settlement: m }; if (room) room.state = m.ok ? (m.refund ? 'refunded' : 'settled') : 'needs review'; renderRoom(); refreshBalance(); return; }
   if (m.t === 'cancelled') { toast('Match cancelled (' + m.reason + ').' + (room?.players?.some(p => p.deposited) ? ' Deposits are being refunded.' : '')); if (room) room.state = 'cancelled'; renderRoom(); }
   if (m.t === 'left') { room = null; renderRoom(); }
 }
@@ -192,31 +236,44 @@ function setShares(next, hit) {
   }
   const pot = BigInt(next[0]) + BigInt(next[1]);
   if (pot > 0n) { const p = Number(BigInt(next[you]) * 1000n / pot) / 10; q('pvP0').style.width = p + '%'; q('pvP1').style.width = (100 - p) + '%'; q('pvPotTxt').textContent = `Your share ${p.toFixed(1)}% of ${sol(pot, 4)} SOL pot`; }
-  if (hit && snapCur) {
-    const vic = snapCur.f[1 - hit.attacker], att = snapCur.f[hit.attacker], fee = BigInt(hit.fee);
-    pops.push({ x: vic.x, y: vic.y - 70, txt: `-${hit.damage}${hit.eff > 1 ? ' SUPER' : ''}`, col: hit.eff > 1 ? '#f5d488' : '#ffffff', t: 1 });
-    if (fee > 0n) pops.push({ x: att.x, y: att.y - 90, txt: `+${sol(fee, 9)} SOL`, col: '#9ef0c8', t: 1.2 });
-  }
+  if (hit && snapCur) renderer.hit({ attacker: hit.attacker, victim: 1 - hit.attacker, damage: hit.damage, eff: hit.eff, style: hit.style, fee: BigInt(hit.fee) > 0n ? sol(hit.fee, 9) + ' SOL' : null }, snapCur);
 }
 
 function renderRoom() {
   q('pvRoom').hidden = !room; q('pvLobby').hidden = !!room && !['cancelled', 'settled', 'done', 'refunded'].includes(room.state);
-  const live = room?.state === 'live';
-  const stage = q('pvStage'), full = live && !ended;
-  stage.classList.toggle('live', full);
-  if (coarse && full && stage.parentElement !== document.body) { stageHome ??= stage.parentElement; stageNext = stage.nextSibling; document.body.append(stage); }
-  else if (!(coarse && full) && stageHome && stage.parentElement === document.body) stageHome.insertBefore(stage, stageNext);
-  q('pvHud').hidden = !(live || ended); q('pvPot').hidden = !(live || ended) || room?.stake === '0';
-  if (!room) { q('pvOverlay').hidden = false; q('pvBig').textContent = 'Ready to duel'; q('pvSmall').textContent = me ? 'Create a match or join with a code.' : 'Sign in with Phantom to start.'; q('pvOvBtns').innerHTML = ''; return; }
+  const live = room?.state === 'live' || (room && ended);
+  const fainting = ended && performance.now() - (ended.at || 0) < 1800;
+  if (fainting) setTimeout(renderRoom, 1850 - (performance.now() - ended.at));
+  const stage = q('pvStage'), full = !!room && room.state === 'live' && (!ended || fainting) || (!!ended && fainting);
+  stage.classList.toggle('live', !!full);
+  document.documentElement.classList.toggle('pv-battling', !!full);
+  if (full && stage.parentElement !== document.body) { stageHome ??= stage.parentElement; stageNext = stage.nextSibling; document.body.append(stage); }
+  else if (!full && stageHome && stage.parentElement === document.body) stageHome.insertBefore(stage, stageNext);
+  q('pvHud').hidden = !full; q('pvPot').hidden = !full || room?.stake === '0';
+  if (room?.local) {
+    q('pvRoom').hidden = true; q('pvLobby').hidden = false;
+    const ov = q('pvOverlay'), btns = q('pvOvBtns'); ov.hidden = !!full; btns.innerHTML = '';
+    if (room.players.length === 2) { q('pvN0').textContent = room.players[0].monstar.name.toUpperCase(); q('pvN1').textContent = room.players[1].monstar.name.toUpperCase(); }
+    q('pvS0').textContent = ''; q('pvS1').textContent = '';
+    if (ended && !full) {
+      q('pvBig').textContent = ended.winner == null ? 'Draw' : ended.winner === 0 ? 'Victory!' : 'Defeated';
+      q('pvSmall').textContent = `${ended.reason === 'ko' ? 'KO' : 'Time up'} · practice match vs ${room.players[1].monstar.name}`;
+      const again = el('button', { className: 'primary', textContent: 'Rematch' }); again.onclick = startPractice;
+      const back = el('button', { className: 'smallbtn', textContent: 'Change Monstar' }); back.onclick = () => { room = null; local = null; ended = null; snapCur = null; renderRoom(); };
+      btns.append(again, back);
+    }
+    return;
+  }
+  if (!room) { q('pvOverlay').hidden = false; q('pvBig').textContent = 'Ready to battle'; q('pvSmall').textContent = 'Pick a Monstar and tap Practice vs AI, or sign in with Phantom to battle a rival for SOL.'; q('pvOvBtns').innerHTML = ''; return; }
   q('pvCode').textContent = room.code; q('pvRoomState').textContent = room.state;
   q('pvPlayers').innerHTML = [0, 1].map(i => { const p = room.players[i]; return p ? `<div class="pv-player"><b>${esc(p.monstar.name)}</b><small>${i === room.you ? 'You' : 'Rival'} · ${short(p.wallet)}</small><small>${esc(p.monstar.className)} · ${esc(p.monstar.type)}</small>${room.stake !== '0' ? `<span class="pv-chip ${p.deposited ? 'ok' : ''}">${p.deposited ? 'Deposited' : 'Deposit pending'}</span>` : ''}</div>` : '<div class="pv-player"><b>Waiting…</b><small>Share the code</small></div>'; }).join('');
   const myP = room.players[room.you];
   q('pvDeposit').hidden = !(room.state === 'deposit' && myP && !myP.deposited);
   q('pvDeposit').textContent = pendingDeposit?.code === room.code ? 'Check my deposit' : `Deposit ${sol(room.stake, 6)} SOL`;
   q('pvEscrow').innerHTML = room.escrow ? `Escrow: <span class="pv-addr">${esc(room.escrow)}</span>` : 'Free match: no escrow.';
-  if (room.players.length === 2) { q('pvN0').textContent = room.players[room.you].monstar.name; q('pvN1').textContent = room.players[1 - room.you].monstar.name; }
+  if (room.players.length === 2) { q('pvN0').textContent = room.players[room.you].monstar.name.toUpperCase(); q('pvN1').textContent = room.players[1 - room.you].monstar.name.toUpperCase(); }
   const ov = q('pvOverlay'), big = q('pvBig'), small = q('pvSmall'), btns = q('pvOvBtns'); btns.innerHTML = '';
-  ov.hidden = live && !ended;
+  ov.hidden = !!full;
   if (ended) {
     const won = ended.winner === room.you, draw = ended.winner == null;
     big.textContent = draw ? 'Draw' : won ? 'Victory' : 'Defeated';
@@ -224,7 +281,7 @@ function renderRoom() {
     small.innerHTML = room.stake === '0' ? `${ended.reason === 'ko' ? 'KO' : ended.reason === 'time' ? 'Time up' : 'Forfeit'} · free match`
       : st ? (st.ok ? `Paid out on-chain: you receive <b>${sol(st.payouts[room.you], 9)} SOL</b>. Company fee ${st.company} lamport. <a href="${esc(S.explorer(st.signature))}" target="_blank" rel="noopener">View transaction</a>` : `Settlement needs review: ${esc(st.error || st.signature || '')}`)
       : `${draw ? 'Each keeps their share.' : won ? 'You take the pot: ' + sol(ended.shares[room.you], 6) + ' SOL.' : 'Your rival takes the pot.'} Settling on Solana…`;
-    const again = el('button', { className: 'primary', textContent: 'New match' }); again.onclick = () => { room = null; ended = null; snapCur = null; renderRoom(); };
+    const again = el('button', { className: 'primary', textContent: 'New match' }); again.onclick = () => { room = null; ended = null; snapCur = null; renderRoom(); renderer.idle(); };
     btns.append(again);
   } else if (room.state === 'waiting') { big.textContent = room.code; small.textContent = 'Waiting for your rival to join with this code.'; }
   else if (room.state === 'deposit') { big.textContent = 'Deposits'; small.textContent = `Both players deposit ${sol(room.stake, 6)} SOL into the match escrow. The duel starts when both confirm.`; }
@@ -234,9 +291,10 @@ function renderRoom() {
 
 // ---------- input ----------
 const keys = {}, touch = { mx: 0, my: 0, atk: false, sp: false, dash: false, guard: false }; let mouse = null, mouseBtn = { l: false, r: false };
-addEventListener('keydown', e => { if (room?.state !== 'live') return; keys[e.code] = true; if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) e.preventDefault(); });
+addEventListener('keydown', e => { if (room?.state !== 'live') return; if (e.code === 'Escape') return leaveBattle(); keys[e.code] = true; if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) e.preventDefault(); });
 addEventListener('keyup', e => { keys[e.code] = false; });
-const cv = q('pvCanvas'), ctx = cv.getContext('2d');
+const cv = q('pvCanvas');
+const renderer = PA.createRenderer(cv, ARENA);
 cv.addEventListener('mousemove', e => { const r = cv.getBoundingClientRect(); mouse = { x: (e.clientX - r.left) / r.width * ARENA.w, y: (e.clientY - r.top) / r.height * ARENA.h }; });
 cv.addEventListener('mousedown', e => { if (e.button === 2) mouseBtn.r = true; else mouseBtn.l = true; });
 addEventListener('mouseup', e => { if (e.button === 2) mouseBtn.r = false; else mouseBtn.l = false; });
@@ -251,68 +309,41 @@ pvp.querySelectorAll('.pv-btn').forEach(b => { const k = b.dataset.k;
   const up = () => { touch[k] = false; b.classList.remove('on'); }; b.addEventListener('pointerup', up); b.addEventListener('pointercancel', up); });
 
 let lastSent = '', lastSendAt = 0;
-function sendInput() {
-  if (room?.state !== 'live' || !ws || ws.readyState !== 1 || !snapCur) return;
+function currentInput() {
+  if (!snapCur) return {};
   let mx = (keys.KeyD || keys.ArrowRight ? 1 : 0) - (keys.KeyA || keys.ArrowLeft ? 1 : 0), my = (keys.KeyS || keys.ArrowDown ? 1 : 0) - (keys.KeyW || keys.ArrowUp ? 1 : 0);
   if (Math.abs(touch.mx) > 0.12 || Math.abs(touch.my) > 0.12) { mx = touch.mx; my = touch.my; }
   const meF = snapCur.f[room.you], foe = snapCur.f[1 - room.you];
   let ax, ay;
   if (mouse && !coarse) { ax = mouse.x - meF.x; ay = mouse.y - meF.y; } else { ax = foe.x - meF.x; ay = foe.y - meF.y; } // touch: auto-aim at rival
   const i = { mx, my, ax, ay, atk: !!(keys.KeyJ || mouseBtn.l || touch.atk), sp: !!(keys.KeyK || mouseBtn.r || touch.sp), dash: !!(keys.Space || touch.dash), guard: !!(keys.KeyL || touch.guard) };
-  const s = JSON.stringify(i), now = performance.now();
+  return i;
+}
+function sendInput() {
+  if (room?.local || room?.state !== 'live' || !ws || ws.readyState !== 1 || !snapCur) return;
+  const i = currentInput(), s = JSON.stringify(i), now = performance.now();
   if (s !== lastSent || now - lastSendAt > 200) { ws.send(JSON.stringify({ t: 'input', i })); lastSent = s; lastSendAt = now; }
 }
 setInterval(sendInput, 50);
 
-// ---------- render ----------
-const TYPE_COL = { EMBER: '#ff8a4a', GROVE: '#7ed37a', TIDE: '#5ec2ff', SPARK: '#ffe14a', SHADE: '#b98cff', STONE: '#cdb38a', FROST: '#c6f1ff', ASTRAL: '#ffd97a' };
-function lerp(a, b, t) { return a + (b - a) * t; }
-function drawGround() {
-  const g = ctx.createRadialGradient(480, 270, 60, 480, 270, 560); g.addColorStop(0, '#2f4a35'); g.addColorStop(1, '#16241b');
-  ctx.fillStyle = g; ctx.fillRect(0, 0, ARENA.w, ARENA.h);
-  ctx.strokeStyle = '#ffffff14'; ctx.lineWidth = 2; ctx.strokeRect(18, 18, ARENA.w - 36, ARENA.h - 36);
-  ctx.beginPath(); ctx.moveTo(480, 18); ctx.lineTo(480, ARENA.h - 18); ctx.stroke();
-  ctx.beginPath(); ctx.arc(480, 270, 110, 0, Math.PI * 2); ctx.stroke();
-  for (const r of ARENA.rocks) {
-    ctx.fillStyle = '#0005'; ctx.beginPath(); ctx.ellipse(r.x + 6, r.y + 10, r.r, r.r * 0.6, 0, 0, Math.PI * 2); ctx.fill();
-    const rg = ctx.createRadialGradient(r.x - r.r / 3, r.y - r.r / 3, 4, r.x, r.y, r.r); rg.addColorStop(0, '#a9a08a'); rg.addColorStop(1, '#5b5546');
-    ctx.fillStyle = rg; ctx.beginPath(); ctx.arc(r.x, r.y, r.r, 0, Math.PI * 2); ctx.fill();
-  }
-}
-function drawFighter(f, prev, t, idx, mon) {
-  const x = prev ? lerp(prev.x, f.x, t) : f.x, y = prev ? lerp(prev.y, f.y, t) : f.y;
-  const img = art[f.s], hue = mon?.traits?.hue || 0, flip = f.fx < 0;
-  ctx.fillStyle = '#0006'; ctx.beginPath(); ctx.ellipse(x, y + 34, 38, 10, 0, 0, Math.PI * 2); ctx.fill();
-  const ring = idx === room?.you ? '#dfff84' : '#ff7b6b'; ctx.strokeStyle = ring; ctx.lineWidth = 3; ctx.beginPath(); ctx.ellipse(x, y + 34, 42, 12, 0, 0, Math.PI * 2); ctx.stroke();
-  ctx.save(); if (f.i) ctx.globalAlpha = 0.45; ctx.translate(x, y + Math.sin(performance.now() / 200 + idx) * 2); if (flip) ctx.scale(-1, 1);
-  ctx.filter = `hue-rotate(${hue}deg)`;
-  if (img?.complete && img.naturalWidth) { const ratio = img.naturalWidth / img.naturalHeight, h = 120, w = h * ratio; ctx.drawImage(img, -w / 2, 38 - h, w, h); }
-  else { ctx.fillStyle = Monstars.SPECIES[f.s].color; ctx.beginPath(); ctx.arc(0, -10, 32, 0, Math.PI * 2); ctx.fill(); }
-  ctx.restore(); ctx.filter = 'none';
-  if (f.g) { ctx.strokeStyle = '#f5d488'; ctx.lineWidth = 4; ctx.globalAlpha = 0.7; ctx.beginPath(); ctx.arc(x, y - 10, 58, 0, Math.PI * 2); ctx.stroke(); ctx.globalAlpha = 1; }
-  const ax = x + f.fx * 62, ay = y - 10 + f.fy * 62, a = Math.atan2(f.fy, f.fx);
-  ctx.fillStyle = ring; ctx.beginPath(); ctx.moveTo(ax + Math.cos(a) * 10, ay + Math.sin(a) * 10); ctx.lineTo(ax + Math.cos(a + 2.5) * 9, ay + Math.sin(a + 2.5) * 9); ctx.lineTo(ax + Math.cos(a - 2.5) * 9, ay + Math.sin(a - 2.5) * 9); ctx.fill();
-}
-let lastFrame = performance.now();
+// ---------- render (pixel arena) ----------
+function hpColor(p) { return p > 0.5 ? '#58d858' : p > 0.2 ? '#f8c838' : '#f85838'; }
 function draw() {
-  const now = performance.now(), dt = Math.min(0.05, (now - lastFrame) / 1000); lastFrame = now;
-  drawGround();
+  const now = performance.now();
   if (snapCur && room?.players?.length === 2) {
-    const t = Math.min(1, (now - snapAt) / 66);
-    snapCur.f.forEach((f, i) => drawFighter(f, snapPrev?.f[i], t, i, room.players[i].monstar));
-    for (const p of snapCur.p) {
-      const pp = snapPrev?.p.find(o => o.id === p.id), x = pp ? lerp(pp.x, p.x, t) : p.x, y = pp ? lerp(pp.y, p.y, t) : p.y, col = TYPE_COL[p.ty] || '#fff';
-      ctx.fillStyle = col; ctx.shadowColor = col; ctx.shadowBlur = 16; ctx.beginPath(); ctx.arc(x, y - 10, p.r, 0, Math.PI * 2); ctx.fill(); ctx.shadowBlur = 0;
-      ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(x, y - 10, p.r * 0.4, 0, Math.PI * 2); ctx.fill();
+    const t = Math.min(1, (now - snapAt) / (room.local ? 34 : 66)), you = room.you;
+    const faint = [0, 0];
+    if (ended && ended.winner != null) faint[1 - ended.winner] = Math.min(1, (now - (ended.at || now)) / 1200);
+    renderer.draw(snapPrev, snapCur, t, { you, snapAt, hues: room.players.map(p => p.monstar.traits?.hue || 0), types: room.players.map(p => p.monstar.type), faint });
+    const meF = snapCur.f[you], foe = snapCur.f[1 - you];
+    for (const [k, f] of [[0, meF], [1, foe]]) {
+      const p = Math.max(0, f.hp / f.max), bar = q('pvH' + k);
+      bar.style.width = (p * 100) + '%'; bar.style.background = hpColor(p);
+      q('pvE' + k).style.width = f.en + '%'; q('pvHN' + k).textContent = `${Math.ceil(Math.max(0, f.hp))}/${f.max}`;
     }
-    const you = snapCur.f[room.you], foe = snapCur.f[1 - room.you];
-    q('pvH0').style.width = (you.hp / you.max * 100) + '%'; q('pvH1').style.width = (foe.hp / foe.max * 100) + '%';
-    q('pvE0').style.width = you.en + '%'; q('pvE1').style.width = foe.en + '%';
     q('pvClock').textContent = Math.max(0, Math.ceil(ARENA.roundSeconds - snapCur.t));
-    ctx.font = '700 22px "Space Grotesk", sans-serif'; ctx.textAlign = 'center';
-    for (const p of pops) { p.t -= dt; p.y -= 40 * dt; ctx.globalAlpha = Math.max(0, Math.min(1, p.t * 2)); ctx.fillStyle = '#000'; ctx.fillText(p.txt, p.x + 2, p.y + 2); ctx.fillStyle = p.col; ctx.fillText(p.txt, p.x, p.y); }
-    ctx.globalAlpha = 1; pops = pops.filter(p => p.t > 0);
-  }
+    q('pvAtkBtn').classList.toggle('cool', meF.cd.b > 0); q('pvSpBtn').classList.toggle('cool', meF.cd.s > 0 || meF.en < 40);
+  } else renderer.idle();
   if (!pvp.classList.contains('hidden') || q('pvStage').classList.contains('live')) requestAnimationFrame(draw);
 }
 
@@ -359,7 +390,22 @@ function renderMineMarket() {
 q('pvMkRefresh').onclick = refreshMarket;
 
 // boot
-renderRoom(); drawGround();
+renderRoom(); PA.onReady(() => { renderPicker(); renderer.idle(); });
+renderPicker();
+// Adventure tab: hide the team strip and show its attack buttons only while a run is active.
+setInterval(() => { try { document.body.classList.toggle('pm-active', !!active); } catch {} }, 250);
+// Pixel sprites for the Adventure tab too (same look as the Arena).
+try {
+  const baseMon = mon;
+  mon = function (c, id, x, y, scale = 3, t = 0, flip = false) {
+    let hue = 0; try { hue = identity(id).hue * 0.4; } catch {}
+    const spr = PA.sprite(id, Math.round(hue)); if (!spr) return baseMon(c, id, x, y, scale, t, flip);
+    const k = Math.max(1, Math.round(scale * 0.9)), w = spr.width * k, h = spr.height * k, bottom = y + scale * 12, bob = (Math.floor(t * 2.6) % 2) ? -k : 0;
+    c.save(); c.imageSmoothingEnabled = false; c.globalAlpha *= 0.25; c.fillStyle = '#081b16'; c.beginPath(); c.ellipse(x, bottom, w * 0.3, Math.max(3, scale * 2), 0, 0, Math.PI * 2); c.fill(); c.globalAlpha /= 0.25;
+    c.translate(Math.round(x), Math.round(bottom + bob)); if (flip) c.scale(-1, 1); c.drawImage(spr, -Math.round(w / 2), -h, w, h); c.restore();
+  };
+} catch {}
+if (!location.hash || location.hash === '#arena') tab('pvp');
 if (S.session()) afterSignIn();
 window.phantom?.solana?.on?.('accountChanged', () => { if (!S.session()) { me = null; mine = []; q('pvWallet').textContent = 'Wallet changed. Sign in again.'; q('pvSignIn').textContent = 'Connect Phantom & sign in'; } });
 })();

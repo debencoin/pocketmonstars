@@ -9,7 +9,8 @@ import { toWeb3JsInstruction } from '@metaplex-foundation/umi-web3js-adapters';
 import { mplCore, fetchAsset, addPlugin, approvePluginAuthority } from '@metaplex-foundation/mpl-core';
 import * as Monstars from '../shared/monstars.mjs';
 import * as Stake from '../shared/stake.mjs';
-import { ARENA } from '../shared/sim.mjs';
+import * as Sim from '../shared/sim.mjs';
+const { ARENA } = Sim;
 globalThis.Buffer ??= Buffer;
 
 const RPC = 'https://api.devnet.solana.com';
@@ -123,4 +124,4 @@ export async function deposit() {
 export const explorer = sig => `https://explorer.solana.com/tx/${sig}?cluster=devnet`;
 
 if (typeof window !== 'undefined') window.PMStake = { signIn, session, balance, getConfig, myMonstars, mint, syncOwner, listings, list, cancelListing, buy,
-  connectSocket, deposit, explorer, phantomBrowseLink, Monstars, Stake, ARENA };
+  connectSocket, deposit, explorer, phantomBrowseLink, Monstars, Stake, ARENA, Sim };

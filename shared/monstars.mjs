@@ -74,15 +74,15 @@ export const CLASSES = [Striker, Warden, Skirmisher, Ranger, Mystic, Sentinel, A
 
 // ---------- Species (order matches dist/art and the existing game) ----------
 export const SPECIES = [
-  { id: 0, name: 'Cindercub', type: 'EMBER', art: 'cindercub', cls: Striker, move: 'Ember volley', special: 'Inferno bloom', color: '#ec975b' },
-  { id: 1, name: 'Mossprout', type: 'GROVE', art: 'mossprout', cls: Warden, move: 'Vine lash', special: 'Ancient roots', color: '#a7c76d' },
-  { id: 2, name: 'Ripplefin', type: 'TIDE', art: 'ripplefin', cls: Skirmisher, move: 'Tidal pulse', special: 'Maelstrom', color: '#7dc8d4' },
-  { id: 3, name: 'Voltwing', type: 'SPARK', art: 'voltwing', cls: Ranger, move: 'Arc flash', special: 'Thunder crown', color: '#e4cc68' },
-  { id: 4, name: 'Duskhorn', type: 'SHADE', art: 'duskhorn', cls: Mystic, move: 'Dusk bolt', special: 'Eclipse fall', color: '#b8a1d5' },
-  { id: 5, name: 'Pebblit', type: 'STONE', art: 'pebblit', cls: Sentinel, move: 'Stone barrage', special: 'Meteor break', color: '#bbb19a' },
-  { id: 6, name: 'Frostuft', type: 'FROST', art: 'frostuft', cls: Arcanist, move: 'Frost lance', special: 'Polar nova', color: '#b8dce8' },
-  { id: 7, name: 'Bloomtail', type: 'GROVE', art: 'bloomtail', cls: Support, move: 'Petal storm', special: 'Spring eruption', color: '#e5a4b8' },
-  { id: 8, name: 'Soloryx', type: 'ASTRAL', art: 'soloryx', cls: Titan, move: 'Solar ray', special: 'Supernova', color: '#e9c779' },
+  { id: 0, name: 'Cindercub', type: 'EMBER', art: 'cindercub', cls: Striker, move: 'Ember volley', special: 'Inferno bloom', basicStyle: 'projectile', specialStyle: 'cone', color: '#ec975b' },
+  { id: 1, name: 'Mossprout', type: 'GROVE', art: 'mossprout', cls: Warden, move: 'Vine lash', special: 'Ancient roots', basicStyle: 'whip', specialStyle: 'strike', color: '#a7c76d' },
+  { id: 2, name: 'Ripplefin', type: 'TIDE', art: 'ripplefin', cls: Skirmisher, move: 'Tidal pulse', special: 'Maelstrom', basicStyle: 'projectile', specialStyle: 'beam', color: '#7dc8d4' },
+  { id: 3, name: 'Voltwing', type: 'SPARK', art: 'voltwing', cls: Ranger, move: 'Arc flash', special: 'Thunder crown', basicStyle: 'bolt', specialStyle: 'strike', color: '#e4cc68' },
+  { id: 4, name: 'Duskhorn', type: 'SHADE', art: 'duskhorn', cls: Mystic, move: 'Dusk bolt', special: 'Eclipse fall', basicStyle: 'projectile', specialStyle: 'strike', color: '#b8a1d5' },
+  { id: 5, name: 'Pebblit', type: 'STONE', art: 'pebblit', cls: Sentinel, move: 'Stone barrage', special: 'Meteor break', basicStyle: 'projectile', specialStyle: 'strike', color: '#bbb19a' },
+  { id: 6, name: 'Frostuft', type: 'FROST', art: 'frostuft', cls: Arcanist, move: 'Frost lance', special: 'Polar nova', basicStyle: 'projectile', specialStyle: 'beam', color: '#b8dce8' },
+  { id: 7, name: 'Bloomtail', type: 'GROVE', art: 'bloomtail', cls: Support, move: 'Petal storm', special: 'Spring eruption', basicStyle: 'projectile', specialStyle: 'strike', color: '#e5a4b8' },
+  { id: 8, name: 'Soloryx', type: 'ASTRAL', art: 'soloryx', cls: Titan, move: 'Solar ray', special: 'Supernova', basicStyle: 'bolt', specialStyle: 'beam', color: '#e9c779' },
 ];
 
 // ---------- DNA traits ----------
