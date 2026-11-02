@@ -37,9 +37,11 @@ export const STATUS = Object.freeze({
   lift: { label: 'LEVITATED', dur: 1.7, stop: true, act: true, lift: true },
   soak: { label: 'SWEPT AWAY', dur: 1.5, slow: 0.55, push: 1.8 },
   dazzle: { label: 'DAZZLED', dur: 2.0, slow: 0.7, fail: 0.25 },
+  weaken: { label: 'CURSED', dur: 3.5, out: 0.65 },     // Anunnaki curse: deals 35% less damage
+  mark: { label: 'WATCHED', dur: 3.5, in: 1.25 },       // Watcher's gaze: takes 25% more damage
 });
 export const TYPE_STATUS = Object.freeze({ SPARK: 'paralyze', FROST: 'freeze', EMBER: 'burn', DRACO: 'burn', VENOM: 'poison', GROVE: 'root',
-  STONE: 'stun', STEEL: 'stun', SHADE: 'confuse', PSYCHIC: 'lift', TIDE: 'soak', GALE: 'soak', ASTRAL: 'dazzle' });
+  STONE: 'stun', STEEL: 'stun', SHADE: 'confuse', PSYCHIC: 'lift', TIDE: 'soak', GALE: 'soak', ASTRAL: 'dazzle', ANCIENT: 'weaken', WATCHER: 'mark' });
 export const ULT_GAIN = 1.4; // ULT meter per point of damage dealt (and 0.6 per point taken); a full meter powers up the next special
 export const BATTLE_HP = 1.7; // battle HP multiplier so a fight lasts close to the full minute
 export const PICKUP = Object.freeze({ every: 14, heal: 0.2, r: 34, life: 12 });
@@ -173,6 +175,8 @@ function damageFor(att, vic, kind, style, powerOverride) {
   const crit = Math.random() < 0.08;
   let d = (powerOverride ?? STYLES[style].power) * (1 + (att.level - 1) * 0.03) * Math.sqrt(A / D) * eff * att.mods.damage * vic.mods.taken * DAMAGE_SCALE;
   if (kind === 'special' && att.ultOn) d *= 1.7;
+  if (att.status) d *= STATUS[att.status.k].out || 1;
+  if (vic.status) d *= STATUS[vic.status.k].in || 1;
   if (crit) d *= 1.5;
   if (vic.guardT > 0) d *= 0.3;
   return { damage: Math.max(1, Math.round(d)), eff, crit };
@@ -197,7 +201,9 @@ function land(m, att, vic, kind, style, events, dirx, diry, knock = 90, power) {
   const push = vic.status && STATUS[vic.status.k].push || 1;
   const kb = knock * vic.mods.knockback * push; vic.vx += dirx * kb; vic.vy += diry * kb;
   const exp = Math.max(1, Math.round(damage * EXP_RULES.perDamage * (crit ? EXP_RULES.critBonus : 1)));
-  events.push({ type: 'hit', attacker: att.side, victim: vic.side, damage, kind, style, eff, crit, exp, victimMaxHp: vic.teamMax || vic.maxHp });
+  const pw = (power ?? STYLES[style].power) * (kind === 'special' && att.ultOn ? 1.7 : 1);
+  events.push({ type: 'hit', attacker: att.side, victim: vic.side, damage, kind, style, eff, crit, exp, victimMaxHp: vic.teamMax || vic.maxHp,
+    lvl: att.level, atk: kind === 'special' ? att.stats.spAttack : att.stats.attack, pw }); // lvl/atk/pw size the SOL moved (hitFee)
   gainExp(m, att, exp, events);
   return true;
 }
@@ -323,7 +329,7 @@ export function step(m, realDt = TICK) {
     if (st) {
       st.t -= dt;
       if (SS.dot) { st.acc += f.maxHp * SS.dot * dt; if (st.acc >= 2) { const dmg = Math.min(Math.floor(st.acc), Math.max(0, Math.ceil(f.hp) - 1)); st.acc -= Math.floor(st.acc);
-        if (dmg > 0) { f.hp -= dmg; const src = m.fighters[st.src]; events.push({ type: 'hit', attacker: st.src, victim: f.side, damage: dmg, kind: 'status', style: st.k, eff: 1, crit: false, exp: 0, victimMaxHp: f.teamMax || f.maxHp }); if (src) src.ult = Math.min(100, src.ult + dmg * 0.5); } } }
+        if (dmg > 0) { f.hp -= dmg; const src = m.fighters[st.src]; events.push({ type: 'hit', attacker: st.src, victim: f.side, damage: dmg, kind: 'status', style: st.k, eff: 1, crit: false, exp: 0, victimMaxHp: f.teamMax || f.maxHp, lvl: src?.level || 1, atk: src?.stats.spAttack || 80, pw: 6 }); if (src) src.ult = Math.min(100, src.ult + dmg * 0.5); } } }
       if (SS.lift) { // carried around in the air by psychic force, can't do anything
         st.ph += dt * 4.2; const holder = m.fighters[st.src];
         const cx = holder ? (st.ax + (holder.x + holder.fx * 160 - st.ax) * Math.min(1, (st.max - st.t) * 0.8)) : st.ax;

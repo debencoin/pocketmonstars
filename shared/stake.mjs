@@ -4,8 +4,9 @@
 // How a staked 1v1 works:
 //  - Both players deposit the same stake S into a match escrow. Pot = 2S.
 //  - Each player's live "share" of the pot starts at S.
-//  - Every landed hit moves lamports from the victim's share to the attacker's share,
-//    proportional to the damage: fee = S * damage / victimMaxHp (at least 1 lamport).
+//  - Every landed hit moves a tiny amount from the victim's share to the attacker's share, sized by how
+//    strong the attacker is (see hitFee): about 0.0000003 SOL for a Lv1 jab, up to 0.00001 SOL for a
+//    high-level Ultimate. Stronger, more developed Monstars take more per hit.
 //  - A KO moves the loser's remaining share to the winner, so the winner takes the whole pot.
 //  - Settlement is ONE on-chain transaction from the escrow; it pays the network fee from the pot,
 //    a 1-lamport company fee, and the rest to the players by their final shares.
@@ -40,6 +41,20 @@ export function validateStake(stake, policy = STAKE_POLICY) {
   return stake;
 }
 
+/**
+ * SOL moved by one hit, in lamports. It grows with the attacker's level (1-80+), its attack stat for that
+ * move, and how heavy the move is (basic, special, Ultimate, crit). Damage over time moves half as much.
+ * Range: 100 lamports (0.0000001 SOL) to 10,000 lamports (0.00001 SOL).
+ */
+export const HIT_FEE = Object.freeze({ base: 400, perLevel: 60, min: 100, max: 10_000 });
+export function hitFee({ level = 1, attack = 80, power = 9, crit = false, dot = false } = {}) {
+  const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
+  const lv = HIT_FEE.base + HIT_FEE.perLevel * (Math.max(1, level) - 1);
+  const attr = clamp(Math.sqrt(Math.max(1, attack) / 80), 0.7, 1.4);
+  const pw = clamp(power / 12, 0.5, 2.2) * (crit ? 1.5 : 1) * (dot ? 0.5 : 1);
+  return BigInt(clamp(Math.round(lv * attr * pw), HIT_FEE.min, HIT_FEE.max));
+}
+
 /** Live pot ledger for one match. Shares always sum to the pot. */
 export class StakeLedger {
   constructor(stake, policy = STAKE_POLICY) {
@@ -51,12 +66,14 @@ export class StakeLedger {
     this.events = [];
   }
   /** Attacker index lands `damage` on victim with `victimMaxHp`. Returns lamports moved. */
-  hit(attacker, damage, victimMaxHp) {
+  /** Pass the hit event from the simulation; the amount comes from hitFee (or an explicit `fee`). */
+  hit(attacker, damage, victimMaxHp, ev = null) {
     if (attacker !== 0 && attacker !== 1) throw Error('Bad attacker');
     const victim = 1 - attacker;
     this.hits[attacker]++;
     if (this.stake === 0n || damage <= 0) return 0n;
-    let fee = this.stake * BigInt(Math.round(damage * 1000)) / (BigInt(Math.round(victimMaxHp)) * 1000n);
+    let fee = ev ? hitFee({ level: ev.lvl, attack: ev.atk, power: ev.pw, crit: ev.crit, dot: ev.kind === 'status' })
+      : this.stake * BigInt(Math.round(damage * 1000)) / (BigInt(Math.round(victimMaxHp)) * 1000n);
     if (fee < this.policy.minHitFee) fee = this.policy.minHitFee;
     if (fee > this.shares[victim]) fee = this.shares[victim];
     this.shares[victim] -= fee;

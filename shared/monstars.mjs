@@ -1,4 +1,4 @@
-import { FRONTIER, MYTHIC, TIERS } from './frontier.mjs';
+import { FRONTIER, MYTHIC, ANUNNAKI, WATCHERS, TIERS } from './frontier.mjs';
 // PocketMonstars species, classes, evolution stages, EXP and DNA traits.
 // Pure ES module: runs in the browser (rendering) and in Node (authoritative server).
 // The server derives DNA; this file only turns a DNA hex string into traits and stats.
@@ -12,8 +12,10 @@ export const TYPE_CHART = {
   PSYCHIC: ['STONE', 'EMBER', 'VENOM'],
   // Frontier types
   VENOM: ['GROVE', 'TIDE'], STEEL: ['FROST', 'STONE'], GALE: ['GROVE', 'VENOM'], DRACO: ['DRACO', 'STEEL'],
+  // Anunnaki and Watcher types
+  ANCIENT: ['DRACO', 'STEEL', 'WATCHER'], WATCHER: ['SHADE', 'PSYCHIC', 'ANCIENT'],
 };
-TYPE_CHART.EMBER.push('STEEL'); TYPE_CHART.SPARK.push('GALE', 'STEEL');
+TYPE_CHART.EMBER.push('STEEL'); TYPE_CHART.SPARK.push('GALE', 'STEEL'); TYPE_CHART.ASTRAL.push('ANCIENT'); TYPE_CHART.SHADE.push('WATCHER');
 export function effectiveness(attackType, defendType) {
   if (TYPE_CHART[attackType]?.includes(defendType)) return 1.5;
   if (TYPE_CHART[defendType]?.includes(attackType)) return 0.7;
@@ -121,6 +123,8 @@ export const COLLECTIONS = {
   bred: { name: 'Bred', note: 'Infants hatched by breeding two players\' Monstars.' },
   frontier: { name: 'Frontier', note: 'Fifty wild Monstars caught in the Wild Expedition. Rarer ones are stronger.' },
   mythic: { name: 'Mythic', note: 'Three angels and a god. Very rare in the wild and very hard to beat.' },
+  anunnaki: { name: 'Anunnaki', note: 'Twenty ancient sky lords, winged genies and guardians from Mesopotamian myth.' },
+  watchers: { name: 'Watchers', note: 'Twenty many-eyed, many-winged sentinels of the sky, from the Book of Enoch.' },
 };
 export const SPECIES = [
   { id: 0, name: 'Cindercub', type: 'EMBER', art: 'cindercub', cls: Striker, move: 'Ember volley', special: 'Inferno bloom', basicStyle: 'projectile', specialStyle: 'cone', motion: 'pounce', collection: 'genesis', color: '#ec975b' },
@@ -135,15 +139,19 @@ export const SPECIES = [
   { id: 9, name: 'Seraphon', type: 'ASTRAL', art: 'seraphon', cls: Seraph, move: 'Holy lance', special: 'Heaven\'s judgment', basicStyle: 'bolt', specialStyle: 'strike', motion: 'hover', collection: 'legendary', legendary: true, color: '#f4f0ff' },
   { id: 10, name: 'Psyvolt', type: 'PSYCHIC', art: 'psyvolt', cls: Psion, move: 'Psy orb', special: 'Levitation storm', basicStyle: 'projectile', specialStyle: 'levitate', motion: 'hover', collection: 'legendary', legendary: true, color: '#c9a6ff' },
 ];
-for (const [list, coll] of [[FRONTIER, 'frontier'], [MYTHIC, 'mythic']]) for (const f of list) {
+for (const [list, coll] of [[FRONTIER, 'frontier'], [MYTHIC, 'mythic'], [ANUNNAKI, 'anunnaki'], [WATCHERS, 'watchers']]) for (const f of list) {
   SPECIES.push({ id: SPECIES.length, name: f.name, type: f.type, art: f.name.toLowerCase(), cls: CLASS_BY_ID[f.cls], move: f.move, special: f.special,
-    basicStyle: f.basicStyle, specialStyle: f.specialStyle, motion: f.motion, collection: coll, tier: f.tier, mythic: coll === 'mythic' || undefined, color: f.look.main });
+    basicStyle: f.basicStyle, specialStyle: f.specialStyle, motion: f.motion, collection: coll, tier: f.tier, mythic: ['Mythic', 'Divine'].includes(f.tier) || undefined, color: f.look.main });
 }
 export { TIERS };
 export const GENESIS_IDS = SPECIES.filter(s => s.collection === 'genesis').map(s => s.id);
 export const FRONTIER_IDS = SPECIES.filter(s => s.collection === 'frontier').map(s => s.id);
 export const MYTHIC_IDS = SPECIES.filter(s => s.collection === 'mythic').map(s => s.id);
-export const WILD_IDS = [...FRONTIER_IDS, ...MYTHIC_IDS];
+export const ANUNNAKI_IDS = SPECIES.filter(s => s.collection === 'anunnaki').map(s => s.id);
+export const WATCHER_IDS = SPECIES.filter(s => s.collection === 'watchers').map(s => s.id);
+// Genesis species roam the wild too, so players can catch the ones they didn't start with.
+for (const id of GENESIS_IDS) SPECIES[id].tier = 'Uncommon';
+export const WILD_IDS = [...GENESIS_IDS, ...FRONTIER_IDS, ...MYTHIC_IDS, ...ANUNNAKI_IDS, ...WATCHER_IDS];
 /** Weighted random wild species (rarer tiers show up less often). `rand` is 0..1. */
 export function rollWild(rand = Math.random()) {
   const total = WILD_IDS.reduce((t, id) => t + TIERS[SPECIES[id].tier].weight / tierCount(SPECIES[id].tier), 0);

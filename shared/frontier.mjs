@@ -78,6 +78,56 @@ export const MYTHIC = [
   F('Aeonox', 'ASTRAL', 'deity', 'Creation ray', 'Genesis judgment', 'bolt', 'strike', 'hover', 'god', '#fff8e0', '#ffffff', '#ffd23f', { wings: 6 }),
 ];
 
+// Anunnaki collection: 20 Monstars inspired by the Anunnaki of ancient Mesopotamian myth
+// (sky lords, winged genies, bull-men guardians, fish-cloaked sages, storm and chaos dragons).
+export const ANUNNAKI = [
+  F('Anuvax', 'ANCIENT', 'deity', 'Sky decree', 'Heaven\'s tablet', 'bolt', 'beam', 'hover', 'god', '#ffd97a', '#ffffff', '#2a4ab0', { wings: 4, crown: 'horned' }),
+  F('Enlilor', 'GALE', 'seraph', 'Wind edict', 'Great storm', 'projectile', 'beam', 'hover', 'genie', '#e0d0a0', '#fff6e0', '#2a4ab0', { head: 'human', wings: 4, crown: 'horned' }),
+  F('Enkiryn', 'TIDE', 'arcanist', 'Abzu spring', 'Deep waters', 'projectile', 'beam', 'glide', 'fishman', '#3a8ac8', '#f0e0c0', '#ffd23f', { crown: 'horned' }),
+  F('Inannox', 'ASTRAL', 'striker', 'Morning star', 'Descent of light', 'bolt', 'strike', 'pounce', 'genie', '#f0a8c8', '#fff0f6', '#ffd23f', { head: 'human', wings: 2, crown: 'star' }),
+  F('Utuflare', 'EMBER', 'titan', 'Sun saw', 'Noon judgment', 'projectile', 'cone', 'charge', 'lamassu', '#f0a030', '#fff0c0', '#ff6a1f', { crown: 'sun' }),
+  F('Nannamoth', 'ASTRAL', 'mystic', 'Crescent dust', 'Moon tide', 'projectile', 'beam', 'hover', 'bug', '#a8b8f0', '#f0f4ff', '#ffd97a', { wings: 'moth', antennae: true, pattern: 'stars' }),
+  F('Marduzar', 'SPARK', 'titan', 'Storm mace', 'Fifty names', 'bolt', 'strike', 'stomp', 'genie', '#3a5ab0', '#f0e0c0', '#ffe14a', { head: 'human', wings: 2, crown: 'horned', weapon: 'bolt' }),
+  F('Tiamaw', 'DRACO', 'arcanist', 'Chaos bite', 'Primordial sea', 'projectile', 'beam', 'glide', 'serpent', '#2a6a7a', '#c8f0e0', '#c040e0', { back: 'spikes', horns: 'curved' }),
+  F('Ninhurra', 'GROVE', 'support', 'Mountain bloom', 'Mother earth', 'whip', 'strike', 'prance', 'plant', '#6a9a3a', '#f8f0d0', '#c89a40', { top: 'lily' }),
+  F('Lamassor', 'STONE', 'sentinel', 'Gate stomp', 'Palace guard', 'projectile', 'strike', 'stomp', 'lamassu', '#c8b090', '#f0e6d0', '#2a4ab0', { crown: 'horned' }),
+  F('Shedulon', 'STEEL', 'warden', 'Bronze hoof', 'Threshold ward', 'whip', 'strike', 'stomp', 'lamassu', '#b0884a', '#f0d8a8', '#3a8ac8', { crown: 'cap' }),
+  F('Apkalith', 'TIDE', 'support', 'Sage blessing', 'Seven sages', 'projectile', 'beam', 'stomp', 'fishman', '#5aa8c8', '#e8e0c8', '#c89a40', { crown: 'none' }),
+  F('Anzurok', 'GALE', 'ranger', 'Talon gust', 'Tablet theft', 'projectile', 'beam', 'dart', 'bird', '#8a5a2e', '#f0d8a8', '#e04a2a', { crest: 'long', tail: 'fork', head: 'lion' }),
+  F('Humbaroth', 'GROVE', 'sentinel', 'Cedar roar', 'Forest warden', 'whip', 'strike', 'stomp', 'golem', '#6a7a3a', '#c8b888', '#e04a2a', { top: 'mask', back: 'leaves' }),
+  F('Pazuzar', 'SHADE', 'mystic', 'Plague wind', 'Southwest gale', 'projectile', 'cone', 'hover', 'genie', '#5a4a3a', '#c8b898', '#a040e0', { head: 'beast', wings: 4, crown: 'horned' }),
+  F('Mushussar', 'DRACO', 'striker', 'Serpent claw', 'Gate of Ishtar', 'projectile', 'cone', 'pounce', 'quad', '#2a5ab0', '#ffd97a', '#ffd23f', { horns: 'curved', tail: 'spike', back: 'plates', pattern: 'diamonds', ears: 'none' }),
+  F('Nergalith', 'VENOM', 'striker', 'Fever touch', 'Underworld plague', 'projectile', 'cone', 'stomp', 'biped', '#6a3a2a', '#d8c0a0', '#9ad040', { horns: 'two', tail: 'thick', pattern: 'spots' }),
+  F('Ereshkyl', 'SHADE', 'arcanist', 'Seven gates', 'Land of no return', 'projectile', 'strike', 'blink', 'floater', '#2a1e3a', '#8a7ab0', '#c89a40', { tentacles: 4, top: 'wisp' }),
+  F('Nabuscribe', 'PSYCHIC', 'arcanist', 'Clay tablet', 'Written fate', 'projectile', 'beam', 'blink', 'genie', '#c8a878', '#fff0d8', '#8a4ae0', { head: 'human', wings: 2, crown: 'cap', weapon: 'tablet' }),
+  F('Ziggurok', 'ANCIENT', 'sentinel', 'Brick toss', 'Temple rise', 'projectile', 'strike', 'stomp', 'golem', '#c8a060', '#f0dcb0', '#2a4ab0', { top: 'ziggurat' }),
+];
+
+// Watchers collection: 20 Monstars inspired by the Watchers (Grigori) of the Book of Enoch:
+// many-eyed, many-winged sky sentinels, fallen teachers of the stars, and their giant offspring.
+export const WATCHERS = [
+  F('Semyazar', 'WATCHER', 'deity', 'Oath of Hermon', 'Two hundred eyes', 'bolt', 'beam', 'hover', 'ophan', '#f0e8ff', '#ffffff', '#ffd23f', { rings: 3 }),
+  F('Azazelith', 'SHADE', 'seraph', 'Forged blade', 'Desert exile', 'whip', 'strike', 'hover', 'angel', '#4a3a5a', '#d8c8e0', '#ff6a1f', { wings: 4, robe: '#2a1e3a', weapon: 'sword', fallen: true }),
+  F('Armarok', 'PSYCHIC', 'mystic', 'Spell knot', 'Enchantment', 'projectile', 'beam', 'hover', 'angel', '#c8b0f0', '#ffffff', '#8a4ae0', { wings: 2, robe: '#6a4ab0', weapon: 'staff' }),
+  F('Baraqion', 'SPARK', 'ranger', 'Lightning sign', 'Storm reading', 'bolt', 'strike', 'hover', 'angel', '#f0e0a0', '#ffffff', '#ffe14a', { wings: 4, robe: '#3a5ab0', weapon: 'bolt' }),
+  F('Kokabyx', 'ASTRAL', 'arcanist', 'Star chart', 'Constellation', 'bolt', 'beam', 'hover', 'seer', '#2a2a6a', '#e0e0ff', '#ffd23f', { eyes: 7, wings: 2 }),
+  F('Tamiren', 'WATCHER', 'skirmisher', 'Vigil strike', 'Night watch', 'projectile', 'strike', 'hover', 'angel', '#b0b8d8', '#ffffff', '#48d0ff', { wings: 2, robe: '#4a5a78', weapon: 'none' }),
+  F('Ramielon', 'WATCHER', 'titan', 'Thunder gaze', 'Mercy of god', 'bolt', 'strike', 'hover', 'ophan', '#d8e0ff', '#ffffff', '#ffe14a', { rings: 2 }),
+  F('Danelith', 'PSYCHIC', 'support', 'Omen', 'Judgment sign', 'projectile', 'beam', 'blink', 'seer', '#8a6ab0', '#f0e8ff', '#ffd23f', { eyes: 5, wings: 4 }),
+  F('Ezeqor', 'GALE', 'skirmisher', 'Cloud lore', 'Sky veil', 'projectile', 'beam', 'hover', 'seer', '#c8e8f0', '#ffffff', '#58c8a8', { eyes: 3, wings: 2 }),
+  F('Sarielle', 'ASTRAL', 'seraph', 'Moon course', 'Lunar law', 'bolt', 'beam', 'hover', 'angel', '#e8e8ff', '#ffffff', '#a8b8f0', { wings: 4, robe: '#a8b8f0', weapon: 'staff' }),
+  F('Shamsor', 'EMBER', 'striker', 'Sun sign', 'Solar witness', 'projectile', 'cone', 'hover', 'ophan', '#ffd97a', '#fff6c0', '#ff6a1f', { rings: 2 }),
+  F('Arakor', 'STONE', 'warden', 'Earth sign', 'Ground truth', 'projectile', 'strike', 'stomp', 'golem', '#7a6a58', '#c8b8a0', '#c8a0ff', { top: 'eye', pattern: 'runes' }),
+  F('Penemyr', 'PSYCHIC', 'mystic', 'Ink and reed', 'Bitter knowledge', 'projectile', 'beam', 'blink', 'seer', '#5a4a3a', '#e8d8c0', '#8a4ae0', { eyes: 3, wings: 2 }),
+  F('Nephilox', 'STONE', 'titan', 'Giant fist', 'Earthshaker', 'projectile', 'strike', 'stomp', 'biped', '#a87858', '#e8c8a8', '#4a3a6a', { horns: 'one', tail: 'none', ears: 'none', giant: true }),
+  F('Grigoran', 'WATCHER', 'warden', 'Sentinel light', 'Watcher\'s wall', 'projectile', 'strike', 'hover', 'angel', '#c8c8d8', '#ffffff', '#ffd23f', { wings: 2, robe: '#6a6a8a', weapon: 'sword' }),
+  F('Ophanex', 'WATCHER', 'arcanist', 'Wheel spin', 'Wheels within wheels', 'projectile', 'beam', 'hover', 'ophan', '#c8a860', '#fff0d0', '#48d0ff', { rings: 3 }),
+  F('Irinyx', 'WATCHER', 'ranger', 'Wakeful eye', 'Holy vigil', 'bolt', 'beam', 'hover', 'seer', '#e0e8ff', '#ffffff', '#48d0ff', { eyes: 4, wings: 2 }),
+  F('Eyelurk', 'WATCHER', 'mystic', 'Stare', 'Thousand-eye gaze', 'projectile', 'beam', 'blink', 'floater', '#6a5ab0', '#e8e0ff', '#ffd23f', { tentacles: 3, eyes: 'cyclops', pattern: 'eyes' }),
+  F('Gazewing', 'WATCHER', 'skirmisher', 'Glare dive', 'All-seeing', 'projectile', 'beam', 'dart', 'bird', '#d8d8f0', '#ffffff', '#6a5ab0', { crest: 'long', tail: 'fork', pattern: 'eyes' }),
+  F('Vigilon', 'WATCHER', 'sentinel', 'Lantern beam', 'Unsleeping', 'projectile', 'strike', 'stomp', 'golem', '#8a96aa', '#e0e6f0', '#ffd23f', { top: 'eye', pattern: 'rivets' }),
+];
+
 // Rarity tier of each wild species (how often it appears, how strong it is, how hard to catch).
 export const TIERS = {
   Common: { weight: 45, mult: 0.94, catch: 0.6, lvl: 0 }, Uncommon: { weight: 28, mult: 1.0, catch: 0.45, lvl: 1 },
@@ -99,5 +149,13 @@ const TIER_OF = {
   Zephyrkit: 'Common', Galeon: 'Rare', Whirlwisp: 'Uncommon',
   Drakelet: 'Epic', Skyrex: 'Epic',
   Aurielle: 'Mythic', Valkyra: 'Mythic', Nimbiel: 'Mythic', Aeonox: 'Divine',
+  // Anunnaki
+  Anuvax: 'Divine', Enlilor: 'Mythic', Enkiryn: 'Epic', Inannox: 'Epic', Utuflare: 'Rare', Nannamoth: 'Uncommon', Marduzar: 'Epic', Tiamaw: 'Epic',
+  Ninhurra: 'Rare', Lamassor: 'Rare', Shedulon: 'Uncommon', Apkalith: 'Rare', Anzurok: 'Rare', Humbaroth: 'Uncommon', Pazuzar: 'Epic', Mushussar: 'Rare',
+  Nergalith: 'Uncommon', Ereshkyl: 'Uncommon', Nabuscribe: 'Rare', Ziggurok: 'Common',
+  // Watchers
+  Semyazar: 'Divine', Azazelith: 'Mythic', Armarok: 'Epic', Baraqion: 'Epic', Kokabyx: 'Epic', Tamiren: 'Rare', Ramielon: 'Rare', Danelith: 'Rare',
+  Ezeqor: 'Uncommon', Sarielle: 'Epic', Shamsor: 'Rare', Arakor: 'Uncommon', Penemyr: 'Uncommon', Nephilox: 'Epic', Grigoran: 'Uncommon', Ophanex: 'Rare',
+  Irinyx: 'Rare', Eyelurk: 'Common', Gazewing: 'Common', Vigilon: 'Common',
 };
-for (const s of [...FRONTIER, ...MYTHIC]) s.tier = TIER_OF[s.name] || 'Common';
+for (const s of [...FRONTIER, ...MYTHIC, ...ANUNNAKI, ...WATCHERS]) s.tier = TIER_OF[s.name] || 'Common';

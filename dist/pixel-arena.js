@@ -2,7 +2,7 @@
 // PocketMonstars pixel arena renderer: a 320x180 native-resolution battlefield scaled up with crisp pixels.
 // Draws animated pixel Monstars and a hand-built animation for every power. Exposes window.PMArena.
 (() => {
-const NAMES = ["cindercub", "mossprout", "ripplefin", "voltwing", "duskhorn", "pebblit", "frostuft", "bloomtail", "soloryx", "seraphon", "psyvolt", "blazebuck", "cinderwyrm", "pyrofinch", "magmole", "emberjack", "coralisk", "bubblyn", "clawtide", "abyssquid", "wavewing", "thornox", "fernling", "mantiseed", "acornaut", "lilypadra", "zapurr", "ohmoth", "voltusk", "joltail", "gloomwisp", "nocturrow", "shadefang", "hexmask", "quarrox", "fossilith", "geodillo", "cragcrab", "glacielk", "snowpuff", "icicrow", "rimewyrm", "cometail", "lunaroo", "orbitron", "mindmoth", "oracub", "prismeye", "toxitoad", "mycospore", "stingrex", "viperoot", "gearhound", "rivetbot", "bladewing", "ironshell", "zephyrkit", "galeon", "whirlwisp", "drakelet", "skyrex", "aurielle", "valkyra", "nimbiel", "aeonox"]; // generated from shared/monstars.mjs SPECIES order
+const NAMES = ["cindercub", "mossprout", "ripplefin", "voltwing", "duskhorn", "pebblit", "frostuft", "bloomtail", "soloryx", "seraphon", "psyvolt", "blazebuck", "cinderwyrm", "pyrofinch", "magmole", "emberjack", "coralisk", "bubblyn", "clawtide", "abyssquid", "wavewing", "thornox", "fernling", "mantiseed", "acornaut", "lilypadra", "zapurr", "ohmoth", "voltusk", "joltail", "gloomwisp", "nocturrow", "shadefang", "hexmask", "quarrox", "fossilith", "geodillo", "cragcrab", "glacielk", "snowpuff", "icicrow", "rimewyrm", "cometail", "lunaroo", "orbitron", "mindmoth", "oracub", "prismeye", "toxitoad", "mycospore", "stingrex", "viperoot", "gearhound", "rivetbot", "bladewing", "ironshell", "zephyrkit", "galeon", "whirlwisp", "drakelet", "skyrex", "aurielle", "valkyra", "nimbiel", "aeonox", "anuvax", "enlilor", "enkiryn", "inannox", "utuflare", "nannamoth", "marduzar", "tiamaw", "ninhurra", "lamassor", "shedulon", "apkalith", "anzurok", "humbaroth", "pazuzar", "mushussar", "nergalith", "ereshkyl", "nabuscribe", "ziggurok", "semyazar", "azazelith", "armarok", "baraqion", "kokabyx", "tamiren", "ramielon", "danelith", "ezeqor", "sarielle", "shamsor", "arakor", "penemyr", "nephilox", "grigoran", "ophanex", "irinyx", "eyelurk", "gazewing", "vigilon"]; // generated from shared/monstars.mjs SPECIES order
 const W = 320, H = 180, K = 1 / 3; // world (960x540) -> logical pixels; the canvas is 2x (640x360) so sprites keep fine detail
 const CW = 960, CH = 540, Z = 3, U = Z / 2; // U scales hand-tuned canvas-pixel sizes from the old 640 canvas
 const SPR = 0.95; // 96px battle sprites are drawn at ~65px tall on the 960 canvas (Ultimate stage)
@@ -18,12 +18,14 @@ const PAL = {
   PSYCHIC: ['#ffffff', '#ead8ff', '#c08cff', '#8a4ae0', '#3a1870'], HOLY: ['#ffffff', '#fffbe6', '#ffe9a0', '#f0c050', '#8a6a20'],
   VENOM: ['#f4ffe0', '#c8f070', '#9ad040', '#7a3ab0', '#3a1450'], STEEL: ['#ffffff', '#e0e6f0', '#a8b4c8', '#6a7890', '#323a4a'],
   GALE: ['#ffffff', '#e8fff4', '#a8f0d8', '#58c8a8', '#206a5a'], DRACO: ['#fff0f0', '#ffb0a0', '#e85a5a', '#8a2ab0', '#3a1050'],
+  ANCIENT: ['#fff8d8', '#ffd97a', '#d8a040', '#2a4ab0', '#1a1e5a'], WATCHER: ['#ffffff', '#e8f0ff', '#a8c8ff', '#6a5ab0', '#2a1e5a'],
 };
 // Frontier and Mythic Monstars borrow the look of an original power by type (ids 0-10 have their own).
-const TYPE_FX = { EMBER: 0, GROVE: 7, TIDE: 2, SPARK: 3, SHADE: 4, STONE: 5, FROST: 6, ASTRAL: 8, PSYCHIC: 10, VENOM: 4, STEEL: 5, GALE: 2, DRACO: 0 };
+const TYPE_FX = { EMBER: 0, GROVE: 7, TIDE: 2, SPARK: 3, SHADE: 4, STONE: 5, FROST: 6, ASTRAL: 8, PSYCHIC: 10, VENOM: 4, STEEL: 5, GALE: 2, DRACO: 0, ANCIENT: 8, WATCHER: 9 };
 const MYTHIC_FIRST = 61;
-const vidOf = o => (o.sid < 11 ? o.sid : o.sid >= MYTHIC_FIRST && o.st !== 'whip' ? 9 : TYPE_FX[o.ty] ?? 0);
-const STATUS_COL = { paralyze: '#ffe14a', freeze: '#9be6ff', burn: '#ff8a1f', poison: '#c070ff', root: '#7ad04a', stun: '#ffd84a', confuse: '#ff9cd8', lift: '#c08cff', soak: '#5ec2ff', dazzle: '#fff3c4' };
+const HOLY = new Set([61, 62, 63, 64, 65, 66, 85, 86, 94]), LEGEND = new Set([9, 10, 61, 62, 63, 64, 65, 66, 85, 86, 94]); // angelic powers / no evolution wings (generated)
+const vidOf = o => (o.sid < 11 ? o.sid : HOLY.has(o.sid) && o.st !== 'whip' ? 9 : TYPE_FX[o.ty] ?? 0);
+const STATUS_COL = { paralyze: '#ffe14a', freeze: '#9be6ff', burn: '#ff8a1f', poison: '#c070ff', root: '#7ad04a', stun: '#ffd84a', confuse: '#ff9cd8', lift: '#c08cff', soak: '#5ec2ff', dazzle: '#fff3c4', weaken: '#d8a040', mark: '#a8c8ff' };
 const STY = { projectile: { r: 12 }, bolt: { range: 420, hitAt: 0.08, dur: 0.22 }, whip: { range: 220, hitAt: 0.12, dur: 0.3 },
   cone: { range: 230, angle: 0.5, dur: 0.95 }, beam: { range: 640, width: 44, hitAt: 0.42, dur: 0.85 }, strike: { radius: 74, hitAt: 0.6, dur: 1.0 }, levitate: { dur: 1.5, throws: [0.7, 0.86, 1.02], boltAt: 1.22 } };
 
@@ -42,7 +44,7 @@ function sprite(sid, hue = 0, white = false) {
 function stageSprite(sid, hue, stage, pal, white = false) {
   const base = sprite(sid, hue, white); if (!base) return null;
   const key = 'st|' + sid + '|' + hue + '|' + stage + '|' + white; let c = cache.get(key); if (c) return c;
-  const u = base.width / 48, legend = sid === 9 || sid === 10 || sid >= MYTHIC_FIRST, wings = legend ? 0 : stage >= 5 ? 4 : stage >= 4 ? 2 : 0, pad = Math.round((wings ? 34 : 4) * u);
+  const u = base.width / 48, legend = LEGEND.has(sid), wings = legend ? 0 : stage >= 5 ? 4 : stage >= 4 ? 2 : 0, pad = Math.round((wings ? 34 : 4) * u);
   c = document.createElement('canvas'); c.width = base.width + pad * 2; c.height = base.height + pad + Math.round(6 * u);
   const x = c.getContext('2d'); x.imageSmoothingEnabled = false; const ox = pad, oy = pad;
   const P = (px_, py_, w, h, col) => { x.fillStyle = white ? '#ffffff' : col; x.fillRect(Math.round(px_), Math.round(py_), w, h); };
@@ -212,7 +214,7 @@ function createRenderer(canvas, arena) {
 
   function part(x, y, vx, vy, life, col, size = 1, grav = 0) { parts.push({ x, y, vx, vy, life, max: life, col, size, grav }); }
   function burst(x, y, pal, n = 10, spd = 40) { for (let i = 0; i < n; i++) { const a = Math.random() * 6.283, s = spd * (0.4 + Math.random()); part(x, y, Math.cos(a) * s, Math.sin(a) * s, 0.3 + Math.random() * 0.3, pal[1 + (i % 3)], Math.random() < 0.3 ? 2 : 1); } }
-  function palFor(ty, sid) { return sid === 7 ? PAL.PETAL : sid === 9 || (sid >= MYTHIC_FIRST && ty === 'ASTRAL') ? PAL.HOLY : PAL[ty] || PAL.STONE; }
+  function palFor(ty, sid) { return sid === 7 ? PAL.PETAL : sid === 9 || (HOLY.has(sid) && ty === 'ASTRAL') ? PAL.HOLY : PAL[ty] || PAL.STONE; }
   function say(x, y, txt, col, t = 1, size = 8) { texts.push({ x, y, txt, col, t, size }); }
 
   /** Battle events from the server or the local practice engine. */
@@ -246,7 +248,7 @@ function createRenderer(canvas, arena) {
     else if (ev.eff < 1) say(x, y - 26, 'NOT VERY EFFECTIVE', '#b0b0c0', 1.1, 4);
     // earnings over the attacker: SOL (paid when the match ends) and EXP
     const ax = a.x * K, ay = a.y * K - 34;
-    const fs = f => { const v = parseFloat(f); return v >= 1e-6 ? (+v.toFixed(6)) + ' SOL' : Math.round(v * 1e9) + ' lamports'; };
+    const fs = f => { const v = parseFloat(f); return v > 0 ? v.toFixed(9).replace(/0+$/, '') + ' SOL' : '0 SOL'; }; // e.g. 0.0000006 SOL
     if (ev.fee) { say(ax, ay, '+' + fs(ev.fee), '#9ef0c8', 1.4, 5); say(x, y + 12, '-' + fs(ev.fee), '#ff6b6b', 1.4, 5); } // earned by the attacker, deducted from the one hit
     if (ev.exp) say(ax, ay + (ev.fee ? 8 : 0), '+' + ev.exp + ' EXP', '#8fd0ff', 1.4, 5);
     shake = Math.max(shake, ev.style === 'beam' || ev.style === 'strike' ? 0.3 : 0.12);
@@ -315,7 +317,7 @@ function createRenderer(canvas, arena) {
     const k = f.st, cx = X, cy = Y - dh / 2, t = now / 1000;
     if (f.rc && !k) label('RECOVERING', X, Y - dh - 18 * U, '#ffd84a');
     if (!k) return;
-    label(({ paralyze: 'PARALYZED', freeze: 'FROZEN', burn: 'BURNED', poison: 'POISONED', root: 'ENTANGLED', stun: 'STUNNED', confuse: 'CONFUSED', lift: 'LEVITATED', soak: 'SWEPT AWAY', dazzle: 'DAZZLED' })[k], X, Y - dh - 18 * U, STATUS_COL[k]);
+    label(({ paralyze: 'PARALYZED', freeze: 'FROZEN', burn: 'BURNED', poison: 'POISONED', root: 'ENTANGLED', stun: 'STUNNED', confuse: 'CONFUSED', lift: 'LEVITATED', soak: 'SWEPT AWAY', dazzle: 'DAZZLED', weaken: 'CURSED', mark: 'WATCHED' })[k], X, Y - dh - 18 * U, STATUS_COL[k]);
     ctx.save();
     if (k === 'freeze') { // encased in a block of ice
       ctx.globalAlpha = 0.55; ctx.fillStyle = '#bfefff'; ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 2 * U;
@@ -340,6 +342,13 @@ function createRenderer(canvas, arena) {
       for (let n = 0; n < 2; n++) { ctx.beginPath(); ctx.ellipse(cx, cy + n * dh * 0.3, dw * (0.55 + n * 0.1), 10 * U, Math.sin(t * 3 + n) * 0.3, 0, 6.283); ctx.stroke(); }
       if (Math.random() < 0.5) part(cx / Z + (Math.random() - 0.5) * dw / Z, Y / Z + 46 * U / Z, 0, -20, 0.5, '#c08cff', 1);
     } else if (k === 'soak') { if (Math.random() < 0.6) part(cx / Z + (Math.random() - 0.5) * dw / Z, cy / Z, (Math.random() - 0.5) * 30, -20, 0.4, Math.random() < 0.5 ? '#ffffff' : '#5ec2ff', 2, 60);
+    } else if (k === 'weaken') { // golden curse sigil circling the body
+      ctx.strokeStyle = '#d8a040'; ctx.lineWidth = 3 * U; ctx.globalAlpha = 0.85; ctx.beginPath(); ctx.ellipse(cx, Y - 4 * U, dw * 0.6, 9 * U, 0, 0, 6.283); ctx.stroke();
+      for (let n = 0; n < 4; n++) { const a = t * 2 + n * 1.57, x = cx + Math.cos(a) * dw * 0.6, y = Y - 4 * U + Math.sin(a) * 9 * U; ctx.fillStyle = '#ffd97a'; ctx.fillRect(x - 3 * U, y - 6 * U, 6 * U, 12 * U); }
+    } else if (k === 'mark') { // a great eye opens above it: it takes more damage
+      const ey = Y - dh - 30 * U, o = 0.6 + Math.sin(t * 5) * 0.4; ctx.fillStyle = '#ffffff'; ctx.strokeStyle = '#6a5ab0'; ctx.lineWidth = 2.5 * U;
+      ctx.beginPath(); ctx.ellipse(cx, ey, 16 * U, 9 * U * o, 0, 0, 6.283); ctx.fill(); ctx.stroke(); ctx.fillStyle = '#2a4ab0'; ctx.beginPath(); ctx.arc(cx, ey, 5 * U * o, 0, 6.283); ctx.fill();
+      ctx.globalCompositeOperation = 'lighter'; glowAt(cx, ey, 30 * U, '#a8c8ff', 0.5);
     } else if (k === 'dazzle') { for (let n = 0; n < 2; n++) if (Math.random() < 0.5) drawStar(cx + (Math.random() - 0.5) * dw, cy + (Math.random() - 0.5) * dh, 4 * U, '#fff3c4'); }
     ctx.restore();
   }

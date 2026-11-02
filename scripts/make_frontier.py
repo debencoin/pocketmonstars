@@ -14,7 +14,9 @@ def load_clean():
     ns = {'__file__': 'make_sprites.py'}; cwd = os.getcwd(); os.chdir(ROOT); exec(src, ns); os.chdir(cwd); return ns['clean']
 clean = load_clean()
 
-def rgb(h, a=255): h = h.lstrip('#'); return (int(h[0:2], 16), int(h[2:4], 16), int(h[4:6], 16), a)
+def rgb(h, a=255):
+    if isinstance(h, tuple): return h[:3] + (a,)
+    h = h.lstrip('#'); return (int(h[0:2], 16), int(h[2:4], 16), int(h[4:6], 16), a)
 def mix(c, d, t): return tuple(round(c[i] + (d[i] - c[i]) * t) for i in range(3)) + (255,)
 def dark(c, t=0.32): return mix(c, (20, 14, 30), t)
 def light(c, t=0.45): return mix(c, (255, 255, 255), t)
@@ -174,6 +176,9 @@ def top(cv, kind, x, y, acc, main):
         for k in range(5): a = math.radians(-150 + k * 30); cv.part(P([(x + math.cos(a) * 110, y + 110 + math.sin(a) * 110), (x + math.cos(a) * 150 - 10, y + 110 + math.sin(a) * 150), (x + math.cos(a) * 160 + 8, y + 104 + math.sin(a) * 160)]), acc)
     elif kind == 'mushroom':
         cv.part(lambda d: d.chord([x - 120, y - 70, x + 120, y + 90], 180, 360, fill=255), main, pattern=pattern_fn('spots', '#f8e8d8', random.Random(7)))
+    elif kind == 'ziggurat':
+        for k in range(4): cv.part(RR(x - 90 + k * 22, y - k * 26, x + 90 - k * 22, y - k * 26 + 28, 4), acc if k % 2 else '#c8a060')
+    elif kind == 'eye': eye(cv, x, y - 20, 26, col=rgb(acc))
     elif kind == 'antenna': cv.part(LINE([(x, y + 10), (x + 6, y - 50)], 10), '#c8d0dc'); cv.part(E(x + 6, y - 58, 14, 14), acc)
     elif kind == 'swirl':
         sp = [(x + math.cos(t) * (50 - t * 5), y - 40 + math.sin(t) * (40 - t * 4)) for t in [i * 0.35 for i in range(26)]]; cv.part(LINE(sp, 12), acc)
@@ -347,14 +352,16 @@ def wingset(cv, cx, cy, n, col, tip, scale=1.0):
 def angel(cv, L, rnd):
     m, b, a = L['main'], L['belly'], L['accent']; small = L.get('small'); k = 0.82 if small else 1.0
     cx, cy = 240, 250
-    wingset(cv, cx - 10, cy - 60 * k, L.get('wings', 2), '#f6f8ff', a, scale=k)
-    d = cv.raw(); d.ellipse([cx - 52 * k, cy - 230 * k, cx + 62 * k, cy - 200 * k], outline=rgb('#ffd23f'), width=10)
+    wingset(cv, cx - 10, cy - 60 * k, L.get('wings', 2), '#4a3a5a' if L.get('fallen') else '#f6f8ff', a, scale=k)
+    d = cv.raw()
+    if not L.get('fallen'): d.ellipse([cx - 52 * k, cy - 230 * k, cx + 62 * k, cy - 200 * k], outline=rgb('#ffd23f'), width=10)
     robe = L.get('robe', a)
     cv.part(P([(cx - 60 * k, cy - 60 * k), (cx + 60 * k, cy - 60 * k), (cx + 96 * k, cy + 190 * k), (cx - 96 * k, cy + 190 * k)]), m)
     cv.part(P([(cx - 20 * k, cy - 50 * k), (cx + 30 * k, cy - 50 * k), (cx + 40 * k, cy + 190 * k), (cx - 30 * k, cy + 190 * k)]), robe, edge=False)
     cv.part(RR(cx - 70 * k, cy - 70 * k, cx + 70 * k, cy - 40 * k, 14), a)
     w = L.get('weapon')
     if w == 'staff': cv.part(LINE([(cx + 90, cy + 160), (cx + 120, cy - 170)], 14), '#e0b040'); cv.part(E(cx + 122, cy - 190, 30, 30), '#fff6c0')
+    if w == 'bolt': cv.part(P([(cx + 110, cy - 200), (cx + 140, cy - 200), (cx + 120, cy - 110), (cx + 150, cy - 110), (cx + 90, cy + 10), (cx + 106, cy - 80), (cx + 80, cy - 80)]), '#ffe14a')
     if w == 'sword': cv.part(P([(cx + 100, cy + 20), (cx + 118, cy + 20), (cx + 150, cy - 210), (cx + 136, cy - 226)]), '#eef2f8'); cv.part(RR(cx + 80, cy + 14, cx + 140, cy + 30, 6), a)
     cv.part(LINE([(cx + 50 * k, cy - 40 * k), (cx + 100 * k, cy + 30 * k)], 26), m)
     hx, hy = cx + 6, cy - 130 * k
@@ -378,14 +385,96 @@ def god(cv, L, rnd):
 
 PLANS = dict(quad=quad, biped=biped, serpent=serpent, bird=bird, blob=blob, bug=bug, floater=floater, golem=golem, plant=plant, angel=angel, god=god)
 
+
+def crown(cv, kind, x, y, acc, w=60):
+    if kind == 'horned':  # tall horned cap of a Mesopotamian god
+        cv.part(RR(x - w * 0.6, y - 70, x + w * 0.6, y + 6, 14), acc)
+        for k in range(3): cv.part(LINE([(x - w * 0.6, y - 6 - k * 22), (x - w * 0.9, y - 26 - k * 22), (x - w * 0.6, y - 18 - k * 22)], 9), '#f6f0e2', shade=False)
+        for k in range(3): cv.part(LINE([(x + w * 0.6, y - 6 - k * 22), (x + w * 0.9, y - 26 - k * 22), (x + w * 0.6, y - 18 - k * 22)], 9), '#f6f0e2', shade=False)
+        cv.part(E(x, y - 76, w * 0.5, 12), '#ffd23f')
+    elif kind == 'cap': cv.part(lambda d: d.chord([x - w * 0.7, y - 50, x + w * 0.7, y + 30], 180, 360, fill=255), acc)
+    elif kind == 'star':
+        r = 26; cv.part(P([(x + math.cos(a) * (r if i % 2 == 0 else r * 0.45), y - 40 + math.sin(a) * (r if i % 2 == 0 else r * 0.45)) for i, a in enumerate([k * math.pi / 4 - math.pi / 2 for k in range(8)])]), '#ffd23f')
+    elif kind == 'sun':
+        for k in range(10): a = k * math.pi / 5; cv.part(LINE([(x, y - 30), (x + math.cos(a) * 54, y - 30 + math.sin(a) * 54)], 10), '#ffd23f', shade=False)
+        cv.part(E(x, y - 30, 26, 26), '#fff6a8')
+
+def beard(cv, x, y, col):  # long curled beard
+    cv.part(P([(x - 34, y), (x + 34, y), (x + 26, y + 70), (x - 26, y + 70)]), col)
+    for k in range(4): cv.raw().line([(x - 24 + k * 16, y + 8), (x - 24 + k * 16, y + 64)], fill=dark(rgb(col), 0.4), width=4)
+
+def genie(cv, L, rnd):
+    m, b, a = L['main'], L['belly'], L['accent']; cx, cy = 236, 270
+    wingset(cv, cx - 20, cy - 70, L.get('wings', 2), light(rgb(a), 0.55), a, scale=0.9)
+    cv.part(P([(cx - 70, cy - 60), (cx + 70, cy - 60), (cx + 90, cy + 180), (cx - 90, cy + 180)]), m)
+    cv.part(P([(cx - 70, cy + 40), (cx + 90, cy + 20), (cx + 90, cy + 60), (cx - 80, cy + 80)]), a, edge=False)  # sash
+    for k in range(6): cv.raw().line([(cx - 80 + k * 30, cy + 120), (cx - 74 + k * 30, cy + 178)], fill=dark(rgb(m), 0.3), width=4)  # fringe
+    w = L.get('weapon')
+    if w == 'bolt': cv.part(P([(cx + 120, cy - 150), (cx + 150, cy - 150), (cx + 130, cy - 70), (cx + 160, cy - 70), (cx + 100, cy + 40), (cx + 116, cy - 40), (cx + 90, cy - 40)]), '#ffe14a')
+    elif w == 'tablet': cv.part(RR(cx + 70, cy - 40, cx + 150, cy + 60, 10), '#c8a060', pattern=pattern_fn('runes', '#6a4a20', rnd))
+    else: cv.part(E(cx + 110, cy + 10, 26, 34), '#c89a40'); cv.part(RR(cx + 96, cy - 30, cx + 124, cy - 10, 4), '#8a5a2e')  # cone and bucket
+    cv.part(LINE([(cx + 50, cy - 40), (cx + 100, cy + 10)], 30), m)
+    hx, hy = cx + 10, cy - 120; head = L.get('head', 'human')
+    if head == 'beast':
+        cv.part(E(hx, hy, 66, 58), dark(rgb(m), 0.1)); cv.part(P([(hx + 30, hy - 10), (hx + 100, hy + 10), (hx + 40, hy + 40)]), '#e8d8b8'); eye(cv, hx + 20, hy - 14, 15, col=rgb(a))
+    else:
+        cv.part(E(hx, hy, 56, 58), '#d8a878'); beard(cv, hx + 8, hy + 20, '#3a2a40'); eye(cv, hx + 22, hy - 8, 13)
+        cv.part(lambda d: d.chord([hx - 60, hy - 64, hx + 56, hy + 30], 180, 300, fill=255), '#3a2a40')
+    crown(cv, L.get('crown', 'horned'), hx, hy - 50, a, 60)
+
+def lamassu(cv, L, rnd):
+    m, b, a = L['main'], L['belly'], L['accent']; bx, by = 210, 310
+    wingset(cv, bx - 10, by - 50, 2, light(rgb(m), 0.25), a, scale=0.8)
+    for lx in (bx - 80, bx + 50): cv.part(RR(lx + 14, by + 10, lx + 48, by + 120, 12), dark(rgb(m), 0.25))
+    cv.part(LINE([(bx - 120, by - 20), (bx - 160, by + 30), (bx - 150, by + 70)], 16), m); cv.part(E(bx - 150, by + 80, 18, 18), dark(rgb(m), 0.4))
+    cv.part(E(bx, by, 130, 76), m); cv.part(E(bx + 10, by + 34, 90, 34), b, edge=False)
+    for lx in (bx - 100, bx + 40): cv.part(RR(lx, by + 20, lx + 44, by + 134, 14), m); cv.part(RR(lx - 4, by + 118, lx + 48, by + 140, 8), dark(rgb(m), 0.45))
+    hx, hy = bx + 130, by - 80
+    cv.part(E(hx, hy, 54, 56), '#d8a878'); beard(cv, hx + 6, hy + 22, '#3a2a40'); eye(cv, hx + 20, hy - 6, 13)
+    cv.part(lambda d: d.chord([hx - 58, hy - 62, hx + 54, hy + 30], 180, 300, fill=255), '#3a2a40')
+    crown(cv, L.get('crown', 'horned'), hx, hy - 48, a, 56)
+
+def fishman(cv, L, rnd):  # sage wearing a fish cloak (head of the fish over its own head)
+    m, b, a = L['main'], L['belly'], L['accent']; cx, cy = 236, 280
+    cv.part(P([(cx - 80, cy - 140), (cx + 40, cy - 160), (cx + 70, cy - 60), (cx + 40, cy + 190), (cx - 90, cy + 190), (cx - 120, cy + 60)]), m, pattern=pattern_fn('diamonds', '#bfe8f4', rnd))
+    cv.part(P([(cx - 120, cy + 170), (cx - 180, cy + 220), (cx - 100, cy + 200), (cx - 60, cy + 210)]), a)  # tail fin at the hem
+    cv.part(P([(cx - 40, cy - 60), (cx + 60, cy - 60), (cx + 70, cy + 180), (cx - 30, cy + 180)]), b)
+    cv.part(LINE([(cx + 40, cy - 30), (cx + 110, cy + 20)], 28), b); cv.part(E(cx + 120, cy + 30, 26, 32), '#c89a40')
+    hx, hy = cx + 20, cy - 100
+    cv.part(E(hx, hy, 52, 54), '#d8a878'); beard(cv, hx + 8, hy + 20, '#3a2a40'); eye(cv, hx + 22, hy - 6, 13)
+    cv.part(E(hx - 10, hy - 70, 70, 40), m); eye(cv, hx + 40, hy - 78, 12, col=rgb(a))  # fish head hood
+    if L.get('crown') == 'horned': crown(cv, 'horned', hx - 6, hy - 96, a, 44)
+
+def ophan(cv, L, rnd):  # wheels within wheels, covered in eyes, with wings
+    m, b, a = L['main'], L['belly'], L['accent']; cx, cy = 240, 240
+    wingset(cv, cx, cy, 4, '#f6f8ff', a, scale=0.85)
+    for k in range(L.get('rings', 3)):
+        rx, ry, ang = 170 - k * 30, 70 + k * 22, k * 55
+        im = Image.new('L', (S, S), 0); dd = ImageDraw.Draw(im); dd.ellipse([cx - rx, cy - ry, cx + rx, cy + ry], outline=255, width=22)
+        im = im.rotate(ang, center=(cx, cy)); cv.part(lambda d, im=im: d.bitmap((0, 0), im, fill=255), a if k % 2 else m)
+        for j in range(6):
+            t = j / 6 * 2 * math.pi; x = rx * math.cos(t); y = ry * math.sin(t); ra = math.radians(-ang)
+            eye(cv, cx + x * math.cos(ra) - y * math.sin(ra), cy + x * math.sin(ra) + y * math.cos(ra), 10, col=rgb('#2a4ab0'))
+    cv.part(E(cx, cy, 44, 44), '#fff6c0'); eye(cv, cx, cy, 20, col=rgb('#2a4ab0'))
+
+def seer(cv, L, rnd):  # floating many-eyed orb with wings
+    m, b, a = L['main'], L['belly'], L['accent']; cx, cy = 240, 230
+    wingset(cv, cx, cy, L.get('wings', 2), light(rgb(m), 0.5), a, scale=0.85)
+    cv.part(E(cx, cy, 120, 116), m); cv.part(E(cx + 16, cy + 40, 70, 44), b, edge=False)
+    n = L.get('eyes', 5); pts = [(cx + 20, cy - 10, 30)] + [(cx + math.cos(k / max(1, n - 1) * 2 * math.pi) * 74, cy + math.sin(k / max(1, n - 1) * 2 * math.pi) * 64, 14) for k in range(n - 1)]
+    for x, y, r in pts: eye(cv, x, y, r, col=rgb(a) if r < 20 else (30, 22, 48, 255))
+    cv.part(E(cx, cy + 150, 50, 14), a, shade=False, edge=False)
+
+PLANS.update(genie=genie, lamassu=lamassu, fishman=fishman, ophan=ophan, seer=seer)
+
 def main():
-    data = json.loads(subprocess.check_output(['node', '-e', "import('./shared/frontier.mjs').then(m => process.stdout.write(JSON.stringify([...m.FRONTIER, ...m.MYTHIC])))"], cwd=ROOT))
+    data = json.loads(subprocess.check_output(['node', '-e', "import('./shared/frontier.mjs').then(m => process.stdout.write(JSON.stringify([...m.FRONTIER, ...m.MYTHIC, ...m.ANUNNAKI, ...m.WATCHERS])))"], cwd=ROOT))
     only = set(sys.argv[1:])
     for i, sp in enumerate(data):
         art = sp['name'].lower()
         if only and art not in only: continue
         rnd = random.Random(i * 97 + 13); cv = Canvas(); PLANS[sp['look']['plan']](cv, sp['look'], rnd)
-        clean(cv.im, size=104 if sp['look']['plan'] in ('angel', 'god') else 96, colors=24).save(os.path.join(OUT, art + '.png'))
+        clean(cv.im, size=104 if sp['look']['plan'] in ('angel', 'god', 'ophan', 'genie', 'lamassu') or sp['look'].get('giant') else 96, colors=24).save(os.path.join(OUT, art + '.png'))
         cv.im.save(os.path.join(ROOT, 'scripts', '.big_' + art + '.png')) if os.environ.get('KEEP_BIG') else None
     print('drew', len(data) if not only else len(only), 'Frontier Monstars')
 

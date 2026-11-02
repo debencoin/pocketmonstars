@@ -131,3 +131,9 @@ Stats: HP, Attack, Defense, Sp. Atk, Sp. Def, Speed. Types: EMBER, GROVE, TIDE, 
 - **HP +20% pickups** spawn every ~14 s. **CPU difficulty** Easy / Normal / Hard. Quick battle defaults to 3v3 and fills empty slots. New Volcano and Ice arenas.
 - **Stakes**: presets 0.001 / 0.002 / 0.005 / 0.01 SOL, minimum 0.001 (no free PvP preset); practice pot is 0.001 SOL a side.
 - **Market / NFT pictures**: `scripts/make_cards.py` makes a 512×512 framed card for every species (`dist/art/nft`), used by market cards and NFT metadata.
+
+## v12: level-based hit fees, three starters, Anunnaki and Watchers
+
+- **Per-hit SOL** (`hitFee` in `shared/stake.mjs`): no longer a share of the stake. Each hit moves lamports sized by the attacker's level, its attack stat for that move and the move's power (basic, special, Ultimate, crit; damage over time moves half). Lv1 jab ≈ 0.00000026 SOL, Lv25 special ≈ 0.0000047, Lv50+ specials reach the 0.00001 SOL cap. A KO still takes the whole pot.
+- **Starters**: each wallet now hatches three Genesis Monstars chosen from a hash of its address (different players start differently); guests get three at random on their device. Wallets that already had all nine keep them. Everything else is caught in the wild; the Genesis nine now also roam the wild.
+- **40 new species**: 20 **Anunnaki** (Mesopotamian sky lords, winged genies, lamassu guardians, fish-cloaked sages, chaos dragons) and 20 **Watchers** (Book of Enoch: many-eyed wheels, many-winged seers, fallen teachers, a Nephilim giant). New types ANCIENT (hits curse: −35% damage dealt) and WATCHER (hits mark: +25% damage taken). Anuvax and Semyazar are Divine; Enlilor and Azazelith Mythic. 105 species total, 103 in the wild.

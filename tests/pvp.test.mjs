@@ -29,14 +29,14 @@ test('DNA traits are deterministic and differ between wallets', () => {
   assert.throws(() => traitsFromDna('xyz'));
 });
 
-test('registry gives each wallet nine one-of-a-kind Monstars and refuses duplicates', () => {
+test('registry gives each wallet three one-of-a-kind starters and refuses duplicates', () => {
   const reg = new Registry(openDb(':memory:'));
   const a = wallet(), b = wallet();
   const mineA = reg.claimAll(a), mineB = reg.claimAll(b);
-  assert.equal(mineA.length, 9); assert.equal(reg.claimAll(a)[0].serial, mineA[0].serial); // idempotent
+  assert.equal(mineA.length, 3); assert.equal(reg.claimAll(a)[0].serial, mineA[0].serial); // three starters, idempotent
   const all = [...mineA, ...mineB];
-  assert.equal(new Set(all.map(m => m.dna)).size, 18);
-  assert.equal(new Set(all.map(m => traitSignature(m.species.id, m.traits))).size, 18);
+  assert.equal(new Set(all.map(m => m.dna)).size, 6);
+  assert.equal(new Set(all.map(m => traitSignature(m.species.id, m.traits))).size, 6);
   // a forced duplicate is rejected by the database
   const row = reg.db.prepare('SELECT * FROM monstars WHERE serial=1').get();
   assert.throws(() => reg.db.prepare('INSERT INTO monstars(species,origin_owner,owner,dna,trait_sig,nonce,genesis,created_at) VALUES(?,?,?,?,?,?,0,?)')
@@ -268,7 +268,7 @@ test('wild: paid entry is checked once, the server runs the battle, a win can ca
   let caught = null;
   for (let run = 0; run < 40 && !caught; run++) {
     const room = await mm.createWild(a, { serial: ma.serial, signature: 'fee-' + run, zone: 0 });
-    assert.ok(room.wild && room.players[1].monstar.species.collection !== 'genesis');
+    assert.ok(room.wild && room.players[1].monstar.species.tier);
     if (run === 0) await assert.rejects(mm.createWild(a, { serial: ma.serial, signature: 'fee-0' }), /already used/);
     const seen = []; room.players[0].sockets.add({ send: s => seen.push(JSON.parse(s)) });
     for (let i = 0; i < 100 && room.state === 'countdown'; i++) mm.tick();
@@ -280,13 +280,13 @@ test('wild: paid entry is checked once, the server runs the battle, a win can ca
   }
   assert.ok(caught, 'caught something within 40 wins');
   const m = registry.get(caught.monstar.serial);
-  assert.equal(m.owner, a); assert.equal(m.level, 1); assert.equal(m.stage.name, 'Infant'); assert.ok(['frontier', 'mythic'].includes(m.collection));
+  assert.equal(m.owner, a); assert.equal(m.level, 1); assert.equal(m.stage.name, 'Infant'); assert.ok(['genesis', 'frontier', 'mythic', 'anunnaki', 'watchers'].includes(m.collection));
 });
 
 test('3v3 rooms: both players bring three, the server runs a team match and saves EXP for every member used', async () => {
   const db = openDb(':memory:'), registry = new Registry(db), chain = new MockChain();
   const mm = new MatchManager({ db, registry, chain, config: { disconnectGraceMs: 1e9, depositTimeoutMs: 1e9 } });
-  const a = wallet(), b = wallet(), ta = registry.claimAll(a).slice(0, 3), tb = registry.claimAll(b).slice(3, 6);
+  const a = wallet(), b = wallet(), ta = registry.claimAll(a).slice(0, 3), tb = registry.claimAll(b).slice(0, 3);
   assert.throws(() => mm.create(a, { mode: '3v3', serials: [ta[0].serial] }), /three/);
   const room = mm.create(a, { mode: '3v3', serials: ta.map(m => m.serial) });
   mm.join(b, { code: room.code, serials: tb.map(m => m.serial) });
@@ -316,4 +316,17 @@ test('powers do things: levitation lifts and carries the rival, freeze stops it,
   S.applyStatusForTest(m2, f, 'burn', m2.fighters[0], []);
   const hp0 = f.hp; let dots = 0; for (let i = 0; i < 60; i++) dots += S.step(m2).filter(e => e.type === 'hit' && e.kind === 'status').length;
   assert.ok(f.hp < hp0 && dots > 0, 'burn deals damage over time');
+});
+
+test('starters: every wallet gets three of its own Genesis Monstars, and different wallets get different sets', async () => {
+  const reg = new Registry(openDb(':memory:'));
+  const sets = new Set();
+  for (let i = 0; i < 12; i++) { const ms = reg.claimAll(wallet()); assert.equal(ms.length, 3); assert.equal(new Set(ms.map(m => m.species.id)).size, 3); sets.add(ms.map(m => m.species.id).sort().join(',')); }
+  assert.ok(sets.size > 4, 'starter sets vary between wallets');
+});
+test('hit fees: tiny, grow with level, stats and move power, never above 0.00001 SOL', async () => {
+  const { hitFee } = await import('../shared/stake.mjs');
+  const lv1 = hitFee({ level: 1, attack: 60, power: 9 }), lv25 = hitFee({ level: 25, attack: 120, power: 9 }), lv80 = hitFee({ level: 80, attack: 200, power: 9 });
+  assert.ok(lv1 < lv25 && lv25 < lv80); assert.ok(hitFee({ level: 25, attack: 120, power: 25 }) > lv25);
+  assert.ok(hitFee({ level: 99, attack: 400, power: 50, crit: true }) <= 10_000n && lv1 >= 100n);
 });

@@ -9,6 +9,13 @@ export function deriveDna(owner, speciesId, nonce) {
   return createHash('sha256').update(`pocketmonstars:dna:v1:${owner}:${speciesId}:${nonce}`).digest('hex');
 }
 
+/** Three different Genesis species for a wallet, chosen from a hash of its address. */
+export function starterSpecies(owner) {
+  const h = createHash('sha256').update('pocketmonstars:starters:v1:' + owner).digest(), pool = [...GENESIS_IDS], out = [];
+  for (let i = 0; out.length < 3; i++) out.push(...pool.splice(h[i] % pool.length, 1));
+  return out;
+}
+
 export class Registry {
   constructor(db, { legendaryOwner = null } = {}) {
     this.db = db;
@@ -52,7 +59,17 @@ export class Registry {
     });
   }
 
-  claimAll(owner) { return [...GENESIS_IDS.map(id => this.claimGenesis(owner, id)), ...this.claimLegendaries(owner)]; }
+  /**
+   * Every wallet starts with three Genesis Monstars of its own, picked from its address (so players get
+   * different starters). The rest of the species are caught in the Wild Expedition.
+   * Wallets that already hatched more before this rule keep everything they have.
+   */
+  claimAll(owner) {
+    owner = new PublicKey(owner).toBase58();
+    const had = this.db.prepare('SELECT * FROM monstars WHERE origin_owner=? AND genesis=1').all(owner).map(r => this.toMonstar(r)).filter(m => !m.species.legendary);
+    const starters = (had.length ? had : starterSpecies(owner).map(id => this.claimGenesis(owner, id))).sort((x, y) => x.serial - y.serial);
+    return [...starters, ...this.claimLegendaries(owner)];
+  }
 
   /**
    * Breeding: each player gets one Infant. Stat rolls are averaged from both parents with a random

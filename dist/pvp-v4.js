@@ -56,7 +56,7 @@ pvp.innerHTML = `
   </div>
   <p class="pv-note" id="pvKeys">${coarse ? 'Your Monstar moves and dodges on its own. Tap a move card to attack. Drag on the battlefield any time to steer it yourself.' : 'Your Monstar moves and dodges on its own. Pick a move card or press <b>1</b>–<b>4</b> (also <b>J</b> attack · <b>K</b> special · <b>Space</b> dash · <b>L</b> guard). Hold <b>WASD</b> to steer · <b>Esc</b> to run.'}</p>
   <div class="panel"><div class="pv-row" style="justify-content:space-between"><h3>Your one-of-a-kind Monstars</h3><span class="pv-chip" id="pvCount">Sign in to reveal</span></div>
-   <p class="pv-note" style="margin:6px 0 12px">Every wallet gets its own version of all nine species. DNA comes from your address, and the registry refuses any repeat look or stat roll, so no two Monstars are ever the same. Mint one to own it as an NFT you can trade or send.</p>
+   <p class="pv-note" style="margin:6px 0 12px">Every wallet starts with three one-of-a-kind Monstars picked from its address, so no two players start the same. Catch the rest in the Wild Expedition: 103 species from common to divine. Mint any of yours as an NFT to trade or send.</p>
    <div id="pvCards"><div class="pv-empty">Sign in with Phantom to see your Monstars.</div></div></div>
   <div class="panel" id="pvBreed"><div class="pv-row" style="justify-content:space-between"><h3>Breed Monstars</h3><span class="pv-chip" id="pvBreedFee">0.01 SOL each</span></div>
    <p class="pv-note" style="margin:6px 0 12px">Pair one of your Monstars with another player's. Each of you gets a new Infant. Its stats mix both parents with a random twist, so it can come out stronger or weaker. Each player pays a 0.01 SOL fee to PocketMonstars.</p>
@@ -194,7 +194,7 @@ q('pvCreate').onclick = () => { try { const lam = Stake.toLamports(q('pvStake').
 q('pvJoin').onclick = () => { try { sendWs({ t: 'join', code: q('pvJoinCode').value.trim().toUpperCase(), serial: picked, speciesId: mine.find(m => m.serial === picked)?.speciesId ?? 0, ...teamMsg(true) }); } catch (e) { fail(e); } };
 // ---------- move cards ("What will X do?") ----------
 const MOVE_KEYS = ['atk', 'sp', 'dash', 'guard'];
-const TYPE_COL = { EMBER: '#e8582c', TIDE: '#3a8ae0', GROVE: '#4caa3a', SPARK: '#d8b018', SHADE: '#7a4ad8', STONE: '#9a8458', FROST: '#5ab8d8', ASTRAL: '#d89a30', PSYCHIC: '#c050c8', NORMAL: '#8a8a9a' };
+const TYPE_COL = { ANCIENT: '#c8902a', WATCHER: '#6a5ab0', VENOM: '#9a4ad0', STEEL: '#7a889e', GALE: '#3aa888', DRACO: '#c83a5a', EMBER: '#e8582c', TIDE: '#3a8ae0', GROVE: '#4caa3a', SPARK: '#d8b018', SHADE: '#7a4ad8', STONE: '#9a8458', FROST: '#5ab8d8', ASTRAL: '#d89a30', PSYCHIC: '#c050c8', NORMAL: '#8a8a9a' };
 let moveFor = null;
 function buildMoves(meSid, foeSid) {
   if (!room?.players || room.players.length < 2) return;
@@ -218,7 +218,7 @@ function buildMoves(meSid, foeSid) {
     b.addEventListener('pointerup', up); b.addEventListener('pointercancel', up); b.addEventListener('contextmenu', e => e.preventDefault()); });
 }
 const cdMax = { b: 1, s: 1, d: 1, g: 1 };
-const ST_LABEL = { paralyze: 'PARALYZED', freeze: 'FROZEN', burn: 'BURNED', poison: 'POISONED', root: 'ENTANGLED', stun: 'STUNNED', confuse: 'CONFUSED', lift: 'LEVITATED', soak: 'SWEPT AWAY', dazzle: 'DAZZLED' };
+const ST_LABEL = { paralyze: 'PARALYZED', freeze: 'FROZEN', burn: 'BURNED', poison: 'POISONED', root: 'ENTANGLED', stun: 'STUNNED', confuse: 'CONFUSED', lift: 'LEVITATED', soak: 'SWEPT AWAY', dazzle: 'DAZZLED', weaken: 'CURSED', mark: 'WATCHED' };
 function updateStatus(k, f) { const el = q('pvSt' + k); if (!el) return; const t = f.st ? ST_LABEL[f.st] : f.rc ? 'RECOVERING' : ''; if (el.textContent !== t) { el.textContent = t; el.className = 'hb-st' + (f.st ? ' s-' + f.st : ''); } }
 function updateMoves(f) {
   const grid = q('pvMGrid'); if (!grid || !f) return;
@@ -271,9 +271,18 @@ function renderTeamPick() {
   box.innerHTML = `<span>Your team (${teamPick.length}/3):</span>` + [0, 1, 2].map(i => teamPick[i] != null ? `<button data-i="${i}" title="Remove"><img src="${PA.spriteSrc(teamPick[i])}" alt="${esc(Monstars.SPECIES[teamPick[i]].name)}"></button>` : '<i>?</i>').join('') + '<small>Tap Monstars below to add. The next one comes in when one faints, or tap its picture in battle to switch.</small>';
   box.querySelectorAll('button').forEach(b => b.onclick = () => { teamPick.splice(+b.dataset.i, 1); renderPicker(); });
 }
-const usableSpecies = sp => sp.collection === 'genesis' || mine.some(m => m.speciesId === sp.id); // the 50 wild ones and the mythics must be caught first
+// Every player starts with three Monstars (a wallet's three are picked from its address; a guest gets three at random).
+// Everything else is caught in the Wild Expedition.
+const STARTER_KEY = 'pm-guest-starters-v1';
+function guestStarters() {
+  try { const v = JSON.parse(localStorage.getItem(STARTER_KEY) || 'null'); if (Array.isArray(v) && v.length === 3) return v; } catch {}
+  const v = Monstars.GENESIS_IDS.slice().sort(() => Math.random() - 0.5).slice(0, 3);
+  try { localStorage.setItem(STARTER_KEY, JSON.stringify(v)); } catch {} return v;
+}
+const usableSpecies = sp => (S.session() && mine.length ? mine.some(m => m.speciesId === sp.id) : guestStarters().includes(sp.id));
+function ensurePick() { if (!usableSpecies(Monstars.SPECIES[pickedSpecies])) pickedSpecies = (S.session() && mine[0]?.speciesId) ?? guestStarters()[0]; teamPick = teamPick.filter(id => usableSpecies(Monstars.SPECIES[id])); }
 function renderPicker() {
-  const box = q('pvPicker'); if (!box) return; box.innerHTML = ''; renderTeamPick();
+  const box = q('pvPicker'); if (!box) return; box.innerHTML = ''; ensurePick(); renderTeamPick();
   Monstars.SPECIES.filter(usableSpecies).forEach(sp => {
     const own = ownedFor(sp.id), b = el('button', { className: 'pv-pick' + (sp.legendary ? ' legend' : ''), title: sp.name });
     b.setAttribute('aria-pressed', sp.id === pickedSpecies);
@@ -299,7 +308,7 @@ function startPractice(opt = null) {
   const three = !opt && mode === '3v3';
   if (three && teamPick.length < 3) { fillTeam(); renderPicker(); }
   const ids = three ? teamPick.slice() : [pickedSpecies];
-  const others = Monstars.SPECIES.filter(x => x.collection === 'genesis' && !ids.includes(x.id)).sort(() => Math.random() - 0.5);
+  const others = Monstars.WILD_IDS.map(id => Monstars.SPECIES[id]).filter(x => !x.mythic && !ids.includes(x.id)).sort(() => Math.random() - 0.5);
   const team = ids.map(monFor), lvl = () => Math.max(1, team[0].level + Math.floor(Math.random() * 3) - 1);
   const foes = opt?.foeId != null ? [new Monstars.Monstar({ speciesId: opt.foeId, level: opt.foeLevel })] : ids.map((_, i) => new Monstars.Monstar({ speciesId: others[i].id, level: lvl() }));
   local = { m: Sim.createMatch(three ? team : team[0], three ? foes : foes[0], { arena: opt?.arena ?? Math.floor(Math.random() * Sim.ARENA_COUNT) }), mem: { hard: !!opt?.hard, level: opt ? 'normal' : cpuLevel } };
@@ -367,7 +376,7 @@ function battleEvent(ev) {
   if (ev.type === 'switch') ev.name = Monstars.SPECIES[ev.speciesId].name.toUpperCase();
   if (ev.type === 'hit' && ev.fee == null && room && room.stake !== '0' && ev.feeLamports) ev.fee = sol(ev.feeLamports, 9);
   if (ev.type === 'hit' && practiceMoney() && vLedger && ev.fee == null) { // pretend pot for practice
-    const fee = vLedger.hit(ev.attacker, ev.damage, ev.victimMaxHp || snapCur.f[ev.victim]?.max || 100);
+    const fee = vLedger.hit(ev.attacker, ev.damage, ev.victimMaxHp || snapCur.f[ev.victim]?.max || 100, ev);
     if (fee > 0n) ev.fee = sol(fee, 9); shares = vLedger.shares.map(String); showShares(null);
   }
   renderer.event(ev, snapCur);
@@ -387,10 +396,10 @@ function callouts() {
 }
 function setShares(next, hit) {
   if (!room) return;
-  if (practiceMoney()) { if (hit && snapCur) battleEvent({ type: 'hit', attacker: hit.attacker, victim: 1 - hit.attacker, victimMaxHp: hit.victimMaxHp, damage: hit.damage, eff: hit.eff, crit: hit.crit, exp: hit.exp, style: hit.style }); return; }
+  if (practiceMoney()) { if (hit && snapCur) battleEvent({ type: 'hit', attacker: hit.attacker, victim: 1 - hit.attacker, victimMaxHp: hit.victimMaxHp, lvl: hit.lvl, atk: hit.atk, pw: hit.pw, kind: hit.kind, damage: hit.damage, eff: hit.eff, crit: hit.crit, exp: hit.exp, style: hit.style }); return; }
   if (!next) return;
   shares = next; showShares(hit);
-  if (hit && snapCur) battleEvent({ type: 'hit', attacker: hit.attacker, victim: 1 - hit.attacker, victimMaxHp: hit.victimMaxHp, damage: hit.damage, eff: hit.eff, crit: hit.crit, exp: hit.exp, style: hit.style, fee: BigInt(hit.fee) > 0n ? sol(hit.fee, 9) : null });
+  if (hit && snapCur) battleEvent({ type: 'hit', attacker: hit.attacker, victim: 1 - hit.attacker, victimMaxHp: hit.victimMaxHp, lvl: hit.lvl, atk: hit.atk, pw: hit.pw, kind: hit.kind, damage: hit.damage, eff: hit.eff, crit: hit.crit, exp: hit.exp, style: hit.style, fee: BigInt(hit.fee) > 0n ? sol(hit.fee, 9) : null });
 }
 
 let shownShares = null;

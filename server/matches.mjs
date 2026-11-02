@@ -181,10 +181,10 @@ export class MatchManager {
     if (ev.type === 'pickup') return this.emit(room, { t: 'pickup', side: ev.side, k: ev.k, amount: ev.amount, x: ev.x, y: ev.y });
     if (ev.type !== 'hit') return;
     if (ev.type === 'switch') return this.emit(room, { t: 'switch', side: ev.side, slot: ev.slot, speciesId: ev.speciesId, reason: ev.reason });
-    const fee = room.ledger.hit(ev.attacker, ev.damage, ev.victimMaxHp);
+    const fee = room.ledger.hit(ev.attacker, ev.damage, ev.victimMaxHp, ev);
     const seq = room.seq++;
     this.db.prepare('INSERT INTO hit_log(match_id,seq,t,attacker,damage,fee) VALUES(?,?,?,?,?,?)').run(room.id, seq, room.sim.t, ev.attacker, ev.damage, fee.toString());
-    this.emit(room, { t: 'hit', attacker: ev.attacker, victimMaxHp: ev.victimMaxHp, damage: ev.damage, kind: ev.kind, style: ev.style, eff: ev.eff, crit: ev.crit, exp: ev.exp, fee: fee.toString(), shares: room.ledger.shares.map(String) });
+    this.emit(room, { t: 'hit', attacker: ev.attacker, victimMaxHp: ev.victimMaxHp, lvl: ev.lvl, atk: ev.atk, pw: ev.pw, damage: ev.damage, kind: ev.kind, style: ev.style, eff: ev.eff, crit: ev.crit, exp: ev.exp, fee: fee.toString(), shares: room.ledger.shares.map(String) });
   }
 
   end(room) {

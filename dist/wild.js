@@ -35,7 +35,7 @@ function render() {
       <div class="wx-dex">${ids.map(id => `<span class="wx-mon${st.caught.includes(id) ? ' got' : ''}" title="${esc(SPECIES[id].name)} · ${SPECIES[id].type}"><img src="${PA.spriteSrc(id)}" alt="${esc(SPECIES[id].name)}" loading="lazy"><small>${esc(SPECIES[id].name)}</small></span>`).join('')}</div></div>`;
   }).join('');
   box.innerHTML = `<div class="topline"><div><div class="eyebrow">Wild Expedition</div><h1>Into the wild</h1>
-  <p class="muted">Fifty wild Monstars roam here, from common to epic, plus three angels and a god that almost never appear. Beat a wild Monstar for a chance to catch it. Rarer ones are stronger, fight harder and are harder to catch. Everything you catch hatches as an Infant.</p></div>
+  <p class="muted">103 wild Monstars roam here: the Genesis nine, the fifty Frontier, twenty Anunnaki and twenty Watchers, plus angels and gods that almost never appear. Beat a wild Monstar for a chance to catch it. Rarer ones are stronger, fight harder and are harder to catch. Everything you catch hatches as an Infant.</p></div>
   <span class="pill"><i class="dot"></i> ${st.wins} WINS · ${st.caught.length} CAUGHT</span></div>
   <div class="wx-grid">
    <div class="wx-next panel">
