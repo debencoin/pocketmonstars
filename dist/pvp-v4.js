@@ -19,7 +19,7 @@ async function busy(btn, fn) { const t = btn.textContent; btn.disabled = true; b
 const nav = document.querySelector('nav');
 const pvpBtn = el('button', { textContent: 'Arena' }); pvpBtn.dataset.tab = 'pvp';
 nav.insertBefore(pvpBtn, nav.children[0]);
-const oldPlay = nav.querySelector('[data-tab=play]'); if (oldPlay) oldPlay.textContent = 'Adventure';
+const oldPlay = nav.querySelector('[data-tab=play]'); if (oldPlay) oldPlay.textContent = 'Wild Expedition';
 pvpBtn.onclick = () => tab('pvp');
 const main = document.querySelector('main');
 const pvp = el('section', { id: 'pvp', className: 'view hidden' });
@@ -30,24 +30,31 @@ pvp.innerHTML = `
 <div class="pv-grid">
  <div class="pv-col">
   <div class="pv-stage" id="pvStage">
-   <canvas id="pvCanvas" width="640" height="360" aria-label="Battle arena"></canvas>
    <div class="pv-hud" id="pvHud" hidden>
-    <div class="hb"><img class="hb-pic px" id="pvPic0" alt=""><div class="hb-main"><div class="hb-top"><b id="pvN0">YOU</b><span class="hb-type" id="pvT0"></span></div>
-      <div class="hb-hp"><i id="pvH0"></i><span id="pvHN0"></span></div><div class="hb-xp"><i id="pvX0"></i></div>
-      <div class="hb-sub"><span id="pvL0">Lv1 Infant</span><span class="pv-sol" id="pvS0"></span></div></div></div>
-    <div class="hb-clock" id="pvClock">1:30</div>
-    <div class="hb r"><img class="hb-pic px" id="pvPic1" alt=""><div class="hb-main"><div class="hb-top"><b id="pvN1">RIVAL</b><span class="hb-type" id="pvT1"></span></div>
-      <div class="hb-hp"><i id="pvH1"></i><span id="pvHN1"></span></div><div class="hb-xp"><i id="pvX1"></i></div>
-      <div class="hb-sub"><span id="pvL1">Lv1 Infant</span><span class="pv-sol" id="pvS1"></span></div></div></div>
-    <div class="hb-call l" id="pvCall0"></div><div class="hb-call r" id="pvCall1"></div>
+    <div class="hb"><img class="hb-pic" id="pvPic0" alt=""><div class="hb-main">
+      <div class="hb-top"><b id="pvN0">YOU</b><span class="hb-lv" id="pvL0">Lv1</span><span class="hb-type" id="pvT0"></span></div>
+      <div class="hb-hp"><em>HP</em><div class="hb-bar"><i id="pvH0"></i></div><span id="pvHN0"></span></div>
+      <div class="hb-xp"><em>EXP</em><div class="hb-bar xp"><i id="pvX0"></i></div></div>
+      <div class="hb-sol"><span class="pv-sol" id="pvS0">0 SOL</span><small id="pvSD0"></small></div></div></div>
+    <div class="hb-mid"><div class="hb-clock" id="pvClock">1:30</div><div class="hb-pot" id="pvPotMid">POT 0.01 SOL</div><div class="hb-potbar"><i id="pvPB0"></i><i id="pvPB1"></i></div></div>
+    <div class="hb r"><img class="hb-pic" id="pvPic1" alt=""><div class="hb-main">
+      <div class="hb-top"><b id="pvN1">RIVAL</b><span class="hb-lv" id="pvL1">Lv1</span><span class="hb-type" id="pvT1"></span></div>
+      <div class="hb-hp"><em>HP</em><div class="hb-bar"><i id="pvH1"></i></div><span id="pvHN1"></span></div>
+      <div class="hb-xp"><em>EXP</em><div class="hb-bar xp"><i id="pvX1"></i></div></div>
+      <div class="hb-sol"><span class="pv-sol" id="pvS1">0 SOL</span><small id="pvSD1"></small></div></div></div>
    </div>
-   <div class="pv-pot" id="pvPot" hidden><div class="pv-potbar"><i id="pvP0" style="width:50%"></i><i id="pvP1" style="width:50%"></i></div><small id="pvPotTxt">Pot</small></div>
-   <div class="pv-touch"><div class="pv-stickzone" id="pvZone"><div class="pv-stick" id="pvStick"><i id="pvKnob"></i></div></div>
-    <div class="pv-btns"><button class="pv-btn grd" data-k="guard">G</button><button class="pv-btn spl" data-k="sp" id="pvSpBtn">B</button><button class="pv-btn dash" data-k="dash">DASH</button><button class="pv-btn atk" data-k="atk" id="pvAtkBtn">A</button></div></div>
-   <button class="smallbtn pv-exit" id="pvExit">Leave</button>
+   <div class="pv-field" id="pvField">
+    <canvas id="pvCanvas" width="960" height="540" aria-label="Battle arena"></canvas>
+    <div class="pv-pot" id="pvPot" hidden><div class="pv-potbar"><i id="pvP0" style="width:50%"></i><i id="pvP1" style="width:50%"></i></div><small id="pvPotTxt">Pot</small></div>
+    <div class="pv-touch"><div class="pv-stickzone" id="pvZone"><div class="pv-stick" id="pvStick"><i id="pvKnob"></i></div></div></div>
+   </div>
+   <div class="pv-moves" id="pvMoves" hidden>
+    <div class="pv-ask"><span>What will <b id="pvAsk">YOUR MONSTAR</b> do?</span><button class="pv-run" id="pvExit">Run</button></div>
+    <div class="pv-mgrid" id="pvMGrid"></div>
+   </div>
    <div class="pv-overlay" id="pvOverlay"><div class="big" id="pvBig">Ready to battle</div><div class="pv-note" id="pvSmall">Sign in with Phantom, pick your Monstar and create or join a match.</div><div class="pv-row" id="pvOvBtns"></div></div>
   </div>
-  <p class="pv-note" id="pvKeys">${coarse ? 'Your Monstar moves and dodges on its own. Tap A to attack and B for its special. Drag on the left side any time to steer it yourself.' : 'Your Monstar moves and dodges on its own. Attack <b>J</b> or click · Special <b>K</b> or right-click · Dash <b>Space</b> · Guard <b>L</b> · Leave <b>Esc</b>. Hold <b>WASD</b> to steer it yourself.'}</p>
+  <p class="pv-note" id="pvKeys">${coarse ? 'Your Monstar moves and dodges on its own. Tap a move card to attack. Drag on the battlefield any time to steer it yourself.' : 'Your Monstar moves and dodges on its own. Pick a move card or press <b>1</b>–<b>4</b> (also <b>J</b> attack · <b>K</b> special · <b>Space</b> dash · <b>L</b> guard). Hold <b>WASD</b> to steer · <b>Esc</b> to run.'}</p>
   <div class="panel"><div class="pv-row" style="justify-content:space-between"><h3>Your one-of-a-kind Monstars</h3><span class="pv-chip" id="pvCount">Sign in to reveal</span></div>
    <p class="pv-note" style="margin:6px 0 12px">Every wallet gets its own version of all nine species. DNA comes from your address, and the registry refuses any repeat look or stat roll, so no two Monstars are ever the same. Mint one to own it as an NFT you can trade or send.</p>
    <div id="pvCards"><div class="pv-empty">Sign in with Phantom to see your Monstars.</div></div></div>
@@ -174,10 +181,43 @@ function needSocket() { if (!S.session()) throw Error('Sign in with Phantom firs
 function sendWs(msg) { needSocket(); const go = () => ws.send(JSON.stringify(msg)); ws.readyState === 1 ? go() : ws.addEventListener('open', go, { once: true }); }
 q('pvCreate').onclick = () => { try { const lam = Stake.toLamports(q('pvStake').value || '0'); sendWs({ t: 'create', stakeLamports: lam.toString(), serial: lam > 0n ? picked : undefined, speciesId: mine.find(m => m.serial === picked)?.speciesId ?? 0 }); } catch (e) { fail(e); } };
 q('pvJoin').onclick = () => { try { sendWs({ t: 'join', code: q('pvJoinCode').value.trim().toUpperCase(), serial: picked, speciesId: mine.find(m => m.serial === picked)?.speciesId ?? 0 }); } catch (e) { fail(e); } };
+// ---------- move cards ("What will X do?") ----------
+const MOVE_KEYS = ['atk', 'sp', 'dash', 'guard'];
+const TYPE_COL = { EMBER: '#e8582c', TIDE: '#3a8ae0', GROVE: '#4caa3a', SPARK: '#d8b018', SHADE: '#7a4ad8', STONE: '#9a8458', FROST: '#5ab8d8', ASTRAL: '#d89a30', PSYCHIC: '#c050c8', NORMAL: '#8a8a9a' };
+let moveFor = null;
+function buildMoves() {
+  if (!room?.players || room.players.length < 2) return;
+  const me2 = room.players[room.local || room.ai ? 0 : room.you].monstar, foe = room.players[room.local || room.ai ? 1 : 1 - room.you].monstar;
+  const key = me2.speciesId + ':' + foe.speciesId; if (moveFor === key) return; moveFor = key;
+  const sp = Monstars.SPECIES[me2.speciesId], eff = Monstars.effectiveness(sp.type, Monstars.SPECIES[foe.speciesId].type);
+  const effTxt = eff > 1 ? '<i class="up">▲</i> Super effective' : eff < 1 ? '<i class="dn">▼</i> Not very effective' : '<i>●</i> Normal damage';
+  const ST = Sim.STYLES, bs = ST[sp.basicStyle], ss = ST[sp.specialStyle];
+  const cards = [
+    { k: 'atk', n: sp.move, ty: sp.type, c: bs.cost ? '⚡' + bs.cost : '⚡0', e: effTxt },
+    { k: 'sp', n: sp.special, ty: sp.type, c: '⚡' + ss.cost, e: effTxt },
+    { k: 'dash', n: 'Quick dash', ty: 'NORMAL', c: 'Dodge', e: 'Dash through attacks' },
+    { k: 'guard', n: 'Guard', ty: 'NORMAL', c: 'Block', e: 'Halves the next hit' },
+  ];
+  q('pvAsk').textContent = sp.name.toUpperCase();
+  q('pvMGrid').innerHTML = cards.map((c, i) => `<button class="pv-mv" data-k="${c.k}" style="--tc:${TYPE_COL[c.ty] || '#888'}"><span class="mv-n">${esc(c.n)}</span><span class="mv-k">${i + 1}</span>
+    <span class="mv-row"><span class="mv-ty">${c.ty === 'NORMAL' ? 'MOVE' : esc(c.ty)}</span><span class="mv-c">${esc(c.c)}</span></span><span class="mv-e">${c.e}</span><i class="mv-cd"></i></button>`).join('');
+  q('pvMGrid').querySelectorAll('.pv-mv').forEach(b => { const k = b.dataset.k; let at = 0;
+    b.addEventListener('pointerdown', e => { e.preventDefault(); touch[k] = true; at = performance.now(); b.classList.add('on'); try { b.setPointerCapture(e.pointerId); } catch {} });
+    const up = () => { b.classList.remove('on'); setTimeout(() => { touch[k] = false; }, Math.max(0, 160 - (performance.now() - at))); };
+    b.addEventListener('pointerup', up); b.addEventListener('pointercancel', up); b.addEventListener('contextmenu', e => e.preventDefault()); });
+}
+const cdMax = { b: 1, s: 1, d: 1, g: 1 };
+function updateMoves(f) {
+  const grid = q('pvMGrid'); if (!grid || !f) return;
+  const sp = Monstars.SPECIES[f.s], cost = { b: Sim.STYLES[sp.basicStyle].cost, s: Sim.STYLES[sp.specialStyle].cost, d: 0, g: 0 };
+  ['b', 's', 'd', 'g'].forEach((k, i) => { const b = grid.children[i]; if (!b) return; const cd = f.cd[k] || 0; cdMax[k] = Math.max(cd, cd > 0 ? cdMax[k] : 0.01);
+    const cool = cd > 0.05 || f.en < cost[k]; b.classList.toggle('cool', cool); b.querySelector('.mv-cd').style.width = (cd > 0 ? cd / cdMax[k] * 100 : 0) + '%'; });
+}
 function hudNames() {
   if (!room?.players || room.players.length < 2) return;
   const order = room.local || room.ai ? [0, 1] : [room.you, 1 - room.you];
-  order.forEach((pi, k) => { const m = room.players[pi].monstar; q('pvN' + k).textContent = Monstars.SPECIES[m.speciesId].name.toUpperCase(); q('pvT' + k).textContent = m.type;
+  buildMoves();
+  order.forEach((pi, k) => { const m = room.players[pi].monstar; q('pvN' + k).textContent = Monstars.SPECIES[m.speciesId].name.toUpperCase(); const t = q('pvT' + k); if (!t.classList.contains('cast')) t.textContent = m.type; t.dataset.type = m.type; t.style.setProperty('--tc', TYPE_COL[m.type] || '#888');
     q('pvPic' + k).src = PA.spriteSrc(m.speciesId); q('pvPic' + k).style.filter = `hue-rotate(${m.traits?.hue || 0}deg)`; });
 }
 function leaveBattle() { if (room?.local) { room = null; local = null; ended = null; snapCur = null; renderRoom(); renderer.idle(); return; } try { sendWs({ t: 'leave' }); } catch {} room = null; ended = null; renderRoom(); }
@@ -190,6 +230,11 @@ q('pvDeposit').onclick = e => busy(e.target, async () => {
   sendWs({ t: 'deposit', signature: sig }); toast('Deposit sent. Waiting for confirmation…'); refreshBalance();
 });
 
+// Practice and free matches show a pretend 0.01 SOL pot so you can watch SOL move per hit. It is never paid out.
+const PRACTICE_STAKE = 5_000_000n;
+let vLedger = null;
+function practiceMoney() { return !room || room.local || room.ai || room.stake === '0'; }
+function resetVirtual() { vLedger = new Stake.StakeLedger(PRACTICE_STAKE); shares = vLedger.shares.map(String); showShares(null); }
 const GUEST_KEY = 'pm-guest-exp-v1';
 function guestExp() { try { return JSON.parse(localStorage.getItem(GUEST_KEY) || '{}'); } catch { return {}; } }
 function saveGuestExp(sid, exp) { try { const g = guestExp(); g[sid] = Math.max(g[sid] || 0, Math.floor(exp)); localStorage.setItem(GUEST_KEY, JSON.stringify(g)); } catch {} }
@@ -212,17 +257,21 @@ function renderPicker() {
   q('pvPickInfo').innerHTML = `<b>${esc(m.displayName)}</b> · Lv${j.level} ${esc(j.stage)} · ${sp.cls.label} · ${sp.type}${expBar(j)}A: ${esc(sp.move)} · B: ${esc(sp.special)}<br>${esc(sp.cls.passive)}`;
 }
 q('pvPractice').onclick = () => startPractice();
-function startPractice() {
+let lastPractice = null;
+function startPractice(opt = null) {
+  lastPractice = opt;
   const own = ownedFor(pickedSpecies);
-  if (S.session() && own) { try { sendWs({ t: 'ai', serial: own.serial }); ended = null; fightAt = 0; renderer.reset(); } catch (e) { fail(e); } return; }
-  if (Monstars.SPECIES[pickedSpecies].legendary) pickedSpecies = 0;
-  const others = Monstars.SPECIES.filter(x => x.id !== pickedSpecies && !x.legendary), foe = others[Math.floor(Math.random() * others.length)];
-  const a = monFor(pickedSpecies), b = new Monstars.Monstar({ speciesId: foe.id, level: Math.max(1, a.level + Math.floor(Math.random() * 3) - 1) });
-  local = { m: Sim.createMatch(a, b, { arena: Math.floor(Math.random() * 4) }), mem: {} };
-  room = { local: true, state: 'live', you: 0, stake: '0', code: 'AI', players: [{ wallet: me || 'You', monstar: a.toJSON() }, { wallet: 'AI', monstar: b.toJSON() }] };
-  ended = null; snapPrev = null; snapCur = Sim.snapshot(local.m); snapAt = performance.now(); renderer.reset(); fightAt = performance.now();
+  if (!opt && S.session() && own) { try { sendWs({ t: 'ai', serial: own.serial }); ended = null; fightAt = 0; renderer.reset(); resetVirtual(); } catch (e) { fail(e); } return; }
+  const usable = sid => !Monstars.SPECIES[sid].legendary || mine.some(m => m.speciesId === sid);
+  if (!usable(pickedSpecies)) pickedSpecies = 0;
+  const others = Monstars.SPECIES.filter(x => x.id !== pickedSpecies && !x.legendary), foe = opt?.foeId != null ? Monstars.SPECIES[opt.foeId] : others[Math.floor(Math.random() * others.length)];
+  const a = monFor(pickedSpecies), b = new Monstars.Monstar({ speciesId: foe.id, level: opt?.foeLevel ?? Math.max(1, a.level + Math.floor(Math.random() * 3) - 1) });
+  local = { m: Sim.createMatch(a, b, { arena: opt?.arena ?? Math.floor(Math.random() * 4) }), mem: {} };
+  room = { local: true, wild: opt || null, state: 'live', you: 0, stake: '0', code: 'AI', players: [{ wallet: me || 'You', monstar: a.toJSON() }, { wallet: 'AI', monstar: { ...b.toJSON(), name: opt ? 'Wild ' + foe.name : b.toJSON().name } }] };
+  ended = null; snapPrev = null; snapCur = Sim.snapshot(local.m); snapAt = performance.now(); renderer.reset(); fightAt = performance.now(); resetVirtual();
   renderRoom(); draw();
 }
+window.PMStartBattle = startPractice;
 setInterval(() => {
   if (!local || room?.state !== 'live' || ended) return;
   const m = local.m;
@@ -233,7 +282,9 @@ setInterval(() => {
   for (const ev of evs) battleEvent(ev);
   if (m.over) {
     const f0 = m.fighters[0]; saveGuestExp(f0.speciesId, f0.exp);
+    if (vLedger) { vLedger.finish(m.winner); shares = vLedger.shares.map(String); showShares(null); }
     ended = { winner: m.winner, reason: m.reason, at: performance.now(), local: true, progress: m.fighters.map(f => ({ gained: f.expGained, level: f.level, stage: Monstars.stageFor(f.level).name, saved: true })) };
+    if (room?.wild) window.PMWild?.result(m.winner === 0, room.wild);
     renderRoom(); renderPicker();
   }
 }, 1000 / 30);
@@ -249,14 +300,14 @@ function onMsg(m) {
     if (/not found yet/i.test(m.error) && pendingDeposit && depositRetries < 10) { depositRetries++; setTimeout(() => sendWs({ t: 'deposit', signature: pendingDeposit.sig }), 3000); return toast('Waiting for Solana to confirm your deposit…'); }
     return toast(m.error, true);
   }
-  if (m.t === 'room') { room = m; shares = m.shares; renderRoom(); return; }
+  if (m.t === 'room') { room = m; shares = practiceMoney() ? (vLedger ? vLedger.shares.map(String) : null) : m.shares; renderRoom(); return; }
   if (m.t === 'state') {
     if (room && room.state !== 'live') { room.state = 'live'; fightAt = performance.now(); renderer.reset(); renderRoom(); }
     snapPrev = snapCur; snapCur = m.s; snapAt = performance.now(); setShares(m.shares); return;
   }
   if (m.t === 'hit') { setShares(m.shares, m); return; }
   if (m.t === 'miss' || m.t === 'level' || m.t === 'bonus') { battleEvent({ ...m, type: m.t }); if (m.t === 'level') refreshSoon(); return; }
-  if (m.t === 'end') { ended = { ...m, at: performance.now() }; refreshSoon(); if (room) room.state = room.stake === '0' ? 'done' : 'settling'; renderRoom(); return; }
+  if (m.t === 'end') { if (practiceMoney() && vLedger) { vLedger.finish(m.winner == null ? null : m.winner); shares = vLedger.shares.map(String); showShares(); } ended = { ...m, at: performance.now() }; refreshSoon(); if (room) room.state = room.stake === '0' ? 'done' : 'settling'; renderRoom(); return; }
   if (m.t === 'settlement') { ended = { at: 0, ...(ended || {}), settlement: m }; if (room) room.state = m.ok ? (m.refund ? 'refunded' : 'settled') : 'needs review'; renderRoom(); refreshBalance(); return; }
   if (m.t === 'cancelled') { toast('Match cancelled (' + m.reason + ').' + (room?.players?.some(p => p.deposited) ? ' Deposits are being refunded.' : '')); if (room) room.state = 'cancelled'; renderRoom(); }
   if (m.t === 'left') { room = null; renderRoom(); }
@@ -268,6 +319,10 @@ function battleEvent(ev) {
   if (!snapCur) return;
   if (ev.type === 'level') ev.name = (room?.players?.[ev.side]?.monstar?.name || '').toUpperCase();
   if (ev.type === 'hit' && ev.fee == null && room && room.stake !== '0' && ev.feeLamports) ev.fee = sol(ev.feeLamports, 9);
+  if (ev.type === 'hit' && practiceMoney() && vLedger && ev.fee == null) { // pretend pot for practice
+    const fee = vLedger.hit(ev.attacker, ev.damage, ev.victimMaxHp || snapCur.f[ev.victim]?.max || 100);
+    if (fee > 0n) ev.fee = sol(fee, 9); shares = vLedger.shares.map(String); showShares(null);
+  }
   renderer.event(ev, snapCur);
 }
 // Move-name callouts like "Ember volley!" when a Monstar uses a power
@@ -276,49 +331,65 @@ function callouts() {
   if (!snapCur || !room?.players) return;
   snapCur.f.forEach((f, i) => {
     if (f.ct < lastCast[i] && f.ct < 0.3 && f.ck) {
-      const sp = Monstars.SPECIES[f.s], side = i === room.you ? 0 : 1, box = q('pvCall' + side);
-      box.textContent = (f.ck === 'special' ? sp.special : sp.move) + '!'; box.classList.remove('show'); void box.offsetWidth; box.classList.add('show');
+      const sp = Monstars.SPECIES[f.s], side = i === room.you ? 0 : 1, pill = q('pvT' + side);
+      pill.textContent = (f.ck === 'special' ? sp.special : sp.move).toUpperCase(); pill.classList.add('cast'); clearTimeout(pill._t);
+      pill._t = setTimeout(() => { pill.classList.remove('cast'); pill.textContent = pill.dataset.type || ''; }, 1300);
     }
     lastCast[i] = f.ct;
   });
 }
 function setShares(next, hit) {
-  if (!next || !room) return;
-  const you = room.you;
-  const prev = shares; shares = next;
-  for (const side of [0, 1]) {
-    const idx = side === 0 ? you : 1 - you, span = q('pvS' + side);
-    span.textContent = room.stake === '0' ? '' : sol(next[idx], 6) + ' SOL at end';
-    if (prev && BigInt(prev[idx]) !== BigInt(next[idx])) { span.classList.remove('flash-up', 'flash-down'); void span.offsetWidth; span.classList.add(BigInt(next[idx]) > BigInt(prev[idx]) ? 'flash-up' : 'flash-down'); }
-  }
-  const pot = BigInt(next[0]) + BigInt(next[1]);
-  if (pot > 0n) { const p = Number(BigInt(next[you]) * 1000n / pot) / 10; q('pvP0').style.width = p + '%'; q('pvP1').style.width = (100 - p) + '%'; q('pvPotTxt').textContent = `Your share ${p.toFixed(1)}% of ${sol(pot, 4)} SOL pot`; }
+  if (!room) return;
+  if (practiceMoney()) { if (hit && snapCur) battleEvent({ type: 'hit', attacker: hit.attacker, victim: 1 - hit.attacker, damage: hit.damage, eff: hit.eff, crit: hit.crit, exp: hit.exp, style: hit.style }); return; }
+  if (!next) return;
+  shares = next; showShares(hit);
   if (hit && snapCur) battleEvent({ type: 'hit', attacker: hit.attacker, victim: 1 - hit.attacker, damage: hit.damage, eff: hit.eff, crit: hit.crit, exp: hit.exp, style: hit.style, fee: BigInt(hit.fee) > 0n ? sol(hit.fee, 9) : null });
 }
 
+let shownShares = null;
+function showShares() {
+  if (!shares || !room) return;
+  const you = room.local ? 0 : room.you, pretend = practiceMoney(), next = shares, prev = shownShares; shownShares = next.slice();
+  const start = pretend ? PRACTICE_STAKE : BigInt(room.stake || 0);
+  for (const side of [0, 1]) {
+    const idx = side === 0 ? you : 1 - you, span = q('pvS' + side), d = BigInt(next[idx]) - start;
+    span.textContent = sol(next[idx], 6) + ' SOL';
+    q('pvSD' + side).textContent = d === 0n ? (pretend ? 'practice' : 'paid at end') : (d > 0n ? '+' : '−') + sol(d < 0n ? -d : d, 6);
+    q('pvSD' + side).className = d > 0n ? 'up' : d < 0n ? 'dn' : '';
+    if (prev && BigInt(prev[idx]) !== BigInt(next[idx])) { span.classList.remove('flash-up', 'flash-down'); void span.offsetWidth; span.classList.add(BigInt(next[idx]) > BigInt(prev[idx]) ? 'flash-up' : 'flash-down'); }
+  }
+  const pot = BigInt(next[0]) + BigInt(next[1]);
+  q('pvPotMid').textContent = `${pretend ? 'PRACTICE ' : ''}POT ${sol(pot, 4)} SOL`;
+  if (pot > 0n) { const p = Number(BigInt(next[you]) * 1000n / pot) / 10; q('pvP0').style.width = q('pvPB0').style.width = p + '%'; q('pvP1').style.width = q('pvPB1').style.width = (100 - p) + '%'; q('pvPotTxt').textContent = `Your share ${p.toFixed(1)}% of ${sol(pot, 4)} SOL${pretend ? ' (practice, not real SOL)' : ', paid when the match ends'}`; }
+}
 function renderRoom() {
   q('pvRoom').hidden = !room; q('pvLobby').hidden = !!room && !['cancelled', 'settled', 'done', 'refunded'].includes(room.state);
   const live = room?.state === 'live' || (room && ended);
   const fainting = ended && performance.now() - (ended.at || 0) < 1800;
   if (fainting) setTimeout(renderRoom, 1850 - (performance.now() - ended.at));
-  const stage = q('pvStage'), full = !!room && room.state === 'live' && (!ended || fainting) || (!!ended && fainting);
+  const stay = !!(room?.wild && ended && !fainting); // wild runs stay full screen until you choose what's next
+  const stage = q('pvStage'), full = !!room && room.state === 'live' && (!ended || fainting) || (!!ended && fainting) || stay;
   stage.classList.toggle('live', !!full);
   document.documentElement.classList.toggle('pv-battling', !!full);
   if (full && stage.parentElement !== document.body) { stageHome ??= stage.parentElement; stageNext = stage.nextSibling; document.body.append(stage); }
   else if (!full && stageHome && stage.parentElement === document.body) stageHome.insertBefore(stage, stageNext);
-  q('pvHud').hidden = !full; q('pvPot').hidden = !full || room?.stake === '0';
+  q('pvHud').hidden = !full; q('pvMoves').hidden = !full || stay; q('pvPot').hidden = !full;
+  if (full) { if (!shares || (practiceMoney() && !vLedger)) resetVirtual(); showShares(); }
   if (room?.local || room?.ai) {
     q('pvRoom').hidden = true; q('pvLobby').hidden = false;
-    const ov = q('pvOverlay'), btns = q('pvOvBtns'); ov.hidden = !!full; btns.innerHTML = '';
+    const ov = q('pvOverlay'), btns = q('pvOvBtns'); ov.hidden = !!full && !stay; btns.innerHTML = '';
     hudNames();
-    q('pvS0').textContent = ''; q('pvS1').textContent = '';
     if (!ended && !full) { q('pvBig').textContent = 'Get ready!'; q('pvSmall').textContent = `${room.players[0].monstar.name} vs ${room.players[1]?.monstar.name || '…'}`; }
-    if (ended && !full) {
+    if (ended && (!full || stay)) {
       const pr = ended.progress?.[0];
       q('pvBig').textContent = ended.winner == null ? 'Draw' : ended.winner === 0 ? 'Victory!' : 'Defeated';
       q('pvSmall').innerHTML = `${ended.reason === 'ko' ? 'KO' : ended.reason === 'time' ? 'Time up' : 'Forfeit'} · practice vs ${esc(room.players[1].monstar.name)}`
-        + (pr ? `<br><b>+${pr.gained} EXP</b> · now Lv${pr.level} ${esc(pr.stage)} · ${room.local ? 'saved on this device' : 'saved to your Monstar'}` : '');
-      const again = el('button', { className: 'primary', textContent: 'Rematch' }); again.onclick = startPractice;
+        + (pr ? `<br><b>+${pr.gained} EXP</b> · now Lv${pr.level} ${esc(pr.stage)} · ${room.local ? 'saved on this device' : 'saved to your Monstar'}` : '')
+        + (shares ? `<br>Practice pot: you finished with <b>${sol(shares[0], 6)} SOL</b> (pretend SOL, stake a real match to win it)` : '');
+      const won = ended.winner === 0;
+      if (room.wild) { const w = window.PMWild; const nx = el('button', { className: 'primary', textContent: won ? 'Next wild Monstar' : 'Try again' }); nx.onclick = () => w.next(); const mp = el('button', { className: 'smallbtn', textContent: 'Expedition map' }); mp.onclick = () => { room = null; local = null; ended = null; snapCur = null; renderRoom(); w.map(); }; btns.append(nx, mp);
+        q('pvSmall').innerHTML += `<br>${won ? 'Wild Monstar defeated! ' : ''}${esc(w.label())}`; return; }
+      const again = el('button', { className: 'primary', textContent: 'Rematch' }); again.onclick = () => startPractice();
       const back = el('button', { className: 'smallbtn', textContent: 'Change Monstar' }); back.onclick = () => { room = null; local = null; ended = null; snapCur = null; renderRoom(); renderer.idle(); };
       btns.append(again, back);
     }
@@ -365,9 +436,6 @@ zone.addEventListener('pointerdown', e => { stickId = e.pointerId; try { zone.se
 zone.addEventListener('pointermove', e => { if (e.pointerId !== stickId) return; let dx = e.clientX - origin.x, dy = e.clientY - origin.y; const d = Math.hypot(dx, dy), R = 50; if (d > R) { dx *= R / d; dy *= R / d; } touch.mx = dx / R; touch.my = dy / R; knob.style.transform = `translate(${dx}px,${dy}px)`; });
 const endStick = e => { if (e.pointerId !== stickId) return; stickId = null; touch.mx = touch.my = 0; stick.style.display = 'none'; knob.style.transform = ''; };
 zone.addEventListener('pointerup', endStick); zone.addEventListener('pointercancel', endStick);
-pvp.querySelectorAll('.pv-btn').forEach(b => { const k = b.dataset.k;
-  b.addEventListener('pointerdown', e => { e.preventDefault(); touch[k] = true; b.classList.add('on'); try { b.setPointerCapture(e.pointerId); } catch {} });
-  const up = () => { touch[k] = false; b.classList.remove('on'); }; b.addEventListener('pointerup', up); b.addEventListener('pointercancel', up); });
 
 let lastSent = '', lastSendAt = 0;
 function currentInput() {
@@ -377,7 +445,7 @@ function currentInput() {
   const meF = snapCur.f[room.you];
   let ax = 0, ay = 0; // 0 = the Monstar aims at its rival on its own
   if (mouse && !coarse && performance.now() - (mouse.at || 0) < 1500) { ax = mouse.x - meF.x; ay = mouse.y - meF.y; }
-  const i = { mx, my, ax, ay, atk: !!(keys.KeyJ || mouseBtn.l || touch.atk), sp: !!(keys.KeyK || mouseBtn.r || touch.sp), dash: !!(keys.Space || touch.dash), guard: !!(keys.KeyL || touch.guard) };
+  const i = { mx, my, ax, ay, atk: !!(keys.KeyJ || keys.Digit1 || mouseBtn.l || touch.atk), sp: !!(keys.KeyK || keys.Digit2 || mouseBtn.r || touch.sp), dash: !!(keys.Space || keys.Digit3 || touch.dash), guard: !!(keys.KeyL || keys.Digit4 || touch.guard) };
   return i;
 }
 function sendInput() {
@@ -400,14 +468,14 @@ function draw() {
     for (const [k, f] of [[0, meF], [1, foe]]) {
       const p = Math.max(0, f.hp / f.max), bar = q('pvH' + k);
       bar.style.width = (p * 100) + '%'; bar.style.background = hpColor(p);
-      q('pvHN' + k).textContent = `${Math.ceil(Math.max(0, f.hp))}`;
       q('pvX' + k).style.width = Math.min(100, f.xi / Math.max(1, f.xn) * 100) + '%';
-      q('pvL' + k).textContent = `Lv${f.lv} ${Monstars.STAGES[f.sg]?.name || ''}`;
+      q('pvL' + k).textContent = `Lv${f.lv}`; q('pvL' + k).title = Monstars.STAGES[f.sg]?.name || '';
+      q('pvHN' + k).textContent = `${Math.ceil(Math.max(0, f.hp))}/${f.max}`;
     }
     const left = Math.max(0, Math.ceil(ARENA.roundSeconds - snapCur.t));
     q('pvClock').textContent = `${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}`;
     callouts();
-    q('pvAtkBtn').classList.toggle('cool', meF.cd.b > 0); q('pvSpBtn').classList.toggle('cool', meF.cd.s > 0 || meF.en < 40);
+    updateMoves(meF);
   } else renderer.idle();
   if (!pvp.classList.contains('hidden') || q('pvStage').classList.contains('live')) requestAnimationFrame(draw);
 }

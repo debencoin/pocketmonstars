@@ -204,6 +204,72 @@ img.px{image-rendering:pixelated;image-rendering:crisp-edges}
 .dwin b{color:#ffd23f;font-size:clamp(12px,2.6vw,22px);font-weight:400;text-shadow:3px 3px 0 #000}
 .dwin span{color:#9ef0c8;font-size:clamp(8px,1.4vw,12px)}
 [hidden]{display:none!important}
+
+/* ===== v8: front page like the reference arena site ===== */
+.notice{background:#ffd23f;color:#1a1424;text-align:center;font:600 13px var(--display);padding:8px 14px}
+.hero{padding-block:clamp(22px,4vw,44px) clamp(36px,5vw,60px)}
+.hero .wrap{display:block}
+.title{text-align:center;margin-bottom:22px}
+.title h1{font:400 clamp(22px,4.4vw,46px)/1.25 'Press Start 2P',monospace;letter-spacing:0;margin:0 0 12px;text-shadow:4px 4px 0 #000}
+.title h1 em{font-style:normal;color:#ffd23f}
+.title .lead{margin:0 auto;max-width:60ch;color:#cdd6cb}
+.icons{display:flex;justify-content:center;flex-wrap:wrap;gap:8px;margin-top:16px}
+.icons button{width:54px;height:54px;border-radius:50%;background:radial-gradient(#3a4080,#1b1e3c);border:2px solid #4a50a0;padding:5px;cursor:pointer}
+.icons button img{width:100%;height:100%;object-fit:contain}
+.icons button[aria-pressed=true]{border-color:#ffd23f;box-shadow:0 0 0 3px #ffd23f55;transform:translateY(-3px)}
+.arena-grid{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:18px;align-items:start}
+@media (max-width:900px){.arena-grid{grid-template-columns:1fr}}
+.mini{background:radial-gradient(ellipse at 50% 0%,#2a2f5a,#141630 70%);border:3px solid #3a3f78;border-radius:18px;padding:10px;display:flex;flex-direction:column;gap:8px;font-family:'Press Start 2P',monospace;color:#fff;min-width:0}
+.mini:fullscreen{justify-content:center;border-radius:0;padding:14px}
+.mini:fullscreen .mfield{max-height:62vh;aspect-ratio:auto}
+.mini:fullscreen canvas{height:62vh;width:auto;margin:0 auto}
+.mhud{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);gap:6px;align-items:center}
+.mcard{display:flex;gap:7px;align-items:center;background:linear-gradient(#262a52,#1b1e3c);border:2px solid #4a50a0;border-radius:14px;padding:6px 8px;min-width:0}
+.mcard.r{flex-direction:row-reverse;text-align:right}
+.mcard img{width:clamp(28px,4.5vw,44px);height:clamp(28px,4.5vw,44px);border-radius:50%;background:radial-gradient(#3a4080,#20244a);border:2px solid #8a90e0;padding:2px;object-fit:contain;flex:none}
+.mcard>div{flex:1;min-width:0;display:flex;flex-direction:column;gap:3px}
+.mtop{display:flex;gap:5px;align-items:center;min-width:0}.mcard.r .mtop{flex-direction:row-reverse}
+.mtop b{font-weight:400;font-size:clamp(7px,1.1vw,10px);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mlv{font-size:clamp(5px,.75vw,7px);color:#ffd23f;flex:none}
+.mty{font-size:clamp(5px,.7vw,6px);background:var(--tc,#888);border-radius:20px;padding:2px 5px;margin-left:auto;flex:none;white-space:nowrap;max-width:60%;overflow:hidden;text-overflow:ellipsis}.mcard.r .mty{margin-left:0;margin-right:auto}
+.mty.cast{background:#e23a3a}
+.mbar,.mxp{height:7px;background:#0e1024;border:2px solid #0a0b18;border-radius:5px;overflow:hidden;display:flex}.mxp{height:4px;border-width:1px}
+.mcard.r .mbar,.mcard.r .mxp{justify-content:flex-end}
+.mbar i{display:block;height:100%;background:#58d858;transition:width .2s}.mxp i{display:block;height:100%;background:#4aa8ff}
+.msol{display:flex;justify-content:space-between;gap:4px;font-size:clamp(5px,.75vw,7px)}.mcard.r .msol{flex-direction:row-reverse}
+.msol span{color:#9ef0c8}.msol small{color:#a8acd8}.msol small.up{color:#9ef0c8}.msol small.dn{color:#ff7b6b}
+.mmid{display:flex;flex-direction:column;align-items:center;gap:4px}
+.mclock{background:#0d0f22;border:2px solid #4a50a0;border-radius:10px;padding:5px 8px;font-size:clamp(7px,1.1vw,11px)}
+.mstreak{font-size:clamp(4px,.65vw,6px);color:#a8acd8;white-space:nowrap}.mstreak b{color:#ffd23f;font-weight:400}
+.mfield{position:relative;aspect-ratio:16/9;border-radius:12px;overflow:hidden;box-shadow:0 0 0 3px #0a0b18}
+.mfield canvas{display:block;width:100%;height:100%}
+.mover{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;background:#0b0d18b0;text-align:center;padding:12px}
+.mover b{font-weight:400;color:#ffd23f;font-size:clamp(14px,2.6vw,24px);text-shadow:3px 3px 0 #000}
+.mover span{font-size:clamp(7px,1.1vw,10px);color:#dfe2ff;line-height:1.7;max-width:46ch}
+.mover .btn{font-family:'Press Start 2P',monospace;font-size:12px;min-height:44px}
+.mpanel{background:linear-gradient(#262a52,#1b1e3c);border:2px solid #4a50a0;border-radius:14px;padding:8px;display:flex;flex-direction:column;gap:7px}
+.mask{font-size:clamp(7px,1.1vw,10px)}.mask b{color:#ffd23f;font-weight:400}
+.mmoves{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:7px}
+@media (max-width:640px){.mmoves{grid-template-columns:1fr 1fr}}
+.mmove{position:relative;overflow:hidden;display:flex;flex-direction:column;align-items:flex-start;gap:5px;text-align:left;padding:8px;border-radius:10px;background:linear-gradient(#f8f8fc,#e4e6f4);color:#141830;border:2px solid #0a0b18;border-left:7px solid var(--tc,#888);box-shadow:0 3px 0 #0a0b18;font-family:'Press Start 2P',monospace;cursor:pointer;touch-action:none;user-select:none;-webkit-user-select:none;min-width:0}
+.mmove .n{font-size:clamp(6px,.9vw,9px);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+.mmove .t{display:flex;gap:4px;width:100%;align-items:center;font-size:clamp(5px,.65vw,6px)}
+.mmove .t em{font-style:normal;background:var(--tc,#888);color:#fff;border-radius:20px;padding:2px 5px}.mmove .t span{margin-left:auto;color:#3a3f78}
+.mmove .cd{position:absolute;left:0;bottom:0;height:3px;background:var(--tc,#888)}
+.mmove.on{transform:translateY(2px);background:linear-gradient(#fff9d8,#ffe9a0)}.mmove.cool{filter:saturate(.35) brightness(.8)}
+.mctl{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.mctl button{font:inherit;font-size:clamp(6px,.8vw,8px);background:#0d0f22;color:#fff;border:2px solid #4a50a0;border-radius:9px;padding:7px 9px;cursor:pointer}
+.mctl button[aria-pressed=true]{border-color:#ffd23f;color:#ffd23f}
+.mhint{font-size:clamp(5px,.7vw,7px);color:#a8acd8;margin-left:auto}
+.side{display:flex;flex-direction:column;gap:12px}
+.cta-card{display:flex;flex-direction:column;gap:6px;text-decoration:none;background:var(--panel);border:2px solid var(--line);border-radius:16px;padding:16px;color:var(--white)}
+.cta-card .k{font:600 11px var(--display);letter-spacing:.14em;text-transform:uppercase;color:var(--lime)}
+.cta-card b{font:400 13px/1.4 'Press Start 2P',monospace}
+.cta-card span:not(.k){color:var(--muted);font-size:14px}
+.cta-card.hot{background:linear-gradient(135deg,#3a2e7a,#1b1e3c);border-color:#ffd23f}
+.cta-card.hot b{color:#ffd23f}
+@media (hover:hover){a.cta-card:hover{border-color:var(--lime);transform:translateY(-2px)}}
+.cta-card ol{margin:0;padding-left:18px;color:#cdd6cb;font-size:14px;display:flex;flex-direction:column;gap:4px}
 </style>
 </head>
 <body>
@@ -214,27 +280,31 @@ img.px{image-rendering:pixelated;image-rendering:crisp-edges}
 </div></header>
 
 <main>
+<div class="notice" role="note"><b>Devnet beta</b> · Free test SOL only · Never type your seed phrase into any site</div>
 <div class="hero"><div class="wrap">
-  <div>
-    <div class="eyebrow">Real-time 1v1 · Solana · Phantom</div>
-    <h1>Every hit moves <em>SOL</em>. Winner takes the pot.</h1>
-    <p class="lead">Pixel Monstars that move and dodge on their own while you call the attacks. Every hit earns EXP, and your Monstar evolves from Infant to Ascended. Stake SOL against a rival: every hit moves lamports to your side, paid when the match ends.</p>
-    <div class="cta">
-      <a class="btn primary" data-play href="/play">Play in Phantom</a>
-      <a class="btn ghost" data-practice href="/play">Practice free vs AI</a>
-    </div>
-    <p class="cta-note" id="ctaNote">On a phone, the game opens inside the Phantom app so your wallet can connect. Currently on Solana devnet with free test SOL.</p>
+  <div class="title">
+    <h1>Pocket<em>Monstars</em> Arena</h1>
+    <p class="lead">Real-time Monstar battles on Solana. Your Monstar moves on its own; you call the moves. Every hit moves SOL and earns EXP.</p>
+    <div class="icons" id="pickRow" role="group" aria-label="Choose your Monstar for the mini battle"></div>
   </div>
-  <div class="live" id="demo">
-    <canvas id="demoCv" width="640" height="360" aria-label="Live demo: two Monstars battling for a 0.02 SOL pot"></canvas>
-    <div class="dh">
-      <div class="dside"><img class="px" id="dPic0" alt=""><div><b id="dN0">—</b><div class="dbar"><i id="dH0"></i></div><span class="dlv" id="dL0"></span></div></div>
-      <div class="dclock" id="dClock">1:30</div>
-      <div class="dside r"><img class="px" id="dPic1" alt=""><div><b id="dN1">—</b><div class="dbar"><i id="dH1"></i></div><span class="dlv" id="dL1"></span></div></div>
+  <div class="arena-grid">
+   <div class="mini" id="mini">
+    <div class="mhud">
+      <div class="mcard"><img id="mPic0" alt=""><div><div class="mtop"><b id="mN0">—</b><span class="mlv" id="mL0"></span><span class="mty" id="mT0"></span></div><div class="mbar"><i id="mH0"></i></div><div class="mxp"><i id="mX0"></i></div><div class="msol"><span id="mS0">0.005000 SOL</span><small id="mD0"></small></div></div></div>
+      <div class="mmid"><div class="mclock" id="mClock">1:30</div><div class="mstreak">WINS <b id="mWins">0</b> · STREAK <b id="mStreak">0</b></div></div>
+      <div class="mcard r"><img id="mPic1" alt=""><div><div class="mtop"><b id="mN1">—</b><span class="mlv" id="mL1"></span><span class="mty" id="mT1"></span></div><div class="mbar"><i id="mH1"></i></div><div class="mxp"><i id="mX1"></i></div><div class="msol"><span id="mS1">0.005000 SOL</span><small id="mD1"></small></div></div></div>
     </div>
-    <div class="dpot"><div class="dsol"><span id="dS0">0.010000</span><small>SOL</small></div><div class="dpotbar"><i id="dP0"></i><i id="dP1"></i></div><div class="dsol r"><span id="dS1">0.010000</span><small>SOL</small></div></div>
-    <div class="dcap" id="dCap">Live demo · 0.01 SOL each · winner takes the pot</div>
-    <div class="dwin" id="dWin" hidden></div>
+    <div class="mfield"><canvas id="demoCv" width="960" height="540" aria-label="Mini battle"></canvas>
+      <div class="mover" id="mOver"><b id="mBig">Mini battle</b><span id="mSmall">Pick a Monstar above, then tap a move. Practice SOL only.</span><button class="btn primary" id="mGo">Battle!</button></div></div>
+    <div class="mpanel"><div class="mask">What will <b id="mAsk">—</b> do?</div><div class="mmoves" id="mMoves"></div></div>
+    <div class="mctl"><button id="mSpeed" aria-label="Game speed">Speed 1x</button><button id="mAuto" aria-pressed="false">Auto moves</button><button id="mFull">Full screen</button><span class="mhint">Keys 1–4 · practice pot 0.01 SOL (not real)</span></div>
+   </div>
+   <aside class="side">
+    <a class="cta-card hot" data-play href="/play"><span class="k">Stake SOL</span><b>Play in Phantom</b><span>Duel a real rival for a SOL pot. Every hit moves lamports to your side. Winner takes the pot when the match ends.</span></a>
+    <a class="cta-card" data-practice href="/play"><span class="k">Free</span><b>Practice vs AI</b><span>Full game, no wallet needed. Level up and watch your Monstar evolve.</span></a>
+    <a class="cta-card" href="/play#wild" data-wild><span class="k">Adventure</span><b>Wild Expedition</b><span>Fight wild Monstars across four arenas and beat each zone boss.</span></a>
+    <div class="cta-card info"><span class="k">How it works</span><ol><li>Connect Phantom (devnet)</li><li>Hatch your one-of-a-kind Monstars</li><li>Stake, battle, evolve, trade</li></ol><p class="cta-note" id="ctaNote">On a phone, the game opens inside the Phantom app so your wallet can connect.</p></div>
+   </aside>
   </div>
 </div></div>
 
@@ -347,51 +417,82 @@ img.px{image-rendering:pixelated;image-rendering:crisp-edges}
 </script>
 <script src="/pixel-arena.js"></script>
 <script type="module">
-// Live hero demo: the real game engine plays an AI-vs-AI match for a 0.01 SOL stake each, showing the pot move on every hit.
-import { createMatch, step, snapshot, sanitizeInput, aiInput, ARENA, TICK } from '/shared/sim.mjs';
-import { Monstar, SPECIES, GENESIS_IDS, STAGES } from '/shared/monstars.mjs';
+// Playable mini battle on the front page: the real engine and renderer, your move cards, a practice SOL pot.
+import { createMatch, step, snapshot, sanitizeInput, aiInput, ARENA, TICK, STYLES } from '/shared/sim.mjs';
+import { Monstar, SPECIES, GENESIS_IDS, STAGES, effectiveness } from '/shared/monstars.mjs';
 import { StakeLedger, formatSol } from '/shared/stake.mjs';
 const $ = id => document.getElementById(id);
-const cv = $('demoCv'); if (cv && window.PMArena) {
-  const r = PMArena.createRenderer(cv, ARENA), STAKE = 10_000_000n;
-  let m, ledger, prev, cur, at, mem, endAt = 0, hues = [0, 0], types = [], fightAt = 0, visible = true;
+const TC = { EMBER: '#e8582c', TIDE: '#3a8ae0', GROVE: '#4caa3a', SPARK: '#d8b018', SHADE: '#7a4ad8', STONE: '#9a8458', FROST: '#5ab8d8', ASTRAL: '#d89a30', PSYCHIC: '#c050c8', NORMAL: '#8a8a9a' };
+const cv = $('demoCv');
+if (cv && window.PMArena) {
+  const r = PMArena.createRenderer(cv, ARENA), STAKE = 5_000_000n, KEY = 'pm-site-mini';
+  let rec = { wins: 0, streak: 0 }; try { rec = { ...rec, ...JSON.parse(localStorage.getItem(KEY) || '{}') }; } catch {}
+  let pick = GENESIS_IDS[Math.floor(Math.random() * GENESIS_IDS.length)], m = null, ledger, prev, cur, at, mem = {}, endAt = 0, types = [], fightAt = 0, speed = 1, auto = false, visible = true;
+  const inp = { atk: false, sp: false, dash: false, guard: false }, keys = {};
   new IntersectionObserver(es => { visible = es[0].isIntersecting; }).observe(cv);
+  const row = $('pickRow');
+  GENESIS_IDS.forEach(id => { const b = document.createElement('button'); b.title = SPECIES[id].name; b.innerHTML = `<img src="${PMArena.spriteSrc(id)}" alt="${SPECIES[id].name}">`;
+    b.onclick = () => { pick = id; paintPick(); start(); }; row.append(b); });
+  const paintPick = () => [...row.children].forEach((b, i) => b.setAttribute('aria-pressed', GENESIS_IDS[i] === pick));
+  paintPick(); $('mWins').textContent = rec.wins; $('mStreak').textContent = rec.streak;
+  function moves(a, b) {
+    const sp = a.species, eff = effectiveness(sp.type, b.type), e = eff > 1 ? '▲' : eff < 1 ? '▼' : '';
+    const list = [['atk', sp.move, sp.type, '⚡' + STYLES[sp.basicStyle].cost + ' ' + e], ['sp', sp.special, sp.type, '⚡' + STYLES[sp.specialStyle].cost + ' ' + e], ['dash', 'Quick dash', 'NORMAL', 'Dodge'], ['guard', 'Guard', 'NORMAL', 'Block']];
+    $('mAsk').textContent = sp.name.toUpperCase();
+    $('mMoves').innerHTML = list.map(([k, n, t, c], i) => `<button class="mmove" data-k="${k}" style="--tc:${TC[t]}"><span class="n">${i + 1}. ${n}</span><span class="t"><em>${t === 'NORMAL' ? 'MOVE' : t}</em><span>${c}</span></span><i class="cd"></i></button>`).join('');
+    $('mMoves').querySelectorAll('.mmove').forEach(bt => { const k = bt.dataset.k; let t0 = 0;
+      bt.addEventListener('pointerdown', e => { e.preventDefault(); inp[k] = true; t0 = performance.now(); bt.classList.add('on'); if (!m || m.over) start(); });
+      const up = () => { bt.classList.remove('on'); setTimeout(() => inp[k] = false, Math.max(0, 160 - (performance.now() - t0))); };
+      bt.addEventListener('pointerup', up); bt.addEventListener('pointercancel', up); bt.addEventListener('pointerleave', up); });
+  }
   function start() {
-    const pool = [...GENESIS_IDS].sort(() => Math.random() - 0.5), lv = [3, 10, 25, 50, 80][Math.floor(Math.random() * 5)];
-    const a = new Monstar({ speciesId: pool[0], level: lv }), b = new Monstar({ speciesId: pool[1], level: Math.max(1, lv + Math.floor(Math.random() * 5) - 2) });
-    m = createMatch(a, b, { arena: Math.floor(Math.random() * 4) }); ledger = new StakeLedger(STAKE); mem = [{}, {}];
+    const others = GENESIS_IDS.filter(x => x !== pick), foe = others[Math.floor(Math.random() * others.length)], lv = 3 + Math.floor(Math.random() * 8);
+    const a = new Monstar({ speciesId: pick, level: lv }), b = new Monstar({ speciesId: foe, level: lv });
+    m = createMatch(a, b, { arena: Math.floor(Math.random() * 4) }); ledger = new StakeLedger(STAKE); mem = {};
     prev = null; cur = snapshot(m); at = performance.now(); endAt = 0; fightAt = performance.now(); types = [a.type, b.type]; r.reset();
-    [a, b].forEach((x, i) => { $('dN' + i).textContent = x.species.name.toUpperCase(); $('dPic' + i).src = PMArena.spriteSrc(x.species.id); });
-    $('dWin').hidden = true; sol();
+    [a, b].forEach((x, i) => { $('mN' + i).textContent = x.species.name.toUpperCase(); $('mPic' + i).src = PMArena.spriteSrc(x.species.id); const t = $('mT' + i); t.textContent = x.type; t.dataset.t = x.type; t.style.setProperty('--tc', TC[x.type]); });
+    moves(a, b); $('mOver').hidden = true; sol();
   }
   function sol(hit) {
-    for (const i of [0, 1]) { const el = $('dS' + i); el.textContent = formatSol(ledger.shares[i], 6);
-      if (hit) { const box = el.parentElement; box.classList.remove('up', 'down'); void box.offsetWidth; box.classList.add(hit.attacker === i ? 'up' : 'down'); } }
-    $('dP0').style.width = Number(ledger.shares[0] * 1000n / ledger.pot) / 10 + '%';
+    for (const i of [0, 1]) { $('mS' + i).textContent = formatSol(ledger.shares[i], 6) + ' SOL'; const d = ledger.shares[i] - STAKE, el = $('mD' + i);
+      el.textContent = d === 0n ? 'practice' : (d > 0n ? '+' : '−') + formatSol(d < 0n ? -d : d, 6); el.className = d > 0n ? 'up' : d < 0n ? 'dn' : ''; }
   }
-  setInterval(() => {
-    if (!visible || !m) return;
-    if (m.over) { if (performance.now() - endAt > 3200) start(); return; }
-    for (const i of [0, 1]) { const ai = aiInput(m, i, mem[i]); m.fighters[i].input = sanitizeInput(ai); }
+  const last = [9, 9];
+  function tick() {
+    if (!m || m.over) return;
+    const k = keys;
+    m.fighters[0].input = sanitizeInput(auto ? aiInput(m, 0, mem.a ||= {}) : { atk: inp.atk || k.Digit1, sp: inp.sp || k.Digit2, dash: inp.dash || k.Digit3, guard: inp.guard || k.Digit4 });
+    m.fighters[1].input = sanitizeInput(aiInput(m, 1, mem.b ||= {}));
     for (const ev of step(m)) {
-      if (ev.type === 'hit') { const fee = ledger.hit(ev.attacker, ev.damage, ev.victimMaxHp); r.event({ ...ev, fee: formatSol(fee, 6) }, cur); sol(ev); }
+      if (ev.type === 'hit') { const fee = ledger.hit(ev.attacker, ev.damage, ev.victimMaxHp); r.event({ ...ev, fee: formatSol(fee, 9) }, cur); sol(ev); }
       else r.event({ ...ev, name: SPECIES[m.fighters[ev.side ?? 0].speciesId].name.toUpperCase() }, cur);
     }
     prev = cur; cur = snapshot(m); at = performance.now();
+    cur.f.forEach((f, i) => { if (f.ct < last[i] && f.ct < 0.3 && f.ck) { const t = $('mT' + i), sp = SPECIES[f.s]; t.textContent = (f.ck === 'special' ? sp.special : sp.move).toUpperCase(); t.classList.add('cast'); clearTimeout(t._t); t._t = setTimeout(() => { t.classList.remove('cast'); t.textContent = t.dataset.t; }, 1200); } last[i] = f.ct; });
     if (m.over) { ledger.finish(m.winner); sol(); endAt = performance.now();
-      const w = m.winner == null ? null : SPECIES[m.fighters[m.winner].speciesId].name;
-      $('dWin').innerHTML = w ? `<b>${w} wins!</b><span>Takes the pot: +${formatSol(ledger.pot, 4)} SOL</span><span style="color:#8fd0ff">+${m.fighters[m.winner].expGained} EXP</span>` : '<b>Draw</b><span>Each keeps their share</span>';
-      $('dWin').hidden = false; }
-  }, TICK * 1000);
+      const won = m.winner === 0; rec.wins += won ? 1 : 0; rec.streak = won ? rec.streak + 1 : 0; try { localStorage.setItem(KEY, JSON.stringify(rec)); } catch {}
+      $('mWins').textContent = rec.wins; $('mStreak').textContent = rec.streak;
+      setTimeout(() => { $('mBig').textContent = m.winner == null ? 'Draw' : won ? 'Victory!' : 'Defeated'; $('mSmall').innerHTML = `${won ? 'You took the practice pot: ' + formatSol(ledger.pot, 4) + ' SOL' : 'Your rival took the practice pot'} · +${m.fighters[0].expGained} EXP<br>Stake real SOL against a rival in Phantom.`; $('mGo').textContent = 'Battle again'; $('mOver').hidden = false; }, 1500); }
+  }
+  setInterval(() => { if (!visible && !document.fullscreenElement) return; for (let i = 0; i < speed; i++) tick(); }, TICK * 1000);
   (function frame() {
-    if (m && visible) {
-      r.draw(prev, cur, Math.min(1, (performance.now() - at) / 34), { you: 0, snapAt: at, hues, types, faint: m.over && m.winner != null ? [m.winner === 1 ? Math.min(1, (performance.now() - endAt) / 1200) : 0, m.winner === 0 ? Math.min(1, (performance.now() - endAt) / 1200) : 0] : [0, 0], fight: Math.max(0, 1.4 - (performance.now() - fightAt) / 1000) });
-      cur.f.forEach((f, i) => { $('dH' + i).style.width = Math.max(0, f.hp / f.max * 100) + '%'; $('dH' + i).style.background = f.hp / f.max > 0.5 ? '#58d858' : f.hp / f.max > 0.2 ? '#f8c838' : '#f85838'; $('dL' + i).textContent = `Lv${f.lv} ${STAGES[f.sg].name}`; });
-      const left = Math.max(0, Math.ceil(ARENA.roundSeconds - cur.t)); $('dClock').textContent = `${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}`;
+    if (visible || document.fullscreenElement) {
+      if (m) { r.draw(prev, cur, Math.min(1, (performance.now() - at) / 34), { you: 0, snapAt: at, hues: [0, 0], types, faint: m.over && m.winner != null ? [m.winner === 1 ? Math.min(1, (performance.now() - endAt) / 1200) : 0, m.winner === 0 ? Math.min(1, (performance.now() - endAt) / 1200) : 0] : [0, 0], fight: Math.max(0, 1.4 - (performance.now() - fightAt) / 1000) });
+        cur.f.forEach((f, i) => { const p = Math.max(0, f.hp / f.max); $('mH' + i).style.width = p * 100 + '%'; $('mH' + i).style.background = p > 0.5 ? '#58d858' : p > 0.2 ? '#f8c838' : '#f85838'; $('mX' + i).style.width = Math.min(100, f.xi / Math.max(1, f.xn) * 100) + '%'; $('mL' + i).textContent = 'Lv' + f.lv; });
+        const left = Math.max(0, Math.ceil(ARENA.roundSeconds - cur.t)); $('mClock').textContent = `${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}`;
+        const f = cur.f[0], sp = SPECIES[f.s], cost = [STYLES[sp.basicStyle].cost, STYLES[sp.specialStyle].cost, 0, 0];
+        [...$('mMoves').children].forEach((b, i) => { const cd = [f.cd.b, f.cd.s, f.cd.d, f.cd.g][i] || 0; b.classList.toggle('cool', cd > 0.05 || f.en < cost[i]); b.querySelector('.cd').style.width = Math.min(100, cd * 20) + '%'; });
+      } else r.idle(1);
     }
     requestAnimationFrame(frame);
   })();
-  PMArena.onReady(start);
+  addEventListener('keydown', e => { if (/^Digit[1-4]$/.test(e.code) && visible) { keys[e.code] = true; if (!m || m.over) start(); } });
+  addEventListener('keyup', e => { keys[e.code] = false; });
+  $('mGo').onclick = start;
+  $('mSpeed').onclick = () => { speed = speed === 1 ? 2 : 1; $('mSpeed').textContent = 'Speed ' + speed + 'x'; };
+  $('mAuto').onclick = () => { auto = !auto; $('mAuto').setAttribute('aria-pressed', auto); };
+  $('mFull').onclick = () => { const el = $('mini'); document.fullscreenElement ? document.exitFullscreen() : (el.requestFullscreen || el.webkitRequestFullscreen)?.call(el); };
+  PMArena.onReady(() => { const a = new Monstar({ speciesId: pick, level: 5 }); moves(a, new Monstar({ speciesId: GENESIS_IDS.find(x => x !== pick), level: 5 })); [0, 1].forEach(i => { $('mPic' + i).src = PMArena.spriteSrc(i ? GENESIS_IDS.find(x => x !== pick) : pick); }); });
 }
 </script>
 </body>
