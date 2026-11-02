@@ -1,0 +1,21 @@
+# Render Blueprint: New → Blueprint → pick this repo. Gives you https://<name>.onrender.com with WebSockets.
+services:
+  - type: web
+    name: pocketmonstars
+    runtime: docker
+    plan: starter            # a paid plan is needed for the persistent disk below
+    healthCheckPath: /healthz
+    autoDeploy: true
+    disk:
+      name: pocketmonstars-data
+      mountPath: /data       # SQLite registry, matches, listings and the server's devnet keys live here
+      sizeGB: 1
+    envVars:
+      - key: SOLANA_CLUSTER
+        value: devnet
+      - key: PM_DATA_DIR
+        value: /data
+      - key: PM_ROYALTY_BPS
+        value: "500"
+      - key: PM_TREASURY      # company wallet for the 1-lamport fees (fund it with ~0.001 devnet SOL)
+        sync: false

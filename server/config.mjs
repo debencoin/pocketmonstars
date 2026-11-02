@@ -1,0 +1,37 @@
+// Server configuration. Everything here is public except the key files under data/keys (gitignored).
+import fs from 'node:fs';
+import path from 'node:path';
+
+const env = process.env;
+export const DATA_DIR = path.resolve(env.PM_DATA_DIR || 'data');
+fs.mkdirSync(path.join(DATA_DIR, 'keys'), { recursive: true });
+
+const cluster = env.SOLANA_CLUSTER || 'devnet';
+if (cluster === 'mainnet-beta' && env.PM_ALLOW_MAINNET !== 'yes-reviewed') {
+  throw Error('Mainnet is locked. Finish devnet testing and a legal/security review, then set PM_ALLOW_MAINNET=yes-reviewed.');
+}
+
+const stored = (() => { try { return JSON.parse(fs.readFileSync(path.join(DATA_DIR, 'config.json'), 'utf8')); } catch { return {}; } })();
+
+export const CONFIG = {
+  port: Number(env.PORT || 8080),
+  host: env.HOST || (env.RENDER || env.RAILWAY_ENVIRONMENT || env.FLY_APP_NAME ? '0.0.0.0' : '127.0.0.1'),
+  cluster,
+  rpc: env.SOLANA_RPC || (cluster === 'devnet' ? 'https://api.devnet.solana.com' : 'https://api.mainnet-beta.solana.com'),
+  // Public HTTPS base URL where /api/meta/*.json and /art/*.png are served. NFT metadata URIs use it.
+  publicUrl: (env.PM_PUBLIC_URL || env.RENDER_EXTERNAL_URL || (env.RAILWAY_PUBLIC_DOMAIN ? 'https://' + env.RAILWAY_PUBLIC_DOMAIN : '') || `http://localhost:${env.PORT || 8080}`).replace(/\/$/, ''),
+  // Company wallet that receives the 1-lamport match and marketplace fees. Must already hold the rent minimum.
+  treasury: env.PM_TREASURY || stored.treasury || null,
+  // Creator royalty paid to the wallet each Monstar was born to, on every marketplace resale.
+  royaltyBps: Number(env.PM_ROYALTY_BPS || stored.royaltyBps || 500),
+  collection: env.PM_COLLECTION || stored.collection || null,
+  depositTimeoutMs: 3 * 60 * 1000,
+  disconnectGraceMs: 15 * 1000,
+};
+
+export function saveStoredConfig(patch) {
+  const next = { ...stored, ...patch };
+  fs.writeFileSync(path.join(DATA_DIR, 'config.json'), JSON.stringify(next, null, 2));
+  Object.assign(stored, next);
+  if (patch.collection) CONFIG.collection = patch.collection;
+}

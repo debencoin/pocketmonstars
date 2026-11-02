@@ -1,0 +1,27 @@
+{
+  "name": "pocketmonstars",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "test": "node tests/game-mechanics.cjs && node --test tests/protocol.test.mjs tests/pvp.test.mjs",
+    "start": "node server/index.mjs",
+    "dev": "node server/index.mjs",
+    "dev:static": "node scripts/dev-server.mjs",
+    "setup:collection": "node server/index.mjs setup-collection"
+  },
+  "dependencies": {
+    "@metaplex-foundation/mpl-core": "^1.6.0",
+    "@metaplex-foundation/umi": "^1.0.0",
+    "@metaplex-foundation/umi-bundle-defaults": "^1.0.0",
+    "@metaplex-foundation/umi-web3js-adapters": "^1.0.0",
+    "@solana/spl-token": "^0.4.14",
+    "@solana/web3.js": "^1.98.4",
+    "bs58": "^6.0.0",
+    "esbuild": "^0.25.0",
+    "ws": "^8.18.0"
+  },
+  "engines": {
+    "node": ">=22.13"
+  }
+}

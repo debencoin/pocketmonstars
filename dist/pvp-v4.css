@@ -1,0 +1,102 @@
+/* PocketMonstars v4: Stake Duel, unique Monstars, marketplace. Uses the existing tokens from index.html. */
+:root{--sol:#9ef0c8;--sol-dim:#2f5d48;--loss:#ff7b6b;--gold:#f5d488}
+.pv-grid{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:20px;align-items:start}
+.pv-col{display:flex;flex-direction:column;gap:16px;min-width:0}
+.pv-row{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.pv-note{font-size:12px;color:var(--muted);line-height:1.5}
+.pv-note b{color:var(--white);font-weight:600}
+.pv-addr{font-family:'Space Grotesk',monospace;font-size:12px;word-break:break-all}
+.pv-chip{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:30px;padding:4px 10px;font-size:11px;color:var(--muted)}
+.pv-chip.ok{color:var(--sol);border-color:var(--sol-dim)}
+.pv-input{background:#111915;border:1px solid var(--line);border-radius:7px;color:var(--white);padding:10px 12px;min-width:0;width:100%}
+.pv-input:focus-visible{outline:2px solid var(--lime);outline-offset:1px}
+.pv-presets{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.pv-presets button{background:#111915;border:1px solid var(--line);border-radius:7px;padding:9px 4px;font-size:12px;font-weight:600}
+.pv-presets button[aria-pressed="true"]{border-color:var(--lime);color:var(--lime)}
+.pv-code{font:700 34px 'Space Grotesk',sans-serif;letter-spacing:6px;color:var(--lime)}
+.pv-players{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.pv-player{border:1px solid var(--line);border-radius:10px;padding:10px;display:flex;flex-direction:column;gap:4px;min-width:0}
+.pv-player b{font-size:13px}.pv-player small{color:var(--muted);font-size:11px}
+
+/* Monstar cards */
+.pv-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
+.pv-card{position:relative;border:1px solid var(--line);border-radius:12px;background:#151d18;padding:10px;display:flex;flex-direction:column;gap:6px;text-align:left;min-width:0}
+.pv-card[aria-pressed="true"]{border-color:var(--lime);box-shadow:0 0 0 2px #dfff8433}
+.pv-card img{width:100%;aspect-ratio:1;object-fit:contain;max-width:100%}
+.pv-card .nm{font:600 14px 'Space Grotesk',sans-serif;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pv-card .sub{font-size:11px;color:var(--muted)}
+.pv-rar{position:absolute;top:8px;left:8px;font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:2px 7px;border-radius:20px;background:#0c120f;border:1px solid var(--line)}
+.pv-rar.Uncommon{color:#9ef0c8}.pv-rar.Rare{color:#8fc8ff}.pv-rar.Epic{color:#d9a6ff}.pv-rar.Legendary{color:var(--gold);border-color:#7d6a3a}
+.pv-stats{display:grid;grid-template-columns:auto 1fr auto;gap:2px 6px;font-size:10px;color:var(--muted);align-items:center}
+.pv-stats i{display:block;height:4px;border-radius:2px;background:var(--line);overflow:hidden}
+.pv-stats i>s{display:block;height:100%;background:var(--lime);text-decoration:none}
+.pv-stats em{font-style:normal;color:var(--white);font-variant-numeric:tabular-nums}
+.pv-card .acts{display:flex;gap:6px;flex-wrap:wrap}
+.pv-card .acts button{flex:1 1 auto}
+
+/* Arena */
+.pv-stage{position:relative;border:1px solid #4a5c43;border-radius:15px;overflow:hidden;background:#1d2b22;touch-action:none;user-select:none;-webkit-user-select:none}
+.pv-stage canvas{display:block;width:100%;height:auto;touch-action:none}
+.pv-hud{position:absolute;left:0;right:0;top:0;display:grid;grid-template-columns:1fr auto 1fr;gap:10px;padding:10px max(12px,env(safe-area-inset-left,0px)) 0 max(12px,env(safe-area-inset-right,0px));pointer-events:none}
+.pv-side{display:flex;flex-direction:column;gap:3px;min-width:0}
+.pv-side.r{align-items:flex-end;text-align:right}
+.pv-side b{font:600 13px 'Space Grotesk',sans-serif;text-shadow:0 1px 2px #000;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+.pv-bar{width:100%;height:9px;border-radius:5px;background:#0009;overflow:hidden;display:flex}
+.pv-side.r .pv-bar{justify-content:flex-end}
+.pv-bar i{display:block;height:100%;background:var(--lime);transition:width .1s}
+.pv-bar.en{height:4px}.pv-bar.en i{background:#8fc8ff}
+.pv-sol{font:700 14px 'Space Grotesk',sans-serif;color:var(--sol);font-variant-numeric:tabular-nums;text-shadow:0 1px 2px #000}
+.pv-sol.flash-up{animation:pvUp .5s}.pv-sol.flash-down{animation:pvDown .5s}
+@keyframes pvUp{0%{color:#fff;transform:scale(1.15)}100%{color:var(--sol)}}
+@keyframes pvDown{0%{color:var(--loss);transform:scale(.92)}100%{color:var(--sol)}}
+.pv-mid{text-align:center;font:700 22px 'Space Grotesk',sans-serif;text-shadow:0 1px 3px #000}
+.pv-mid small{display:block;font-size:10px;color:var(--muted);letter-spacing:.08em}
+.pv-pot{position:absolute;left:50%;bottom:10px;transform:translateX(-50%);width:min(60%,420px);pointer-events:none}
+.pv-potbar{height:10px;border-radius:6px;overflow:hidden;display:flex;background:#0008;border:1px solid #fff2}
+.pv-potbar i:first-child{background:var(--sol)}.pv-potbar i:last-child{background:var(--loss)}
+.pv-pot small{display:block;text-align:center;font-size:10px;color:#fffc;margin-top:3px;text-shadow:0 1px 2px #000}
+.pv-overlay{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;background:#0b110ecc;text-align:center;padding:16px}
+.pv-overlay .big{font:700 clamp(28px,6vw,52px) 'Space Grotesk',sans-serif;color:var(--lime)}
+.pv-overlay a{color:var(--lime)}
+
+/* Touch controls */
+.pv-touch{position:absolute;inset:0;display:none;pointer-events:none}
+.coarse .pv-stage.live .pv-touch{display:block}
+.pv-stickzone{position:absolute;left:0;top:0;bottom:0;width:50%;pointer-events:auto}
+.pv-stick{position:absolute;width:120px;height:120px;margin:-60px 0 0 -60px;border-radius:50%;border:2px solid #fff4;background:#0004;display:none}
+.pv-stick i{position:absolute;left:50%;top:50%;width:50px;height:50px;margin:-25px 0 0 -25px;border-radius:50%;background:#fff5}
+.pv-btns{position:absolute;right:max(14px,env(safe-area-inset-right,0px));bottom:max(14px,env(safe-area-inset-bottom,0px));display:grid;grid-template-columns:repeat(3,60px);grid-template-rows:repeat(2,60px);gap:8px;pointer-events:auto}
+.pv-btn{border-radius:50%;border:0;font:700 11px 'Space Grotesk',sans-serif;color:#1c2b17;box-shadow:0 3px 0 #0008;touch-action:none}
+.pv-btn.atk{background:var(--white);grid-column:3;grid-row:2;width:72px;height:72px;margin:-6px}
+.pv-btn.spl{background:var(--lime);grid-column:3;grid-row:1}
+.pv-btn.dash{background:#8fc8ff;grid-column:2;grid-row:2}
+.pv-btn.grd{background:var(--gold);grid-column:2;grid-row:1}
+.pv-btn.on{transform:translateY(2px);box-shadow:0 1px 0 #0008}
+.pv-btn .cd{position:absolute}
+.pv-exit{position:absolute;bottom:max(10px,env(safe-area-inset-bottom,0px));left:max(10px,env(safe-area-inset-left,0px));z-index:3;display:none}
+/* Fullscreen arena on phones while a duel is live */
+.coarse .pv-stage.live{position:fixed;inset:0;z-index:50;border-radius:0;border:0;display:flex;align-items:center;justify-content:center;background:#0b110e}
+.coarse .pv-stage.live canvas{width:100%;height:100%;object-fit:contain}
+.coarse .pv-stage.live .pv-exit{display:block}
+
+/* Market */
+.pv-listing .price{font:700 16px 'Space Grotesk',sans-serif;color:var(--sol)}
+.pv-empty{border:1px dashed var(--line);border-radius:12px;padding:22px;text-align:center;color:var(--muted);font-size:13px}
+.pv-split{font-size:11px;color:var(--muted);font-variant-numeric:tabular-nums}
+.pv-toast{position:fixed;left:50%;bottom:max(20px,env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:#202b23;border:1px solid var(--line);border-radius:10px;padding:10px 14px;font-size:13px;z-index:80;max-width:min(92vw,520px)}
+.pv-toast.err{border-color:var(--loss);color:#ffd0c9}
+@media (max-width:900px){.pv-grid{grid-template-columns:1fr}}
+@media (prefers-reduced-motion:reduce){.pv-sol{animation:none!important}.pv-bar i{transition:none}}
+
+#pvp [hidden],#pvMarket [hidden],.pv-toast[hidden]{display:none!important}
+.pv-stage [hidden]{display:none!important}
+/* Mobile fit fixes for the existing header and HUD (they made phones scroll sideways) */
+html,body{overflow-x:clip;max-width:100%}
+@media (max-width:1000px){
+  header{flex-wrap:wrap;height:auto;gap:6px 14px;padding-block:10px}
+  header nav{order:3;width:100%;height:44px;overflow-x:auto;scrollbar-width:none;gap:22px}
+  header nav::-webkit-scrollbar{display:none}
+  header nav button{white-space:nowrap;flex:none}
+  .duel-hud{grid-template-columns:minmax(0,1fr) auto minmax(0,1fr)!important}
+  .duel-hud .fighter{min-width:0}
+}
