@@ -12,7 +12,7 @@
 //
 // Landing hits earns EXP. Monstars level up and evolve mid-match (Infant 1, Rookie 3, Champion 10,
 // Ultimate 25, Mega 50, Ascended 80) and their stats grow immediately.
-import { Monstar, effectiveness, statsAt, stageFor, expForLevel, expToNext, MAX_LEVEL } from './monstars.mjs';
+import { STAGE_PERKS, Monstar, effectiveness, statsAt, stageFor, expForLevel, expToNext, MAX_LEVEL } from './monstars.mjs';
 
 export const ARENA = Object.freeze({ w: 960, h: 540, radius: 30, roundSeconds: 60,
   rocks: [{ x: 300, y: 170, r: 24 }, { x: 660, y: 380, r: 24 }] });
@@ -92,7 +92,7 @@ export function sanitizeInput(i = {}) {
 function makeFighter(monstar, side, teamMax = 0) {
   const s = monstar.stats, sp = monstar.species;
   return {
-    shield: monstar.traits?.shield ?? 70, side, teamMax: Math.round((teamMax || s.hp) * BATTLE_HP), mon: monstar, speciesId: sp.id, type: monstar.type, mods: monstar.cls.mods, stats: s,
+    sg: stageFor(monstar.level).id, shield: monstar.traits?.shield ?? 70, side, teamMax: Math.round((teamMax || s.hp) * BATTLE_HP), mon: monstar, speciesId: sp.id, type: monstar.type, mods: monstar.cls.mods, stats: s,
     styles: { basic: sp.basicStyle || 'projectile', special: sp.specialStyle || 'beam' }, kit: sp.kit, burstT: 0, guardKind: null,
     motion: MOTION[sp.motion] ? sp.motion : 'pounce',
     level: monstar.level, exp: monstar.exp, expGained: 0,
@@ -144,7 +144,7 @@ function updatePickups(m, dt, events) {
 // ---------- unique dash, guard and Mega Shot abilities ----------
 function doDash(m, f, foe, mx, my, events) {
   const k = f.kit?.dash.kind || 'dash', [dx, dy] = (mx || my) ? norm(mx, my) : [f.fx, f.fy];
-  f.cd.dash = (f.kit?.dash.cd ?? 1.6) * f.mods.dashCd; f.actions++; f.dashKind = k; f.dashHit = false;
+  f.cd.dash = (f.kit?.dash.cd ?? 1.6) * f.mods.dashCd * (f.sg >= 2 ? 0.8 : 1); f.actions++; f.dashKind = k; f.dashHit = false;
   events.push({ type: 'dash', side: f.side, k, name: f.kit?.dash.name });
   if (k === 'blink') { f.x += dx * 170 * (f.kit.dash.dist); f.y += dy * 120 * (f.kit.dash.dist); f.iframes = 0.3; f.blinkT = 0.35; collide(f); f.dashKind = null; return; }
   if (k === 'shadow') { const [bx, by] = norm(foe.x - f.x, foe.y - f.y); f.x = foe.x + bx * 70; f.y = foe.y + by * 40; f.iframes = 0.3; f.blinkT = 0.35; collide(f); f.dashKind = null; return; }
@@ -167,13 +167,13 @@ function dashEnd(m, f, foe, events) {
 function doGuard(m, f, foe, events) {
   const k = f.kit?.guard.kind || 'shield', t = f.kit?.guard.time ?? 1;
   f.energy -= 20; f.cd.guard = f.kit?.guard.cd ?? 6; f.actions++; f.guardKind = k;
-  f.guardT = 1.2 * f.mods.guardTime * t * (k === 'fortress' ? 2 : k === 'evade' ? 0.6 : 1);
+  f.guardT = 1.2 * f.mods.guardTime * t * (k === 'fortress' ? 2 : k === 'evade' ? 0.6 : 1) * (f.sg >= 4 ? 1.4 : 1);
   if (k === 'evade') f.iframes = Math.max(f.iframes, f.guardT);
   if (k === 'barrier') { const d = Math.hypot(foe.x - f.x, foe.y - f.y); if (d < 200) { const [nx, ny] = norm(foe.x - f.x, foe.y - f.y); foe.vx += nx * 520 * foe.mods.knockback; foe.vy += ny * 520 * foe.mods.knockback; } }
   events.push({ type: 'guard', side: f.side, k, name: f.kit?.guard.name });
 }
 function megaShot(m, f, foe, events) {
-  const g = f.kit?.mega || { kind: 'nova', power: 1, size: 1 }, P = 30 * g.power, sz = g.size, k = g.kind;
+  const g = f.kit?.mega || { kind: 'nova', power: 1, size: 1 }, P = 30 * g.power * (f.sg >= 5 ? 1.35 : 1), sz = g.size, k = g.kind;
   f.castT = 0; f.castKind = 'special'; f.actions++;
   events.push({ type: 'mega', side: f.side, k, name: g.name });
   const fx = (x, y, style, extra = {}) => { const S = STYLES[style]; m.effects.push({ id: m.nextId++, owner: f.side, kind: 'special', style, type: f.type, sid: f.speciesId, x: f.x, y: f.y, dx: f.fx, dy: f.fy,
@@ -210,9 +210,9 @@ function gainExp(m, f, amount, events) {
     f.level++;
     f.stats = statsAt(f.mon, f.level);
     f.maxHp = Math.round(f.stats.hp * BATTLE_HP); f.hp = Math.min(f.maxHp, f.maxHp * ratio); // no free heal on level-up: keeps the same share of HP
-    const after = stageFor(f.level), evolved = after.id !== before.id;
+    const after = stageFor(f.level), evolved = after.id !== before.id; f.sg = after.id;
     if (evolved) { f.iframes = Math.max(f.iframes, 0.8); f.energy = 100; }
-    events.push({ type: 'level', side: f.side, level: f.level, stage: after.name, stageId: after.id, evolved });
+    events.push({ type: 'level', side: f.side, level: f.level, stage: after.name, stageId: after.id, evolved, perk: evolved ? STAGE_PERKS[after.id] : null });
   }
 }
 export function expProgress(f) { const base = expForLevel(f.level); return { into: f.exp - base, need: f.level >= MAX_LEVEL ? 1 : expToNext(f.level) }; }
@@ -222,7 +222,8 @@ function damageFor(att, vic, kind, style, powerOverride) {
   const D = kind === 'special' ? vic.stats.spDefense : vic.stats.defense;
   const eff = effectiveness(att.type, vic.type);
   const crit = Math.random() < 0.08;
-  const kp = powerOverride != null ? 1 : kind === 'special' ? att.kit?.special.power ?? 1 : kind === 'basic' ? att.kit?.basic.power ?? 1 : 1;
+  const kp = (powerOverride != null ? 1 : kind === 'special' ? att.kit?.special.power ?? 1 : kind === 'basic' ? att.kit?.basic.power ?? 1 : 1)
+    * (kind === 'basic' && att.sg >= 1 ? 1.1 : 1) * (kind === 'special' && att.sg >= 3 ? 1.2 : 1); // evolution upgrades
   let d = (powerOverride ?? STYLES[style].power) * kp * (1 + (att.level - 1) * 0.03) * Math.sqrt(A / D) * eff * att.mods.damage * vic.mods.taken * DAMAGE_SCALE;
   if (kind === 'special' && att.ultOn) d *= 1.7;
   if (att.status) d *= STATUS[att.status.k].out || 1;
@@ -249,7 +250,7 @@ function guardReact(m, g, att, events, amount, leaked = false) {
 function land(m, att, vic, kind, style, events, dirx, diry, knock = 90, power) {
   if (vic.iframes > 0) { events.push({ type: 'miss', attacker: att.side, victim: vic.side, style }); return false; }
   // Shield up: blocked completely (no damage, no SOL, no status) with this Monstar's own shield chance
-  if (vic.guardT > 0 && Math.random() * 100 < vic.shield) {
+  if (vic.guardT > 0 && Math.random() * 100 < vic.shield + (vic.sg >= 4 ? 10 : 0)) {
     events.push({ type: 'blocked', attacker: att.side, victim: vic.side, style, shield: vic.shield, guard: vic.guardKind });
     guardReact(m, vic, att, events, damageFor(att, { ...vic, guardT: 0 }, kind, style, power).damage);
     return true;
@@ -259,10 +260,10 @@ function land(m, att, vic, kind, style, events, dirx, diry, knock = 90, power) {
   vic.hp = Math.max(0, vic.hp - damage); att.hits++; vic.hurtT = 0.35;
   const heavy = style === 'beam' || style === 'strike' || style === 'levitate' || crit;
   if (heavy) vic.recT = Math.max(vic.recT, 0.35); // "recovering": a short stagger after a big hit
-  att.ult = Math.min(100, att.ult + damage * ULT_GAIN); vic.ult = Math.min(100, vic.ult + damage * 0.6);
+  att.ult = Math.min(100, att.ult + damage * ULT_GAIN * (att.sg >= 5 ? 1.25 : 1)); vic.ult = Math.min(100, vic.ult + damage * 0.6);
   // what this power does to the Monstar it hit
   const sk = style === 'levitate' ? 'lift' : TYPE_STATUS[att.type];
-  if (sk && vic.guardT <= 0 && (kind === 'special' || style === 'levitate' || Math.random() < 0.15)) applyStatus(m, vic, sk, att, events, kind === 'special' && att.ultOn ? 1.5 : 1);
+  if (sk && vic.guardT <= 0 && (kind === 'special' || style === 'levitate' || Math.random() < 0.15)) applyStatus(m, vic, sk, att, events, (kind === 'special' && att.ultOn ? 1.5 : 1) * (att.sg >= 3 ? 1.3 : 1));
   const push = vic.status && STATUS[vic.status.k].push || 1;
   const kb = knock * vic.mods.knockback * push; vic.vx += dirx * kb; vic.vy += diry * kb;
   const exp = Math.max(1, Math.round(damage * EXP_RULES.perDamage * (crit ? EXP_RULES.critBonus : 1)));
@@ -424,7 +425,7 @@ export function step(m, realDt = TICK) {
     const speed = (f.burstT > 0 ? 1.7 : 1) * (140 + f.stats.speed * 1.4) * PACE * (f.rootT > 0 ? 0.2 : 1) * (f.status && SS.slow || 1);
     if (wantDash && f.cd.dash === 0 && f.rootT === 0) doDash(m, f, foe, mx, my, events);
     const ox = f.x, oy = f.y;
-    if (f.dashT > 0) { const ds = (f.kit?.dash.dist ?? 1) * (f.dashKind === 'leap' ? 2.2 : 3.0); f.x += f.dvx * speed * ds * dt; f.y += f.dvy * speed * ds * dt; dashTick(m, f, foe, events); }
+    if (f.dashT > 0) { const ds = (f.kit?.dash.dist ?? 1) * (f.sg >= 2 ? 1.25 : 1) * (f.dashKind === 'leap' ? 2.2 : 3.0); f.x += f.dvx * speed * ds * dt; f.y += f.dvy * speed * ds * dt; dashTick(m, f, foe, events); }
     else if (f.dashKind) dashEnd(m, f, foe, events);
     else { f.x += mx * speed * dt; f.y += my * speed * dt; }
     f.x += f.vx * dt; f.y += f.vy * dt; const damp = Math.pow(0.02, dt); f.vx *= damp; f.vy *= damp;

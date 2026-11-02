@@ -420,7 +420,7 @@ function refreshSoon() { clearTimeout(refreshT); refreshT = setTimeout(() => { i
 function battleEvent(ev) {
   if (!snapCur) return;
   if (ev.type === 'level') { const sp = Monstars.SPECIES[snapCur.f[ev.side]?.s ?? room?.players?.[ev.side]?.monstar?.speciesId ?? 0];
-    ev.name = Monstars.formName(sp, Math.max(0, (ev.stageId ?? 1) - 1)).toUpperCase(); if (sp.forms && ev.evolved) ev.formTo = Monstars.formName(sp, ev.stageId); else if (!sp.forms) ev.name = sp.name.toUpperCase(); }
+    ev.name = Monstars.formName(sp, Math.max(0, (ev.stageId ?? 1) - 1)).toUpperCase(); if (ev.evolved) ev.formTo = Monstars.formName(sp, ev.stageId); }
   if (ev.type === 'switch') ev.name = Monstars.SPECIES[ev.speciesId].name.toUpperCase();
   if (ev.type === 'hit' && ev.fee == null && room && room.stake !== '0' && ev.feeLamports) ev.fee = sol(ev.feeLamports, 9);
   if (ev.type === 'hit' && practiceMoney() && vLedger && ev.fee == null) { // pretend pot for practice
@@ -458,7 +458,7 @@ function showShares() {
   for (const side of [0, 1]) {
     const idx = side === 0 ? you : 1 - you, span = q('pvS' + side), d = BigInt(next[idx]) - start;
     span.textContent = sol(next[idx], 6) + ' SOL';
-    q('pvSD' + side).textContent = d === 0n ? (pretend ? 'practice' : 'paid at end') : (d > 0n ? '+' : '−') + sol(d < 0n ? -d : d, 6);
+    q('pvSD' + side).textContent = d === 0n ? (pretend ? 'practice' : 'paid at end') : (d > 0n ? '+' : '−') + sol(d < 0n ? -d : d, 9);
     q('pvSD' + side).className = d > 0n ? 'up' : d < 0n ? 'dn' : '';
     if (prev && BigInt(prev[idx]) !== BigInt(next[idx])) { span.classList.remove('flash-up', 'flash-down'); void span.offsetWidth; span.classList.add(BigInt(next[idx]) > BigInt(prev[idx]) ? 'flash-up' : 'flash-down'); }
   }

@@ -168,3 +168,7 @@ Stats: HP, Attack, Defense, Sp. Atk, Sp. Def, Speed. Types: EMBER, GROVE, TIDE, 
 
 ## v19: no passive healing
 - HP only goes up from healing powers (Mending Step dash, Renewal guard, Soul Drain Mega Shot). Removed: class regeneration (Support, Seraph, Deity now have other passives), the HP +20% field pickups, and the 10% heal on level-up (a level-up keeps the same share of HP). Burn and poison can now finish a Monstar; at 0 HP it faints and the match ends (or the next 3v3 member comes in).
+
+## v20: every Monstar becomes a new character at each evolution
+- All 125 species have six named forms (e.g. Duskkit > Duskling > Duskhorn > Duskhorn Prime > Mega Duskhorn > Ascended Duskhorn) with their own art in `dist/art/hd/<name>_s0..5.png`: procedurally drawn species are redesigned per stage by `scripts/make_frontier.py` (baby with big eyes and no horns, young, adult, armoured with horns/spikes/stripes, winged Mega, golden Ascended with halo); the hand-drawn eleven get stage forms from `scripts/make_stages.py` (egg, tuft, original, horns + back spikes + aura, wings, gold + four wings + halo); Ascendants keep their animated sheets. The renderer loads stage art on demand and swaps it the moment a Monstar evolves mid-fight.
+- Each evolution unlocks an upgrade (`STAGE_PERKS`, cumulative): Rookie +10% attack, Champion dash 25% farther and 20% faster recharge, Ultimate special +20% power/reach and 30% longer effects, Mega guard 40% longer and shield +10, Ascended Mega Shot +35% and ULT fills 25% faster. The evolution banner names the new form and the upgrade.

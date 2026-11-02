@@ -13,13 +13,14 @@ const WALKERS = new Set([105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 
 // one sheet per evolution stage: art/walk/<name>_s0.png (Infant) ... _s5.png (Ascended)
 // Sheets load only for Monstars that are actually on screen (keeps memory low in the Phantom in-app browser).
 const sheets = {};
+// Every species has its own art for each evolution stage: Ascendants as 6-frame run sheets (art/walk/), all others
+// as single pictures (art/hd/<name>_s0..5.png). Loaded only when needed.
 function sheetFor(sid, stage) {
-  if (!WALKERS.has(sid)) return null;
   const row = (sheets[sid] ||= []);
-  if (!row[stage]) { const i = new Image(); i.decoding = 'async'; i.src = 'art/walk/' + NAMES[sid] + '_s' + stage + '.png'; row[stage] = i; }
+  if (!row[stage]) { const i = new Image(); i.decoding = 'async'; i.src = (WALKERS.has(sid) ? 'art/walk/' : 'art/hd/') + NAMES[sid] + '_s' + stage + '.png'; row[stage] = i; }
   return row[stage];
 }
-function preload(sids) { for (const sid of sids) if (WALKERS.has(sid)) for (let k = 0; k < 6; k++) sheetFor(sid, k); }
+function preload(sids) { for (const sid of sids) for (let k = 0; k < 6; k++) sheetFor(sid, k); }
 const cache = new Map();
 const PAL = {
   EMBER: ['#fff6a8', '#ffd23f', '#ff8a1f', '#e8401c', '#7a2a1c'], TIDE: ['#ffffff', '#bfefff', '#5ec2ff', '#2b7be0', '#163c8c'],
@@ -44,12 +45,12 @@ const STY = { projectile: { r: 12 }, bolt: { range: 420, hitAt: 0.08, dur: 0.22 
 
 function sprite(sid, hue = 0, white = false, frame = 0, stage = 2) {
   let sh = sheetFor(sid, stage), useSheet = sh?.complete && sh.naturalWidth;
-  if (WALKERS.has(sid) && !useSheet) { // not loaded yet: use any loaded form instead of flickering to a different picture
+  if (!useSheet) { // not loaded yet: use any loaded form instead of flickering to a different picture
     const alt = (sheets[sid] || []).find(i => i?.complete && i.naturalWidth); if (alt) { sh = alt; useSheet = true; stage = sheets[sid].indexOf(alt); } }
   const img = useSheet ? sh : imgs[sid]; if (!img?.complete || !img.naturalWidth) return null;
-  if (!useSheet) frame = 0;
+  if (!useSheet || !WALKERS.has(sid)) frame = 0;
   const key = sid + '|' + hue + '|' + white + '|' + frame + '|' + (useSheet ? stage : 'x'); let c = cache.get(key); if (c) return c;
-  const fw = useSheet ? img.naturalWidth / 6 : img.naturalWidth;
+  const fw = useSheet && WALKERS.has(sid) ? img.naturalWidth / 6 : img.naturalWidth;
   c = document.createElement('canvas'); c.width = fw; c.height = img.naturalHeight;
   const x = c.getContext('2d'); x.imageSmoothingEnabled = false;
   if (hue) x.filter = `hue-rotate(${hue}deg)`; x.drawImage(img, frame * fw, 0, fw, img.naturalHeight, 0, 0, fw, img.naturalHeight); x.filter = 'none';
@@ -61,6 +62,7 @@ function sprite(sid, hue = 0, white = false, frame = 0, stage = 2) {
 // Mega grows a pair of wings, Ascended has four wings and a golden halo.
 function stageSprite(sid, hue, stage, pal, white = false, frame = 0) {
   const base = sprite(sid, hue, white, frame, stage); if (!base) return null; const walker = WALKERS.has(sid);
+  if (sheets[sid]?.[stage]?.naturalWidth) return base; // the stage art already shows the evolved form
   const key = 'st|' + sid + '|' + hue + '|' + stage + '|' + white + '|' + frame; let c = cache.get(key); if (c) return c;
   const u = base.width / 48, legend = LEGEND.has(sid), wings = legend ? 0 : stage >= 5 ? 4 : stage >= 4 ? 2 : 0, pad = Math.round((wings ? 34 : 4) * u);
   c = document.createElement('canvas'); c.width = base.width + pad * 2; c.height = base.height + pad + Math.round(6 * u);
@@ -241,7 +243,7 @@ function createRenderer(canvas, arena) {
     if (ev.type === 'miss') { const v = snap.f[ev.victim ?? 1 - ev.attacker]; say(v.x * K, v.y * K - 22, 'MISS', '#d8d8e8', 0.8); return; }
     if (ev.type === 'level') {
       const f = snap.f[ev.side];
-      if (ev.evolved) { banner = { txt: ev.formTo ? `${ev.name} evolved into ${ev.formTo.toUpperCase()}!` : `${ev.name || 'Your Monstar'} evolved into ${ev.stage.toUpperCase()}!`, t: 2.6, side: ev.side }; grow[ev.side] = 1.2; flash = Math.max(flash, 0.5); burst(f.x * K, f.y * K - 10, PAL.HOLY, 40, 90); }
+      if (ev.evolved) { banner = { txt: (ev.formTo ? `${ev.name} evolved into ${ev.formTo.toUpperCase()}!` : `${ev.name || 'Your Monstar'} evolved into ${ev.stage.toUpperCase()}!`), sub: ev.perk ? 'NEW ' + ev.perk : null, t: 3.2, t: 2.6, side: ev.side }; grow[ev.side] = 1.2; flash = Math.max(flash, 0.5); burst(f.x * K, f.y * K - 10, PAL.HOLY, 40, 90); }
       else say(f.x * K, f.y * K - 38, `LEVEL UP! Lv${ev.level}`, '#ffe14a', 1.3, 8);
       return;
     }
@@ -600,14 +602,16 @@ function createRenderer(canvas, arena) {
       ctx.save(); ctx.translate(CW / 2, CH / 2); ctx.scale(s, s); ctx.globalAlpha = a; ctx.font = 'italic 900 64px Inter, system-ui, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
       ctx.fillStyle = '#1a1024'; ctx.fillText('FIGHT!', 4, 4); ctx.fillStyle = '#ffd23f'; ctx.fillText('FIGHT!', 0, 0); ctx.restore(); ctx.globalAlpha = 1;
     }
-    if (banner) { banner.t -= dt; const a = Math.min(1, banner.t * 2);
-      ctx.globalAlpha = a; ctx.fillStyle = '#141018dd'; ctx.fillRect(0, CH / 2 - 26, CW, 52); ctx.fillStyle = '#ffd23f'; ctx.fillRect(0, CH / 2 - 26, CW, 2); ctx.fillRect(0, CH / 2 + 24, CW, 2);
-      ctx.font = '800 22px Inter, system-ui, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = '#ffffff'; ctx.fillText(banner.txt, CW / 2, CH / 2 + 1); ctx.textBaseline = 'alphabetic';
-      ctx.globalAlpha = 1; if (banner.t <= 0) banner = null; }
+    if (banner) { banner.t -= dt; const a = Math.min(1, banner.t * 2), bh = banner.sub ? 76 : 52;
+      ctx.globalAlpha = a; ctx.fillStyle = '#141018dd'; ctx.fillRect(0, CH / 2 - bh / 2, CW, bh); ctx.fillStyle = '#ffd23f'; ctx.fillRect(0, CH / 2 - bh / 2, CW, 2); ctx.fillRect(0, CH / 2 + bh / 2 - 2, CW, 2);
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.font = '800 22px Inter, system-ui, sans-serif'; ctx.fillStyle = '#ffffff';
+      ctx.fillText(banner.txt, CW / 2, CH / 2 + (banner.sub ? -12 : 1));
+      if (banner.sub) { ctx.font = '700 16px Inter, system-ui, sans-serif'; ctx.fillStyle = '#ffd84a'; ctx.fillText(banner.sub, CW / 2, CH / 2 + 18); }
+      ctx.textBaseline = 'alphabetic'; ctx.globalAlpha = 1; if (banner.t <= 0) banner = null; }
   }
   function reset() { fx = []; parts = []; decals = []; texts = []; trails = [[], []]; impacts.clear(); shake = 0; flash = 0; banner = null; grow = [0, 0]; }
   return { draw, hit, event, reset, idle: (th = theme) => { g = ctx; ctx.setTransform(Z, 0, 0, Z, 0, 0); ctx.drawImage(groundFor(th), 0, 0); ctx.setTransform(1, 0, 0, 1, 0, 0); }, themes: THEMES };
 }
 
-window.PMArena = { createRenderer, sprite, stageSprite, STAGE_SCALE, THEMES, spriteSrc: (sid, stage) => 'art/hd/' + NAMES[sid] + (WALKERS.has(sid) && stage != null ? '_s' + stage : '') + '.png', W, H, preload, onReady: cb => Promise.all(imgs.map(i => i.complete ? 1 : new Promise(r => { i.onload = i.onerror = r; }))).then(cb) };
+window.PMArena = { createRenderer, sprite, stageSprite, STAGE_SCALE, THEMES, spriteSrc: (sid, stage) => 'art/hd/' + NAMES[sid] + (stage != null ? '_s' + stage : '') + '.png', W, H, preload, onReady: cb => Promise.all(imgs.map(i => i.complete ? 1 : new Promise(r => { i.onload = i.onerror = r; }))).then(cb) };
 })();

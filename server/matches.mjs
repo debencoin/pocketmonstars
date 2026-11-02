@@ -185,7 +185,7 @@ export class MatchManager {
 
   onHit(room, ev) {
     if (ev.type === 'miss') return this.emit(room, { t: 'miss', attacker: ev.attacker, style: ev.style });
-    if (ev.type === 'level') return this.emit(room, { t: 'level', side: ev.side, level: ev.level, stage: ev.stage, stageId: ev.stageId, evolved: ev.evolved });
+    if (ev.type === 'level') return this.emit(room, { t: 'level', side: ev.side, level: ev.level, stage: ev.stage, stageId: ev.stageId, evolved: ev.evolved, perk: ev.perk });
     if (ev.type === 'bonus') return this.emit(room, { t: 'bonus', side: ev.side, exp: ev.exp });
     if (ev.type === 'blocked') return this.emit(room, { t: 'blocked', attacker: ev.attacker, victim: ev.victim, shield: ev.shield });
     if (ev.type === 'status') return this.emit(room, { t: 'status', side: ev.side, k: ev.k, label: ev.label });

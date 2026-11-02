@@ -148,9 +148,22 @@ for (const [list, coll] of [[FRONTIER, 'frontier'], [MYTHIC, 'mythic'], [ANUNNAK
 export { TIERS };
 /** Ascendants evolve into a different character at every stage, each with its own name. */
 function walkerForms(name) { const r = name.replace(/[aeiouy]+[a-z]?$/i, '') || name; return [r + 'kit', r + 'ling', name, name + ' Prime', 'Mega ' + name, 'Ascended ' + name]; }
+/** Every other Monstar also becomes a new, differently named character at each stage. */
+function stageForms(name) {
+  let r = name.split(' ')[0].slice(0, Math.max(3, Math.ceil(name.length * 0.6))).replace(/[aeiouy]+$/i, '');
+  while (r.length > 4 && !/[aeiouy]/i.test(r.at(-1)) && !/[aeiouy]/i.test(r.at(-2))) r = r.slice(0, -1);
+  if (r.length > 4 && /[bwvqjhcgk]/i.test(r.at(-1)) && /[aeiouy]/i.test(r.at(-2))) r = r.slice(0, -1); // Blazeb -> Blaze, Wavew -> Wave
+  return [r + 'kit', r + 'ling', name, name + ' Prime', 'Mega ' + name, 'Ascended ' + name];
+}
+/** What a Monstar gains each time it evolves (cumulative). Shown in battle when it evolves. */
+export const STAGE_PERKS = [null, 'Attack upgrade: +10% attack power', 'Dash upgrade: 25% farther, recharges 20% faster', 'Special upgrade: +20% power and reach, effects last 30% longer', 'Guard upgrade: lasts 40% longer, shield +10%', 'Mega Shot upgrade: +35% power, ULT fills 25% faster'];
 /** Name of a species in a given evolution stage (0 Infant ... 5 Ascended). */
-export function formName(species, stageId = 2) { return species.forms?.[stageId] || species.name; }
+export function formName(species, stageId = 2) { return (species.forms ||= stageForms(species.name))[stageId] || species.name; }
 { const used = new Set(); for (const sp of SPECIES) sp.kit = kitFor(sp, used); } // every species gets its own ability kit
+{ const seen = new Set(), names = new Set(SPECIES.map(x => x.name)); for (const sp of SPECIES) { // six uniquely named forms per species
+  let f = sp.forms || stageForms(sp.name), n = 0;
+  while ((seen.has(f[0]) || seen.has(f[1]) || names.has(f[0]) || names.has(f[1])) && n++ < 6) { const r = sp.name.slice(0, f[0].length - 3 + 1); f = [r + 'kit', r + 'ling', ...f.slice(2)]; }
+  sp.forms = f; f.forEach(x => seen.add(x)); } }
 export const GENESIS_IDS = SPECIES.filter(s => s.collection === 'genesis').map(s => s.id);
 export const FRONTIER_IDS = SPECIES.filter(s => s.collection === 'frontier').map(s => s.id);
 export const MYTHIC_IDS = SPECIES.filter(s => s.collection === 'mythic').map(s => s.id);

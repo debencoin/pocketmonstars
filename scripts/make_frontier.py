@@ -338,6 +338,7 @@ def plant(cv, L, rnd):
 
 def wingset(cv, cx, cy, n, col, tip, scale=1.0):
     """n wings (2, 4 or 6) spreading from the shoulders, feathered."""
+    if not n: return
     specs = [(-1, 150), (1, 30)]
     if n >= 4: specs += [(-1, 195), (1, -15)]
     if n >= 6: specs += [(-1, 115), (1, 65)]
@@ -467,15 +468,64 @@ def seer(cv, L, rnd):  # floating many-eyed orb with wings
 
 PLANS.update(genie=genie, lamassu=lamassu, fishman=fishman, ophan=ophan, seer=seer)
 
+WINGED = ('angel', 'god', 'ophan', 'seer', 'genie')
+def hexc(c): return '#%02x%02x%02x' % tuple(c[:3])
+def stage_look(L, stage):
+    """Each evolution stage is a redesigned character: baby, young, adult, armoured, winged, ascended."""
+    L = dict(L); plan = L['plan']; main, acc = rgb(L['main']), rgb(L['accent'])
+    if stage == 0:
+        L['main'] = hexc(light(main, 0.35)); L['eyes'] = L['eyes'] if isinstance(L.get('eyes'), int) else 'big'
+        for k in ('horns', 'back', 'claws', 'weapon', 'crest', 'pattern', 'antennae'): L.pop(k, None)
+        if L.get('tail') not in (None, 'none'): L['tail'] = 'thick' if plan in ('quad', 'biped') else L['tail']
+        if plan in ('genie', 'lamassu', 'fishman'): L['crown'] = 'cap'
+        if plan in WINGED: L['wings'] = 0          # babies have no wings yet
+        if plan == 'ophan': L['rings'] = 1
+        L.pop('weapon', None)
+    elif stage == 1:
+        L['main'] = hexc(light(main, 0.15)); L['eyes'] = L['eyes'] if isinstance(L.get('eyes'), int) else 'big'
+        for k in ('horns', 'back', 'weapon'): L.pop(k, None)
+        if plan in WINGED: L['wings'] = 0 if plan in ('angel', 'genie') else 2
+        if plan == 'ophan': L['rings'] = 2
+    elif stage >= 3:
+        L['main'] = hexc(dark(main, 0.12) if stage == 3 else mix(main, acc, 0.22) if stage == 4 else mix(main, rgb('#ffe6a0'), 0.25))
+        if plan in ('quad', 'biped', 'serpent', 'bug', 'golem'):
+            L['horns'] = {None: 'two', 'one': 'two', 'two': 'curved', 'tusks': 'curved'}.get(L.get('horns'), L.get('horns')) if stage == 3 else ('antlers' if plan == 'quad' else 'curved')
+        if plan in ('quad', 'biped', 'serpent', 'golem') and not L.get('back'): L['back'] = 'spikes' if stage == 3 else 'crystals'
+        if stage >= 4 and plan in ('quad', 'biped', 'serpent'): L['back'] = 'crystals'
+        if not L.get('pattern'): L['pattern'] = 'stripes' if stage == 3 else 'stars' if stage == 5 else 'diamonds'
+        if stage == 5: L['accent'] = '#ffd23f'
+        if plan in WINGED: L['wings'] = min(6, (L.get('wings') or 2) + (stage - 2) * 2) if plan != 'genie' else 4
+    return L
+
+def draw_stage(sp, i, stage):
+    L = stage_look(sp['look'], stage); rnd = random.Random(i * 97 + 13); cv = Canvas()
+    plan = L['plan']
+    if stage >= 4 and plan not in WINGED + ('lamassu',):   # Mega grows wings, Ascended four
+        wingset(cv, 230, 250, 2 if stage == 4 else 4, light(rgb(L['accent']), 0.5), L['accent'], scale=0.9)
+    PLANS[plan](cv, L, rnd)
+    if stage == 5:                                           # halo above the head
+        bb = cv.im.getchannel('A').getbbox()
+        if bb: cx = (bb[0] + bb[2]) // 2; ImageDraw.Draw(cv.im).ellipse([cx - 70, bb[1] - 46, cx + 70, bb[1] - 14], outline=rgb('#ffd23f'), width=12)
+    if stage == 3:                                           # aura of type-coloured sparks
+        d = ImageDraw.Draw(cv.im)
+        for k in range(10): a = rnd.random() * 6.28; r = 200 + rnd.random() * 20; d.ellipse([240 + math.cos(a) * r - 7, 250 + math.sin(a) * r * 0.8 - 7, 240 + math.cos(a) * r + 7, 250 + math.sin(a) * r * 0.8 + 7], fill=rgb(L['accent']))
+    size = 104 if plan in ('angel', 'god', 'ophan', 'genie', 'lamassu') or L.get('giant') else 96
+    return clean(cv.im, size=size, colors=24)
+
+def job(args):
+    sp, i = args; art = sp['name'].lower()
+    for st in range(6):
+        im = draw_stage(sp, i, st); im.save(os.path.join(OUT, f'{art}_s{st}.png'))
+        if st == 2: im.save(os.path.join(OUT, art + '.png'))
+    return art
+
 def main():
     data = json.loads(subprocess.check_output(['node', '-e', "import('./shared/frontier.mjs').then(m => process.stdout.write(JSON.stringify([...m.FRONTIER, ...m.MYTHIC, ...m.ANUNNAKI, ...m.WATCHERS])))"], cwd=ROOT))
     only = set(sys.argv[1:])
-    for i, sp in enumerate(data):
-        art = sp['name'].lower()
-        if only and art not in only: continue
-        rnd = random.Random(i * 97 + 13); cv = Canvas(); PLANS[sp['look']['plan']](cv, sp['look'], rnd)
-        clean(cv.im, size=104 if sp['look']['plan'] in ('angel', 'god', 'ophan', 'genie', 'lamassu') or sp['look'].get('giant') else 96, colors=24).save(os.path.join(OUT, art + '.png'))
-        cv.im.save(os.path.join(ROOT, 'scripts', '.big_' + art + '.png')) if os.environ.get('KEEP_BIG') else None
-    print('drew', len(data) if not only else len(only), 'Frontier Monstars')
+    jobs = [(sp, i) for i, sp in enumerate(data) if not only or sp['name'].lower() in only]
+    from multiprocessing import Pool
+    with Pool(int(os.environ.get('JOBS', os.cpu_count() or 2))) as pool:
+        for art in pool.imap_unordered(job, jobs): pass
+    print('drew', len(jobs), 'Monstars x 6 evolution forms')
 
 if __name__ == '__main__': main()

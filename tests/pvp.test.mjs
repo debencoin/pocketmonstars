@@ -423,3 +423,14 @@ test('HP never comes back on its own: only healing powers restore it, and fights
   }
   assert.ok(kos > 0);
 });
+
+test('evolving mid-fight makes a new named form and unlocks an ability upgrade', async () => {
+  const S = await import('../shared/sim.mjs'), { Monstar, SPECIES, expForLevel, formName, STAGE_PERKS } = await import('../shared/monstars.mjs');
+  const sp = SPECIES[3], m = S.createMatch(new Monstar({ speciesId: 3, exp: expForLevel(10) - 2 }), new Monstar({ speciesId: 1, level: 5 }), { auto: false });
+  const f = m.fighters[0]; assert.equal(f.sg, 1);
+  m.fighters[1].x = f.x + 200; m.fighters[1].y = f.y;
+  let evo = null; for (let i = 0; i < 300 && !evo; i++) { f.input = S.sanitizeInput({ atk: true }); m.fighters[1].x = f.x + 200; m.fighters[1].y = f.y; evo = S.step(m).find(e => e.type === 'level' && e.evolved); }
+  assert.ok(evo); assert.equal(evo.stageId, 2); assert.equal(f.sg, 2); assert.equal(evo.perk, STAGE_PERKS[2]);
+  assert.notEqual(formName(sp, 1), formName(sp, 2));
+  const a = new Set(SPECIES.flatMap(s => s.forms)); assert.equal(a.size, SPECIES.length * 6);
+});
