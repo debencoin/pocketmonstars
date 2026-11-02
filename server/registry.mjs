@@ -109,11 +109,11 @@ export function metadataJson(monstar, publicUrl, royaltyBps) {
     name: monstar.displayName,
     symbol: 'MONSTAR',
     description: `${monstar.displayName}, a one-of-a-kind ${monstar.traits.rarity} ${monstar.type} ${monstar.className} (${monstar.stage.name}, level ${monstar.level}). ${monstar.cls.passive} Born to ${monstar.originOwner}.`,
-    image: `${publicUrl}/art/pixel/${monstar.species.art}.png`,
+    image: `${publicUrl}/art/nft/${monstar.species.art}.png`,
     external_url: `${publicUrl}/play#monstar-${monstar.serial}`,
     seller_fee_basis_points: royaltyBps,
     attributes: monstar.toAttributes(),
-    properties: { category: 'image', files: [{ uri: `${publicUrl}/art/pixel/${monstar.species.art}.png`, type: 'image/png' }],
+    properties: { category: 'image', files: [{ uri: `${publicUrl}/art/nft/${monstar.species.art}.png`, type: 'image/png' }],
       creators: [{ address: monstar.originOwner, share: 100 }] },
   };
 }

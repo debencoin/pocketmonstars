@@ -122,3 +122,12 @@ Stats: HP, Attack, Defense, Sp. Atk, Sp. Def, Speed. Types: EMBER, GROVE, TIDE, 
 - **Wild Expedition**: signed-in players pay **0.0001 SOL** (`PM_WILD_FEE_LAMPORTS`, default 100,000) to the treasury; the server verifies the transfer on-chain, refuses reused signatures (`wild_runs` table), picks a weighted random wild Monstar, runs the battle, and on a win rolls the catch. Caught Monstars always hatch as Infants. Mythic and Divine ones are higher level and fight harder. Guests can practice locally with no catching.
 - **3v3**: `createMatch` takes teams; the next member comes in on a faint, players can switch (tap the team strip, or keys 5–7) with a 3 s cooldown; per-hit SOL fees use the whole team's HP so the pot still moves in proportion. Works for practice, server AI and free or staked PvP rooms (`mode: '3v3'`, `serials`).
 - The 50 wild species and the Mythics are only playable once caught; Genesis stays free for everyone.
+
+## v11: slower, longer fights where powers do things (modelled on poke2darena.com)
+
+- `GAME_SPEED = 0.7` (all movement, timers and animations; the round clock stays real), `DAMAGE_SCALE = 0.7`, `BATTLE_HP = 1.7`; 1v1 rounds are 60 s (3v3 150 s). AI-vs-AI 1v1 now lasts ~50 s on average.
+- **Status effects** (`STATUS`, `TYPE_STATUS`): specials always, basics 15%. Spark paralyzes (slow, moves can fail), Frost freezes, Ember/Draco burn and Venom poisons (damage over time, still moves SOL per tick), Grove entangles, Stone/Steel stun, Shade confuses (controls reversed), Psychic **levitates** (the rival is lifted, carried around in the air and can't act, then dropped), Tide/Gale sweep away (big knockback, slowed), Astral dazzles. Heavy hits cause a short "recovering" stagger. Each has its own on-sprite effect and label.
+- **ULT meter** fills from damage dealt and taken; at 100% the next special is an Ultimate (×1.7 power, longer status).
+- **HP +20% pickups** spawn every ~14 s. **CPU difficulty** Easy / Normal / Hard. Quick battle defaults to 3v3 and fills empty slots. New Volcano and Ice arenas.
+- **Stakes**: presets 0.001 / 0.002 / 0.005 / 0.01 SOL, minimum 0.001 (no free PvP preset); practice pot is 0.001 SOL a side.
+- **Market / NFT pictures**: `scripts/make_cards.py` makes a 512×512 framed card for every species (`dist/art/nft`), used by market cards and NFT metadata.

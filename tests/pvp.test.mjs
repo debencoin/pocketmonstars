@@ -236,7 +236,7 @@ test('AI practice on the server saves the EXP the Monstar earned', async () => {
 });
 
 test('3v3: next team member comes in on a faint, match ends when a whole team is out, fees use team HP', async () => {
-  const { createMatch, step, sanitizeInput } = await import('../shared/sim.mjs');
+  const { createMatch, step, sanitizeInput, BATTLE_HP } = await import('../shared/sim.mjs');
   const { Monstar } = await import('../shared/monstars.mjs');
   const team = ids => ids.map(id => new Monstar({ speciesId: id, level: 3 }));
   const m = createMatch(team([0, 1, 2]), team([3, 4, 5]), { auto: false });
@@ -247,7 +247,7 @@ test('3v3: next team member comes in on a faint, match ends when a whole team is
     m.fighters[1].x = m.fighters[0].x + 200; m.fighters[1].y = m.fighters[0].y;
     for (const e of step(m)) { if (e.type === 'switch') switches++; if (e.type === 'hit' && e.attacker === 0) firstMax ??= e.victimMaxHp; }
   }
-  assert.equal(firstMax, m.teamMax[1]);
+  assert.equal(firstMax, Math.round(m.teamMax[1] * BATTLE_HP));
   assert.ok(switches >= 1, 'a replacement came in');
   if (m.reason === 'ko') assert.equal(m.winner, 0);
 });
@@ -299,4 +299,21 @@ test('3v3 rooms: both players bring three, the server runs a team match and save
   }
   assert.notEqual(room.state, 'live');
   assert.ok(registry.get(ta[0].serial).exp > 0);
+});
+
+test('powers do things: levitation lifts and carries the rival, freeze stops it, burn ticks; 0.7x speed, 30% less damage', async () => {
+  const S = await import('../shared/sim.mjs'), { Monstar } = await import('../shared/monstars.mjs');
+  assert.equal(S.GAME_SPEED, 0.7); assert.equal(S.DAMAGE_SCALE, 0.7);
+  const m = S.createMatch(new Monstar({ speciesId: 10, level: 20 }), new Monstar({ speciesId: 0, level: 20 }), { auto: false });
+  const v = m.fighters[1], ev = [];
+  S.applyStatusForTest(m, v, 'lift', m.fighters[0], ev);
+  const x0 = v.x, y0 = v.y; v.input = S.sanitizeInput({ mx: -1, atk: true });
+  let moved = 0, casts = 0;
+  for (let i = 0; i < 20; i++) { const e = S.step(m); moved = Math.max(moved, Math.hypot(v.x - x0, v.y - y0)); casts += v.castT < 0.05 ? 1 : 0; }
+  assert.ok(moved > 40, 'lifted Monstar is carried around'); assert.equal(casts, 0, 'cannot attack while lifted');
+  assert.equal(ev[0].type, 'status'); assert.equal(ev[0].k, 'lift');
+  const m2 = S.createMatch(new Monstar({ speciesId: 6 }), new Monstar({ speciesId: 0 }), { auto: false }), f = m2.fighters[1];
+  S.applyStatusForTest(m2, f, 'burn', m2.fighters[0], []);
+  const hp0 = f.hp; let dots = 0; for (let i = 0; i < 60; i++) dots += S.step(m2).filter(e => e.type === 'hit' && e.kind === 'status').length;
+  assert.ok(f.hp < hp0 && dots > 0, 'burn deals damage over time');
 });

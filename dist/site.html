@@ -502,7 +502,7 @@ const $ = id => document.getElementById(id);
 const TC = { EMBER: '#e8582c', TIDE: '#3a8ae0', GROVE: '#4caa3a', SPARK: '#d8b018', SHADE: '#7a4ad8', STONE: '#9a8458', FROST: '#5ab8d8', ASTRAL: '#d89a30', PSYCHIC: '#c050c8', NORMAL: '#8a8a9a' };
 const cv = $('demoCv');
 if (cv && window.PMArena) {
-  const r = PMArena.createRenderer(cv, ARENA), STAKE = 5_000_000n, KEY = 'pm-site-mini';
+  const r = PMArena.createRenderer(cv, ARENA), STAKE = 1_000_000n, KEY = 'pm-site-mini';
   let rec = { wins: 0, streak: 0, best: 0 }; try { rec = { ...rec, ...JSON.parse(localStorage.getItem(KEY) || '{}') }; } catch {}
   let pick = GENESIS_IDS[Math.floor(Math.random() * GENESIS_IDS.length)], m = null, ledger, prev, cur, at, mem = {}, endAt = 0, types = [], fightAt = 0, speed = 1, auto = false, visible = true;
   const inp = { atk: false, sp: false, dash: false, guard: false }, keys = {};
@@ -525,7 +525,7 @@ if (cv && window.PMArena) {
   function start() {
     const others = GENESIS_IDS.filter(x => x !== pick), foe = others[Math.floor(Math.random() * others.length)], lv = 3 + Math.floor(Math.random() * 8);
     const a = new Monstar({ speciesId: pick, level: lv }), b = new Monstar({ speciesId: foe, level: lv });
-    m = createMatch(a, b, { arena: Math.floor(Math.random() * 4) }); ledger = new StakeLedger(STAKE); mem = {};
+    m = createMatch(a, b, { arena: Math.floor(Math.random() * 6) }); ledger = new StakeLedger(STAKE); mem = {};
     prev = null; cur = snapshot(m); at = performance.now(); endAt = 0; fightAt = performance.now(); types = [a.type, b.type]; r.reset();
     [a, b].forEach((x, i) => { $('mN' + i).textContent = x.species.name.toUpperCase(); $('mPic' + i).src = PMArena.spriteSrc(x.species.id); $('mN' + i).textContent = x.species.name; const t = $('mT' + i); t.textContent = x.type; t.dataset.t = x.type; t.style.setProperty('--tc', TC[x.type]); });
     moves(a, b); $('mOver').hidden = true; sol();
@@ -556,7 +556,7 @@ if (cv && window.PMArena) {
     if (visible || document.fullscreenElement) {
       if (m) { r.draw(prev, cur, Math.min(1, (performance.now() - at) / 34), { you: 0, snapAt: at, hues: [0, 0], types, faint: m.over && m.winner != null ? [m.winner === 1 ? Math.min(1, (performance.now() - endAt) / 1200) : 0, m.winner === 0 ? Math.min(1, (performance.now() - endAt) / 1200) : 0] : [0, 0], fight: Math.max(0, 1.4 - (performance.now() - fightAt) / 1000) });
         cur.f.forEach((f, i) => { const p = Math.max(0, f.hp / f.max); $('mH' + i).style.width = p * 100 + '%'; $('mHN' + i).textContent = Math.ceil(Math.max(0, f.hp)) + '/' + f.max; $('mH' + i).style.background = p > 0.5 ? '#58d858' : p > 0.2 ? '#f8c838' : '#f85838'; $('mX' + i).style.width = Math.min(100, f.xi / Math.max(1, f.xn) * 100) + '%'; $('mL' + i).textContent = 'Lv' + f.lv; });
-        const left = Math.max(0, Math.ceil(ARENA.roundSeconds - cur.t)); $('mClock').textContent = `${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}`;
+        const left = Math.max(0, Math.ceil((cur.lim ?? ARENA.roundSeconds) - cur.t)); $('mClock').textContent = `${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}`;
         const f = cur.f[0], sp = SPECIES[f.s], cost = [STYLES[sp.basicStyle].cost, STYLES[sp.specialStyle].cost, 0, 0];
         [...$('mMoves').children].forEach((b, i) => { const cd = [f.cd.b, f.cd.s, f.cd.d, f.cd.g][i] || 0; b.classList.toggle('cool', cd > 0.05 || f.en < cost[i]); b.querySelector('.cd').style.width = Math.min(100, cd * 20) + '%'; });
       } else r.idle(1);

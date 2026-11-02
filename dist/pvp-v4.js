@@ -35,13 +35,13 @@ pvp.innerHTML = `
       <div class="hb-top"><b id="pvN0">YOU</b><span class="hb-lv" id="pvL0">Lv1</span><span class="hb-type" id="pvT0"></span></div>
       <div class="hb-hp"><em>HP</em><div class="hb-bar"><i id="pvH0"></i></div><span id="pvHN0"></span></div>
       <div class="hb-xp"><em>EXP</em><div class="hb-bar xp"><i id="pvX0"></i></div></div>
-      <div class="hb-sol"><span class="pv-sol" id="pvS0">0 SOL</span><small id="pvSD0"></small></div><div class="hb-tm" id="pvTm0"></div></div></div>
+      <div class="hb-sol"><span class="pv-sol" id="pvS0">0 SOL</span><small id="pvSD0"></small></div><div class="hb-tm" id="pvTm0"></div><div class="hb-st" id="pvSt0"></div></div></div>
     <div class="hb-mid"><div class="hb-clock" id="pvClock">1:30</div><div class="hb-pot" id="pvPotMid">POT 0.01 SOL</div><div class="hb-potbar"><i id="pvPB0"></i><i id="pvPB1"></i></div></div>
     <div class="hb r"><img class="hb-pic" id="pvPic1" alt=""><div class="hb-main">
       <div class="hb-top"><b id="pvN1">RIVAL</b><span class="hb-lv" id="pvL1">Lv1</span><span class="hb-type" id="pvT1"></span></div>
       <div class="hb-hp"><em>HP</em><div class="hb-bar"><i id="pvH1"></i></div><span id="pvHN1"></span></div>
       <div class="hb-xp"><em>EXP</em><div class="hb-bar xp"><i id="pvX1"></i></div></div>
-      <div class="hb-sol"><span class="pv-sol" id="pvS1">0 SOL</span><small id="pvSD1"></small></div><div class="hb-tm" id="pvTm1"></div></div></div>
+      <div class="hb-sol"><span class="pv-sol" id="pvS1">0 SOL</span><small id="pvSD1"></small></div><div class="hb-tm" id="pvTm1"></div><div class="hb-st" id="pvSt1"></div></div></div>
    </div>
    <div class="pv-field" id="pvField">
     <canvas id="pvCanvas" width="960" height="540" aria-label="Battle arena"></canvas>
@@ -70,15 +70,16 @@ pvp.innerHTML = `
    <button class="primary wide" id="pvSignIn">Connect Phantom &amp; sign in</button>
    <p class="pv-note" id="pvPhantomHint" style="margin-top:8px">Signing in only signs a message. It never moves funds.</p></div>
   <div class="panel" id="pvLobby"><h3>Choose your Monstar</h3>
-   <div class="pv-presets pv-mode" id="pvMode" role="group" aria-label="Battle size"><button data-m="1v1" aria-pressed="true">1v1</button><button data-m="3v3" aria-pressed="false">3v3 team</button></div>
+   <div class="pv-presets pv-mode" id="pvMode" role="group" aria-label="Battle size"><button data-m="1v1" aria-pressed="false">1v1</button><button data-m="3v3" aria-pressed="true">3v3 team</button></div>
    <div class="pv-team" id="pvTeamPick" hidden></div>
    <div class="pv-picker" id="pvPicker" role="group" aria-label="Choose your Monstar"></div>
    <p class="pv-note" id="pvPickInfo" style="margin:8px 0 12px"></p>
-   <button class="primary wide" id="pvPractice">Practice vs AI</button>
+   <div class="pv-presets pv-cpu" id="pvCpu" role="group" aria-label="Computer difficulty"><button data-l="easy" aria-pressed="false">Easy</button><button data-l="normal" aria-pressed="true">Normal</button><button data-l="hard" aria-pressed="false">Hard</button></div>
+   <button class="primary wide" id="pvPractice">Quick battle vs CPU</button>
    <p class="pv-note" style="margin:6px 0 16px">Free, no wallet needed.</p>
    <h3>Battle a real rival</h3>
    <label class="fieldlabel" for="pvStake" style="display:block;margin:10px 0 6px">Stake per player (SOL)</label>
-   <div class="pv-presets" id="pvPresets"><button data-v="0">Free</button><button data-v="0.001" aria-pressed="true">0.001</button><button data-v="0.01">0.01</button><button data-v="0.05">0.05</button></div>
+   <div class="pv-presets" id="pvPresets"><button data-v="0.001" aria-pressed="true">0.001</button><button data-v="0.002">0.002</button><button data-v="0.005">0.005</button><button data-v="0.01">0.01</button></div>
    <input class="pv-input" id="pvStake" inputmode="decimal" value="0.001" style="margin-top:8px">
    <p class="pv-note" id="pvStakeNote" style="margin:8px 0"></p>
    <button class="primary wide" id="pvCreate">Create match</button>
@@ -142,7 +143,7 @@ function statBars(st) {
 function expBar(m) { return `<div class="pv-xp" title="${m.expInto} / ${m.expNeed} EXP"><i style="width:${Math.min(100, m.expInto / Math.max(1, m.expNeed) * 100)}%"></i></div>`; }
 function cardHtml(m, extra = '') {
   return `<span class="pv-rar ${esc(m.traits.rarity)}">${esc(m.traits.rarity)}</span>${m.tier ? `<span class="pv-tier ${esc(m.tier)}">${esc(m.tier)}</span>` : ''}<span class="pv-lv">Lv${m.level} · ${esc(m.stage)}</span>
-  <img class="px" src="art/hd/${Monstars.SPECIES[m.speciesId].art}.png" alt="${esc(m.name)}" style="filter:hue-rotate(${m.traits.hue}deg)" loading="lazy">
+  <img class="px nftimg" src="art/nft/${Monstars.SPECIES[m.speciesId].art}.png" alt="${esc(m.name)}" style="filter:hue-rotate(${m.traits.hue}deg)" loading="lazy">
   <span class="nm">${esc(m.name)}</span><span class="sub">${esc(m.className)} · ${esc(m.type)} · ${esc(m.traits.aura)} ${esc(m.traits.pattern)} · ${esc(m.traits.nature)}</span>
   ${expBar(m)}${statBars(m.stats)}${extra}`;
 }
@@ -175,13 +176,13 @@ async function refreshMine() {
 async function stakeNote() {
   cfg ??= await S.getConfig().catch(() => null);
   let v; try { v = Stake.toLamports(q('pvStake').value || '0'); } catch { q('pvStakeNote').textContent = 'Enter an amount like 0.01'; return; }
-  q('pvStakeNote').innerHTML = v === 0n ? 'Free match: no SOL moves.' : `Pot <b>${sol(v * 2n)} SOL</b>. A hit worth 10% of your rival's HP moves <b>${sol(v / 10n, 9)} SOL</b> to you. Minimum stake 0.001 SOL.`;
+  q('pvStakeNote').innerHTML = v < 1_000_000n ? '<b>Minimum stake is 0.001 SOL.</b> For a free game, use Quick battle vs CPU.' : `Pot <b>${sol(v * 2n)} SOL</b>. A hit worth 10% of your rival's HP moves <b>${sol(v / 10n, 9)} SOL</b> to you. Minimum stake 0.001 SOL.`;
 }
 q('pvPresets').onclick = e => { const b = e.target.closest('button'); if (!b) return; q('pvPresets').querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', x === b)); q('pvStake').value = b.dataset.v; stakeNote(); };
 q('pvStake').oninput = stakeNote; stakeNote();
 function teamMsg(needOwned) {
   if (mode !== '3v3') return { mode };
-  if (teamPick.length < 3) throw Error('Pick three Monstars for your 3v3 team.');
+  if (teamPick.length < 3) { fillTeam(); renderPicker(); }
   const owned = teamPick.map(ownedFor);
   if (owned.every(Boolean)) return { mode, serials: owned.map(m => m.serial) };
   if (needOwned) throw Error('A staked 3v3 needs three of your own Monstars.');
@@ -189,7 +190,7 @@ function teamMsg(needOwned) {
 }
 function needSocket() { if (!S.session()) throw Error('Sign in with Phantom first.'); if (!ws || ws.readyState > 1) openSocket(); }
 function sendWs(msg) { needSocket(); const go = () => ws.send(JSON.stringify(msg)); ws.readyState === 1 ? go() : ws.addEventListener('open', go, { once: true }); }
-q('pvCreate').onclick = () => { try { const lam = Stake.toLamports(q('pvStake').value || '0'); sendWs({ t: 'create', stakeLamports: lam.toString(), serial: lam > 0n ? picked : undefined, speciesId: mine.find(m => m.serial === picked)?.speciesId ?? 0, ...teamMsg(lam > 0n) }); } catch (e) { fail(e); } };
+q('pvCreate').onclick = () => { try { const lam = Stake.toLamports(q('pvStake').value || '0'); if (lam < 1_000_000n) throw Error('The minimum stake is 0.001 SOL.'); sendWs({ t: 'create', stakeLamports: lam.toString(), serial: lam > 0n ? picked : undefined, speciesId: mine.find(m => m.serial === picked)?.speciesId ?? 0, ...teamMsg(lam > 0n) }); } catch (e) { fail(e); } };
 q('pvJoin').onclick = () => { try { sendWs({ t: 'join', code: q('pvJoinCode').value.trim().toUpperCase(), serial: picked, speciesId: mine.find(m => m.serial === picked)?.speciesId ?? 0, ...teamMsg(true) }); } catch (e) { fail(e); } };
 // ---------- move cards ("What will X do?") ----------
 const MOVE_KEYS = ['atk', 'sp', 'dash', 'guard'];
@@ -217,8 +218,12 @@ function buildMoves(meSid, foeSid) {
     b.addEventListener('pointerup', up); b.addEventListener('pointercancel', up); b.addEventListener('contextmenu', e => e.preventDefault()); });
 }
 const cdMax = { b: 1, s: 1, d: 1, g: 1 };
+const ST_LABEL = { paralyze: 'PARALYZED', freeze: 'FROZEN', burn: 'BURNED', poison: 'POISONED', root: 'ENTANGLED', stun: 'STUNNED', confuse: 'CONFUSED', lift: 'LEVITATED', soak: 'SWEPT AWAY', dazzle: 'DAZZLED' };
+function updateStatus(k, f) { const el = q('pvSt' + k); if (!el) return; const t = f.st ? ST_LABEL[f.st] : f.rc ? 'RECOVERING' : ''; if (el.textContent !== t) { el.textContent = t; el.className = 'hb-st' + (f.st ? ' s-' + f.st : ''); } }
 function updateMoves(f) {
   const grid = q('pvMGrid'); if (!grid || !f) return;
+  const spc = grid.children[1];
+  if (spc) { const u = Math.min(100, f.ul || 0); spc.classList.toggle('ult', u >= 100); let bar = spc.querySelector('.mv-ult'); if (!bar) { bar = el('span', { className: 'mv-ult' }); spc.append(bar); } bar.innerHTML = u >= 100 ? '<b>ULT READY</b>' : `ULT ${u}%<i style="width:${u}%"></i>`; }
   const sp = Monstars.SPECIES[f.s], cost = { b: Sim.STYLES[sp.basicStyle].cost, s: Sim.STYLES[sp.specialStyle].cost, d: 0, g: 0 };
   ['b', 's', 'd', 'g'].forEach((k, i) => { const b = grid.children[i]; if (!b) return; const cd = f.cd[k] || 0; cdMax[k] = Math.max(cd, cd > 0 ? cdMax[k] : 0.01);
     const cool = cd > 0.05 || f.en < cost[k]; b.classList.toggle('cool', cool); b.querySelector('.mv-cd').style.width = (cd > 0 ? cd / cdMax[k] * 100 : 0) + '%'; });
@@ -242,7 +247,7 @@ q('pvDeposit').onclick = e => busy(e.target, async () => {
 });
 
 // Practice and free matches show a pretend 0.01 SOL pot so you can watch SOL move per hit. It is never paid out.
-const PRACTICE_STAKE = 5_000_000n;
+const PRACTICE_STAKE = 1_000_000n; // 0.001 SOL each side
 let vLedger = null;
 function practiceMoney() { return !room || room.local || room.ai || room.stake === '0'; }
 function resetVirtual() { vLedger = new Stake.StakeLedger(PRACTICE_STAKE); shares = vLedger.shares.map(String); showShares(null); }
@@ -256,7 +261,10 @@ function monFor(sid) {
     : new Monstars.Monstar({ speciesId: sid, exp: guestExp()[sid] || 0 });
 }
 // ---------- 1v1 / 3v3 ----------
-let mode = '1v1', teamPick = [];
+let mode = '3v3', teamPick = []; // Quick battle is 3v3 like the reference; empty slots fill themselves
+let cpuLevel = 'normal';
+q('pvCpu').onclick = e => { const b = e.target.closest('button'); if (!b) return; cpuLevel = b.dataset.l; q('pvCpu').querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', x === b)); };
+function fillTeam() { const pool = Monstars.SPECIES.filter(sp => usableSpecies(sp) && !teamPick.includes(sp.id)).sort(() => Math.random() - 0.5); while (teamPick.length < 3 && pool.length) teamPick.push(pool.shift().id); }
 q('pvMode').onclick = e => { const b = e.target.closest('button'); if (!b) return; mode = b.dataset.m; q('pvMode').querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', x === b)); if (mode === '3v3' && !teamPick.length) teamPick = [pickedSpecies]; renderPicker(); };
 function renderTeamPick() {
   const box = q('pvTeamPick'); box.hidden = mode !== '3v3'; if (mode !== '3v3') return;
@@ -284,16 +292,17 @@ let lastPractice = null;
 function startPractice(opt = null) {
   lastPractice = opt;
   const own = ownedFor(pickedSpecies);
+  if (!opt && mode === '3v3' && teamPick.length < 3) { fillTeam(); renderPicker(); }
   const ownTeam = mode === '3v3' ? teamPick.map(ownedFor) : [own];
-  if (!opt && S.session() && ownTeam.length === (mode === '3v3' ? 3 : 1) && ownTeam.every(Boolean)) { try { sendWs({ t: 'ai', mode, serial: own?.serial, serials: ownTeam.map(m => m.serial) }); ended = null; fightAt = 0; renderer.reset(); resetVirtual(); } catch (e) { fail(e); } return; }
+  if (!opt && S.session() && ownTeam.length === (mode === '3v3' ? 3 : 1) && ownTeam.every(Boolean)) { try { sendWs({ t: 'ai', mode, level: cpuLevel, serial: own?.serial, serials: ownTeam.map(m => m.serial) }); ended = null; fightAt = 0; renderer.reset(); resetVirtual(); } catch (e) { fail(e); } return; }
   if (!usableSpecies(Monstars.SPECIES[pickedSpecies])) pickedSpecies = 0;
   const three = !opt && mode === '3v3';
-  if (three && teamPick.length < 3) { toast('Pick three Monstars for your 3v3 team.', true); return; }
+  if (three && teamPick.length < 3) { fillTeam(); renderPicker(); }
   const ids = three ? teamPick.slice() : [pickedSpecies];
   const others = Monstars.SPECIES.filter(x => x.collection === 'genesis' && !ids.includes(x.id)).sort(() => Math.random() - 0.5);
   const team = ids.map(monFor), lvl = () => Math.max(1, team[0].level + Math.floor(Math.random() * 3) - 1);
   const foes = opt?.foeId != null ? [new Monstars.Monstar({ speciesId: opt.foeId, level: opt.foeLevel })] : ids.map((_, i) => new Monstars.Monstar({ speciesId: others[i].id, level: lvl() }));
-  local = { m: Sim.createMatch(three ? team : team[0], three ? foes : foes[0], { arena: opt?.arena ?? Math.floor(Math.random() * 4) }), mem: { hard: !!opt?.hard } };
+  local = { m: Sim.createMatch(three ? team : team[0], three ? foes : foes[0], { arena: opt?.arena ?? Math.floor(Math.random() * Sim.ARENA_COUNT) }), mem: { hard: !!opt?.hard, level: opt ? 'normal' : cpuLevel } };
   const a = team[0], b = foes[0], foe = b.species;
   room = { local: true, wild: opt || null, mode: three ? '3v3' : '1v1', state: 'live', you: 0, stake: '0', code: 'AI',
     players: [{ wallet: me || 'You', monstar: a.toJSON(), team: team.map(x => x.toJSON()) }, { wallet: 'AI', monstar: { ...b.toJSON(), name: opt ? 'Wild ' + foe.name : b.toJSON().name }, team: foes.map(x => x.toJSON()) }] };
@@ -342,7 +351,7 @@ function onMsg(m) {
     snapPrev = snapCur; snapCur = m.s; snapAt = performance.now(); setShares(m.shares); return;
   }
   if (m.t === 'hit') { setShares(m.shares, m); return; }
-  if (m.t === 'switch') { battleEvent({ ...m, type: 'switch' }); return; }
+  if (m.t === 'switch' || m.t === 'status' || m.t === 'ult' || m.t === 'pickup') { battleEvent({ ...m, type: m.t }); return; }
   if (m.t === 'miss' || m.t === 'level' || m.t === 'bonus') { battleEvent({ ...m, type: m.t }); if (m.t === 'level') refreshSoon(); return; }
   if (m.t === 'end') { if (practiceMoney() && vLedger) { vLedger.finish(m.winner == null ? null : m.winner); shares = vLedger.shares.map(String); showShares(); } ended = { ...m, at: performance.now() }; refreshSoon(); if (room) room.state = room.stake === '0' ? 'done' : 'settling'; renderRoom(); return; }
   if (m.t === 'settlement') { ended = { at: 0, ...(ended || {}), settlement: m }; if (room) room.state = m.ok ? (m.refund ? 'refunded' : 'settled') : 'needs review'; renderRoom(); refreshBalance(); return; }
@@ -538,10 +547,10 @@ function draw() {
       q('pvL' + k).textContent = `Lv${f.lv}`; q('pvL' + k).title = Monstars.STAGES[f.sg]?.name || '';
       q('pvHN' + k).textContent = `${Math.ceil(Math.max(0, f.hp))}/${f.max}`;
     }
-    const left = Math.max(0, Math.ceil(ARENA.roundSeconds - snapCur.t));
+    const left = Math.max(0, Math.ceil((snapCur.lim ?? ARENA.roundSeconds) - snapCur.t));
     q('pvClock').textContent = `${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}`;
     callouts();
-    updateMoves(meF); activeHud(you); teamStrips(you);
+    updateMoves(meF); activeHud(you); teamStrips(you); updateStatus(0, meF); updateStatus(1, foe);
   } else renderer.idle();
   if (!pvp.classList.contains('hidden') || q('pvStage').classList.contains('live')) requestAnimationFrame(draw);
 }

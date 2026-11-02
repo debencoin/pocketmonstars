@@ -1,6 +1,6 @@
 // 1v1 Stake Duel rooms: lobby, escrow deposits, authoritative 30 Hz simulation, live per-hit pot shares, settlement.
 import { randomBytes } from 'node:crypto';
-import { createMatch, step, snapshot, sanitizeInput, forfeit, aiInput, TICK } from '../shared/sim.mjs';
+import { createMatch, step, snapshot, sanitizeInput, forfeit, aiInput, TICK, ARENA_COUNT } from '../shared/sim.mjs';
 import { Monstar, GENESIS_IDS, SPECIES, TIERS, rollWild, stageFor } from '../shared/monstars.mjs';
 
 export const WILD_ZONE_MIN = [1, 6, 14, 26];
@@ -47,7 +47,7 @@ export class MatchManager {
     const pick = () => { const pool = GENESIS_IDS.filter(id => !team.some(t => t.species.id === id)); return pool[Math.floor(Math.random() * pool.length)]; };
     const lvl = () => Math.max(1, monstar.level + Math.floor(Math.random() * 3) - 1);
     const bots = team.map(() => new Monstar({ speciesId: pick(), level: lvl() })), bot = bots[0], sid = bot.species.id;
-    return this.aiRoom(wallet, team, bots, {});
+    return this.aiRoom(wallet, team, bots, { level: ['easy', 'normal', 'hard'].includes(msg.level) ? msg.level : 'normal' });
   }
 
   /** Wild Expedition: a paid (0.0001 SOL) battle against a random wild Monstar. Win it for a chance to catch it. */
@@ -64,12 +64,12 @@ export class MatchManager {
     return this.aiRoom(wallet, [monstar], [new Monstar({ speciesId: sid, level })], { wild: { signature: sig, speciesId: sid, level, tier: SPECIES[sid].tier }, hard: tier.lvl >= 12 });
   }
 
-  aiRoom(wallet, team, bots, { wild = null, hard = false }) {
+  aiRoom(wallet, team, bots, { wild = null, hard = false, level = 'normal' }) {
     const monstar = team[0], bot = bots[0], sid = bot.species.id;
     let code; do code = 'AI' + newCode().slice(0, 4); while (this.rooms.has(code));
     const room = { id: randomBytes(16).toString('hex'), code, stake: 0n, state: 'countdown', countdown: 2.5, createdAt: this.now(), ai: true, wild, mode: team.length > 1 ? '3v3' : '1v1',
       players: [{ wallet, monstar, team, deposit: null, sockets: new Set(), lastSeen: this.now() }, { wallet: 'AI', ai: true, monstar: bot, team: bots, sockets: new Set(), lastSeen: Infinity }],
-      escrow: null, sim: null, ledger: null, seq: 0, aiMem: { hard } };
+      escrow: null, sim: null, ledger: null, seq: 0, aiMem: { hard, level } };
     this.rooms.set(code, room); this.byWallet.set(wallet, code);
     this.db.prepare('INSERT INTO matches(id,code,stake,player_a,player_b,monstar_a,monstar_b,state,created_at) VALUES(?,?,?,?,?,?,?,?,?)')
       .run(room.id, code, '0', wallet, 'AI', String(monstar.serial ?? 'species:' + monstar.species.id), 'species:' + sid, 'countdown', room.createdAt);
@@ -166,7 +166,7 @@ export class MatchManager {
 
   start(room) {
     const side = p => (p.team?.length > 1 ? p.team : p.monstar);
-    room.sim = createMatch(side(room.players[0]), side(room.players[1]), { arena: room.wild ? [2, 1, 0, 3][Math.floor(Math.random() * 4)] : Math.floor(Math.random() * 4) });
+    room.sim = createMatch(side(room.players[0]), side(room.players[1]), { arena: room.wild ? [2, 1, 0, 3][Math.floor(Math.random() * 4)] : Math.floor(Math.random() * ARENA_COUNT) });
     room.ledger = new StakeLedger(room.stake, this.policy);
     room.state = 'live'; room.startedAt = this.now();
     this.persistState(room);
@@ -176,6 +176,10 @@ export class MatchManager {
     if (ev.type === 'miss') return this.emit(room, { t: 'miss', attacker: ev.attacker, style: ev.style });
     if (ev.type === 'level') return this.emit(room, { t: 'level', side: ev.side, level: ev.level, stage: ev.stage, stageId: ev.stageId, evolved: ev.evolved });
     if (ev.type === 'bonus') return this.emit(room, { t: 'bonus', side: ev.side, exp: ev.exp });
+    if (ev.type === 'status') return this.emit(room, { t: 'status', side: ev.side, k: ev.k, label: ev.label });
+    if (ev.type === 'ult') return this.emit(room, { t: 'ult', side: ev.side });
+    if (ev.type === 'pickup') return this.emit(room, { t: 'pickup', side: ev.side, k: ev.k, amount: ev.amount, x: ev.x, y: ev.y });
+    if (ev.type !== 'hit') return;
     if (ev.type === 'switch') return this.emit(room, { t: 'switch', side: ev.side, slot: ev.slot, speciesId: ev.speciesId, reason: ev.reason });
     const fee = room.ledger.hit(ev.attacker, ev.damage, ev.victimMaxHp);
     const seq = room.seq++;
