@@ -14,7 +14,8 @@ import { MatchManager } from './matches.mjs';
 import { NftService } from './nft.mjs';
 import { Players } from './players.mjs';
 import { checkPayment, MEMO_PROGRAM } from './escrow.mjs';
-import { SPECIES, HERO_IDS } from '../shared/monstars.mjs';
+import { SPECIES, HERO_IDS, formName } from '../shared/monstars.mjs';
+import { AVATARS, AVATAR_BY_ID } from '../shared/avatars.mjs';
 import { STAKE_POLICY, formatSol } from '../shared/stake.mjs';
 import { randomBytes } from 'node:crypto';
 import { PublicKey, SystemProgram, Transaction, TransactionInstruction } from '@solana/web3.js';
@@ -47,6 +48,20 @@ export function createServer({ config = CONFIG, chain = new SolanaChain(config.r
   const dropMemo = sid => `PMDROP:${sid}`;
   const dropPrice = sid => BigInt(SPECIES[sid].drop.priceLamports);
   const reserved = new Map(); // species -> { wallet, until }: holds a hero for 2 minutes while its buyer pays
+  // ---------- profile avatars ----------
+  const avatarOwner = a => (a.reservedFor === 'founder' ? config.legendaryOwner : a.reservedFor || players.avatarSale(a.id)?.buyer || null);
+  const monstarPic = m => `art/hd/${m.species.art}_s${m.stage.id}.png`;
+  function profileOf(id) {
+    const owned = AVATARS.filter(a => avatarOwner(a) === id), mons = registry.ownedBy(id), choice = players.avatarChoice(id);
+    let avatar = null;
+    if (choice?.startsWith('a:') && owned.some(a => a.id === choice.slice(2))) { const a = AVATAR_BY_ID[choice.slice(2)]; avatar = { kind: 'photo', id: a.id, name: a.name, img: a.img, thumb: a.thumb }; }
+    if (!avatar && choice?.startsWith('m:')) { const m = mons.find(x => x.serial === Number(choice.slice(2))); if (m) avatar = { kind: 'monstar', serial: m.serial, name: m.toJSON().form || m.species.name, img: monstarPic(m), thumb: monstarPic(m) }; }
+    if (!avatar && owned[0]) avatar = { kind: 'photo', id: owned[0].id, name: owned[0].name, img: owned[0].img, thumb: owned[0].thumb };
+    if (!avatar && mons.length) { const m = mons.slice().sort((a, b) => b.level - a.level)[0]; avatar = { kind: 'monstar', serial: m.serial, name: m.toJSON().form || m.species.name, img: monstarPic(m), thumb: monstarPic(m) }; }
+    return { id, avatar, photos: owned.map(a => ({ id: a.id, name: a.name, img: a.img, thumb: a.thumb })),
+      monstars: mons.map(m => ({ serial: m.serial, name: m.toJSON().form || m.species.name, img: monstarPic(m), level: m.level })) };
+  }
+  const avatarMemo = id => `PMAVATAR:${id}`;
   const listingRow = id => db.prepare('SELECT * FROM listings WHERE id=?').get(Number(id));
   const waitConfirmed = async sig => { for (let i = 0; i < 30; i++) { const s = await chain.status(sig); if (s?.err) throw Error('Transaction failed on-chain.'); if (['confirmed', 'finalized'].includes(s?.confirmationStatus)) return; await new Promise(r => setTimeout(r, 1000)); } throw Error('Not confirmed yet. Try again in a moment.'); };
 
@@ -59,6 +74,28 @@ export function createServer({ config = CONFIG, chain = new SolanaChain(config.r
     'POST /api/account/register': async req => { const b = await body(req); return welcome(players.register(b.username, b.password), b.ref); },
     'POST /api/account/login': async req => { const b = await body(req); return welcome(players.login(b.username, b.password)); },
     'GET /api/referrals/me': req => { const w = need(req); return { code: w, ...players.referralStats(w), bps: 500 }; },
+    // ---------- profile + avatars ----------
+    'GET /api/profile/me': req => profileOf(need(req)),
+    'POST /api/profile/avatar': async req => { const w = need(req), b = await body(req), v = String(b.avatar || '');
+      if (v.startsWith('a:')) { const a = AVATAR_BY_ID[v.slice(2)]; if (!a || avatarOwner(a) !== w) throw Error('You do not own that avatar.'); }
+      else if (v.startsWith('m:')) { const m = registry.get(Number(v.slice(2))); if (!m || m.owner !== w) throw Error('You do not own that Monstar.'); }
+      else throw Error('Pick an avatar.');
+      players.setAvatarChoice(w, v); return profileOf(w); },
+    'GET /api/avatars': () => ({ avatars: AVATARS.map(a => ({ id: a.id, name: a.name, img: a.img, thumb: a.thumb, note: a.note || '', priceLamports: a.priceLamports,
+      owner: avatarOwner(a), forSale: !a.reservedFor && !!a.priceLamports && !players.avatarSale(a.id) })) }),
+    'POST /api/avatar/tx': async req => { const w = needWallet(req), b = await body(req), a = AVATAR_BY_ID[String(b.id)];
+      if (!a || a.reservedFor || !a.priceLamports) throw Error('That avatar is not for sale.');
+      if (players.avatarSale(a.id)) throw Error(a.name + ' is already sold.');
+      const { blockhash } = await chain.latestBlockhash(), payer = new PublicKey(w);
+      const tx = new Transaction({ feePayer: payer, recentBlockhash: blockhash })
+        .add(SystemProgram.transfer({ fromPubkey: payer, toPubkey: new PublicKey(config.treasury), lamports: BigInt(a.priceLamports) }))
+        .add(new TransactionInstruction({ programId: new PublicKey(MEMO_PROGRAM), keys: [{ pubkey: payer, isSigner: true, isWritable: false }], data: Buffer.from(avatarMemo(a.id)) }));
+      return { transaction: tx.serialize({ requireAllSignatures: false, verifySignatures: false }).toString('base64') }; },
+    'POST /api/avatar/confirm': async req => { const w = needWallet(req), b = await body(req), a = AVATAR_BY_ID[String(b.id)];
+      if (!a || a.reservedFor || !a.priceLamports) throw Error('That avatar is not for sale.');
+      await waitConfirmed(b.signature); await chain.verifyPayment(b.signature, { from: w, to: config.treasury, lamports: BigInt(a.priceLamports), memo: avatarMemo(a.id) });
+      const sale = players.avatarSale(a.id); if (sale && sale.signature !== b.signature) throw Error(a.name + ' was already sold. Contact support for a refund: ' + b.signature);
+      if (!sale) players.recordAvatarSale(a.id, w, b.signature); players.setAvatarChoice(w, 'a:' + a.id); return profileOf(w); },
     // ---------- Superhero Drop ----------
     'GET /api/drop': () => ({ endsAt: config.dropEndsAt, now: Date.now(), treasury: config.dropTreasury, cluster: config.cluster,
       heroes: HERO_IDS.map(sid => { const sale = players.sale(sid), r = reserved.get(sid);
@@ -238,6 +275,15 @@ export function createServer({ config = CONFIG, chain = new SolanaChain(config.r
       } catch {}
     }
   }
+  async function rebuildAvatars() { // avatar purchases also survive a server reset
+    if (!chain.memoPayments || !config.treasury) return;
+    for (const { signature, tx } of await chain.memoPayments(config.treasury, 'PMAVATAR:')) {
+      try { const memo = tx.transaction.message.instructions.map(ix => (typeof ix.parsed === 'string' ? ix.parsed : '')).find(x => x.startsWith('PMAVATAR:'));
+        const a = AVATAR_BY_ID[memo?.slice(9)]; if (!a || a.reservedFor || !a.priceLamports || players.avatarSale(a.id)) continue;
+        players.recordAvatarSale(a.id, checkPayment(tx, { to: config.treasury, lamports: BigInt(a.priceLamports), memo: avatarMemo(a.id) }), signature); } catch {}
+    }
+  }
+  if (config.rebuildDrops !== false && AVATARS.some(a => a.priceLamports)) rebuildAvatars().catch(e => console.error('avatar rebuild:', e.message));
   const dropsReady = config.rebuildDrops === false ? Promise.resolve() : rebuildDrops().catch(e => console.error('drop rebuild:', e.message));
 
   let n = 0;

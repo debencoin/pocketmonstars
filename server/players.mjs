@@ -12,6 +12,8 @@ export class Players {
       CREATE TABLE IF NOT EXISTS accounts(name TEXT PRIMARY KEY, display TEXT NOT NULL, salt TEXT NOT NULL, hash TEXT NOT NULL, created_at INTEGER NOT NULL);
       CREATE TABLE IF NOT EXISTS referrals(user TEXT PRIMARY KEY, referrer TEXT NOT NULL, created_at INTEGER NOT NULL);
       CREATE TABLE IF NOT EXISTS referral_payouts(match_id TEXT NOT NULL, referrer TEXT NOT NULL, user TEXT NOT NULL, lamports TEXT NOT NULL, created_at INTEGER NOT NULL, PRIMARY KEY(match_id, referrer));
+      CREATE TABLE IF NOT EXISTS profiles(id TEXT PRIMARY KEY, avatar TEXT, updated_at INTEGER NOT NULL);
+      CREATE TABLE IF NOT EXISTS avatar_sales(avatar TEXT PRIMARY KEY, buyer TEXT NOT NULL, signature TEXT NOT NULL UNIQUE, created_at INTEGER NOT NULL);
       CREATE TABLE IF NOT EXISTS drop_sales(species INTEGER PRIMARY KEY, buyer TEXT NOT NULL, signature TEXT NOT NULL UNIQUE, serial INTEGER, created_at INTEGER NOT NULL);
     `);
   }
@@ -57,6 +59,15 @@ export class Players {
     const n = this.db.prepare('SELECT COUNT(*) n FROM referrals WHERE referrer=?').get(id).n;
     const rows = this.db.prepare('SELECT lamports FROM referral_payouts WHERE referrer=?').all(id);
     return { referred: n, payouts: rows.length, earnedLamports: rows.reduce((t, r) => t + BigInt(r.lamports), 0n).toString(), referrer: this.referrerOf(id) };
+  }
+
+  // ---------- profile avatars ----------
+  avatarChoice(id) { return this.db.prepare('SELECT avatar FROM profiles WHERE id=?').get(id)?.avatar || null; }
+  setAvatarChoice(id, avatar, now = Date.now()) { this.db.prepare('INSERT INTO profiles(id,avatar,updated_at) VALUES(?,?,?) ON CONFLICT(id) DO UPDATE SET avatar=excluded.avatar, updated_at=excluded.updated_at').run(id, avatar, now); }
+  avatarSale(avatar) { return this.db.prepare('SELECT * FROM avatar_sales WHERE avatar=?').get(avatar) || null; }
+  recordAvatarSale(avatar, buyer, signature, now = Date.now()) {
+    if (this.db.prepare('SELECT 1 FROM avatar_sales WHERE signature=?').get(signature)) throw Error('That payment was already used.');
+    this.db.prepare('INSERT INTO avatar_sales(avatar,buyer,signature,created_at) VALUES(?,?,?,?)').run(avatar, buyer, signature, now);
   }
 
   // ---------- Superhero Drop ----------

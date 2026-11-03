@@ -524,3 +524,34 @@ nav{display:none!important}
 .v6-copied{color:#5fd38a;font-weight:700;margin:4px 0 10px}
 .v6-qr{display:block;margin:0 auto 12px;background:#fff;border-radius:12px;width:220px;height:220px}
 .v6-money{margin:16px 0 24px}
+/* v29: profile + avatars */
+.v6-prof{display:flex;align-items:center;gap:12px}
+.v6-prof[hidden]{display:none}
+.v6-av{position:relative;width:64px;height:64px;flex:0 0 64px;border-radius:50%;padding:0;border:3px solid var(--lime);background:#141c34;overflow:visible}
+.v6-av img{width:100%;height:100%;border-radius:50%;object-fit:cover;image-rendering:auto;display:block}
+.v6-av span{font-size:26px;color:var(--muted)}
+.v6-av i{position:absolute;right:-4px;bottom:-4px;width:24px;height:24px;border-radius:50%;background:var(--lime);color:#111;font-style:normal;font-size:13px;display:grid;place-items:center}
+.v6-prof-main{flex:1;min-width:0;display:flex;flex-direction:column}
+.v6-prof-main b{font:700 18px 'Space Grotesk',sans-serif;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.v6-prof-main small{color:var(--muted)}
+.v6-conn{color:#5fd38a;font-weight:700;font-size:12px;letter-spacing:.04em}
+.v6-prof + .v6-ph-row{margin-top:12px}
+#appSignIn{display:inline-flex;align-items:center;gap:8px;max-width:46vw}
+#appSignIn span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.v6-topav{width:26px;height:26px;border-radius:50%;object-fit:cover;flex:0 0 26px}
+.v6-avh{margin:12px 0 8px}
+.v6-avgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(92px,1fr));gap:8px}
+.v6-avgrid.big{grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px;margin-top:12px}
+.v6-avtile{display:flex;flex-direction:column;align-items:center;gap:4px;padding:8px;border:2px solid var(--line);border-radius:14px;background:#0c1222;color:var(--white)}
+.v6-avtile.on{border-color:var(--lime)}
+.v6-avtile img{width:64px;height:64px;border-radius:50%;object-fit:cover;background:#141c34}
+.v6-avtile b{font-size:12px;text-align:center}.v6-avtile small{color:var(--muted);font-size:11px}
+.v6-avcard{display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center;background:#0c1222;border:1px solid var(--line);border-radius:16px;padding:12px}
+.v6-avcard img{width:100%;aspect-ratio:1;object-fit:cover;border-radius:12px}
+.v6-avcard small{color:var(--muted);font-size:11px}.v6-avcard button{width:100%;min-height:40px}
+.v6-avcard.soon{justify-content:center;border-style:dashed;min-height:180px}.v6-avcard.soon span{font-size:34px;color:var(--muted)}
+#v6AvShop{margin-bottom:16px}
+header{overflow:hidden}
+#appSignIn{max-width:42vw;flex:0 1 auto;margin-left:auto;padding:0 10px}
+@media (max-width:480px){#appSignIn:has(img) span{display:none}#appSignIn:has(img){padding:3px;border-radius:50%;width:44px;height:44px;justify-content:center}#appSignIn .v6-topav{width:34px;height:34px;flex-basis:34px}
+  header .brand{font-size:19px!important}header .brand span{display:none}}

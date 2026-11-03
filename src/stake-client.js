@@ -149,6 +149,15 @@ export async function dropBuy(speciesId) {
   const signature = await signAndSend(transaction);
   for (let i = 0; ; i++) { try { return await api('/api/drop/confirm', { speciesId, signature }); } catch (e) { if (i >= 6 || !/not (found|confirmed) yet/i.test(e.message)) throw e; await new Promise(r => setTimeout(r, 3000)); } }
 }
+// ---------- Profile avatars ----------
+export const profile = () => api('/api/profile/me');
+export const setAvatar = avatar => api('/api/profile/avatar', { avatar });
+export const avatars = () => api('/api/avatars');
+export async function avatarBuy(id) {
+  const { transaction } = await api('/api/avatar/tx', { id });
+  const signature = await signAndSend(transaction);
+  for (let i = 0; ; i++) { try { return await api('/api/avatar/confirm', { id, signature }); } catch (e) { if (i >= 6 || !/not (found|confirmed) yet/i.test(e.message)) throw e; await new Promise(r => setTimeout(r, 3000)); } }
+}
 // ---------- Referrals ----------
 export const referrals = () => api('/api/referrals/me');
 export const referralLink = code => `${location.origin}/play?ref=${encodeURIComponent(code)}`;
@@ -156,4 +165,4 @@ export const qrDataUrl = text => QRCode.toDataURL(text, { margin: 1, width: 240,
 export const explorer = sig => `https://explorer.solana.com/tx/${sig}?cluster=devnet`;
 
 if (typeof window !== 'undefined') window.PMStake = { signIn, session, balance, getConfig, myMonstars, mint, syncOwner, listings, list, cancelListing, buy,
-  connectSocket, deposit, explorer, phantomBrowseLink, breedCreate, breedJoin, breedStatus, breedPay, wildPay, signOut, accountRegister, accountLogin, drop, dropBuy, referrals, referralLink, qrDataUrl, Monstars, Stake, ARENA, Sim };
+  connectSocket, deposit, explorer, phantomBrowseLink, breedCreate, breedJoin, breedStatus, breedPay, wildPay, signOut, accountRegister, accountLogin, drop, dropBuy, profile, setAvatar, avatars, avatarBuy, referrals, referralLink, qrDataUrl, Monstars, Stake, ARENA, Sim };

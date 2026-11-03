@@ -212,3 +212,9 @@ Stats: HP, Attack, Defense, Sp. Atk, Sp. Def, Speed. Types: EMBER, GROVE, TIDE, 
 ## v28 — squad pace and swap buttons
 - Squad battles run at `SQUAD_PACE` 0.8 of the normal pace (`m.pace`, applied to the sim step, autopilot and the snapshot `gs`).
 - A ⇄ swap button is drawn over each of your teammates in a squad battle; tapping it (or the teammate) takes control of that Monstar. The team pictures still work too.
+
+## v29 — profile + avatars
+- Once signed in, the Arena shows a profile card (avatar, "Phantom connected" or "Signed in", address/name, SOL balance) in place of the Connect button; the top-right button shows the avatar.
+- Avatars (`shared/avatars.mjs`): one-of-one photo avatars, either reserved for a wallet (`reservedFor: 'founder'` = legendary account holder) or sold once for SOL (`priceLamports`, memo `PMAVATAR:<id>` to the treasury, rebuilt from chain on start). Any owned Monstar can also be your avatar. Routes: `GET /api/profile/me`, `POST /api/profile/avatar`, `GET /api/avatars`, `POST /api/avatar/tx|confirm`.
+- First photo avatar: **Gilded Voyager** (`dist/art/avatars/gilded-voyager.jpg`), held by the founder wallet. Add more by dropping images in `dist/art/avatars/` and adding entries with a price.
+- Script and CSS tags in `index.html` carry `?v=29` so phones and Phantom's browser load the newest code.

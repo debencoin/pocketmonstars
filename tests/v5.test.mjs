@@ -128,3 +128,16 @@ test('3v3 squad: all six fight at once, teammates act on their own, switching ta
   if (m.reason === 'ko') assert.ok(m.roster[m.winner === 0 ? 1 : 0].every(f => f.hp <= 0), 'a squad loses only when all three are down');
   const one = S.createMatch(new Monstar({ speciesId: 0 }), new Monstar({ speciesId: 1 })); assert.ok(!one.squad); assert.equal(S.snapshot(one).x, null);
 });
+
+test('profile avatars: the founder wallet holds Gilded Voyager; others cannot use it; any owned Monstar can be an avatar', async () => {
+  const { server, auth, registry } = createServer({ chain: new MockChain(), dbFile: ':memory:', config: { ...CONFIG, rebuildDrops: false } });
+  await new Promise(r => server.listen(0, r)); const base = 'http://127.0.0.1:' + server.address().port;
+  const call = (path, t, b) => fetch(base + path, { method: b ? 'POST' : 'GET', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + t }, body: b ? JSON.stringify(b) : undefined }).then(r => r.json());
+  try {
+    const f = auth.issue(CONFIG.legendaryOwner).token, o = auth.issue('@fan').token; registry.claimAll('@fan');
+    assert.equal((await call('/api/profile/me', f)).avatar.id, 'gilded-voyager');
+    const me = await call('/api/profile/me', o); assert.equal(me.photos.length, 0); assert.equal(me.avatar.kind, 'monstar');
+    assert.match((await call('/api/profile/avatar', o, { avatar: 'a:gilded-voyager' })).error, /do not own/);
+    assert.equal((await call('/api/profile/avatar', o, { avatar: 'm:' + me.monstars[0].serial })).avatar.serial, me.monstars[0].serial);
+  } finally { server.close(); }
+});

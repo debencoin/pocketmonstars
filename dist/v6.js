@@ -25,7 +25,7 @@ drawer.addEventListener('click', e => { if (e.target.closest('[data-close]')) op
 addEventListener('keydown', e => { if (e.key === 'Escape') openMenu(false); });
 function go(id) { window.tab(id); scrollTo({ top: 0 }); try { history.replaceState(null, '', '#' + (id === 'pvp' ? 'arena' : id === 'play' ? 'wild' : id)); } catch {} }
 const baseTab = window.tab;
-window.tab = function (id) { baseTab(id); drawer.querySelectorAll('[data-go]').forEach(b => b.classList.toggle('on', b.dataset.go === id)); if (id === 'home') renderHome(); };
+window.tab = function (id) { baseTab(id); drawer.querySelectorAll('[data-go]').forEach(b => b.classList.toggle('on', b.dataset.go === id)); if (id === 'home') renderHome(); if (id === 'market') renderAvatarShop?.(); };
 
 // ---------- Home ----------
 const home = el('section', { id: 'home', className: 'view hidden' }); main.prepend(home);
@@ -107,11 +107,69 @@ for (const sec of ['pvp', 'home']) {
 const money = q('pvMoney'), guide = q('guide');
 if (money && guide) { const h = guide.querySelector('h1'); (h?.nextElementSibling || h || guide).after(money); money.classList.add('v6-money'); }
 
+// ---------- Profile: once connected, the Arena shows who you are, with your avatar ----------
+const prof = el('div', { className: 'v6-prof', id: 'v6Prof', hidden: true });
+ph.prepend(prof);
+const avDlg = el('dialog', { className: 'v6-dlg', id: 'v6Av' });
+avDlg.innerHTML = `<div class="v6-dlg-head"><h3>Choose your avatar</h3><button class="v6-x" data-close aria-label="Close">✕</button></div><div id="v6AvBody"></div>`;
+document.body.append(avDlg);
+avDlg.addEventListener('click', e => { if (e.target === avDlg || e.target.closest('[data-close]')) avDlg.close(); });
+let myProfile = null;
+const shortId = id => (id.startsWith('@') ? id.slice(1) : id.slice(0, 4) + '…' + id.slice(-4));
+async function renderProfile(me) {
+  prof.hidden = !me; const row = ph.querySelector('.v6-ph-row'), btn = q('pvSignIn'), hint = q('pvPhantomHint');
+  const wallet = me && !me.startsWith('@');
+  if (row) row.hidden = wallet; if (hint) hint.hidden = wallet; // Phantom already connected: the profile replaces the connect button
+  if (!me) { myProfile = null; setTopAvatar(null); return; }
+  try { myProfile = await S.profile(); } catch { myProfile = { id: me, avatar: null, photos: [], monstars: [] }; }
+  const av = myProfile.avatar;
+  prof.innerHTML = `<button class="v6-av" id="v6AvBtn" aria-label="Change avatar">${av ? `<img src="${esc(av.img)}" alt="">` : '<span>?</span>'}<i>✎</i></button>
+    <div class="v6-prof-main"><span class="v6-conn">● ${wallet ? 'Phantom connected' : 'Signed in · free account'}</span><b>${esc(shortId(me))}</b>
+    <small>${av ? 'Avatar: ' + esc(av.name) : 'Pick an avatar'}${wallet ? '<span id="v6Bal"></span>' : ''}</small></div>
+    <button class="smallbtn" id="v6AvChange">Avatar</button>`;
+  q('v6AvBtn').onclick = q('v6AvChange').onclick = openAvatars;
+  if (wallet) S.balance(me).then(b => { const e = q('v6Bal'); if (e) e.textContent = ' · ' + (Number(b) / 1e9).toLocaleString(undefined, { maximumFractionDigits: 4 }) + ' SOL'; }).catch(() => {});
+  setTopAvatar(av);
+}
+function setTopAvatar(av) {
+  if (!topBtn) return; const me = S.session()?.wallet;
+  topBtn.innerHTML = me ? `${av ? `<img class="v6-topav" src="${esc(av.thumb || av.img)}" alt="">` : ''}<span>${esc(shortId(me))}</span>` : 'Sign in';
+}
+function openAvatars() {
+  const p = myProfile; if (!p) return;
+  const cur = p.avatar ? (p.avatar.kind === 'photo' ? 'a:' + p.avatar.id : 'm:' + p.avatar.serial) : '';
+  const tile = (v, img, name, sub) => `<button class="v6-avtile${v === cur ? ' on' : ''}" data-v="${v}"><img src="${esc(img)}" alt="" loading="lazy"><b>${esc(name)}</b>${sub ? `<small>${esc(sub)}</small>` : ''}</button>`;
+  q('v6AvBody').innerHTML = (p.photos.length ? `<h4 class="v6-avh">Your avatar NFTs</h4><div class="v6-avgrid">${p.photos.map(a => tile('a:' + a.id, a.img, a.name, 'One of one')).join('')}</div>` : '')
+    + `<h4 class="v6-avh">Your Monstars</h4><div class="v6-avgrid">${p.monstars.map(m => tile('m:' + m.serial, m.img, m.name, 'Lv' + m.level)).join('') || '<p class="pv-note">No Monstars yet.</p>'}</div>
+    <p class="pv-note" style="margin-top:10px">More avatars are sold in the <b>Market</b>.</p>`;
+  q('v6AvBody').querySelectorAll('[data-v]').forEach(b => b.onclick = async () => { try { myProfile = await S.setAvatar(b.dataset.v); avDlg.close(); renderProfile(S.session()?.wallet); toast('Avatar updated.'); } catch (e) { toast(e.message, true); } });
+  avDlg.showModal();
+}
+
+// ---------- Market: Avatars ----------
+const avShop = el('div', { className: 'panel', id: 'v6AvShop' });
+const dropPanel = q('v5Drop'); (dropPanel || q('pvMarket'))?.after(avShop);
+async function renderAvatarShop() {
+  let list; try { list = (await S.avatars()).avatars; } catch { avShop.innerHTML = ''; return; }
+  const me = S.session()?.wallet;
+  avShop.innerHTML = `<div class="eyebrow">Profile pictures</div><h2 style="margin:4px 0">Avatars</h2>
+    <p class="pv-note">One-of-one profile avatars. Your avatar shows on your profile in the Arena. More are coming soon.</p>
+    <div class="v6-avgrid big">${list.map(a => `<div class="v6-avcard"><img src="${esc(a.img)}" alt="${esc(a.name)}" loading="lazy"><b>${esc(a.name)}</b>
+      ${a.forSale ? `<button class="primary" data-buyav="${esc(a.id)}">Buy · ${(Number(a.priceLamports) / 1e9).toLocaleString()} SOL</button>`
+        : `<span class="pv-chip ok">${a.owner === me ? 'Yours' : 'Owned' + (a.owner ? ' · ' + esc(shortId(a.owner)) : '')}</span>`}
+      ${a.note ? `<small>${esc(a.note)}</small>` : ''}</div>`).join('')}
+      <div class="v6-avcard soon"><span>+</span><b>More avatars</b><small>Coming soon</small></div></div>`;
+  avShop.querySelectorAll('[data-buyav]').forEach(b => b.onclick = async () => {
+    if (!S.session() || S.session().wallet.startsWith('@')) return toast('Connect Phantom on the Arena to buy avatars.', true);
+    b.disabled = true; try { myProfile = await S.avatarBuy(b.dataset.buyav); toast('Avatar bought and set on your profile.'); renderProfile(S.session().wallet); renderAvatarShop(); } catch (e) { toast(e.message, true); } finally { b.disabled = false; }
+  });
+}
+
 // ---------- top-right button shows who is signed in ----------
 const prev = window.PMV5?.signedIn;
 window.PMV5 = { ...(window.PMV5 || {}), signedIn(me) {
   prev?.(me);
-  if (topBtn) topBtn.textContent = me ? (me.startsWith('@') ? me.slice(1) : me.slice(0, 4) + '…' + me.slice(-4)) : 'Sign in';
+  renderProfile(me);
   const st = q('v6PhState'); if (st) st.textContent = me && !me.startsWith('@') ? 'Phantom connected. You can stake SOL, buy heroes and mint NFTs.' : 'Connect Phantom to stake SOL, buy heroes and mint NFTs.';
   if (me && signDlg.open && me.startsWith('@')) signDlg.close();
 } };
