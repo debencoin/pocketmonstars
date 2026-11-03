@@ -277,3 +277,7 @@ Stats: HP, Attack, Defense, Sp. Atk, Sp. Def, Speed. Types: EMBER, GROVE, TIDE, 
 ## v40: Immortal Guild tab, orb teleport intro
 - New **Immortal Guild** tab (☰ menu and nav): every open Immortal Combat (`GET /api/immortal/open`) with the fighter's Monstar, level, power and code. Tap a card to take the challenge with the Monstar picked on the tab (confirm first). "Put my Monstar up" creates a fight; the soul claims list (buy back / set soul fee / collect NFTs) is on the tab too.
 - Every fight in every arena now opens with the Monstars teleporting in as soul orbs of their own colour (`createMatch({ intro: true })`, `INTRO_SECONDS` 1.3): the battle waits until they land, flash and appear.
+
+## v41: Target Practice
+- New **Target Practice** tab (dist/targets.js): 30 seconds on a shooting range with random targets: bullseye boards (50/25/10 by ring), hay stacks (an HP bar, take several hits), cans on a fence (tip over in one hit) and rows of moving ducks (one hit each). Tap a target to fire your Monstar's own attack, special (multi-shot where it has one) or Mega Shot (charges from hits). Every hit shows its damage.
+- Nothing is earned yet; the result shows what the same hits would earn in a real match (EXP from EXP_RULES, SOL from hitFee). Best score is kept on the device.
