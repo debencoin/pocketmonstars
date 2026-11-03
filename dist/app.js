@@ -19,12 +19,8 @@ const wb = q('walletOpen'); if (wb) { const nb = wb.cloneNode(false); nb.id = 'a
 const ORDER = [['pvp', 'Arena', '⚔'], ['play', 'Wild', '✦'], ['collection', 'Monstars', '◆'], ['market', 'Market', '◈'], ['breed', 'Breed', '♥'], ['leaders', 'Ranks', '★'], ['guide', 'Guide', '?']];
 if (nav) for (const [id, label, icon] of ORDER) { const b = nav.querySelector(`[data-tab=${id}]`); if (!b) continue; b.innerHTML = `<i aria-hidden="true">${icon}</i><span>${label}</span>`; b.setAttribute('aria-label', label); nav.append(b); }
 
-// Install button: Android/desktop use the browser prompt; iPhone shows the Share -> Add to Home Screen steps.
-let deferred = null;
-const bar = document.createElement('div'); bar.className = 'app-install'; bar.hidden = true;
-bar.innerHTML = `<img src="/app/icon-192.png" alt=""><div><b>Get the PocketMonstars app</b><small id="appHow">Full screen, one tap from your home screen.</small></div><button class="primary" id="appGo">Install</button><button class="app-x" id="appX" aria-label="Not now">✕</button>`;
-document.body.append(bar);
-const ios = /iphone|ipad|ipod/i.test(navigator.userAgent), seen = (() => { try { return localStorage.getItem('pm-install-x'); } catch { return null; } })();
+// No install banner: players can still add the app from the browser menu (Share -> Add to Home Screen).
+})();
 const show = () => { if (!standalone && !seen) bar.hidden = false; };
 addEventListener('beforeinstallprompt', e => { e.preventDefault(); deferred = e; show(); });
 if (ios && !window.phantom) setTimeout(show, 2500); // Safari on iPhone; inside Phantom's browser there is no Add to Home Screen
