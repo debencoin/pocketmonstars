@@ -7,6 +7,8 @@ export const WILD_ZONE_MIN = [1, 6, 14, 26];
 import { createHash } from 'node:crypto';
 import { Players } from './players.mjs';
 
+/** Username (free) accounts catch 2 wild Monstars free; after that each catch needs a catch pass (bought with a card). Phantom wallets pay SOL per wild run instead. */
+export const FREE_CATCHES = 2;
 /** Red HP: a wild Monstar at or below 25% HP can be captured. */
 export const CAPTURE_HP = 0.25;
 const TIER_CATCH = { Common: 1.15, Uncommon: 1.0, Rare: 0.85, Epic: 0.7, Mythic: 0.45, Divine: 0.3 };
@@ -157,9 +159,17 @@ export class MatchManager {
   }
 
   /** Throw a capture at a wild Monstar whose HP is in the red. Odds differ per species and change every throw. */
+  /** Can this player catch right now? { ok, free, credits, pass } — `pass` = this catch uses a catch pass. */
+  catchAllowance(wallet) {
+    if (!wallet.startsWith('@') || !this.players) return { ok: true, pass: false };
+    const used = this.db.prepare('SELECT COUNT(*) n FROM wild_runs WHERE wallet=? AND caught_serial IS NOT NULL').get(wallet).n, credits = this.players.catchCredits(wallet);
+    const free = Math.max(0, FREE_CATCHES - used); return { ok: free > 0 || credits > 0, free, credits, pass: free <= 0 };
+  }
+  takeCatch(wallet) { const a = this.catchAllowance(wallet); if (a.pass && !this.players.useCatchCredit(wallet)) throw Error('NEED_PASS'); }
   capture(wallet) {
     const room = this.roomOf(wallet);
     if (!room?.wild || room.state !== 'live') throw Error('You can only capture in a wild battle.');
+    if (!this.catchAllowance(wallet).ok) throw Error('You used your 2 free catches. Get catch passes (card) to keep catching.');
     const foe = room.sim.fighters[1], frac = foe.hp / foe.maxHp, now = this.now();
     if (frac > CAPTURE_HP) throw Error('Get its HP into the red first.');
     room.throws ??= 0; if (room.throws >= 3) throw Error('No capture tries left this battle. KO it for one last chance.');
@@ -167,7 +177,7 @@ export class MatchManager {
     room.throws++; room.lastThrow = now;
     const chance = captureChance(room.wild.speciesId, frac), ok = Math.random() < chance;
     const msg = { t: 'capture', ok, chance: Math.round(chance * 100), left: 3 - room.throws, code: room.code };
-    if (ok) { room.captured = this.registry.catchWild(room.players[0].wallet, room.wild.speciesId, room.wild.level); forfeit(room.sim, 1); this.end(room); }
+    if (ok) { this.takeCatch(wallet); room.captured = this.registry.catchWild(room.players[0].wallet, room.wild.speciesId, room.wild.level); forfeit(room.sim, 1); this.end(room); }
     else this.emit(room, msg);
     return msg;
   }
@@ -259,7 +269,8 @@ export class MatchManager {
     } else if (room.wild) { // win a wild battle for a chance to catch it (as an Infant)
       const won = sim.winner === 0, chance = TIERS[room.wild.tier].catch;
       caught = { won, chance, speciesId: room.wild.speciesId, tier: room.wild.tier, ok: false };
-      if (won && Math.random() < chance) { const c = this.registry.catchWild(room.players[0].wallet, room.wild.speciesId, room.wild.level); caught.ok = true; caught.monstar = c.toJSON(); }
+      const allow = this.catchAllowance(room.players[0].wallet); if (won && !allow.ok) caught.needPass = true;
+      if (won && allow.ok && Math.random() < chance) { this.takeCatch(room.players[0].wallet); const c = this.registry.catchWild(room.players[0].wallet, room.wild.speciesId, room.wild.level); caught.ok = true; caught.monstar = c.toJSON(); }
       this.db.prepare('UPDATE wild_runs SET won=?, caught_serial=? WHERE signature=?').run(won ? 1 : 0, caught.monstar?.serial ?? null, room.wild.signature);
     }
     this.emit(room, { t: 'end', winner: sim.winner, reason: sim.reason, shares: shares.map(String), stake: room.stake.toString(), progress, caught });

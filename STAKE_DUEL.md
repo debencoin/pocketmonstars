@@ -258,3 +258,8 @@ Stats: HP, Attack, Defense, Sp. Atk, Sp. Def, Speed. Types: EMBER, GROVE, TIDE, 
 - Card payments (server/stripe.mjs, off until STRIPE_SECRET_KEY is set): Stripe Checkout for every store Monstar at the same price as in SOL, converted at the live SOL price (or PM_SOL_USD). Fulfilled by /api/card/confirm on return and by the signed webhook /api/stripe/webhook; a double sale is refunded. Paid sessions to Phantom wallets are replayed after a reset.
 - Sell for dollars: sellers connect a Stripe Express payout account, list an unminted Monstar ($1-$10,000); buyers pay by card; the Monstar moves and Stripe transfers 90% to the seller and 5% royalty to the creator (if they have a payout account); PocketMonstars keeps 5%.
 - SOL per hit is tied to the damage the hit did (v35) and tested.
+
+## v37: no running away, Catch button, catch passes, catch beam and soul orb
+- The Run button is gone. In wild battles it is now **Catch** (it glows when the wild Monstar's HP is in the red; key C). Other battles play out to the end.
+- Free (username) accounts catch 2 wild Monstars free; after that each catch uses a catch pass bought by card (1 pass $0.99, 5 for $3.99; PM_CATCH1_USD / PM_CATCH5_USD). Phantom wallets pay SOL per wild run and are not limited.
+- A catch plays a vortex beam in the Monstar's own colour (bender element, else its type: red, blue, yellow, black, purple, orange, white, pink, green and more), the Monstar is pulled up and vanishes, and a soul orb of that colour floats before the result and Rematch buttons show.

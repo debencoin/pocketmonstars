@@ -51,7 +51,8 @@ export const CONFIG = {
   // Card payments (Stripe). Set these in Render → Environment, never in the repo. Off while STRIPE_SECRET_KEY is empty.
   stripeSecretKey: env.STRIPE_SECRET_KEY || null,
   stripeWebhookSecret: env.STRIPE_WEBHOOK_SECRET || null,
-  solUsd: env.PM_SOL_USD || null, // fixed dollars per SOL for card prices (default: live SOL price)
+  solUsd: env.PM_SOL_USD || null,
+  catchPacks: { 1: Number(env.PM_CATCH1_USD || 0.99), 5: Number(env.PM_CATCH5_USD || 3.99) }, // catch passes for free accounts (US dollars) // fixed dollars per SOL for card prices (default: live SOL price)
   freeWildCooldownMs: 45 * 1000, // username accounts play the wild for free, one run every 45 s
   // Breeding fee each player pays to the company treasury, in lamports (0.01 SOL).
   breedFeeLamports: BigInt(env.PM_BREED_FEE_LAMPORTS || 10_000_000),

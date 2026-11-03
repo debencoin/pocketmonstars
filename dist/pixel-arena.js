@@ -327,6 +327,7 @@ function createRenderer(canvas, arena) {
     if (f.i && Math.floor(now * 20) % 2) alpha = 0.5;
     if (f.bk > 0) alpha *= 0.3 + (1 - f.bk / 0.35) * 0.7;
     if (opt.faint) { oy += opt.faint * 20 * U; alpha *= 1 - opt.faint; sy *= 1 - opt.faint * 0.5; }
+    if (opt.vanish) { oy -= opt.vanish * 26 * U; alpha *= 1 - opt.vanish; sx *= 1 - opt.vanish * 0.85; sy *= 1 - opt.vanish * 0.85; } // pulled up into the catch beam
     const flip = f.fx < 0;
     // shadow (smaller and lighter when airborne)
     ctx.globalAlpha = (f.fl ? 0.2 : 0.35) * alpha; ctx.fillStyle = '#10141a';
@@ -369,6 +370,34 @@ function createRenderer(canvas, arena) {
       }
       if (!opt.extra) { ctx.fillStyle = opt.you ? '#9ef0c8' : '#ff6b6b'; ctx.beginPath(); ctx.moveTo(mx - 6 * U, my); ctx.lineTo(mx + 6 * U, my); ctx.lineTo(mx, my + 7 * U); ctx.fill(); }
     }
+  }
+  // Catch: a vortex beam in the Monstar's own colour pulls it up, it vanishes, and a soul orb of that colour is left floating
+  function captureFx(c, cur, now) {
+    const f = cur.f[c.side]; if (!f) return;
+    const t = c.t, X = f.x * K * Z, Y = (f.y - 34) * K * Z, col = c.col, ms = now;
+    const rgb = parseInt(col.slice(1), 16), lum = ((rgb >> 16) & 255) * 0.3 + ((rgb >> 8) & 255) * 0.59 + (rgb & 255) * 0.11, dark = lum < 70;
+    const rim = dark ? '#b48cff' : '#ffffff';
+    ctx.save();
+    if (t < 1.5) { // the vortex beam
+      const a = Math.min(1, t / 0.2) * Math.max(0, Math.min(1, (1.5 - t) / 0.35)), top = -20, H2 = Y + 40 - top;
+      ctx.globalCompositeOperation = dark ? 'source-over' : 'lighter';
+      const gr = ctx.createLinearGradient(X - 46 * U, 0, X + 46 * U, 0); gr.addColorStop(0, 'rgba(0,0,0,0)'); gr.addColorStop(0.5, col); gr.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.globalAlpha = (dark ? 0.75 : 0.55) * a; ctx.fillStyle = gr; ctx.fillRect(X - 46 * U, top, 92 * U, H2);
+      ctx.lineWidth = 2.4 * U;
+      for (let i = 0; i < 16; i++) { const p = ((i / 16) + ms * 0.0011) % 1, yy = top + p * H2, w = (18 + p * 26 + Math.sin(i * 1.7 + ms * 0.01) * 6) * U;
+        ctx.globalAlpha = 0.85 * a; ctx.strokeStyle = i % 3 ? col : rim; ctx.beginPath(); ctx.ellipse(X, yy, w, w * 0.26, 0, ms * 0.006 + i, ms * 0.006 + i + 4.4); ctx.stroke(); }
+      ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'lighter'; glow(X, Y, 80 * U, dark ? rim : '#ffffff', col, 0.7 * a);
+      if (Math.random() < 0.7) part(X / Z + (Math.random() - 0.5) * 30 / Z * U, Y / Z + 10, 0, -60 - Math.random() * 60, 0.6, Math.random() < 0.5 ? col : rim, 1);
+    }
+    if (t > 1.0) { // the soul orb
+      const k = Math.min(1, (t - 1.0) / 0.35), r = (19 * k + Math.sin(ms * 0.009) * 1.6) * U, oy = Y - 16 * U - Math.min(1, (t - 1) / 2) * 16 * U + Math.sin(ms * 0.004) * 3 * U;
+      ctx.globalCompositeOperation = 'lighter'; glow(X, oy, r * 3.4, dark ? rim : '#ffffff', col, 0.85);
+      ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1; ctx.fillStyle = col; ctx.beginPath(); ctx.arc(X, oy, r, 0, 6.283); ctx.fill();
+      ctx.strokeStyle = rim; ctx.globalAlpha = 0.7; ctx.lineWidth = 1.5 * U; ctx.beginPath(); ctx.arc(X, oy, r * 1.25, ms * 0.004, ms * 0.004 + 4); ctx.stroke();
+      ctx.fillStyle = '#ffffff'; ctx.globalAlpha = 0.8; ctx.beginPath(); ctx.arc(X - r * 0.32, oy - r * 0.32, r * 0.32, 0, 6.283); ctx.fill();
+      if (Math.random() < 0.5) part(X / Z + (Math.random() - 0.5) * r / Z * 2, oy / Z, (Math.random() - 0.5) * 10, -14, 0.5, Math.random() < 0.5 ? col : rim, 1);
+    }
+    ctx.restore(); ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';
   }
   function glowAt(x, y, r, col, a) { const gr = ctx.createRadialGradient(x, y, 0, x, y, r); gr.addColorStop(0, col); gr.addColorStop(1, 'rgba(0,0,0,0)'); ctx.globalAlpha = a; ctx.fillStyle = gr; ctx.beginPath(); ctx.arc(x, y, r, 0, 6.283); ctx.fill(); ctx.globalAlpha = 1; }
   // What each status does to the Monstar, drawn on top of it
@@ -689,7 +718,8 @@ function createRenderer(canvas, arena) {
       const list = cur.f.map((f, i) => ({ f, p: prev?.f?.[i], i, you: i === view.you, extra: false }));
       for (const f of cur.x || []) list.push({ f, p: prev?.x?.find(o => o.sd === f.sd && o.sl === f.sl), i: 2 + f.sd * 3 + f.sl, you: f.sd === view.you, extra: true });
       list.sort((a, b) => a.f.y - b.f.y);
-      for (const o of list) drawFighter(o.f, o.p, t, o.i, { now, dt, you: o.you, hue: o.extra ? 0 : view.hues?.[o.i] || 0, type: o.extra ? undefined : view.types?.[o.i], faint: o.extra ? 0 : view.faint?.[o.i] || 0, extra: o.extra, ctl: !o.extra && !!cur.sq });
+      for (const o of list) drawFighter(o.f, o.p, t, o.i, { now, dt, you: o.you, hue: o.extra ? 0 : view.hues?.[o.i] || 0, type: o.extra ? undefined : view.types?.[o.i], faint: o.extra ? 0 : view.faint?.[o.i] || 0, vanish: !o.extra && view.capture?.side === o.i ? Math.max(0, Math.min(1, (view.capture.t - 0.55) / 0.7)) : 0, extra: o.extra, ctl: !o.extra && !!cur.sq });
+      if (view.capture) captureFx(view.capture, cur, now);
       logical();
       for (const e of cur.e || []) if (e.st !== 'strike' && e.t + lagged >= 0) effect(e, e.t + lagged, now);
       for (const p of cur.p || []) { const pp = prev?.p?.find(o => o.id === p.id); projectile(p, (pp ? pp.x + (p.x - pp.x) * t : p.x) * K, (pp ? pp.y + (p.y - pp.y) * t : p.y) * K, now); }

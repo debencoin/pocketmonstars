@@ -563,3 +563,7 @@ header{overflow:hidden}
 .sb-star .dr-card>img{width:144px;height:168px}
 .dr-card .pay-card{width:100%;min-height:36px;margin-top:4px;font-weight:700}
 .usd-sell{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}.usd-sell select{flex:1;min-width:0}
+/* Catch replaces Run in the wild */
+.pv-run.ready{background:#ffd84a;color:#111;border-color:#ffd84a;box-shadow:0 0 14px rgba(255,216,74,.7);animation:pvCatchPulse .8s ease-in-out infinite alternate}
+@keyframes pvCatchPulse{from{transform:scale(1)}to{transform:scale(1.08)}}
+.wx-pass{margin-top:10px}.wx-pass .pv-row{display:flex;gap:8px;flex-wrap:wrap}

@@ -46,7 +46,8 @@ function render() {
      <div class="pv-row" style="margin-top:12px">
       ${signed ? `<button class="primary" id="wxPay" ${mine ? '' : 'disabled'}>${acct ? 'Enter the wild · free' : `Enter the wild · ${feeSol()} SOL`}</button>` : ''}
       <button class="${signed ? 'smallbtn' : 'primary'}" id="wxFree">Practice run (free, no catching)</button></div>
-     <p class="pv-note" style="margin-top:8px">${acct ? 'Free accounts get a wild run every 45 seconds.' : 'With Phantom, the entry fee goes to PocketMonstars and is paid on devnet.'} A practice run never catches anything.</p></div>
+     <p class="pv-note" style="margin-top:8px">${acct ? 'Free accounts get a wild run every 45 seconds.' : 'With Phantom, the entry fee goes to PocketMonstars and is paid on devnet.'} A practice run never catches anything. There is no running away: tap <b>Catch</b> once its HP is in the red.</p>
+     ${acct ? '<div class="wx-pass" id="wxPass"></div>' : ''}</div>
    </div>
    <div class="wx-zones">${ZONES.map((z, i) => `<button class="wx-zone t${z.theme} ${i === st.z ? 'on' : ''}" data-z="${i}"><span class="wx-zn">${i + 1}. ${z.name}</span><span class="wx-zb">${z.blurb}</span><span class="wx-zl">Wild Lv${z.min}+</span></button>`).join('')}</div>
   </div>
@@ -54,8 +55,16 @@ function render() {
   box.querySelectorAll('.wx-zone').forEach(b => b.onclick = () => { st.z = +b.dataset.z; save(); render(); });
   q('wxFree').onclick = () => practice();
   const pay = q('wxPay'); if (pay) pay.onclick = () => enter(pay);
+  if (acct) passes();
 }
 
+// Free accounts: 2 free catches, then catch passes bought with a card (Phantom players pay SOL per wild run instead)
+async function passes() {
+  const box = q('wxPass'); if (!box) return; let c; try { c = await S.catchesMe(); } catch { return; }
+  box.innerHTML = `<p class="pv-note"><b>${c.free}</b> of ${c.freeTotal} free catches left · <b>${c.credits}</b> catch pass${c.credits === 1 ? '' : 'es'}</p>
+    ${c.card ? `<div class="pv-row">${c.packs.map(p => `<button class="smallbtn" data-pack="${p.n}">💳 ${p.n} pass${p.n > 1 ? 'es' : ''} · $${p.usd.toFixed(2)}</button>`).join('')}</div>` : (c.free ? '' : '<p class="pv-note">Catch passes (card) open soon. Connect Phantom to catch with SOL.</p>')}`;
+  box.querySelectorAll('[data-pack]').forEach(b => b.onclick = () => S.catchPassBuy(Number(b.dataset.pack)).catch(e => alert(e.message)));
+}
 function practice() { // local battle against a random wild Monstar, no catch
   const sid = rollWild(), tier = TIERS[SPECIES[sid].tier], Z = ZONES[st.z];
   const myLv = API.ownedPick()?.level || 1; // wild Monstars are always above your level (special ones: a rare level 1)

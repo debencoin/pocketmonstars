@@ -50,7 +50,7 @@ pvp.innerHTML = `
     <button class="pv-capture" id="pvCapture" hidden>Capture!</button>
    </div>
    <div class="pv-moves" id="pvMoves" hidden>
-    <div class="pv-ask"><span>What will <b id="pvAsk">YOUR MONSTAR</b> do?</span><button class="pv-run" id="pvExit">Run</button></div>
+    <div class="pv-ask"><span>What will <b id="pvAsk">YOUR MONSTAR</b> do?</span><button class="pv-run" id="pvExit" hidden>Catch</button></div>
     <div class="pv-mgrid" id="pvMGrid"></div>
    </div>
    <div class="pv-overlay" id="pvOverlay"><div class="big" id="pvBig">Ready to battle</div><div class="pv-note" id="pvSmall">Sign in with Phantom, pick your Monstar and create or join a match.</div><div class="pv-row" id="pvOvBtns"></div></div>
@@ -286,7 +286,30 @@ function hudNames() {
     q('pvPic' + k).src = PA.spriteSrc(m.speciesId); q('pvPic' + k).style.filter = `hue-rotate(${m.traits?.hue || 0}deg)`; });
 }
 function leaveBattle() { if (room?.code && !room.local) doneCodes.add(room.code); if (room?.local) { room = null; local = null; ended = null; snapCur = null; renderRoom(); renderer.idle(); return; } try { sendWs({ t: 'leave' }); } catch {} room = null; ended = null; renderRoom(); }
-q('pvLeave').onclick = q('pvExit').onclick = leaveBattle;
+q('pvLeave').onclick = leaveBattle;
+// No running away: in the wild this button is Catch, in other battles it is hidden (the match plays out).
+q('pvExit').onclick = () => tryCatch();
+function tryCatch() {
+  if (!room?.wild || room.state !== 'live' || ended) return;
+  if (room.local) return toast('This is a practice run. Sign in (top right) to catch wild Monstars.', true);
+  const f = snapCur?.f?.[1]; if (!f) return;
+  if (f.hp / f.max > 0.25) return toast(`Get its HP into the red first (${Math.ceil(f.hp / f.max * 100)}% now, 25% or less).`, true);
+  try { sendWs({ t: 'capture' }); } catch (e) { fail(e); }
+}
+/** Soul-orb colour of a caught Monstar: its bender element, else its type (every colour of the spectrum). */
+const ELEMENT_COL = { water: '#1e7bff', earth: '#9a6a32', fire: '#ff3b1f', air: '#f4fbff', thunder: '#ffe01a', all: '#ffcc00' };
+const TYPE_SOUL = { EMBER: '#ff3b1f', TIDE: '#1e7bff', SPARK: '#ffe01a', SHADE: '#120c1c', PSYCHIC: '#a23bff', GROVE: '#2ecc40', ASTRAL: '#ff8ad8', FROST: '#7fe8ff',
+  STONE: '#9a6a32', STEEL: '#b8c4d8', GALE: '#f4fbff', VENOM: '#8b2bd8', DRACO: '#ff8a00', ANCIENT: '#ffb300', WATCHER: '#c0c8ff' };
+function soulColor(sp) { return (sp?.el2 && ELEMENT_COL[sp.el2]) || TYPE_SOUL[sp?.type] || '#ffffff'; }
+/** Free accounts used their 2 free catches: offer catch passes (paid by card). */
+async function offerPasses() {
+  let c; try { c = await S.catchesMe(); } catch { return; }
+  if (!c.card) return toast('You used your 2 free catches. Catch passes (card payments) open soon, or connect Phantom to catch with SOL.', true);
+  const p1 = c.packs.find(p => p.n === 1), p5 = c.packs.find(p => p.n === 5);
+  const pick = prompt(`You used your 2 free catches. Catch passes let you keep catching (paid by card).\n\nType 1 for 1 pass ($${p1.usd.toFixed(2)}) or 5 for 5 passes ($${p5.usd.toFixed(2)}).`, '5');
+  if (pick === '1' || pick === '5') S.catchPassBuy(Number(pick)).catch(fail);
+}
+window.PMOfferPasses = offerPasses;
 // One deposit per match. If the server hasn't seen it on-chain yet, re-check the SAME signature; never send a second transfer.
 let pendingDeposit = null, depositRetries = 0;
 q('pvDeposit').onclick = e => busy(e.target, async () => {
@@ -434,6 +457,7 @@ function onMsg(m) {
   if (m.t === 'error') {
     if (/not found yet/i.test(m.error) && window.PMWild?.retry?.()) return toast('Waiting for Solana to confirm your entry fee…');
     if (/not found yet/i.test(m.error) && pendingDeposit && depositRetries < 10) { depositRetries++; setTimeout(() => sendWs({ t: 'deposit', signature: pendingDeposit.sig }), 3000); return toast('Waiting for Solana to confirm your deposit…'); }
+    if (/free catches/i.test(m.error)) { offerPasses(); return; }
     return toast(m.error, true);
   }
   if (m.t === 'noroom') { if (room && !room.local) { serverLost('That match ended because the game server restarted. Start a new one.'); } return; }
@@ -446,7 +470,7 @@ function onMsg(m) {
   if (m.t === 'hit') { setShares(m.shares, m); return; }
   if (['switch', 'status', 'ult', 'pickup', 'blocked', 'dash', 'guard', 'mega', 'quake'].includes(m.t)) { battleEvent({ ...m, type: m.t }); return; }
   if (m.t === 'miss' || m.t === 'level' || m.t === 'bonus') { battleEvent({ ...m, type: m.t }); if (m.t === 'level') refreshSoon(); return; }
-  if (m.t === 'end') { q('pvCapture').hidden = true; if (m.caught?.captured) toast('Captured! ' + (Monstars.SPECIES[m.caught.speciesId]?.name || 'It') + ' joined your team' + (m.caught.monstar?.level > 1 ? ' at Lv' + m.caught.monstar.level + '.' : ' as a level 1 Infant.')); if (m.code) setTimeout(() => doneCodes.add(m.code), 60000); if (practiceMoney() && vLedger) { vLedger.finish(m.winner == null ? null : m.winner); shares = vLedger.shares.map(String); showShares(); } ended = { ...m, at: performance.now() }; refreshSoon(); if (room) room.state = room.stake === '0' ? 'done' : 'settling'; renderRoom(); return; }
+  if (m.t === 'end') { q('pvCapture').hidden = true; if (m.caught?.captured) toast('Captured! ' + (Monstars.SPECIES[m.caught.speciesId]?.name || 'It') + ' joined your team' + (m.caught.monstar?.level > 1 ? ' at Lv' + m.caught.monstar.level + '.' : ' as a level 1 Infant.')); if (m.code) setTimeout(() => doneCodes.add(m.code), 60000); if (practiceMoney() && vLedger) { vLedger.finish(m.winner == null ? null : m.winner); shares = vLedger.shares.map(String); showShares(); } ended = { ...m, at: performance.now(), capture: m.caught?.ok ? { col: soulColor(Monstars.SPECIES[m.caught.speciesId]) } : null }; if (m.caught?.needPass) setTimeout(offerPasses, 3500); refreshSoon(); if (room) room.state = room.stake === '0' ? 'done' : 'settling'; renderRoom(); return; }
   if (m.t === 'settlement') { ended = { at: 0, ...(ended || {}), settlement: m }; if (room) room.state = m.ok ? (m.refund ? 'refunded' : 'settled') : 'needs review'; renderRoom(); refreshBalance(); return; }
   if (m.t === 'cancelled') { toast('Match cancelled (' + m.reason + ').' + (room?.players?.some(p => p.deposited) ? ' Deposits are being refunded.' : '')); if (room) room.state = 'cancelled'; renderRoom(); }
   if (m.t === 'left') { room = null; renderRoom(); }
@@ -454,8 +478,9 @@ function onMsg(m) {
 
 // Capture: during a wild battle on the server, the button appears once the wild Monstar's HP is in the red (25% or less).
 function showCapture() {
-  const b = q('pvCapture'), f = snapCur?.f?.[1];
-  b.hidden = !(room && !room.local && room.wild && room.state === 'live' && !ended && f && f.hp > 0 && f.hp / f.max <= 0.25);
+  const b = q('pvExit'), f = snapCur?.f?.[1], wild = !!(room?.wild && room.state === 'live' && !ended);
+  b.hidden = !wild; q('pvCapture').hidden = true;
+  b.classList.toggle('ready', !!(wild && !room.local && f && f.hp > 0 && f.hp / f.max <= 0.25));
 }
 q('pvCapture').onclick = () => { try { sendWs({ t: 'capture' }); } catch (e) { fail(e); } };
 
@@ -513,14 +538,15 @@ function showShares() {
 function renderRoom() {
   q('pvRoom').hidden = !room; q('pvLobby').hidden = !!room && !['cancelled', 'settled', 'done', 'refunded'].includes(room.state);
   const live = room?.state === 'live' || (room && ended);
-  const fainting = ended && performance.now() - (ended.at || 0) < 1800;
-  if (fainting) setTimeout(renderRoom, 1850 - (performance.now() - ended.at));
+  const holdMs = ended?.capture ? 3300 : 1800; // a catch plays its vortex beam and soul orb before the result shows
+  const fainting = ended && performance.now() - (ended.at || 0) < holdMs;
+  if (fainting) setTimeout(renderRoom, holdMs + 50 - (performance.now() - ended.at));
   const stay = !!(room?.wild && ended && !fainting); // wild runs stay full screen until you choose what's next
   const stage = q('pvStage'), full = !!room && room.state === 'live' && (!ended || fainting) || (!!ended && fainting) || stay;
   stage.classList.toggle('live', !!full);
   document.documentElement.classList.toggle('pv-battling', !!full);
   // lock the page while the battle is on screen: no zoom, Back can't leave, no scrolling behind it
-  if (full && !window.PMLock?.active) window.PMLock?.on({ scroll: true, warn: room?.stake && room.stake !== '0', onBack: () => toast(room?.stake && room.stake !== '0' ? 'The match is live. Leaving counts as a loss, so tap Run if you really want to quit.' : 'Battle in progress. Tap Run to leave.') });
+  if (full && !window.PMLock?.active) window.PMLock?.on({ scroll: true, warn: room?.stake && room.stake !== '0', onBack: () => toast('Battle in progress. There is no running away: finish the fight' + (room?.wild ? ' or catch it!' : '!')) });
   else if (!full && window.PMLock?.active) window.PMLock.off();
   if (full && stage.parentElement !== document.body) { stageHome ??= stage.parentElement; stageNext = stage.nextSibling; document.body.append(stage); }
   else if (!full && stageHome && stage.parentElement === document.body) stageHome.insertBefore(stage, stageNext);
@@ -585,7 +611,7 @@ function renderRoom() {
 // follows your finger while it's down. Thumb (or keyboard 1-4, J K Space L) does the moves. Aim is automatic.
 const keys = {}, touch = { atk: false, sp: false, dash: false, guard: false, mega: false, sw: -1 };
 let target = null; // { x, y, held, until } in arena coordinates
-addEventListener('keydown', e => { if (room?.state !== 'live') return; if (e.code === 'Escape') return leaveBattle(); keys[e.code] = true; if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) e.preventDefault(); });
+addEventListener('keydown', e => { if (room?.state !== 'live') return; if (e.code === 'KeyC' && room?.wild) tryCatch(); keys[e.code] = true; if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) e.preventDefault(); });
 addEventListener('keyup', e => { keys[e.code] = false; });
 const cv = q('pvCanvas');
 const renderer = PA.createRenderer(cv, ARENA);
@@ -680,8 +706,10 @@ function drawArena() {
   if (snapCur && room?.players?.length === 2) {
     const t = Math.min(1, (now - snapAt) / (room.local ? 34 : 66)), you = room.you;
     const faint = [0, 0];
-    if (ended && ended.winner != null) faint[1 - ended.winner] = Math.min(1, (now - (ended.at || now)) / 1200);
-    renderer.draw(snapPrev, snapCur, t, { target: target && { x: target.x, y: target.y }, rangeFor: you, you, snapAt, hues: room.players.map(p => p.monstar.traits?.hue || 0), types: room.players.map(p => p.monstar.type), faint, fight: fightAt ? Math.max(0, 1.4 - (now - fightAt) / 1000) : 0 });
+    let capture = null;
+    if (ended?.capture) capture = { side: 1, t: (now - (ended.at || now)) / 1000, col: ended.capture.col };
+    else if (ended && ended.winner != null) faint[1 - ended.winner] = Math.min(1, (now - (ended.at || now)) / 1200);
+    renderer.draw(snapPrev, snapCur, t, { target: target && { x: target.x, y: target.y }, rangeFor: you, you, snapAt, hues: room.players.map(p => p.monstar.traits?.hue || 0), types: room.players.map(p => p.monstar.type), faint, capture, fight: fightAt ? Math.max(0, 1.4 - (now - fightAt) / 1000) : 0 });
     const meF = snapCur.f[you], foe = snapCur.f[1 - you];
     for (const [k, f] of [[0, meF], [1, foe]]) {
       const p = Math.max(0, f.hp / f.max), bar = q('pvH' + k);
@@ -692,7 +720,7 @@ function drawArena() {
     }
     const left = Math.max(0, Math.ceil((snapCur.lim ?? ARENA.roundSeconds) - snapCur.t));
     q('pvClock').textContent = `${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}`;
-    callouts();
+    callouts(); showCapture();
     updateMoves(meF); activeHud(you); teamStrips(you); updateStatus(0, meF); updateStatus(1, foe);
   } else renderer.idle();
 }

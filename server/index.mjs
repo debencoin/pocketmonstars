@@ -93,6 +93,9 @@ export function createServer({ config = CONFIG, chain = new SolanaChain(config.r
         if (live && charge && creatorAcct && split.creator > 0) { await stripe.transfer({ cents: split.creator, destination: creatorAcct, charge, group, metadata: { session: sess.id, role: 'creator' } }).catch(e => console.error('creator royalty:', e.message)); paid.push('creator'); }
         result = { ok: true, monstar: registry.get(m.serial).toJSON(), split, paid };
       }
+    } else if (md.kind === 'catches') {
+      const n = Number(md.qty); if (![1, 5].includes(n)) throw Error('Unknown pack.');
+      players.addCatchCredits(md.buyer, n); result = { ok: true, catches: n, credits: players.catchCredits(md.buyer) };
     } else throw Error('Unknown order.');
     players.recordCardOrder(sess.id, md.kind, result); return result;
   }
@@ -115,6 +118,13 @@ export function createServer({ config = CONFIG, chain = new SolanaChain(config.r
       if (sess.metadata?.buyer !== w) throw Error('That payment belongs to another player.');
       if (sess.payment_status !== 'paid') return { ok: false, pending: true };
       return fulfil(sess); },
+    'GET /api/catches/me': req => { const w = need(req), a = matches.catchAllowance(w);
+      return { wallet: !w.startsWith('@'), free: a.free ?? null, credits: a.credits ?? null, freeTotal: 2, card: stripe.enabled, packs: Object.entries(config.catchPacks).map(([n, usd]) => ({ n: Number(n), usd })) }; },
+    'POST /api/card/catches': async req => { const w = need(req), b = await body(req), n = Number(b.pack), price = config.catchPacks[n];
+      if (!w.startsWith('@')) throw Error('Phantom players already pay for each wild run, so they catch without passes.');
+      if (!price) throw Error('Pick a pack of 1 or 5 catch passes.');
+      const sess = await stripe.checkout({ name: `${n} catch pass${n > 1 ? 'es' : ''} · PocketMonstars`, cents: Math.round(price * 100), ref: w, metadata: { pm: '1', kind: 'catches', qty: String(n), buyer: w } });
+      return { url: sess.url }; },
     'GET /api/payouts/me': async req => payoutReady(need(req)),
     'POST /api/payouts/connect': async req => { const w = need(req); let a = players.payoutAccount(w);
       if (!a) { a = (await stripe.createAccount(w)).id; players.setPayoutAccount(w, a); }

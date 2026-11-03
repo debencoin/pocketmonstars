@@ -88,3 +88,23 @@ test('card: webhook signatures are checked; switched off without a key', async (
   assert.equal(form({ a: { b: 1 }, c: [{ d: 2 }] }).toString(), 'a%5Bb%5D=1&c%5B0%5D%5Bd%5D=2');
   const off = new StripePay({}); assert.equal(off.enabled, false); await assert.rejects(off.call('GET', '/x'), /not switched on/);
 });
+
+test('catch passes: free accounts catch 2 free, then need a pass (bought by card); Phantom wallets are not limited', async () => {
+  const fs = fakeStripe(), stripe = new StripePay({ secretKey: 'sk_test_x', publicUrl: 'https://pm.test', fetchImpl: fs.fetchImpl });
+  const { server, auth, matches, db, players } = createServer({ dbFile: ':memory:', stripe, config: { ...CONFIG, rebuildDrops: false } });
+  await new Promise(r => server.listen(0, r)); const base = 'http://127.0.0.1:' + server.address().port;
+  const call = (p, t, b) => fetch(base + p, { method: b ? 'POST' : 'GET', headers: { 'Content-Type': 'application/json', ...(t ? { Authorization: 'Bearer ' + t } : {}) }, body: b ? JSON.stringify(b) : undefined }).then(r => r.json());
+  try {
+    const t = auth.issue('@catcher').token, caught = n => db.prepare('INSERT INTO wild_runs(signature,wallet,species,level,created_at,caught_serial) VALUES(?,?,?,?,?,?)').run('free:' + n, '@catcher', 0, 3, Date.now(), n);
+    assert.deepEqual([matches.catchAllowance('@catcher').ok, matches.catchAllowance('@catcher').free], [true, 2]);
+    caught(1); caught(2);
+    assert.equal(matches.catchAllowance('@catcher').ok, false, 'after 2 free catches a pass is needed');
+    assert.equal(matches.catchAllowance('8FzQ35yj3fMrgBjyF1HiYEKprRoJzDfMFbScRp8U2VSR').ok, true, 'Phantom wallets are not limited');
+    const me = await call('/api/catches/me', t); assert.equal(me.free, 0); assert.equal(me.credits, 0); assert.equal(me.packs.length, 2);
+    const co = await call('/api/card/catches', t, { pack: 5 }); assert.match(co.url, /checkout/);
+    const id = [...fs.sessions.keys()].at(-1); assert.equal(fs.sessions.get(id).amount, 399); fs.pay(id);
+    const r = await call('/api/card/confirm', t, { session: id }); assert.equal(r.credits, 5);
+    assert.equal(matches.catchAllowance('@catcher').ok, true);
+    matches.takeCatch('@catcher'); assert.equal(players.catchCredits('@catcher'), 4, 'each catch uses one pass');
+  } finally { server.close(); }
+});
