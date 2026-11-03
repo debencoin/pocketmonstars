@@ -13,7 +13,7 @@ import { SolanaChain } from './escrow.mjs';
 import { MatchManager } from './matches.mjs';
 import { NftService } from './nft.mjs';
 import { Players } from './players.mjs';
-import { checkPayment, MEMO_PROGRAM } from './escrow.mjs';
+import { checkPayment, MEMO_PROGRAM, newEscrow } from './escrow.mjs';
 import { SPECIES, HERO_IDS, SALE_IDS, SHOP_IDS, formName, nftArt } from '../shared/monstars.mjs';
 import { StripePay, verifyWebhook, resaleSplit } from './stripe.mjs';
 import { AVATARS, AVATAR_BY_ID } from '../shared/avatars.mjs';
@@ -68,6 +68,9 @@ export function createServer({ config = CONFIG, chain = new SolanaChain(config.r
   const listingRow = id => db.prepare('SELECT * FROM listings WHERE id=?').get(Number(id));
   const waitConfirmed = async sig => { for (let i = 0; i < 30; i++) { const s = await chain.status(sig); if (s?.err) throw Error('Transaction failed on-chain.'); if (['confirmed', 'finalized'].includes(s?.confirmationStatus)) return; await new Promise(r => setTimeout(r, 1000)); } throw Error('Not confirmed yet. Try again in a moment.'); };
 
+  /** Soul fee split: 95% to the winner, 5% to PocketMonstars (all to the winner if no company wallet is set). */
+  const soulPays = c => { const fee = BigInt(c.fee_lamports), cut = config.treasury ? fee * 500n / 10_000n : 0n;
+    return [{ to: c.winner, lamports: fee - cut }, ...(cut > 0n ? [{ to: config.treasury, lamports: cut }] : [])]; };
   // ---------- card payments (Stripe) ----------
   const usd = c => '$' + (c / 100).toFixed(2);
   /** Fulfil a paid Checkout Session once (store sale or dollar resale). `live` = may refund / pay out; false while rebuilding. */
@@ -98,6 +101,7 @@ export function createServer({ config = CONFIG, chain = new SolanaChain(config.r
       if (!c || c.state !== 'open' || !m || m.owner !== c.winner || c.loser !== md.buyer) { if (live) await stripe.refund(pi?.id || sess.payment_intent).catch(() => {}); result = { ok: false, refunded: true, error: 'That buy-back is closed, so your card was refunded.' }; }
       else {
         registry.setOwner(m.serial, c.loser); players.setSoulState(c.id, 'bought', 'card:' + sess.id);
+        const esc = players.escrowOfClaim(c.id); if (esc?.state === 'held') players.updateEscrow(esc.id, { release_to: c.loser }); // the loser collects the NFT
         const cents = Number(md.cents), company = Math.floor(cents * 500 / 10_000), acct = players.payoutAccount(c.winner), charge = pi?.latest_charge?.id || pi?.latest_charge;
         if (live && acct && charge) await stripe.transfer({ cents: cents - company, destination: acct, charge, group: 'soul-' + c.id, metadata: { session: sess.id, role: 'winner' } }).catch(e => console.error('soul payout:', e.message));
         result = { ok: true, monstar: registry.get(m.serial).toJSON(), soul: c.id };
@@ -132,7 +136,8 @@ export function createServer({ config = CONFIG, chain = new SolanaChain(config.r
       return { claims: players.soulClaimsOf(w).map(c => { const m = registry.get(c.serial);
         return { id: c.id, serial: c.serial, monstar: m?.toJSON() || null, you: c.winner === w ? 'winner' : 'loser', winner: c.winner, loser: c.loser, state: c.state, expiresAt: c.expires_at,
           feeSol: formatSol(BigInt(c.fee_lamports), 2), feeLamports: c.fee_lamports, feeUsd: c.fee_cents ? usd(c.fee_cents) : null, feeCents: c.fee_cents,
-          canSol: !c.winner.startsWith('@') && !c.loser.startsWith('@'), canCard: stripe.enabled && !!c.fee_cents && !!players.payoutAccount(c.winner) }; }) }; },
+          canSol: !c.winner.startsWith('@') && !c.loser.startsWith('@'), canCard: stripe.enabled && !!c.fee_cents && !!players.payoutAccount(c.winner), nft: !!players.escrowOfClaim(c.id) }; }),
+        collect: players.collectable(w).map(e => ({ id: e.id, serial: e.serial, monstar: registry.get(e.serial)?.toJSON() || null })) }; },
     'POST /api/soul/fee': async req => { const w = need(req), b = await body(req), c = players.soulClaim(b.id);
       if (!c || c.winner !== w) throw Error('Only the winner sets the soul fee.'); if (c.state !== 'open') throw Error('That claim is closed.');
       const sol = Number(b.feeSol); if (!(sol >= 0.1 && sol <= 0.5)) throw Error('The soul fee is 0.1 to 0.5 SOL.');
@@ -142,17 +147,41 @@ export function createServer({ config = CONFIG, chain = new SolanaChain(config.r
     'POST /api/soul/tx': async req => { const w = needWallet(req), b = await body(req), c = players.soulClaim(b.id);
       if (!c || c.loser !== w) throw Error('Only the player who lost it can buy it back.'); if (c.state !== 'open') throw Error('Too late: that Monstar now belongs to the winner.');
       if (c.winner.startsWith('@')) throw Error('The winner plays without Phantom, so this buy-back is by card only.');
-      const { blockhash } = await chain.latestBlockhash(), payer = new PublicKey(w);
-      const tx = new Transaction({ feePayer: payer, recentBlockhash: blockhash })
-        .add(SystemProgram.transfer({ fromPubkey: payer, toPubkey: new PublicKey(c.winner), lamports: BigInt(c.fee_lamports) }))
-        .add(new TransactionInstruction({ programId: new PublicKey(MEMO_PROGRAM), keys: [{ pubkey: payer, isSigner: true, isWritable: false }], data: Buffer.from('PMSOUL:' + c.id) }));
+      const pays = soulPays(c), esc = players.escrowOfClaim(c.id), memo = 'PMSOUL:' + c.id;
+      if (esc && esc.state === 'held') return { transaction: await nft.releaseTransaction({ asset: esc.asset, escrowSecret: esc.secret, to: w, payments: pays, memo }), feeSol: formatSol(BigInt(c.fee_lamports), 2) };
+      const { blockhash } = await chain.latestBlockhash(), payer = new PublicKey(w), tx = new Transaction({ feePayer: payer, recentBlockhash: blockhash });
+      for (const p of pays) if (p.lamports > 0n) tx.add(SystemProgram.transfer({ fromPubkey: payer, toPubkey: new PublicKey(p.to), lamports: p.lamports }));
+      tx.add(new TransactionInstruction({ programId: new PublicKey(MEMO_PROGRAM), keys: [{ pubkey: payer, isSigner: true, isWritable: false }], data: Buffer.from(memo) }));
       return { transaction: tx.serialize({ requireAllSignatures: false, verifySignatures: false }).toString('base64'), feeSol: formatSol(BigInt(c.fee_lamports), 2) }; },
     'POST /api/soul/confirm': async req => { const w = needWallet(req), b = await body(req), c = players.soulClaim(b.id);
       if (!c || c.loser !== w) throw Error('Only the player who lost it can buy it back.');
       if (c.state === 'bought') return registry.get(c.serial).toJSON();
-      await waitConfirmed(b.signature); await chain.verifyPayment(b.signature, { from: w, to: c.winner, lamports: BigInt(c.fee_lamports), memo: 'PMSOUL:' + c.id });
+      await waitConfirmed(b.signature); await chain.verifyPayments(b.signature, { from: w, pays: soulPays(c), memo: 'PMSOUL:' + c.id });
       const m = registry.get(c.serial); if (!m || m.owner !== c.winner) throw Error('The Monstar moved. Contact support with ' + b.signature);
+      const esc = players.escrowOfClaim(c.id);
+      if (esc && esc.state === 'held') { if (await nft.ownerOf(esc.asset) !== w) throw Error('The NFT did not arrive. Contact support with ' + b.signature); players.updateEscrow(esc.id, { state: 'released', release_to: w }); }
       registry.setOwner(m.serial, w); players.setSoulState(c.id, 'bought', b.signature); return registry.get(m.serial).toJSON(); },
+    // ---------- Immortal Combat: Phantom players sign before the fight ----------
+    'POST /api/immortal/sign': async req => { const w = needWallet(req), b = await body(req); return matches.publicRoom(matches.signConsent(w, b.signature), w); },
+    'POST /api/immortal/lock-tx': async req => { const w = needWallet(req), room = matches.roomOf(w), p = room?.players.find(x => x.wallet === w);
+      if (!room?.immortal || room.state !== 'lock' || !p) throw Error('Nothing to lock right now.');
+      const m = registry.get(p.monstar.serial); if (!m?.asset || m.owner !== w) throw Error('This Monstar is not a minted NFT of yours.');
+      let row = players.escrowFor(room.code, m.serial);
+      if (!row) { const e = newEscrow(); players.newEscrowRow({ room: room.code, serial: m.serial, asset: m.asset, escrow: e.address, secret: e.secret, owner: w }); row = players.escrowFor(room.code, m.serial); }
+      return { transaction: await nft.lockTransaction({ asset: m.asset, owner: w, escrow: row.escrow }), escrow: row.escrow }; },
+    'POST /api/immortal/lock-confirm': async req => { const w = needWallet(req), b = await body(req), room = matches.roomOf(w), p = room?.players.find(x => x.wallet === w);
+      if (!room?.immortal || !p) throw Error('Nothing to lock right now.');
+      const row = players.escrowFor(room.code, p.monstar.serial); if (!row) throw Error('Start the lock first.');
+      await waitConfirmed(b.signature); if (await nft.ownerOf(row.asset) !== row.escrow) throw Error('The NFT is not in the match escrow yet.');
+      players.updateEscrow(row.id, { state: 'held' }); return matches.publicRoom(matches.markLocked(w), w); },
+    // NFTs waiting in an escrow for you (your own back after a win or a cancelled match, a bought-back one, or one you won for good)
+    'POST /api/escrow/release-tx': async req => { const w = needWallet(req), b = await body(req), e = players.escrow(b.id);
+      if (!e || e.state !== 'held' || e.release_to !== w) throw Error('Nothing to collect there.');
+      return { transaction: await nft.releaseTransaction({ asset: e.asset, escrowSecret: e.secret, to: w }) }; },
+    'POST /api/escrow/release-confirm': async req => { const w = needWallet(req), b = await body(req), e = players.escrow(b.id);
+      if (!e || e.release_to !== w) throw Error('Nothing to collect there.');
+      if (e.state !== 'released') { await waitConfirmed(b.signature); if (await nft.ownerOf(e.asset) !== w) throw Error('The NFT has not arrived yet.'); players.updateEscrow(e.id, { state: 'released' }); }
+      return registry.setOwner(e.serial, w).toJSON(); },
     'POST /api/card/soul': async req => { const w = need(req), b = await body(req), c = players.soulClaim(b.id);
       if (!c || c.loser !== w) throw Error('Only the player who lost it can buy it back.'); if (c.state !== 'open') throw Error('Too late: that Monstar now belongs to the winner.');
       if (!c.fee_cents) throw Error('The winner has not set a dollar price. Use SOL, or ask them to add one.');

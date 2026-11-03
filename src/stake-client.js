@@ -161,6 +161,13 @@ export const soulMine = () => api('/api/soul/mine');
 export const soulFee = (id, feeSol, feeUsd) => api('/api/soul/fee', { id, feeSol, feeUsd });
 export async function soulBuy(id) { const { transaction } = await api('/api/soul/tx', { id }); const signature = await signAndSend(transaction);
   for (let i = 0; ; i++) { try { return await api('/api/soul/confirm', { id, signature }); } catch (e) { if (i >= 6 || !/not (found|confirmed) yet/i.test(e.message)) throw e; await new Promise(r => setTimeout(r, 3000)); } } }
+/** Immortal Combat: sign the agreement that the winner takes your Monstar (no transaction, no fee). */
+export async function immortalSign(message) { const { signature } = await phantom().signMessage(new TextEncoder().encode(message), 'utf8'); return api('/api/immortal/sign', { signature: bs58.encode(signature) }); }
+const retryConfirm = async (path, b) => { for (let i = 0; ; i++) { try { return await api(path, b); } catch (e) { if (i >= 6 || !/not (found|confirmed|in the match escrow|arrived) yet/i.test(e.message)) throw e; await new Promise(r => setTimeout(r, 3000)); } } };
+/** Immortal Combat with a minted NFT: move it into the match escrow (you sign in Phantom). */
+export async function immortalLock() { const { transaction } = await api('/api/immortal/lock-tx', {}); const signature = await signAndSend(transaction); return retryConfirm('/api/immortal/lock-confirm', { signature }); }
+/** Collect an NFT waiting for you in an Immortal Combat escrow. */
+export async function escrowCollect(id) { const { transaction } = await api('/api/escrow/release-tx', { id }); const signature = await signAndSend(transaction); return retryConfirm('/api/escrow/release-confirm', { id, signature }); }
 export async function soulCard(id) { const { url } = await api('/api/card/soul', { id }); location.href = url; }
 export async function catchPassBuy(pack) { const { url } = await api('/api/card/catches', { pack }); location.href = url; }
 export async function payoutsConnect() { const { url } = await api('/api/payouts/connect', {}); location.href = url; }
@@ -184,4 +191,4 @@ export const qrDataUrl = text => QRCode.toDataURL(text, { margin: 1, width: 240,
 export const explorer = sig => `https://explorer.solana.com/tx/${sig}?cluster=devnet`;
 
 if (typeof window !== 'undefined') window.PMStake = { signIn, session, balance, getConfig, myMonstars, mint, syncOwner, listings, list, cancelListing, buy,
-  connectSocket, deposit, explorer, phantomBrowseLink, breedCreate, breedJoin, breedStatus, breedPay, wildPay, signOut, accountRegister, accountLogin, drop, dropBuy, cardStatus, cardBuy, cardConfirm, catchesMe, soulMine, soulFee, soulBuy, soulCard, catchPassBuy, payoutsMe, payoutsConnect, usdListings, usdList, usdCancel, usdBuy, profile, setAvatar, avatars, avatarBuy, referrals, referralLink, qrDataUrl, Monstars, Stake, ARENA, Sim };
+  connectSocket, deposit, explorer, phantomBrowseLink, breedCreate, breedJoin, breedStatus, breedPay, wildPay, signOut, accountRegister, accountLogin, drop, dropBuy, cardStatus, cardBuy, cardConfirm, catchesMe, soulMine, soulFee, soulBuy, soulCard, immortalSign, immortalLock, escrowCollect, catchPassBuy, payoutsMe, payoutsConnect, usdListings, usdList, usdCancel, usdBuy, profile, setAvatar, avatars, avatarBuy, referrals, referralLink, qrDataUrl, Monstars, Stake, ARENA, Sim };

@@ -140,3 +140,28 @@ test('Immortal Combat: the winner takes the loser\'s Monstar; the loser can buy 
     assert.equal(players.soulClaim(id2, Date.now() + 25 * 3600_000).state, 'kept');
   } finally { server.close(); }
 });
+
+test('Immortal Combat with Phantom: both sign before the fight; the SOL buy-back pays the winner 95% and PocketMonstars 5%', async () => {
+  const { Keypair } = await import('@solana/web3.js'), bs58 = (await import('bs58')).default, { ed25519 } = await import('@noble/curves/ed25519');
+  const { checkPayments } = await import('../server/escrow.mjs');
+  const { server, matches, registry } = createServer({ dbFile: ':memory:', config: { ...CONFIG, rebuildDrops: false } });
+  try {
+    const ka = Keypair.generate(), kb = Keypair.generate(), A = ka.publicKey.toBase58(), B = kb.publicKey.toBase58();
+    const [ma] = registry.claimAll(A), [mb] = registry.claimAll(B);
+    const room = matches.create(A, { immortal: true, serial: ma.serial }); matches.join(B, { code: room.code, serial: mb.serial, immortalOk: true });
+    assert.equal(room.state, 'lock', 'Phantom players must sign first');
+    const sign = (kp, w) => bs58.encode(ed25519.sign(new TextEncoder().encode(matches.consentMessage(room, w)), kp.secretKey.slice(0, 32)));
+    assert.match(matches.publicRoom(room, A).consent, /winner takes this Monstar/);
+    assert.throws(() => matches.signConsent(A, sign(kb, A)), /does not match/, 'only your own wallet can sign for you');
+    matches.signConsent(A, sign(ka, A)); assert.equal(room.state, 'lock');
+    matches.signConsent(B, sign(kb, B)); assert.equal(room.state, 'countdown', 'the fight starts once both signed');
+    for (let i = 0; i < 200 && room.state !== 'live'; i++) matches.tick();
+    room.sim.fighters[0].hp = 0; for (let i = 0; i < 10 && room.state === 'live'; i++) matches.tick(); // B wins
+    assert.equal(registry.get(ma.serial).owner, B);
+    // the SOL buy-back must pay both the winner (95%) and the company (5%)
+    const T = CONFIG.treasury, ix = (to, l) => ({ program: 'system', parsed: { type: 'transfer', info: { source: A, destination: to, lamports: String(l) } } }), memo = { program: 'spl-memo', parsed: 'PMSOUL:1' };
+    const tx = ixs => ({ meta: {}, transaction: { message: { instructions: ixs } } });
+    assert.equal(checkPayments(tx([ix(B, 95_000_000), ix(T, 5_000_000), memo]), { from: A, pays: [{ to: B, lamports: 95_000_000n }, { to: T, lamports: 5_000_000n }], memo: 'PMSOUL:1' }), A);
+    assert.throws(() => checkPayments(tx([ix(B, 95_000_000), memo]), { from: A, pays: [{ to: B, lamports: 95_000_000n }, { to: T, lamports: 5_000_000n }], memo: 'PMSOUL:1' }), /soul fee/);
+  } finally { server.close(); }
+});

@@ -92,7 +92,7 @@ pvp.innerHTML = `
    <button class="primary wide" id="pvCreate">Create match</button>
    <div class="pv-row" style="margin-top:12px;flex-wrap:nowrap"><input class="pv-input" id="pvJoinCode" placeholder="Match code" maxlength="6" autocapitalize="characters" style="text-transform:uppercase"><button class="smallbtn" id="pvJoin">Join</button></div>
    <div class="pv-immortal"><h3>⚔ Immortal Combat 1v1</h3>
-    <p class="pv-note">No SOL stake: your Monstar is the prize. <b>The winner takes the loser's Monstar.</b> The loser then has 24 hours to buy it back for the winner's soul fee (0.1 to 0.5 SOL, or a dollar price by card). If they can't, it's gone for good. Minted NFTs can't be fought for.</p>
+    <p class="pv-note">No SOL stake: your Monstar is the prize. <b>The winner takes the loser's Monstar.</b> The loser then has 24 hours to buy it back for the winner's soul fee (0.1 to 0.5 SOL, or a dollar price by card). If they can't, it's gone for good. (The winner gets 95% of the soul fee; PocketMonstars keeps 5%.) Phantom players sign before the fight (minted NFTs move into a match escrow), so the winner always gets the Monstar.</p>
     <button class="primary wide pv-imm-btn" id="pvImmortal">Create Immortal Combat</button>
     <p class="pv-note" style="margin-top:6px">To join one, enter its code above and tap Join.</p></div>
    <div id="pvSouls"></div></div>
@@ -248,7 +248,6 @@ q('pvJoin').onclick = () => { try { lastJoin = { t: 'join', code: q('pvJoinCode'
 q('pvImmortal').onclick = () => { try {
   if (!S.session()) throw Error('Sign in first (top right).');
   const m = mine.find(x => x.serial === picked); if (!m) throw Error('Pick one of your own Monstars first.');
-  if (m.asset) throw Error('Minted NFT Monstars cannot be fought for. Pick another one.');
   if (!confirm(`Immortal Combat puts ${m.form || m.name} (Lv${m.level}) on the line.\n\nIf you lose, the winner takes it. You'll have 24 hours to buy it back for their soul fee, or it's gone for good.\n\nCreate the match?`)) return;
   sendWs({ t: 'create', immortal: true, mode: '1v1', serial: m.serial, speciesId: m.speciesId }); } catch (e) { fail(e); } };
 function confirmImmortalJoin() {
@@ -262,17 +261,19 @@ async function renderSouls() {
   const box = q('pvSouls'); if (!box) return; if (!S.session()) { box.innerHTML = ''; return; }
   let r; try { r = await S.soulMine(); } catch { return; }
   const open = r.claims.filter(c => c.state === 'open'), done = r.claims.filter(c => c.state !== 'open').slice(0, 5);
-  if (!r.claims.length) { box.innerHTML = ''; return; }
+  if (!r.claims.length && !r.collect?.length) { box.innerHTML = ''; return; }
   const left = c => { const ms = Math.max(0, c.expiresAt - Date.now()), h = Math.floor(ms / 36e5), mi = Math.floor(ms / 6e4) % 60; return `${h}h ${mi}m left`; };
   box.innerHTML = `<h3 style="margin-top:16px">Soul claims</h3>` + open.map(c => { const n = esc(c.monstar?.form || c.monstar?.name || 'Monstar');
     return `<div class="pv-soul">${c.monstar ? `<img src="${PA.spriteSrc(c.monstar.speciesId, c.monstar.stageId)}" alt="">` : ''}<div><b>${n}</b> · Lv${c.monstar?.level ?? '?'}<br><small>${left(c)} · soul fee <b>${c.feeSol} SOL</b>${c.feeUsd ? ' or <b>' + c.feeUsd + '</b> by card' : ''}</small>
       ${c.you === 'winner' ? `<div class="pv-row soul-fee">${SOL_FEES.map(v => `<button class="smallbtn" data-sfee="${c.id}" data-v="${v}" aria-pressed="${Number(v) === Number(c.feeSol)}">${v} SOL</button>`).join('')}<input class="pv-input" data-susd="${c.id}" inputmode="decimal" placeholder="$ (optional)" value="${c.feeCents ? (c.feeCents / 100).toFixed(2) : ''}" style="max-width:110px"><button class="smallbtn" data-ssave="${c.id}">Save $</button></div><small>You won it. Its old owner can buy it back until the time runs out, then it's yours for good.</small>`
         : `<div class="pv-row">${c.canSol ? `<button class="primary" data-sbuy="${c.id}">Buy back · ${c.feeSol} SOL</button>` : ''}${c.canCard ? `<button class="smallbtn" data-scard="${c.id}">💳 Buy back · ${c.feeUsd}</button>` : ''}</div>${!c.canSol && !c.canCard ? '<small>Waiting for the winner to set a price you can pay.</small>' : '<small>Buy it back before the time runs out, or it is gone for good.</small>'}`}</div></div>`; }).join('')
+    + (r.collect || []).map(e => `<div class="pv-soul">${e.monstar ? `<img src="${PA.spriteSrc(e.monstar.speciesId, e.monstar.stageId)}" alt="">` : ''}<div><b>${esc(e.monstar?.form || e.monstar?.name || 'NFT')}</b> is waiting in an escrow for you.<div class="pv-row"><button class="primary" data-collect="${e.id}">Collect NFT</button></div></div></div>`).join('')
     + done.map(c => `<div class="pv-soul done"><small>${esc(c.monstar?.form || c.monstar?.name || 'Monstar')}: ${c.state === 'bought' ? 'bought back' : c.you === 'winner' ? 'yours for good' : 'lost for good'}</small></div>`).join('');
   const fee = id => box.querySelector(`[data-sfee="${id}"][aria-pressed="true"]`)?.dataset.v || '0.1';
   box.querySelectorAll('[data-sfee]').forEach(b => b.onclick = async () => { try { const usdIn = box.querySelector(`[data-susd="${b.dataset.sfee}"]`).value; await S.soulFee(Number(b.dataset.sfee), Number(b.dataset.v), usdIn === '' ? null : Number(usdIn)); toast('Soul fee set to ' + b.dataset.v + ' SOL.'); renderSouls(); } catch (e) { fail(e); } });
   box.querySelectorAll('[data-ssave]').forEach(b => b.onclick = async () => { try { const id = Number(b.dataset.ssave), v = box.querySelector(`[data-susd="${id}"]`).value; await S.soulFee(id, Number(fee(id)), v === '' ? null : Number(v)); toast('Saved.'); renderSouls(); } catch (e) { fail(e); } });
   box.querySelectorAll('[data-sbuy]').forEach(b => b.onclick = async () => { try { b.disabled = true; const m = await S.soulBuy(Number(b.dataset.sbuy)); toast(`${m.form || m.name} is back with you!`); refreshMine(); renderSouls(); } catch (e) { fail(e); b.disabled = false; } });
+  box.querySelectorAll('[data-collect]').forEach(b => b.onclick = async () => { try { b.disabled = true; const m = await S.escrowCollect(Number(b.dataset.collect)); toast(`${m.form || m.name} is in your wallet.`); refreshMine(); renderSouls(); } catch (e) { fail(e); b.disabled = false; } });
   box.querySelectorAll('[data-scard]').forEach(b => b.onclick = () => S.soulCard(Number(b.dataset.scard)).catch(fail));
 }
 setInterval(() => { if (!pvp.classList.contains('hidden')) renderSouls(); }, 30000);
@@ -643,6 +644,16 @@ function renderRoom() {
     const again = el('button', { className: 'primary', textContent: ended.immortal ? 'Soul claims' : 'New match' }); again.onclick = () => { room = null; ended = null; snapCur = null; renderRoom(); renderer.idle(); refreshMine(); renderSouls().then(() => q('pvSouls')?.scrollIntoView({ block: 'center' })); };
     btns.append(again);
   } else if (room.state === 'waiting') { big.textContent = room.code; small.textContent = 'Waiting for your rival to join with this code.'; }
+  else if (room.state === 'lock') { // Immortal Combat: Phantom players sign before the fight
+    const meP = room.players[room.you], rival = room.players[1 - room.you];
+    big.textContent = 'Immortal Combat';
+    if (meP && !meP.locked) {
+      small.innerHTML = meP.nft ? `Your Monstar is an NFT: <b>sign in Phantom to move it into the match escrow</b>. The winner gets it (you collect yours back if you win).` : `<b>Sign in Phantom to put your Monstar on the line.</b> If you lose, the winner takes it. You can buy it back within 24 hours for their soul fee.`;
+      const sb = el('button', { className: 'primary', textContent: meP.nft ? 'Sign · lock my NFT in escrow' : 'Sign · put my Monstar on the line' });
+      sb.onclick = async () => { sb.disabled = true; sb.textContent = 'Approve in Phantom…'; try { room = { ...room, ...(meP.nft ? await S.immortalLock() : await S.immortalSign(room.consent)) }; toast('Signed. Waiting for your rival.'); renderRoom(); } catch (e) { fail(e); sb.disabled = false; sb.textContent = 'Try again'; } };
+      btns.append(sb);
+    } else small.textContent = `You signed. Waiting for ${rival?.locked ? 'the fight to start' : 'your rival to sign'}…`;
+  }
   else if (room.state === 'deposit') { big.textContent = 'Deposits'; small.textContent = `Both players deposit ${sol(room.stake, 6)} SOL into the match escrow. The duel starts when both confirm.`; }
   else if (room.state === 'countdown') { big.textContent = String(room.countdown || 'GO'); small.textContent = 'Get ready!'; }
   else if (room.state === 'cancelled') { big.textContent = 'Cancelled'; small.textContent = 'Any deposits are refunded minus the 0.000005 SOL network fee.'; }

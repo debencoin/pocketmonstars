@@ -21,6 +21,7 @@ export function captureChance(speciesId, hpFrac, rand = Math.random()) {
 }
 import { StakeLedger, STAKE_POLICY, validateStake, settlementSplit, formatSol } from '../shared/stake.mjs';
 import { newEscrow, buildSettlement, buildDeposit } from './escrow.mjs';
+import { verifyWalletSignature } from './auth.mjs';
 
 const CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 const newCode = () => [...randomBytes(6)].map(b => CODE_CHARS[b % CODE_CHARS.length]).join('');
@@ -110,7 +111,7 @@ export class MatchManager {
     let code; do code = newCode(); while (this.rooms.has(code));
     const escrow = stake > 0n ? newEscrow() : null;
     const room = { id: randomBytes(16).toString('hex'), code, stake, immortal, state: 'waiting', createdAt: this.now(), mode: team.length > 1 ? '3v3' : '1v1', squad: !!msg.squad && team.length > 1,
-      players: [{ wallet, monstar, team, deposit: null, sockets: new Set(), lastSeen: this.now() }], escrow, sim: null, ledger: null, seq: 0, countdown: 0 };
+      players: [{ wallet, monstar, team, deposit: null, locked: wallet.startsWith('@'), sockets: new Set(), lastSeen: this.now() }], escrow, sim: null, ledger: null, seq: 0, countdown: 0 };
     this.rooms.set(code, room); this.byWallet.set(wallet, code); this.release(wallet);
     this.db.prepare('INSERT INTO matches(id,code,stake,player_a,monstar_a,escrow,escrow_secret,state,created_at) VALUES(?,?,?,?,?,?,?,?,?)')
       .run(room.id, code, stake.toString(), wallet, String(monstar.serial ?? 'species:' + monstar.species.id), escrow?.address ?? null, escrow?.secret ?? null, 'waiting', room.createdAt);
@@ -127,9 +128,10 @@ export class MatchManager {
     if (this.byWallet.has(wallet)) this.leave(wallet);
     const team = this.resolveTeam(wallet, { ...msg, mode: room.mode }, room.stake > 0n || room.immortal), monstar = team[0];
     if (room.immortal) { if (!msg.immortalOk) throw Error('IMMORTAL_CONFIRM'); this.checkImmortal(monstar); }
-    room.players.push({ wallet, monstar, team, deposit: null, sockets: new Set(), lastSeen: this.now() });
+    room.players.push({ wallet, monstar, team, deposit: null, locked: wallet.startsWith('@'), sockets: new Set(), lastSeen: this.now() });
     this.byWallet.set(wallet, room.code); this.release(wallet);
-    room.state = room.stake > 0n ? 'deposit' : 'countdown';
+    // Immortal Combat: Phantom players sign before the fight (a consent signature, or moving a minted NFT into the match escrow)
+    room.state = room.stake > 0n ? 'deposit' : room.immortal && !room.players.every(p => p.locked) ? 'lock' : 'countdown';
     if (room.state === 'countdown') room.countdown = 3;
     this.db.prepare('UPDATE matches SET player_b=?, monstar_b=?, state=? WHERE id=?')
       .run(wallet, String(monstar.serial ?? 'species:' + monstar.species.id), room.state, room.id);
@@ -158,9 +160,23 @@ export class MatchManager {
   /** Immortal Combat puts your Monstar on the line: it must be yours, not minted as an NFT and not already held in a soul claim. */
   checkImmortal(m) {
     if (m.serial == null) throw Error('Immortal Combat needs one of your own Monstars.');
-    if (m.asset) throw Error('Minted NFT Monstars cannot be fought for in Immortal Combat.');
+    if (m.asset && m.owner.startsWith('@')) throw Error('Minted NFT Monstars need Phantom for Immortal Combat.');
     if (this.players?.openSoulClaimFor(m.serial)) throw Error('That Monstar is held in a soul claim right now. Pick another one.');
   }
+  /** The exact text a Phantom player signs to put an (unminted) Monstar on the line. */
+  consentMessage(room, wallet) {
+    const p = room.players.find(x => x.wallet === wallet), m = p.monstar;
+    return `PocketMonstars Immortal Combat\nMatch ${room.code} · ${room.id.slice(0, 12)}\nMy Monstar: ${m.toJSON().form || m.species.name} #${m.serial}\nI agree: if I lose this match, the winner takes this Monstar. I can only get it back by paying the winner's soul fee within 24 hours.`;
+  }
+  signConsent(wallet, signature) {
+    const room = this.roomOf(wallet), p = room?.players.find(x => x.wallet === wallet);
+    if (!room?.immortal || room.state !== 'lock' || !p) throw Error('Nothing to sign right now.');
+    if (p.monstar.asset) throw Error('This Monstar is an NFT: move it into the match escrow instead.');
+    if (!verifyWalletSignature(wallet, this.consentMessage(room, wallet), String(signature || ''))) throw Error('That signature does not match.');
+    p.locked = true; p.consent = signature; this.maybeStart(room); return room;
+  }
+  markLocked(wallet) { const room = this.roomOf(wallet), p = room?.players.find(x => x.wallet === wallet); if (!p || room.state !== 'lock') throw Error('Nothing to lock right now.'); p.locked = true; this.maybeStart(room); return room; }
+  maybeStart(room) { if (room.state === 'lock' && room.players.length === 2 && room.players.every(p => p.locked)) { room.state = 'countdown'; room.countdown = 3; this.persistState(room); } }
   input(wallet, raw) {
     const room = this.roomOf(wallet);
     if (!room || room.state !== 'live') return;
@@ -197,7 +213,7 @@ export class MatchManager {
     if (!room) return;
     const idx = room.players.findIndex(p => p.wallet === wallet);
     if (room.state === 'live') { forfeit(room.sim, idx); this.byWallet.delete(wallet); return; } // the tick loop ends and settles it
-    if (['waiting', 'deposit', 'countdown'].includes(room.state)) this.cancel(room, 'left');
+    if (['waiting', 'deposit', 'lock', 'countdown'].includes(room.state)) this.cancel(room, 'left');
   }
 
   /** A player starting or joining another match stops receiving anything from their previous one. */
@@ -227,7 +243,7 @@ export class MatchManager {
         if (room.ai) room.sim.fighters[1].input = sanitizeInput(aiInput(room.sim, 1, room.aiMem));
         for (const ev of step(room.sim, dt)) this.onHit(room, ev);
         if (room.sim.over) this.end(room);
-      } else if (['waiting', 'deposit'].includes(room.state) && now - room.createdAt > this.config.depositTimeoutMs) {
+      } else if (['waiting', 'deposit', 'lock'].includes(room.state) && now - room.createdAt > this.config.depositTimeoutMs) {
         this.cancel(room, 'timeout');
       }
     }
@@ -286,9 +302,12 @@ export class MatchManager {
     let immortal = null;
     if (room.immortal && (sim.winner === 0 || sim.winner === 1) && room.players.length === 2) { // the winner takes the loser's Monstar
       const W = room.players[sim.winner], L = room.players[1 - sim.winner], m = this.registry.get(L.monstar.serial);
-      if (m && m.owner === L.wallet && !m.asset) {
+      const esc = m?.asset ? this.players?.escrowFor(room.code, m.serial) : null, wesc = W.monstar.asset ? this.players?.escrowFor(room.code, W.monstar.serial) : null;
+      if (wesc?.state === 'held') this.players.updateEscrow(wesc.id, { release_to: W.wallet }); // the winner collects their own NFT back
+      if (m && m.owner === L.wallet && (!m.asset || esc?.state === 'held')) {
         this.registry.setOwner(m.serial, W.wallet);
         const id = this.players?.newSoulClaim({ matchId: room.id, serial: m.serial, winner: W.wallet, loser: L.wallet, feeLamports: 100_000_000n });
+        if (esc) this.players.updateEscrow(esc.id, { claim: id }); // stays in escrow during the buy-back time
         immortal = { claim: id, serial: m.serial, speciesId: m.species.id, name: m.toJSON().form || m.species.name, winner: W.wallet, loser: L.wallet, hours: 24 };
       }
     }
@@ -298,6 +317,7 @@ export class MatchManager {
   }
 
   cancel(room, reason) {
+    for (const e of this.players?.escrowsOfRoom(room.code) || []) if (e.state === 'held') this.players.updateEscrow(e.id, { release_to: e.owner }); // NFTs go back to their owners
     const deposited = room.players.map(p => (p.deposit ? room.stake : 0n));
     room.state = 'cancelled';
     this.persistState(room, reason);
@@ -372,13 +392,14 @@ export class MatchManager {
     return { t: 'room', code: room.code, state: room.state, stake: room.stake.toString(), escrow: room.escrow?.address ?? null,
       you: room.players.findIndex(p => p.wallet === wallet), countdown: Math.max(0, Math.ceil(room.countdown || 0)),
       ai: !!room.ai, immortal: !!room.immortal, mode: room.mode || '1v1', squad: !!room.squad, wild: room.wild ? { speciesId: room.wild.speciesId, level: room.wild.level, tier: room.wild.tier } : null,
-      players: room.players.map(p => ({ wallet: p.wallet, ai: !!p.ai, deposited: !!p.deposit, monstar: p.monstar.toJSON(), team: (p.team || [p.monstar]).map(x => x.toJSON()) })),
+      consent: room.immortal && room.state === 'lock' && wallet && !wallet.startsWith('@') && room.players.some(p => p.wallet === wallet && !p.locked && !p.monstar.asset) ? this.consentMessage(room, wallet) : null,
+      players: room.players.map(p => ({ wallet: p.wallet, ai: !!p.ai, deposited: !!p.deposit, locked: !!p.locked, nft: !!p.monstar.asset, monstar: p.monstar.toJSON(), team: (p.team || [p.monstar]).map(x => x.toJSON()) })),
       shares: room.ledger ? room.ledger.shares.map(String) : room.players.map(() => room.stake.toString()) };
   }
   broadcastStates() {
     for (const room of this.rooms.values()) {
       if (room.state === 'live') this.emit(room, { t: 'state', s: snapshot(room.sim), shares: room.ledger.shares.map(String) });
-      else if (['waiting', 'deposit', 'countdown'].includes(room.state)) for (const p of room.players) if (this.byWallet.get(p.wallet) === room.code) for (const ws of p.sockets) { try { ws.send(JSON.stringify(this.publicRoom(room, p.wallet))); } catch {} }
+      else if (['waiting', 'deposit', 'lock', 'countdown'].includes(room.state)) for (const p of room.players) if (this.byWallet.get(p.wallet) === room.code) for (const ws of p.sockets) { try { ws.send(JSON.stringify(this.publicRoom(room, p.wallet))); } catch {} }
     }
   }
 }

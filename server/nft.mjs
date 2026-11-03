@@ -6,7 +6,8 @@
 // Market: a seller lists by approving the market authority as the asset's Transfer Delegate. A buyer gets a
 //         transaction that pays seller + origin-owner royalty + 5% company fee and transfers the NFT,
 //         all in one atomic transaction co-signed by the market authority. If any part fails, nothing moves.
-import { PublicKey, Transaction, SystemProgram, Keypair } from '@solana/web3.js';
+import { PublicKey, Transaction, SystemProgram, Keypair, TransactionInstruction } from '@solana/web3.js';
+import bs58 from 'bs58';
 import { createUmi } from '@metaplex-foundation/umi-bundle-defaults';
 import { publicKey, createNoopSigner, signerIdentity, createSignerFromKeypair } from '@metaplex-foundation/umi';
 import { fromWeb3JsKeypair, toWeb3JsInstruction } from '@metaplex-foundation/umi-web3js-adapters';
@@ -125,4 +126,33 @@ export class NftService {
   }
 
   async ownerOf(asset) { return (await this.readAsset(asset)).owner; }
+
+  // ---------- Immortal Combat escrow: a minted Monstar is moved into a match escrow before the fight ----------
+  /** The owner signs this in Phantom: their NFT moves into the match escrow (they pay the small network fee). */
+  async lockTransaction({ asset, owner, escrow }) {
+    const a = await this.readAsset(asset);
+    if (!this.isOfficial(a)) throw Error('Only official PocketMonstars can be fought for.');
+    if (a.owner !== owner) throw Error('You do not hold this NFT in your wallet (is it listed for sale? Cancel the listing first).');
+    const { blockhash } = await this.chain.latestBlockhash();
+    const collection = a.updateAuthority.type === 'Collection' ? a.updateAuthority.address : undefined;
+    const tx = new Transaction({ feePayer: new PublicKey(owner), recentBlockhash: blockhash })
+      .add(...this.ix(transferV1(this.umi, { asset: a.publicKey, collection, newOwner: publicKey(escrow), payer: createNoopSigner(publicKey(owner)), authority: createNoopSigner(publicKey(owner)) })));
+    return tx.serialize({ requireAllSignatures: false, verifySignatures: false }).toString('base64');
+  }
+  /**
+   * Releases an escrowed NFT to `to`. The receiver pays the network fee and signs in Phantom; the escrow key co-signs here.
+   * `payments` (lamports) and `memo` are added first, so a buy-back is one atomic transaction: pay the soul fee, get the NFT.
+   */
+  async releaseTransaction({ asset, escrowSecret, to, payments = [], memo = null }) {
+    const kp = Keypair.fromSecretKey(bs58.decode(escrowSecret)), a = await this.readAsset(asset);
+    if (a.owner !== kp.publicKey.toBase58()) throw Error('That NFT is not in this escrow any more.');
+    const { blockhash } = await this.chain.latestBlockhash(), payer = new PublicKey(to);
+    const tx = new Transaction({ feePayer: payer, recentBlockhash: blockhash });
+    for (const p of payments) if (BigInt(p.lamports) > 0n) tx.add(SystemProgram.transfer({ fromPubkey: payer, toPubkey: new PublicKey(p.to), lamports: BigInt(p.lamports) }));
+    if (memo) tx.add(new TransactionInstruction({ programId: new PublicKey('MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr'), keys: [{ pubkey: payer, isSigner: true, isWritable: false }], data: Buffer.from(memo) }));
+    const collection = a.updateAuthority.type === 'Collection' ? a.updateAuthority.address : undefined;
+    tx.add(...this.ix(transferV1(this.umi, { asset: a.publicKey, collection, newOwner: publicKey(to), payer: createNoopSigner(publicKey(to)), authority: this.signer(kp) })));
+    tx.partialSign(kp);
+    return tx.serialize({ requireAllSignatures: false, verifySignatures: false }).toString('base64');
+  }
 }

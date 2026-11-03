@@ -16,6 +16,8 @@ export class Players {
       CREATE TABLE IF NOT EXISTS avatar_sales(avatar TEXT PRIMARY KEY, buyer TEXT NOT NULL, signature TEXT NOT NULL UNIQUE, created_at INTEGER NOT NULL);
       CREATE TABLE IF NOT EXISTS soul_claims(id INTEGER PRIMARY KEY AUTOINCREMENT, match_id TEXT NOT NULL, serial INTEGER NOT NULL, winner TEXT NOT NULL, loser TEXT NOT NULL,
         fee_lamports TEXT NOT NULL, fee_cents INTEGER, expires_at INTEGER NOT NULL, state TEXT NOT NULL DEFAULT 'open', paid_by TEXT, created_at INTEGER NOT NULL);
+      CREATE TABLE IF NOT EXISTS nft_escrows(id INTEGER PRIMARY KEY AUTOINCREMENT, room TEXT NOT NULL, serial INTEGER NOT NULL, asset TEXT NOT NULL, escrow TEXT NOT NULL, secret TEXT NOT NULL,
+        owner TEXT NOT NULL, release_to TEXT, claim INTEGER, state TEXT NOT NULL DEFAULT 'pending', created_at INTEGER NOT NULL);
       CREATE TABLE IF NOT EXISTS catch_credits(user TEXT PRIMARY KEY, credits INTEGER NOT NULL DEFAULT 0);
       CREATE TABLE IF NOT EXISTS payout_accounts(user TEXT PRIMARY KEY, account TEXT NOT NULL);
       CREATE TABLE IF NOT EXISTS usd_listings(serial INTEGER PRIMARY KEY, seller TEXT NOT NULL, cents INTEGER NOT NULL, created_at INTEGER NOT NULL);
@@ -90,11 +92,23 @@ export class Players {
   newSoulClaim({ matchId, serial, winner, loser, feeLamports, hours = 24 }, now = Date.now()) {
     return Number(this.db.prepare('INSERT INTO soul_claims(match_id,serial,winner,loser,fee_lamports,expires_at,created_at) VALUES(?,?,?,?,?,?,?)').run(matchId, serial, winner, loser, String(feeLamports), now + hours * 3600_000, now).lastInsertRowid);
   }
-  soulClaim(id, now = Date.now()) { const c = this.db.prepare('SELECT * FROM soul_claims WHERE id=?').get(Number(id)); if (c && c.state === 'open' && now > c.expires_at) { this.setSoulState(c.id, 'kept'); c.state = 'kept'; } return c || null; }
+  soulClaim(id, now = Date.now()) { const c = this.db.prepare('SELECT * FROM soul_claims WHERE id=?').get(Number(id)); if (c && c.state === 'open' && now > c.expires_at) { this.setSoulState(c.id, 'kept'); c.state = 'kept'; this.db.prepare("UPDATE nft_escrows SET release_to=? WHERE claim=? AND state='held'").run(c.winner, c.id); } return c || null; }
   soulClaimsOf(user, now = Date.now()) { return this.db.prepare('SELECT id FROM soul_claims WHERE (winner=? OR loser=?) AND created_at > ? ORDER BY id DESC LIMIT 30').all(user, user, now - 14 * 864e5).map(r => this.soulClaim(r.id, now)); }
   openSoulClaimFor(serial, now = Date.now()) { const r = this.db.prepare("SELECT id FROM soul_claims WHERE serial=? AND state='open' ORDER BY id DESC LIMIT 1").get(serial); const c = r && this.soulClaim(r.id, now); return c?.state === 'open' ? c : null; }
   setSoulFee(id, feeLamports, feeCents) { this.db.prepare('UPDATE soul_claims SET fee_lamports=?, fee_cents=? WHERE id=?').run(String(feeLamports), feeCents, id); }
   setSoulState(id, state, paidBy = null) { this.db.prepare('UPDATE soul_claims SET state=?, paid_by=COALESCE(?,paid_by) WHERE id=?').run(state, paidBy, id); }
+
+  // ---------- Immortal Combat NFT escrows (pending -> held -> released) ----------
+  escrowFor(room, serial) { return this.db.prepare("SELECT * FROM nft_escrows WHERE room=? AND serial=? AND state!='released' ORDER BY id DESC LIMIT 1").get(room, serial) || null; }
+  escrow(id) { return this.db.prepare('SELECT * FROM nft_escrows WHERE id=?').get(Number(id)) || null; }
+  newEscrowRow({ room, serial, asset, escrow, secret, owner }, now = Date.now()) {
+    return Number(this.db.prepare('INSERT INTO nft_escrows(room,serial,asset,escrow,secret,owner,created_at) VALUES(?,?,?,?,?,?,?)').run(room, serial, asset, escrow, secret, owner, now).lastInsertRowid);
+  }
+  updateEscrow(id, fields) { for (const [k, v] of Object.entries(fields)) if (['state', 'release_to', 'claim'].includes(k)) this.db.prepare(`UPDATE nft_escrows SET ${k}=? WHERE id=?`).run(v, id); }
+  escrowsOfRoom(room) { return this.db.prepare('SELECT * FROM nft_escrows WHERE room=?').all(room); }
+  escrowOfClaim(claim) { return this.db.prepare('SELECT * FROM nft_escrows WHERE claim=?').get(claim) || null; }
+  /** NFTs waiting in an escrow for this player to collect. */
+  collectable(user) { return this.db.prepare("SELECT * FROM nft_escrows WHERE release_to=? AND state='held'").all(user); }
 
   // ---------- catch passes (free accounts: 2 free catches, then one pass per catch, bought with a card) ----------
   catchCredits(user) { return this.db.prepare('SELECT credits FROM catch_credits WHERE user=?').get(user)?.credits || 0; }

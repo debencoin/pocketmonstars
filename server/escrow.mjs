@@ -22,6 +22,12 @@ export class SolanaChain {
     if (!tx) throw Error('Payment not found yet. Wait a few seconds and try again.');
     return checkPayment(tx, { from, to, lamports, memo });
   }
+  /** A transaction from `from` that pays every { to, lamports } in `pays` and carries `memo` (soul-fee buy-backs: winner + company). */
+  async verifyPayments(signature, { from, pays, memo }) {
+    const tx = await this.conn.getParsedTransaction(signature, { commitment: 'confirmed', maxSupportedTransactionVersion: 0 });
+    if (!tx) throw Error('Payment not found yet. Wait a few seconds and try again.');
+    return checkPayments(tx, { from, pays, memo });
+  }
   /** Drop purchases found on-chain (memo PMDROP:<species>), oldest first, so sales survive a server reset. */
   async memoPayments(to, prefix, limit = 1000) {
     const sigs = await this.conn.getSignaturesForAddress(new PublicKey(to), { limit }, 'confirmed');
@@ -73,4 +79,14 @@ export function checkPayment(tx, { from, to, lamports, memo }) {
   const note = ixs.find(ix => (ix.program === 'spl-memo' || ix.programId?.toBase58?.() === MEMO_PROGRAM) && (typeof ix.parsed === 'string' ? ix.parsed : '') === memo);
   if (!pay || !note) throw Error('That payment does not match this purchase.');
   return pay.parsed.info.source;
+}
+
+/** Like checkPayment, but every transfer in `pays` must be there (each from `from`). */
+export function checkPayments(tx, { from, pays, memo }) {
+  if (tx.meta?.err) throw Error('Payment transaction failed on-chain.');
+  const ixs = tx.transaction.message.instructions;
+  for (const { to, lamports } of pays) if (BigInt(lamports) > 0n && !ixs.some(ix => ix.program === 'system' && ix.parsed?.type === 'transfer' && ix.parsed.info.destination === to
+    && ix.parsed.info.source === from && BigInt(ix.parsed.info.lamports) === BigInt(lamports))) throw Error('That payment does not match the soul fee.');
+  if (memo && !ixs.some(ix => (ix.program === 'spl-memo' || ix.programId?.toBase58?.() === MEMO_PROGRAM) && (typeof ix.parsed === 'string' ? ix.parsed : '') === memo)) throw Error('That payment does not match the soul fee.');
+  return from;
 }

@@ -268,3 +268,8 @@ Stats: HP, Attack, Defense, Sp. Atk, Sp. Def, Speed. Types: EMBER, GROVE, TIDE, 
 - New 1v1 mode with no SOL stake: the winner takes the loser's Monstar (registry owner moves at the end of the match; a forfeit counts as a loss). Minted NFTs can't be put on the line, and the joiner must confirm (IMMORTAL_CONFIRM).
 - A soul claim opens for 24 hours: the winner sets the soul fee (0.1-0.5 SOL, default 0.1, and optionally a dollar price if they have a Stripe payout account). The loser buys it back with SOL (paid straight to the winner, memo PMSOUL:<id>) or by card (winner gets 95% through Stripe). After 24 hours it belongs to the winner for good.
 - While a claim is open the Monstar can't be minted, listed for dollars or put into another Immortal Combat.
+
+## v39: Immortal Combat signatures, NFT escrow, company cut on SOL buy-backs
+- Phantom players sign before an Immortal Combat starts (new room state `lock`): an unminted Monstar is put on the line with a signed agreement (signMessage, checked with Ed25519), a minted NFT is moved into the match escrow by a transaction they sign. The fight starts only when both have signed, so the winner always gets the Monstar.
+- After the match: the winner's own NFT is released back to them; the loser's NFT stays in escrow during the 24 h buy-back. A SOL buy-back is one transaction: soul fee (95% winner, 5% PocketMonstars) + the NFT back. If time runs out the NFT is released to the winner. Card buy-backs release it to the loser. Released NFTs are collected from Soul claims (the receiver pays the network fee; the escrow co-signs).
+- A cancelled match releases escrowed NFTs back to their owners.
