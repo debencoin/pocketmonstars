@@ -299,3 +299,6 @@ Stats: HP, Attack, Defense, Sp. Atk, Sp. Def, Speed. Types: EMBER, GROVE, TIDE, 
 - COVO: attack is now a homing **Fire Tornado** that chases the rival and burns; special **Thunder Ice Balls** freeze and an electric zap jumps out (2% HP).
 - Every Monstar on the field shows its attack-reach ring (you white, teammates green, rivals red).
 - Win-loss records (all finished server matches, and vs players) on the profile card, the leaderboard (W–L) and Immortal Guild cards.
+
+## v47: calmer arenas
+- Each fight now has just 1 or 2 barriers, and no water patches: one lava patch (sometimes two). Earthquake cracks still open during the fight.

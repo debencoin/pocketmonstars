@@ -227,5 +227,6 @@ test('arena hazards: water and lava hurt (their own element is safe), cracks dro
   const ev = []; for (let i = 0; i < 10; i++) ev.push(...S.step(m)); assert.ok(ev.some(e => e.type === 'wallhit')); assert.equal(m.projectiles.length, 0);
   // earthquakes open cracks
   m.quakeT = 0; ev.length = 0; ev.push(...S.step(m)); assert.ok(ev.some(e => e.type === 'earthquake')); assert.equal(m.cracks.length, 1);
-  assert.ok(S.makeLayout().wl.length >= 3 && S.snapshot(m).lay.ck.length === 1);
+  for (let i = 0; i < 50; i++) { const L = S.makeLayout(); assert.ok(L.wl.length >= 1 && L.wl.length <= 2, 'only 1 or 2 barriers'); assert.ok(L.hz.every(o => o.k === 'lava'), 'no water'); }
+  assert.equal(S.snapshot(m).lay.ck.length, 1);
 });

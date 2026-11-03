@@ -32,10 +32,10 @@ const SPAWNS = [{ x: 240, y: 270 }, { x: 720, y: 270 }];
 export function makeLayout(rand = Math.random) {
   const hz = [], wl = [], clear = (x, y, pad) => SPAWNS.every(s => Math.hypot(s.x - x, s.y - y) > 130 + pad) && [...hz, ...wl].every(o => Math.hypot(o.x - x, o.y - y) > (o.rx || o.r || 60) + pad + 40);
   const place = (pad, make) => { for (let i = 0; i < 40; i++) { const x = 130 + rand() * 700, y = 110 + rand() * 360; if (clear(x, y, pad)) return make(x, y); } return null; };
-  const kinds = ['water', 'lava', rand() < 0.5 ? 'water' : 'lava'];
-  for (const k of kinds.slice(0, 2 + (rand() < 0.5 ? 1 : 0))) { const o = place(70, (x, y) => ({ k, x: Math.round(x), y: Math.round(y), rx: Math.round(60 + rand() * 30), ry: Math.round(32 + rand() * 16) })); if (o) hz.push(o); }
-  const wk = ['pillar', 'fence', 'crystal', rand() < 0.5 ? 'pillar' : 'fence'];
-  for (const k of wk.slice(0, 3 + (rand() < 0.5 ? 1 : 0))) { const o = place(40, (x, y) => k === 'fence' ? { k, x: Math.round(x), y: Math.round(y), w: rand() < 0.5 ? WALLS.fence.w : WALLS.fence.h, h: 0 } : { k, x: Math.round(x), y: Math.round(y), r: WALLS[k].r });
+  const kinds = ['lava', 'lava']; // no water patches; one lava patch, sometimes two
+  for (const k of kinds.slice(0, 1 + (rand() < 0.35 ? 1 : 0))) { const o = place(70, (x, y) => ({ k, x: Math.round(x), y: Math.round(y), rx: Math.round(60 + rand() * 30), ry: Math.round(32 + rand() * 16) })); if (o) hz.push(o); }
+  const wk = ['pillar', 'fence', 'crystal'].sort(() => rand() - 0.5); // just 1 or 2 barriers
+  for (const k of wk.slice(0, 1 + (rand() < 0.5 ? 1 : 0))) { const o = place(40, (x, y) => k === 'fence' ? { k, x: Math.round(x), y: Math.round(y), w: rand() < 0.5 ? WALLS.fence.w : WALLS.fence.h, h: 0 } : { k, x: Math.round(x), y: Math.round(y), r: WALLS[k].r });
     if (o) { if (k === 'fence') { o.h = o.w === WALLS.fence.w ? WALLS.fence.h : WALLS.fence.w; } wl.push(o); } }
   return { hz, wl };
 }
