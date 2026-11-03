@@ -229,6 +229,20 @@ function megaShot(m, f, foe, events) {
   else if (k === 'stormdrain') { // Soul Storm: 7 lightning strikes rain over a big area; 45% of the damage heals the caster
     for (let i = 0; i < 7; i++) { const a = Math.random() * 6.283, d = Math.random() * 90 * sz;
       fx(foe.x + Math.cos(a) * d, foe.y + Math.sin(a) * d * 0.7, 'strike', { t: -i * 0.18, rad: 110 * sz, pw: P * 0.19, ls: 1, track: true, heal: 0.45 }); } }
+  else if (k === 'omnistorm') { // COVO / COVA Five Element Storm: wind grab, fire gust, lightning, hail, ice wave (12% each = 60%), then a bolt heals the caster 10%
+    for (const v of rivalsOf(m, f.side)) {
+      if (v.iframes > 0) continue;
+      applyStatus(m, v, 'whirl', f, events, 0.7); Object.assign(v.status, { noHold: true });
+      m.effects.push({ id: m.nextId++, owner: f.side, by: f, kind: 'special', style: 'strike', type: f.type, sid: f.speciesId, x: v.x, y: v.y, dx: 0, dy: 0, gx: v.x, gy: v.y, t: 0, dur: STATUS.whirl.dur * 0.7, hit: true, nextTick: 0, thrown: 0, bolted: false, tw: 1, follow: v });
+    }
+    const big = 120 * sz;
+    fx(foe.x, foe.y, 'strike', { t: -0.15, rad: big, frac: 0.12, fg: 1, track: true, trackRate: 3 });                                           // fire gust
+    fx(foe.x, foe.y, 'strike', { t: -0.45, rad: big * 0.7, frac: 0.12, ls: 1, track: true, trackRate: 3.2 });                                   // lightning strike
+    fx(foe.x, foe.y, 'strike', { t: -0.95, rad: big * 1.3, frac: 0.12, hs: 1, track: true, trackRate: 2.6, then: (v, ev) => applyStatus(m, v, 'freeze', f, ev, 0.6) }); // hail
+    fx(foe.x, foe.y, 'strike', { t: -1.25, rad: big * 1.1, frac: 0.12, ls: 1, track: true, trackRate: 3.2, then: (v, ev) => applyStatus(m, v, 'stun', f, ev, 0.4) });  // second bolt
+    fx(foe.x, foe.y, 'strike', { t: -1.55, rad: big * 1.2, frac: 0.12, iw: 1, track: true, trackRate: 2.6, then: (v, ev) => applyStatus(m, v, 'freeze', f, ev, 0.9) }); // ice wave freezes
+    fx(f.x, f.y, 'strike', { t: -1.85, rad: 50, selfHeal: 0.10, hb: 1, stick: f });                                                             // the bolt comes back: +10% HP
+  }
   else if (k === 'nova') fx(f.x, f.y, 'strike', { rad: 170 * sz, t: 0.25 });
   else if (k === 'meteors') for (let i = 0; i < 4; i++) { const a = i * 1.57 + 0.4; fx(foe.x + Math.cos(a) * 60 * sz * (i ? 1 : 0), foe.y + Math.sin(a) * 40 * sz * (i ? 1 : 0), 'strike', { t: -i * 0.22, pw: P * 0.45, rad: 70 }); }
   else if (k === 'vortex') { const [nx, ny] = norm(f.x - foe.x, f.y - foe.y); foe.vx += nx * 600 * Math.max(0.3, foe.mods.knockback); foe.vy += ny * 600 * Math.max(0.3, foe.mods.knockback); fx(f.x + f.fx * 90, f.y + f.fy * 60, 'strike', { rad: 130 * sz }); }
@@ -313,7 +327,7 @@ function land(m, att, vic, kind, style, events, dirx, diry, knock = 90, power, f
   att.ult = Math.min(100, att.ult + damage * ULT_GAIN * (att.sg >= 5 ? 1.25 : 1)); vic.ult = Math.min(100, vic.ult + damage * 0.6);
   // what this power does to the Monstar it hit
   const sk = style === 'levitate' ? 'lift' : TYPE_STATUS[att.type];
-  if (sk && vic.guardT <= 0 && (kind === 'special' || style === 'levitate' || Math.random() < 0.15)) applyStatus(m, vic, sk, att, events, (kind === 'special' && att.ultOn ? 1.5 : 1) * (att.sg >= 3 ? 1.3 : 1));
+  if (sk && !frac && vic.guardT <= 0 && (kind === 'special' || style === 'levitate' || Math.random() < 0.15)) applyStatus(m, vic, sk, att, events, (kind === 'special' && att.ultOn ? 1.5 : 1) * (att.sg >= 3 ? 1.3 : 1));
   const push = vic.status && STATUS[vic.status.k].push || 1;
   const kb = knock * vic.mods.knockback * push; vic.vx += dirx * kb; vic.vy += diry * kb;
   const exp = Math.max(1, Math.round(damage * EXP_RULES.perDamage * (crit ? EXP_RULES.critBonus : 1)));
@@ -356,6 +370,7 @@ function runEffect(m, e, dt, events) {
   const att = e.by || m.fighters[e.owner], S = STYLES[e.style], vics = rivalsOf(m, e.owner), vic = m.squad ? foeOf(m, att) : vics[0];
   if (!vic) { e.t = e.dur; return; }
   const prevT = e.t; e.t += dt;
+  if (e.stick) { e.gx = e.x = e.stick.x; e.gy = e.y = e.stick.y; }
   if (e.follow) { e.gx = e.x = e.follow.x; e.gy = e.y = e.follow.y; if (!e.follow.status || e.follow.status.k !== 'whirl') e.t = Math.max(e.t, e.dur - 0.15); }
   if (e.track && e.t < S.hitAt && !e.hit) { const k2 = Math.min(1, dt * (e.trackRate || 3.2)); e.gx += (vic.x + (e.ox || 0) - e.gx) * k2; e.gy += (vic.y + (e.oy || 0) - e.gy) * k2; } // lightning chases the rival until it strikes
   if (S.root) { e.x = att.x; e.y = att.y; }
@@ -380,6 +395,8 @@ function runEffect(m, e, dt, events) {
       if (Math.hypot(vic.x - att.x, vic.y - att.y) < S.range) { const [nx, ny] = norm(vic.x - att.x, vic.y - att.y); land(m, att, vic, 'special', 'levitate', events, nx, ny, 120, S.boltPower); }
       else events.push({ type: 'miss', attacker: att.side, victim: vic.side, style: 'levitate' });
     }
+  } else if (e.selfHeal && !e.hit && prevT < S.hitAt && e.t >= S.hitAt) {
+    e.hit = true; if (att.hp > 0) { const h = Math.round(att.maxHp * e.selfHeal); att.hp = Math.min(att.maxHp, att.hp + h); events.push({ type: 'status', side: att.side, k: 'mark', label: '+' + h + ' HP' }); }
   } else if (!e.hit && prevT < S.hitAt && e.t >= S.hitAt) {
     e.hit = true;
     let any = false;
@@ -579,7 +596,7 @@ export function snapshot(m) {
     sq: m.squad ? 1 : 0, lim: m.limit, pk: m.pickups.map(q => ({ id: q.id, x: r(q.x), y: r(q.y), k: q.k, l: r(q.life) })), gs: GAME_SPEED * (m.pace || 1),
     p: m.projectiles.map(p => ({ id: p.id, o: p.owner, k: p.kind, st: p.style, ty: p.type, sid: p.sid, x: r(p.x), y: r(p.y), vx: Math.round(p.vx), vy: Math.round(p.vy), r: p.r, lt: p.lt ? 1 : 0, w: p.wait > 0 ? 1 : 0, lk: p.look || null })),
     e: m.effects.map(e => ({ id: e.id, o: e.owner, k: e.kind, st: e.style, ty: e.type, sid: e.sid, x: r(e.x), y: r(e.y), dx: r(e.dx * 100) / 100, dy: r(e.dy * 100) / 100,
-      gx: r(e.gx), gy: r(e.gy), t: Math.round(e.t * 100) / 100, d: e.dur, ra: e.rad || 0, wd: e.wid || 0, mg: e.mega ? 1 : 0, ls: e.ls ? 1 : 0, tw: e.tw ? 1 : 0, hs: e.hs ? 1 : 0, bs: e.bs ? 1 : 0 })) };
+      gx: r(e.gx), gy: r(e.gy), t: Math.round(e.t * 100) / 100, d: e.dur, ra: e.rad || 0, wd: e.wid || 0, mg: e.mega ? 1 : 0, ls: e.ls ? 1 : 0, tw: e.tw ? 1 : 0, hs: e.hs ? 1 : 0, bs: e.bs ? 1 : 0, fg: e.fg ? 1 : 0, iw: e.iw ? 1 : 0, hb: e.hb ? 1 : 0 })) };
 }
 
 /** Opponent brain for AI matches: movement is the autopilot; this decides when to attack. */

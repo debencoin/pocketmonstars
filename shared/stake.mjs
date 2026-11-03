@@ -5,7 +5,7 @@
 //  - Both players deposit the same stake S into a match escrow. Pot = 2S.
 //  - Each player's live "share" of the pot starts at S.
 //  - Every landed hit moves a tiny amount from the victim's share to the attacker's share, sized by how
-//    strong the attacker is (see hitFee): about 0.0000003 SOL for a Lv1 jab, up to 0.00001 SOL for a
+//    strong the attacker is (see hitFee) and by how much HP the hit took: about 0.0000003 SOL for a Lv1 jab, up to 0.00001 SOL for a
 //    high-level Ultimate. Stronger, more developed Monstars take more per hit.
 //  - A KO moves the loser's remaining share to the winner, so the winner takes the whole pot.
 //  - Settlement is ONE on-chain transaction from the escrow; it pays the network fee from the pot,
@@ -72,7 +72,10 @@ export class StakeLedger {
     const victim = 1 - attacker;
     this.hits[attacker]++;
     if (this.stake === 0n || damage <= 0) return 0n;
-    let fee = ev ? hitFee({ level: ev.lvl, attack: ev.atk, power: ev.pw, crit: ev.crit, dot: ev.kind === 'status' })
+    // Sized by the attacker's strength AND by how much HP the hit took: tiny ticks move a little, big hits more.
+    // (Before, every hit moved the same amount, so a rival landing many weak ticks drained your SOL while you won the fight.)
+    const share = victimMaxHp > 0 ? Math.min(2.5, Math.max(0.1, damage / (victimMaxHp * 0.06))) : 1;
+    let fee = ev ? BigInt(Math.round(Number(hitFee({ level: ev.lvl, attack: ev.atk, power: ev.pw, crit: ev.crit, dot: ev.kind === 'status' })) * share))
       : this.stake * BigInt(Math.round(damage * 1000)) / (BigInt(Math.round(victimMaxHp)) * 1000n);
     if (fee < this.policy.minHitFee) fee = this.policy.minHitFee;
     if (fee > this.shares[victim]) fee = this.shares[victim];

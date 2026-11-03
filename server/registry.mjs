@@ -3,7 +3,7 @@
 // Levels (EXP) are stored here; Legendary and Bred collections are created here too.
 import { createHash, randomBytes } from 'node:crypto';
 import { PublicKey } from '@solana/web3.js';
-import { HERO_IDS, legendaryIdsFor, nftArt, SPECIES, GENESIS_IDS, LEGENDARY_IDS, WILD_IDS, RARITIES, Monstar, traitsFromDna, traitSignature, composeDna, rarityIndex, expForLevel } from '../shared/monstars.mjs';
+import { HERO_IDS, SALE_IDS, legendaryIdsFor, nftArt, SPECIES, GENESIS_IDS, LEGENDARY_IDS, WILD_IDS, RARITIES, Monstar, traitsFromDna, traitSignature, composeDna, rarityIndex, expForLevel } from '../shared/monstars.mjs';
 
 export function deriveDna(owner, speciesId, nonce) {
   return createHash('sha256').update(`pocketmonstars:dna:v1:${owner}:${speciesId}:${nonce}`).digest('hex');
@@ -93,9 +93,9 @@ export class Registry {
   breed({ a, b, seed = randomBytes(16).toString('hex') }) {
     if (a.owner === b.owner) throw Error('Breeding needs Monstars from two different players.');
     const rnd = (k) => parseInt(createHash('sha256').update(seed + ':' + k).digest('hex').slice(0, 8), 16) / 0xffffffff;
-    const genesisOf = m => (m.species.legendary || m.species.hero ? null : m.species.id); // legendaries and drop heroes never breed copies
+    const genesisOf = m => (m.species.legendary || m.species.hero || m.species.drop || m.species.unique ? null : m.species.id); // legendaries and drop heroes never breed copies
     const children = [];
-    const benders = [a, b].filter(m => m.species.bender);
+    const benders = [a, b].filter(m => m.species.bender && !m.species.unique); // COVO and COVA stay one of a kind
     for (const [i, parent] of [a, b].entries()) {
       let sid = rnd('sp' + i) < 0.5 ? genesisOf(a) : genesisOf(b);
       if (sid == null) sid = genesisOf(a) ?? genesisOf(b) ?? 8;
@@ -123,10 +123,10 @@ export class Registry {
   /** A Superhero Drop Monstar bought with SOL: one of each hero ever, level 1, unique DNA. */
   grantHero(owner, speciesId, signature) {
     owner = normOwner(owner);
-    if (!HERO_IDS.includes(speciesId)) throw Error('That is not a drop hero.');
+    if (!SALE_IDS.includes(speciesId)) throw Error('That Monstar is not for sale.');
     const had = this.db.prepare('SELECT * FROM monstars WHERE species=? ORDER BY serial LIMIT 1').get(speciesId);
     if (had) return this.toMonstar(had);
-    return this.insertUnique({ speciesId, originOwner: owner, owner, genesis: false, collection: 'heroes', exp: 0,
+    return this.insertUnique({ speciesId, originOwner: owner, owner, genesis: false, collection: SPECIES[speciesId].collection, exp: 0,
       dnaFor: n => composeDna(createHash('sha256').update(`pocketmonstars:hero:${speciesId}:${signature}:${n}`).digest('hex'), { rarity: 'Legendary', ivs: [15, 15, 14, 15, 14, 15] }) });
   }
 

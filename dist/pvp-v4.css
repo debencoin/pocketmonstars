@@ -555,3 +555,9 @@ header{overflow:hidden}
 #appSignIn{max-width:42vw;flex:0 1 auto;margin-left:auto;padding:0 10px}
 @media (max-width:480px){#appSignIn:has(img) span{display:none}#appSignIn:has(img){padding:3px;border-radius:50%;width:44px;height:44px;justify-content:center}#appSignIn .v6-topav{width:34px;height:34px;flex-basis:34px}
   header .brand{font-size:19px!important}header .brand span{display:none}}
+/* Sky Bender market */
+.sb-el{background:#d8f4ff}.sb-water{background:#7ad8ff}.sb-earth{background:#c8b088}.sb-fire{background:#ffb060}.sb-thunder{background:#ffe14a}
+.sb-chips{margin:12px 0 4px;display:flex;flex-wrap:wrap;gap:6px}
+.sb-kit{display:block;line-height:1.35;margin:2px 0}
+.sb-star{grid-template-columns:minmax(0,320px)!important}
+.sb-star .dr-card>img{width:144px;height:168px}

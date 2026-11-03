@@ -9,10 +9,11 @@ Real-time creature battles on Solana. Battle, capture and evolve original Monsta
 - **Arena**: 1v1, 3v3 tag team, and **3v3 squad** (all six Monstars on the field; tap a teammate's ⇄ button to take control, the others fight on their own). Free practice vs the computer (Easy / Normal / Hard) or real rivals online.
 - **Stake SOL (Phantom)**: both players deposit into a match escrow; every hit moves part of the rival's stake to you; KO wins the pot, paid in one settlement transaction.
 - **Wild Expedition**: 103 wild Monstars from Common to Divine. Get one into the red and tap **Capture!**; every species has its own odds and they change every throw.
-- **174 Monstars** in 10 collections: Genesis (9), Frontier (50), Anunnaki (20), Watchers (20), Mythic (4), Legendary (2), Ascendants (20), Royal Anunnaki (8), Superhero Drop (30), Elemental Benders (11).
+- **226 Monstars** in 12 collections: Genesis (9), Frontier (50), Anunnaki (20), Watchers (20), Mythic (4), Legendary (2), Ascendants (20), Royal Anunnaki (8), Superhero Drop (30), Elemental Benders (11), Legend Heroes (15, gifted), Sky Benders (37: 10 gifted, 25 in the market, plus COVO and COVA).
 - **Evolution**: six forms (Infant, Rookie, Champion, Ultimate, Mega, Ascended), even mid-battle, each with an ability upgrade. Every Monstar has its own stats, attack, special, dash, guard and Mega Shot.
 - **Signature Mega Shots**: Neferion Storm Orbs, Tempestro Sky Splitter, Aerokai/Zephyrine Tornado Gust, Tidewen Hailstorm, Granitus Boulder Storm, Thundrik Soul Storm, and more.
 - **Elemental Benders**: original water, earth, fire, air and thunder martial artists, drawn at double detail with real run cycles. Gifted to chosen wallets only. Bred benders combine both parents' powers.
+- **Sky Bender Market**: 25 one-of-one air benders (boys and girls, each also bending water, earth, fire or thunder) at 1 SOL, and COVA, the final air bender, at 10 SOL. COVO, her counterpart, belongs to the founder: all five elements, teleport dash, very fast, and the Five Element Storm (60% of the rival's HP, then a bolt heals him 10%).
 - **Superhero Drop**: 30 one-of-one heroes for 30 days (top 5 at 1 SOL, the rest 0.5 SOL), paid on-chain and rebuilt from the chain after a server reset.
 - **Market**: mint Monstars as NFTs (Metaplex Core), list and buy them. Each sale pays 5% royalty to the wallet the Monstar was born to and 5% to PocketMonstars.
 - **Accounts and profiles**: free username + password accounts, or Phantom sign-in; profile card with avatar (one-of-one photo avatars or any owned Monstar).

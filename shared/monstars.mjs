@@ -1,5 +1,5 @@
-import { kitFor } from './abilities.mjs';
-import { FRONTIER, MYTHIC, ANUNNAKI, WATCHERS, ASCENDANTS, ROYALS, HEROES, BENDERS, TIERS } from './frontier.mjs';
+import { kitFor, GUARD_KINDS } from './abilities.mjs';
+import { FRONTIER, MYTHIC, ANUNNAKI, WATCHERS, ASCENDANTS, ROYALS, HEROES, BENDERS, LEGEND_HEROES, SKY_BENDERS, FINAL_BENDERS, TIERS } from './frontier.mjs';
 // PocketMonstars species, classes, evolution stages, EXP and DNA traits.
 // Pure ES module: runs in the browser (rendering) and in Node (authoritative server).
 // The server derives DNA; this file only turns a DNA hex string into traits and stats.
@@ -127,6 +127,8 @@ export const COLLECTIONS = {
   anunnaki: { name: 'Anunnaki', note: 'Twenty ancient sky lords, winged genies and guardians from Mesopotamian myth.' },
   royals: { name: 'Royal Anunnaki', note: 'Queen Ninshara and her court: eight legendaries held by the second founder wallet. Never found in the wild.' },
   benders: { name: 'Elemental Benders', note: 'Masters of water, earth, fire, air and thunder. Gifted to chosen players only. Never found in the wild.' },
+  legendheroes: { name: 'Legend Heroes', note: 'Fifteen superheroes with their own signature powers, gifted to chosen players. Never found in the wild.' },
+  skybenders: { name: 'Sky Benders', note: 'Air benders. Some are gifted, 25 are sold in the market (each also bends fire, water, earth or thunder), and COVO and COVA bend all five elements.' },
   heroes: { name: 'Superhero Drop', note: 'Thirty original heroes sold once each in the 30-day launch drop. The top five are stronger. Never found in the wild.' },
   ascendants: { name: 'Ascendants', note: 'Twenty legendary portraits held by the founder wallet. Never found in the wild.' },
   watchers: { name: 'Watchers', note: 'Twenty many-eyed, many-winged sentinels of the sky, from the Book of Enoch.' },
@@ -144,9 +146,9 @@ export const SPECIES = [
   { id: 9, name: 'Seraphon', type: 'ASTRAL', art: 'seraphon', cls: Seraph, move: 'Holy lance', special: 'Heaven\'s judgment', basicStyle: 'bolt', specialStyle: 'strike', motion: 'hover', collection: 'legendary', legendary: true, color: '#f4f0ff' },
   { id: 10, name: 'Psyvolt', type: 'PSYCHIC', art: 'psyvolt', cls: Psion, move: 'Psy orb', special: 'Levitation storm', basicStyle: 'projectile', specialStyle: 'levitate', motion: 'hover', collection: 'legendary', legendary: true, color: '#c9a6ff' },
 ];
-for (const [list, coll] of [[FRONTIER, 'frontier'], [MYTHIC, 'mythic'], [ANUNNAKI, 'anunnaki'], [WATCHERS, 'watchers'], [ASCENDANTS, 'ascendants'], [ROYALS, 'royals'], [HEROES, 'heroes'], [BENDERS, 'benders']]) for (const f of list) {
+for (const [list, coll] of [[FRONTIER, 'frontier'], [MYTHIC, 'mythic'], [ANUNNAKI, 'anunnaki'], [WATCHERS, 'watchers'], [ASCENDANTS, 'ascendants'], [ROYALS, 'royals'], [HEROES, 'heroes'], [BENDERS, 'benders'], [LEGEND_HEROES, 'legendheroes'], [SKY_BENDERS, 'skybenders'], [FINAL_BENDERS, 'skybenders']]) for (const f of list) {
   SPECIES.push({ id: SPECIES.length, name: f.name, type: f.type, art: f.name.toLowerCase(), cls: CLASS_BY_ID[f.cls], move: f.move, special: f.special,
-    basicStyle: f.basicStyle, specialStyle: f.specialStyle, motion: f.motion, collection: coll, tier: f.tier, mythic: ['Mythic', 'Divine'].includes(f.tier) || undefined, legendary: f.legendary || undefined, legendFor: f.legendFor, portrait: f.look.plan === 'portrait' || undefined, walker: f.look.plan === 'walker' || undefined, forms: f.forms || (f.look.plan === 'walker' ? walkerForms(f.name) : undefined), hero: f.hero, drop: f.drop, bender: f.bender, elite: f.elite, color: f.look.main });
+    basicStyle: f.basicStyle, specialStyle: f.specialStyle, motion: f.motion, collection: coll, tier: f.tier, mythic: ['Mythic', 'Divine'].includes(f.tier) || undefined, legendary: f.legendary || undefined, legendFor: f.legendFor, portrait: f.look.plan === 'portrait' || undefined, walker: f.look.plan === 'walker' || undefined, forms: f.forms || (f.look.plan === 'walker' ? walkerForms(f.name) : undefined), hero: f.hero, drop: f.drop, bender: f.bender, elite: f.elite, giftHero: f.giftHero, sky: f.sky, el2: f.el2, female: f.female, unique: f.unique, speedBoost: f.speedBoost, sig: f.sig, color: f.look.main });
 }
 export { TIERS };
 /** Ascendants evolve into a different character at every stage, each with its own name. */
@@ -181,6 +183,19 @@ const MEGA_SIGNATURE = {
   Neferion: { kind: 'lightning', name: 'Neferion Storm Orbs', note: 'Seven lightning balls chase the rival. The first one to hit stuns it so the rest can zap it.', power: 1.1, size: 1 },
 };
 for (const sp of SPECIES) if (MEGA_SIGNATURE[sp.name]) sp.kit.mega = { ...sp.kit.mega, ...MEGA_SIGNATURE[sp.name] };
+for (const sp of SPECIES) for (const [part, o] of Object.entries(sp.sig || {})) sp.kit[part] = { ...sp.kit[part], ...o }; // Legend Heroes, Sky Benders, COVO and COVA
+{ // keep every Mega Shot tuning and every dash/guard/Mega combination one of a kind (signature kits can share a kind)
+  const megaKey = k => [k.mega.kind, k.mega.power, k.mega.size].join(), combo = k => k.dash.kind + k.guard.kind + k.mega.kind;
+  const megas = new Set(), combos = new Set(), GK = Object.keys(GUARD_KINDS);
+  for (const sp of SPECIES) {
+    const k = sp.kit;
+    if (sp.sig) { while (megas.has(megaKey(k))) k.mega.power = +(k.mega.power + 0.01).toFixed(2);
+      for (let i = 0; combos.has(combo(k)) && i < GK.length; i++) { const o = GUARD_KINDS[k.guard.kind].label, g = GK[(GK.indexOf(k.guard.kind) + 1) % GK.length];
+        const root = k.guard.name.endsWith(o) ? k.guard.name.slice(0, -o.length).trim() : sp.name;
+        k.guard = { ...k.guard, kind: g, name: root + ' ' + GUARD_KINDS[g].label, note: GUARD_KINDS[g].note }; } }
+    megas.add(megaKey(k)); combos.add(combo(k));
+  }
+}
 { const seen = new Set(), names = new Set(SPECIES.map(x => x.name)); for (const sp of SPECIES) { // six uniquely named forms per species
   let f = sp.forms || stageForms(sp.name), n = 0;
   while ((seen.has(f[0]) || seen.has(f[1]) || names.has(f[0]) || names.has(f[1])) && n++ < 6) { const r = sp.name.slice(0, f[0].length - 3 + 1); f = [r + 'kit', r + 'ling', ...f.slice(2)]; }
@@ -204,6 +219,9 @@ const _tc = {}; function tierCount(t) { return (_tc[t] ??= WILD_IDS.filter(id =>
 for (const s of SPECIES) if (s.legendary) s.legendFor ||= 'founder';
 export const LEGENDARY_IDS = SPECIES.filter(s => s.legendary).map(s => s.id);
 export const HERO_IDS = SPECIES.filter(s => s.hero).map(s => s.id);
+/** Species sold once each for SOL: the drop heroes (time-limited) and the market Sky Benders (no time limit). */
+export const SALE_IDS = SPECIES.filter(s => s.drop).map(s => s.id);
+export const SHOP_IDS = SPECIES.filter(s => s.drop?.shop).map(s => s.id);
 /** Legendary species held by each founder wallet ('founder' = first wallet, 'royal' = second). */
 export const legendaryIdsFor = key => SPECIES.filter(s => s.legendary && s.legendFor === key).map(s => s.id);
 /** File name of a species' NFT / market picture in dist/art/nft (portraits are .jpg). */
@@ -283,7 +301,7 @@ export class Monstar {
     if (!this.fusion) return this.species.kit;
     const own = this.species.kit, o = SPECIES[this.fusion], ok = o.kit;
     return { ...own, fused: o.name, special: { ...ok.special, power: +(ok.special.power * 1.15).toFixed(2), name: `Fused ${ok.special.name}` },
-      mega: o.bender ? { ...ok.mega, power: +(Math.max(ok.mega.power, own.mega.power) * 1.15).toFixed(2), name: `${this.species.name} × ${o.name} ${ok.mega.name.split(' ').slice(1).join(' ')}` } : own.mega };
+      mega: o.bender && !o.unique ? { ...ok.mega, power: +(Math.max(ok.mega.power, own.mega.power) * 1.15).toFixed(2), name: `${this.species.name} × ${o.name} ${ok.mega.name.split(' ').slice(1).join(' ')}` } : own.mega };
   }
   get specialStyle() { return this.fusion ? SPECIES[this.fusion].specialStyle : this.species.specialStyle; }
   get className() { return this.cls.label; }
@@ -316,13 +334,14 @@ export class Monstar {
 /** Stats for a Monstar at any level: base + DNA rolls, grown by level and evolution stage, shaped by nature. */
 export function statsAt(m, level) {
   const nat = NATURES.find(n => n.name === m.traits.nature) || NATURES[7];
-  const elite = m.species.bender ? (m.species.elite ? 1.8 : 1.55) : m.species.legendary ? 1.2 : m.species.drop ? (m.species.drop.top ? 1.25 : 1.15) : 1; // founder legendaries: elite Infants, 20% stronger at every level
+  const elite = m.species.bender ? (m.species.elite ? 1.8 : 1.55) : m.species.giftHero ? 1.45 : m.species.legendary ? 1.2 : m.species.drop ? (m.species.drop.top ? 1.25 : 1.15) : 1; // founder legendaries: elite Infants, 20% stronger at every level
   const st = stageFor(level), growth = (1 + (level - 1) * 0.03) * (TIERS[m.species.tier]?.mult || 1) * elite; // rarer wild species are stronger
   const out = {};
   STAT_KEYS.forEach((k, i) => {
     let v = (m.cls.base[i] + m.traits.ivs[i] + m.traits.rarityBonus) * growth * st.mult;
     if (nat.up === i) v *= 1.1;
     if (nat.down === i) v *= 0.9;
+    if (k === 'speed' && m.species.speedBoost) v *= m.species.speedBoost; // COVO and COVA are very fast
     out[k] = Math.round(v);
   });
   return out;

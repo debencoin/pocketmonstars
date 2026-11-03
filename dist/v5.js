@@ -43,7 +43,7 @@ const bp = q('pvBreed'); if (bp) breedSec.append(bp);
 const col = q('collection');
 if (col) {
   [...col.children].forEach(c => c.hidden = true);
-  const groups = [['heroes', 'Superhero Drop'], ['frontier', 'Frontier'], ['anunnaki', 'Anunnaki'], ['watchers', 'Watchers'], ['mythic', 'Mythic'], ['legendary', 'Legendary'], ['ascendants', 'Ascendants'], ['royals', 'Royal Anunnaki'], ['genesis', 'Original nine']];
+  const groups = [['skybenders', 'Sky Benders'], ['legendheroes', 'Legend Heroes'], ['benders', 'Elemental Benders'], ['heroes', 'Superhero Drop'], ['frontier', 'Frontier'], ['anunnaki', 'Anunnaki'], ['watchers', 'Watchers'], ['mythic', 'Mythic'], ['legendary', 'Legendary'], ['ascendants', 'Ascendants'], ['royals', 'Royal Anunnaki'], ['genesis', 'Original nine']];
   const ORDER = Object.fromEntries(groups.map(([k], i) => [k, i]));
   const dex = el('div', { id: 'v5Dex' }); col.append(dex);
   let filter = 'all', search = '';
@@ -90,11 +90,43 @@ function renderDrop() {
      <div class="dr-clock"><small>Ends in</small><b id="drClock">${left()}</b><small>${sold} / 30 sold</small></div></div>
     <h3 class="dr-sub">Top 5 · 1 SOL</h3><div class="dr-grid">${dropData.heroes.filter(h => h.top).map(card).join('')}</div>
     <h3 class="dr-sub">Heroes · 0.5 SOL</h3><div class="dr-grid">${dropData.heroes.filter(h => !h.top).map(card).join('')}</div>`;
+  renderShop();
   dropBox.querySelectorAll('[data-buy]').forEach(b => b.onclick = () => busy(b, async () => {
     if (!S.session()) throw Error('Sign in with Phantom on the Arena tab to buy.');
     if (isAcct()) throw Error('The drop is paid in SOL. Sign out, then connect Phantom on the Arena tab to buy.');
     const sid = Number(b.dataset.buy), sp = SPECIES[sid];
     if (!confirm(`Buy ${sp.name} for ${sol(dropData.heroes.find(h => h.speciesId === sid).priceLamports)} SOL? Phantom will show the payment to approve.`)) return;
+    const m = await S.dropBuy(sid); toast(`${m.form || sp.name} is yours! Find it in the Arena picker.`); API.refreshMine?.(); loadDrop();
+  }));
+}
+// ---------- Sky Bender market: 25 air benders (one of each, 1 SOL) + COVA, the final air bender (10 SOL) ----------
+const shopBox = el('div', { id: 'v5Shop', className: 'panel' });
+if (mk) mk.insertBefore(shopBox, dropBox);
+const EL_NAME = { air: 'Air', water: 'Water + air', earth: 'Earth + air', fire: 'Fire + air', thunder: 'Thunder + air', all: 'All five elements' };
+let shopEl = 'all';
+function renderShop() {
+  const list = dropData?.shop; if (!list) { shopBox.hidden = true; return; } shopBox.hidden = false;
+  const me = S.session()?.wallet, sold = list.filter(h => h.sold).length, star = list.find(h => h.unique), rest = list.filter(h => !h.unique);
+  const card = h => { const sp = SPECIES[h.speciesId], K = sp.kit;
+    return `<div class="dr-card${h.unique ? ' top' : ''}${h.sold ? ' sold' : ''}">${h.unique ? '<span class="dr-badge">FINAL AIR BENDER</span>' : `<span class="dr-badge sb-el sb-${h.element}">${esc(EL_NAME[h.element])}</span>`}
+      <img src="art/hd/${sp.art}_s2.png" alt="${esc(sp.name)}" loading="lazy"><div class="dr-evo">${[0, 3, 5].map(st => `<img src="${art(sp, st)}" alt="" loading="lazy">`).join('')}</div>
+      <b>${esc(sp.name)}</b><small>${h.female ? 'Air bender (girl)' : 'Air bender (boy)'} · ${esc(sp.cls.label)} · Lv1</small>
+      <small class="sb-kit"><b>Special</b> ${esc(K.special.name)} · <b>Mega Shot</b> ${esc(K.mega.name)}${h.unique ? '<br>' + esc(K.mega.note) + '<br><b>Dash</b> ' + esc(K.dash.name) + ': ' + esc(K.dash.note) : ''}</small>${attrHtml(sp, 1, true)}
+      ${h.sold ? `<span class="pv-chip ok">Sold${h.owner ? ' · ' + esc(short(h.owner)) + (h.owner === me ? ' (you)' : '') : ''}</span>`
+        : `<button class="primary" data-sbuy="${h.speciesId}" ${h.held ? 'disabled' : ''}>${h.held ? 'Being bought…' : 'Buy · ' + sol(h.priceLamports) + ' SOL'}</button>`}</div>`; };
+  const shown = rest.filter(h => shopEl === 'all' || h.element === shopEl);
+  shopBox.innerHTML = `<div class="dr-head"><div><div class="eyebrow">Market · ${dropData.cluster === 'devnet' ? 'devnet test SOL' : 'SOL'}</div><h2>Sky Bender Market</h2>
+     <p class="pv-note">25 one-of-one air benders, boys and girls. Each also bends a second element: water, earth, fire or thunder (or pure air). Strong from level 1 and they evolve into six forms. Buying needs Phantom.</p></div>
+     <div class="dr-clock"><small>Sold</small><b>${sold} / ${list.length}</b><small>no time limit</small></div></div>
+    ${star ? `<h3 class="dr-sub">The final air bender · ${sol(star.priceLamports)} SOL</h3><div class="dr-grid sb-star">${card(star)}</div>` : ''}
+    <div class="dx-chips sb-chips">${[['all', 'All'], ['air', 'Air'], ['water', 'Water'], ['earth', 'Earth'], ['fire', 'Fire'], ['thunder', 'Thunder']].map(([k, n]) => `<button class="smallbtn" data-sel="${k}" aria-pressed="${k === shopEl}">${n}</button>`).join('')}</div>
+    <div class="dr-grid">${shown.map(card).join('')}</div>`;
+  shopBox.querySelectorAll('[data-sel]').forEach(b => b.onclick = () => { shopEl = b.dataset.sel; renderShop(); });
+  shopBox.querySelectorAll('[data-sbuy]').forEach(b => b.onclick = () => busy(b, async () => {
+    if (!S.session()) throw Error('Sign in with Phantom on the Arena tab to buy.');
+    if (isAcct()) throw Error('Sky Benders are paid in SOL. Sign out, then connect Phantom on the Arena tab to buy.');
+    const sid = Number(b.dataset.sbuy), sp = SPECIES[sid], h = list.find(x => x.speciesId === sid);
+    if (!confirm(`Buy ${sp.name} for ${sol(h.priceLamports)} SOL? Phantom will show the payment to approve.`)) return;
     const m = await S.dropBuy(sid); toast(`${m.form || sp.name} is yours! Find it in the Arena picker.`); API.refreshMine?.(); loadDrop();
   }));
 }

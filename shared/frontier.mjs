@@ -264,3 +264,75 @@ export const BENDERS = [
   BE('Thundrik', 'SPARK', 'arcanist', 'Static jab', 'Thunderclap', 'bolt', 'strike', '#2a2a6a', 'Storm King'),
   BE('Tempestro', 'SPARK', 'deity', 'Lightning bolt', 'Sky splitter', 'bolt', 'beam', '#1a1a24', 'Elite Stormlord', true),
 ];
+
+// Legend Heroes: 15 original superheroes gifted to chosen wallets (never wild, never sold). Each has its own signature powers (`sig`).
+const LH = (name, type, cls, move, special, basicStyle, specialStyle, main, sig) =>
+  ({ ...F(name, type, cls, move, special, basicStyle, specialStyle, HERO_RUN[cls] || 'dart', 'walker', main, '#ffffff', main, {}), legendary: true, legendFor: 'gift', giftHero: true, sig,
+    forms: [`Kid ${name}`, `${name} Cadet`, name, `${name} Prime`, `Mega ${name}`, `Ascended ${name}`] });
+const M = (kind, name, note, power = 1.15, size = 1) => ({ kind, name, note, power, size });
+export const LEGEND_HEROES = [
+  // founder
+  LH('Aurorex', 'ASTRAL', 'deity', 'Aurora lance', 'Starlight crown', 'bolt', 'beam', '#ffcf3a', { mega: M('meteors', 'Aurorex Star Fall', 'Four blazing stars fall around the rival.', 1.35, 1.2) }),
+  LH('Titanor', 'STEEL', 'titan', 'Titan punch', 'Iron rampart', 'projectile', 'strike', '#7a8aa8', { basic: { knock: 5, note: 'A heavy punch that knocks the rival back.' }, mega: M('pillars', 'Titanor Iron Quake', 'Five steel pillars burst out of the ground toward the rival.', 1.3) }),
+  LH('Phantomir', 'SHADE', 'striker', 'Phantom slash', 'Night cascade', 'projectile', 'cone', '#3a2a6a', { dash: { kind: 'shadow', name: 'Phantom Step', note: 'Vanishes and reappears right behind the rival.' }, mega: M('barrage', 'Phantomir Shadow Barrage', 'Seven homing shadow blades.', 1.3) }),
+  LH('Pyronyx', 'EMBER', 'skirmisher', 'Fire fist', 'Inferno rush', 'projectile', 'projectile', '#ff5a1f', { special: { name: 'Fireball Trio', shots: 2, look: 'fire', status: 'burn', note: 'Throws 2 or 3 fireballs that set the rival on fire.' }, mega: M('meteors', 'Pyronyx Meteor Rain', 'Burning meteors crash around the rival.', 1.3, 1.2) }),
+  LH('Chronar', 'PSYCHIC', 'psion', 'Time pulse', 'Time stop', 'projectile', 'strike', '#5ad8c8', { special: { name: 'Time Stop', note: 'Holds the rival still in time where it lands.' }, mega: M('freeze', 'Chronar Frozen Hour', 'Stops time over a wide area: the rival is frozen solid.', 1.3, 1.3) }),
+  // 7psx
+  LH('Stormvane', 'GALE', 'ranger', 'Wind arrow', 'Storm wall', 'bolt', 'beam', '#3ab8d8', { mega: M('thunderstrike', 'Stormvane Sky Strike', 'Lightning strikes crash on the rival one after another; the first one stuns.', 1.15) }),
+  LH('Bulwarkus', 'STEEL', 'sentinel', 'Shield throw', 'Fortress dome', 'projectile', 'strike', '#4a8a6a', { guard: { kind: 'fortress', name: 'Bulwark Dome', note: 'A huge dome shield that lasts twice as long.' }, mega: M('nova', 'Bulwarkus Shock Dome', 'The dome explodes outward and hits everything near it.', 1.35, 1.25) }),
+  LH('Venomaw', 'VENOM', 'striker', 'Venom claw', 'Toxic spit', 'projectile', 'projectile', '#6ad83a', { special: { name: 'Toxic Spit', shots: 2, status: 'poison', note: 'Spits 2 or 3 poison globs.' }, mega: M('barrage', 'Venomaw Venom Swarm', 'Seven homing venom darts.', 1.25) }),
+  LH('Quasarion', 'ASTRAL', 'seraph', 'Quasar ray', 'Light burst', 'bolt', 'beam', '#a07aff', { mega: M('lightning', 'Quasarion Star Orbs', 'Seven star orbs chase the rival; the first one stuns.', 1.1) }),
+  LH('Gorrath', 'DRACO', 'titan', 'Dragon fist', 'Dragon roar', 'projectile', 'cone', '#c83a2a', { basic: { knock: 4 }, mega: M('meteors', 'Gorrath Dragon Fall', 'Dragon fire falls from the sky around the rival.', 1.35, 1.2) }),
+  // 54y4 (heroines)
+  LH('Starlara', 'ASTRAL', 'seraph', 'Star dart', 'Nova halo', 'bolt', 'beam', '#ffd6f0', { mega: M('lightning', 'Starlara Starlight Orbs', 'Seven glowing orbs chase the rival; the first one stuns.', 1.15) }),
+  LH('Lumivra', 'PSYCHIC', 'mystic', 'Light spark', 'Mind lift', 'projectile', 'levitate', '#e07aff', { mega: M('judgment', 'Lumivra Light Judgment', 'Lifts the rival into the air, then a pillar of light slams down.', 1.3, 1.2) }),
+  LH('Frostelle', 'FROST', 'arcanist', 'Frost bolt', 'Ice balls', 'projectile', 'projectile', '#8ad8ff', { special: { name: 'Ice Balls', shots: 2, look: 'ice', status: 'freeze', note: 'Shoots 2 or 3 ice balls that freeze.' }, mega: M('hailstorm', 'Frostelle Hailstorm', 'Sharp ice storms over a big area: frozen and 30% HP.', 1, 1.2) }),
+  LH('Blazara', 'EMBER', 'striker', 'Blaze kick', 'Fire fan', 'projectile', 'projectile', '#ff7a3a', { special: { name: 'Fire Fan', shots: 3, look: 'fire', status: 'burn', note: 'Fans out 3 or 4 fireballs.' }, mega: M('meteors', 'Blazara Phoenix Rain', 'Phoenix fire rains around the rival.', 1.3, 1.2) }),
+  LH('Sylphra', 'GALE', 'skirmisher', 'Wind slice', 'Gust volley', 'projectile', 'projectile', '#7ae8c8', { special: { name: 'Gust Volley', shots: 3, look: 'gust', note: 'Fires 3 or 4 wind balls.' }, mega: M('tornado', 'Sylphra Tornado', 'A tornado grabs the rival, spins it up and slams it down (dazed).', 1.15) }),
+];
+
+// Sky Benders: air benders. Ten gifted (5 + 5), 25 sold in the market (each also bends a second element), and the final two.
+const ELEMENT_SIG = {
+  air: (n, top) => ({ special: { name: 'Gust Volley', shots: 3, look: 'gust', note: 'Fires 3 or 4 wind balls at once.' }, mega: M('tornado', `${n} Tornado Gust`, 'A tornado grabs the rival, spins it up and slams it down (dazed).', top ? 1.15 : 1.05) }),
+  water: (n, top) => ({ special: { name: 'Ice Balls', shots: 2, look: 'ice', status: 'freeze', note: 'Shoots 2 or 3 ice balls that freeze.' }, mega: M('hailstorm', `${n} Hailstorm`, 'An ice storm over a big area: frozen and 30% HP.', 1, top ? 1.2 : 1.05) }),
+  earth: (n, top) => ({ special: { name: 'Slab Slide', shots: 3, look: 'boulder', note: 'Launches 3 or 4 stone slabs.' }, mega: M('boulderstorm', `${n} Boulder Storm`, 'Boulders rain over a big area, then the rival is dazed.', top ? 1.15 : 1.05, 1.1) }),
+  fire: (n, top) => ({ special: { name: 'Fire Gust', shots: 2, look: 'fire', status: 'burn', note: 'Blows 2 or 3 balls of fire on the wind.' }, mega: M('meteors', `${n} Fire Storm`, 'Wind-fed fire falls around the rival.', top ? 1.3 : 1.15, 1.15) }),
+  thunder: (n, top) => ({ special: { name: 'Storm Gust', shots: 2, status: 'paralyze', note: 'Two or three charged wind balls that paralyze.' }, mega: M('thunderstrike', `${n} Sky Strike`, 'Lightning strikes crash down; the first one stuns.', top ? 1.2 : 1.05) }),
+};
+const ELEM_TYPE = { air: 'GALE', water: 'TIDE', earth: 'STONE', fire: 'EMBER', thunder: 'SPARK' };
+const SB = (name, el, cls, main, f, { gift = false, price = null, top = false } = {}) => {
+  const b = BE(name, 'GALE', cls, 'Air blast', ELEMENT_SIG[el](name, top).special.name, 'projectile', 'projectile', main, f ? 'Sky Queen' : 'Sky Lord');
+  return { ...b, el2: el, female: f, legendary: gift || undefined, legendFor: gift ? 'gift' : undefined, sky: true,
+    drop: price ? { priceLamports: price, shop: true } : undefined,
+    sig: { basic: { name: 'Air Blast', look: 'gust', knock: 4, note: 'A wind blast that pushes the rival back.' }, ...ELEMENT_SIG[el](name, top) } };
+};
+const ONE = '1000000000';
+export const SKY_BENDERS = [
+  // 7psx: five air benders, each with its own look
+  SB('Galdris', 'air', 'seraph', '#2a8ad8', false, { gift: true, top: true }), SB('Skyvar', 'thunder', 'ranger', '#4a3ab8', false, { gift: true, top: true }),
+  SB('Windrik', 'fire', 'striker', '#c84a2a', false, { gift: true, top: true }), SB('Aeromar', 'water', 'mystic', '#2ab8b8', false, { gift: true, top: true }),
+  SB('Cyrran', 'earth', 'titan', '#6a8a3a', false, { gift: true, top: true }),
+  // 54y4: five air bender women
+  SB('Aerisa', 'air', 'seraph', '#e85a9a', true, { gift: true, top: true }), SB('Sylvane', 'water', 'mystic', '#3a7ad8', true, { gift: true, top: true }),
+  SB('Zephra', 'fire', 'skirmisher', '#e8702a', true, { gift: true, top: true }), SB('Windara', 'thunder', 'ranger', '#7a3ac8', true, { gift: true, top: true }),
+  SB('Skylis', 'earth', 'sentinel', '#5a9a5a', true, { gift: true, top: true }),
+  // Market: 25 air benders (12 boys, 13 girls), five for each element, 1 SOL each
+  ...[['Breezo', 'air', 'skirmisher', '#4ac8e8', 0], ['Nimbra', 'air', 'seraph', '#c8e8ff', 1], ['Cirrus', 'air', 'ranger', '#7ab8e8', 0], ['Aeralyn', 'air', 'support', '#f0a0c8', 1], ['Zephyl', 'air', 'mystic', '#a8e8d8', 1],
+      ['Tidegale', 'water', 'warden', '#2a6ab8', 0], ['Mistral', 'water', 'support', '#5ab8e8', 1], ['Rainor', 'water', 'striker', '#3a8ab8', 0], ['Oceara', 'water', 'mystic', '#1a9ac8', 1], ['Glacia', 'water', 'arcanist', '#a0d8f8', 1],
+      ['Dustan', 'earth', 'titan', '#a07a4a', 0], ['Rockwen', 'earth', 'sentinel', '#8a8a5a', 1], ['Sandor', 'earth', 'warden', '#c8a060', 0], ['Terrai', 'earth', 'striker', '#7a6a3a', 1], ['Quarra', 'earth', 'support', '#9a8a6a', 1],
+      ['Emberwind', 'fire', 'striker', '#e0482a', 0], ['Ashra', 'fire', 'mystic', '#c83a5a', 1], ['Blazor', 'fire', 'titan', '#d85a1a', 0], ['Flarissa', 'fire', 'skirmisher', '#ff8a3a', 1], ['Pyrrin', 'fire', 'ranger', '#c8301a', 0],
+      ['Voltair', 'thunder', 'ranger', '#4a4ad8', 0], ['Sparra', 'thunder', 'skirmisher', '#ffd23f', 1], ['Thundro', 'thunder', 'titan', '#2a2a7a', 0], ['Zappira', 'thunder', 'arcanist', '#9a6aff', 1], ['Boltan', 'thunder', 'striker', '#e8c83a', 0]]
+    .map(([n, el, cls, col, f]) => SB(n, el, cls, col, !!f, { price: ONE })),
+];
+// COVO, the final air bender: commands all five elements, teleports and is very fast. COVA, his counterpart, is sold for 10 SOL.
+const FINAL_SIG = (n, v = 0) => ({
+  basic: { name: 'Fire Gust', look: 'fire', status: 'burn', knock: 4, note: 'A gust of wind full of fire that burns.' },
+  special: { name: 'Ice Balls', shots: 2, look: 'ice', status: 'freeze', note: 'Shoots 2 or 3 ice balls that freeze the rival.' },
+  dash: { kind: 'blink', name: `${n} Teleport`, note: 'Teleports a long way in a blink (very short recharge).', dist: 1.7 - v * 0.05, cd: 0.75 + v * 0.05 },
+  mega: { kind: 'omnistorm', name: `${n} Five Element Storm`, note: 'A wind grab, a fire gust, lightning strikes, hail and an ice wave: 60% of the rival\'s HP in all. Then a lightning bolt comes back to you and heals 10% of your HP.', power: 1.4 - v * 0.02, size: 1.2 },
+});
+export const FINAL_BENDERS = [
+  { ...BE('COVO', 'GALE', 'deity', 'Fire gust', 'Ice balls', 'projectile', 'projectile', '#14141a', 'Final Air Bender', true), el2: 'all', sky: true, unique: true, legendFor: 'gift', speedBoost: 1.35, sig: FINAL_SIG('COVO') },
+  { ...BE('COVA', 'GALE', 'deity', 'Fire gust', 'Ice balls', 'projectile', 'projectile', '#14141a', 'Final Air Bender', true), el2: 'all', sky: true, unique: true, female: true, legendary: undefined, legendFor: undefined,
+    drop: { priceLamports: '10000000000', shop: true }, speedBoost: 1.35, sig: FINAL_SIG('COVA', 1) },
+];

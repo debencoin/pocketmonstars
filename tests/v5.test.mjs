@@ -160,10 +160,10 @@ test('Elemental Benders: gifted wallets get their benders (Tempestro only to q2x
   const { gifts } = CONFIG, reg = new Registry(openDb(':memory:'), { gifts });
   const q = reg.claimAll('q2xb75XhmJ7HL8PYMMFUsanusoakBtMXfYqdqUkHjUW'), names = q.map(m => m.species.name);
   assert.ok(names.includes('Tempestro') && names.filter(n => SPECIES.find(s => s.name === n).bender).length === 11);
-  const f = reg.claimAll(CONFIG.legendaryOwner).filter(m => m.species.bender).map(m => m.species.type).sort();
+  const f = reg.claimAll(CONFIG.legendaryOwner).filter(m => m.species.collection === 'benders').map(m => m.species.type).sort();
   assert.deepEqual(f, ['EMBER', 'GALE', 'SPARK', 'STONE', 'TIDE'], 'founder: one bender of each element');
   const g = reg.claimAll('7psxmCxFNHQztUP9SahuGDShSU4y1JcufEugtFgkgwTx');
-  assert.equal(g.filter(m => m.species.bender).length, 10); assert.equal(g.filter(m => m.species.collection === 'anunnaki').length, 11); // 10 + Anuvax
+  assert.equal(g.filter(m => m.species.collection === 'benders').length, 10); assert.equal(g.filter(m => m.species.collection === 'anunnaki').length, 11); // 10 + Anuvax
   assert.ok(!g.some(m => m.species.name === 'Tempestro'));
   assert.equal(reg.claimAll(Keypair.generate().publicKey.toBase58()).filter(m => m.species.bender).length, 0);
   const S = await import('../shared/sim.mjs'), t = SPECIES.find(s => s.name === 'Tempestro'); assert.equal(t.kit.mega.kind, 'thunderstrike');

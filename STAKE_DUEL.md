@@ -241,3 +241,11 @@ Stats: HP, Attack, Defense, Sp. Atk, Sp. Def, Speed. Types: EMBER, GROVE, TIDE, 
 - **Granitus** (earth): special **Slab Slide** (3–4 tall slabs at different angles and speeds, extra knockback); Mega **Boulder Storm** (`boulderstorm`): 7 boulders rain around the rival (3–6 usually hit a moving rival, all 7 a still one), then every rival hit is dazed.
 - **Thundrik** (thunder): Mega **Soul Storm** (`stormdrain`): 7 big-radius lightning strikes; 45% of the damage heals the caster.
 - `land()` takes an optional fixed share of HP (`frac`); strike effects can track the rival with an offset (`trackRate`, `ox`, `oy`), heal the caster (`heal`) and daze everyone hit when the storm ends (`grp`, `endDaze`).
+
+
+## v35: rematch fix, fairer SOL per hit, Legend Heroes, Sky Benders, COVO and COVA
+- Rematch no longer freezes: the battle screen runs a single animation loop (each Rematch used to start another one), a bad canvas frame is skipped instead of stopping the screen, and a server rematch clears the finished match first.
+- SOL per hit now also scales with the HP the hit took, so a rival landing many weak ticks no longer drains your share while you win the fight.
+- Legend Heroes (15, gifted): founder Aurorex, Titanor, Phantomir, Pyronyx, Chronar; 7psx… Stormvane, Bulwarkus, Venomaw, Quasarion, Gorrath; 54y4… heroines Starlara, Lumivra, Frostelle, Blazara, Sylphra.
+- Sky Benders: 7psx… Galdris, Skyvar, Windrik, Aeromar, Cyrran; 54y4… Aerisa, Sylvane, Zephra, Windara, Skylis; 25 in the Sky Bender Market at 1 SOL (memo PMDROP:<id>, rebuilt from the chain like the drop).
+- COVO (founder) and COVA (market, 10 SOL): Fire Gust attack (burns), Ice Balls special (freeze), long teleport dash, +35% speed, Five Element Storm mega (`omnistorm`): wind grab, fire gust, lightning, hail, ice wave at 12% each = 60%, then a returning bolt heals 10%. They never breed copies or pass the storm on.

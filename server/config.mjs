@@ -1,6 +1,9 @@
 // Server configuration. Everything here is public except the key files under data/keys (gitignored).
 import fs from 'node:fs';
 import path from 'node:path';
+import { SPECIES } from '../shared/monstars.mjs';
+/** Species ids by name (throws on a typo so a gift can never silently go missing). */
+const ids = (...names) => names.map(n => { const sp = SPECIES.find(x => x.name === n); if (!sp) throw Error('Unknown species ' + n); return sp.id; });
 
 const env = process.env;
 export const DATA_DIR = path.resolve(env.PM_DATA_DIR || 'data');
@@ -30,11 +33,16 @@ export const CONFIG = {
   // Wallets granted specific top Monstars (species ids) as elite Legendary-rarity hatchlings on sign-in.
   gifts: {
     // Aeonox, Anuvax, Semyazar (the three strongest wild Monstars) + the 10 Elemental Benders + 10 Anunnaki
-    '7psxmCxFNHQztUP9SahuGDShSU4y1JcufEugtFgkgwTx': [64, 65, 85, 163, 164, 165, 166, 167, 168, 169, 170, 171, 172, 66, 67, 68, 71, 72, 79, 69, 73, 74, 76],
+    // + 5 Legend Heroes and 5 Sky Benders of his own
+    '7psxmCxFNHQztUP9SahuGDShSU4y1JcufEugtFgkgwTx': [64, 65, 85, 163, 164, 165, 166, 167, 168, 169, 170, 171, 172, 66, 67, 68, 71, 72, 79, 69, 73, 74, 76,
+      ...ids('Stormvane', 'Bulwarkus', 'Venomaw', 'Quasarion', 'Gorrath', 'Galdris', 'Skyvar', 'Windrik', 'Aeromar', 'Cyrran')],
     // all 10 Elemental Benders + Tempestro, the elite thunder bender (only this wallet has him)
     'q2xb75XhmJ7HL8PYMMFUsanusoakBtMXfYqdqUkHjUW': [163, 164, 165, 166, 167, 168, 169, 170, 171, 172, 173],
     // founder: one bender of each element (water, earth, fire, air, thunder)
-    'Dc9s1YwNHE2xDBzpprDvyruzxj8j5HvBSvfbvdups5LJ': [163, 165, 167, 170, 172],
+    // + 5 Legend Heroes and COVO, the final air bender (all five elements)
+    'Dc9s1YwNHE2xDBzpprDvyruzxj8j5HvBSvfbvdups5LJ': [163, 165, 167, 170, 172, ...ids('Aurorex', 'Titanor', 'Phantomir', 'Pyronyx', 'Chronar', 'COVO')],
+    // second founder wallet: 5 heroines and 5 air bender women
+    '54y46qyavsX1hWXgx5W76WrBjghXxUfkcNftswaXNTbr': ids('Starlara', 'Lumivra', 'Frostelle', 'Blazara', 'Sylphra', 'Aerisa', 'Sylvane', 'Zephra', 'Windara', 'Skylis'),
   },
   royalOwner: env.PM_ROYAL_OWNER || '54y46qyavsX1hWXgx5W76WrBjghXxUfkcNftswaXNTbr', // second founder wallet: the Royal Anunnaki
   // Superhero Drop: 30 heroes sold once each (top 5 at 1 SOL, the rest 0.5 SOL), paid to the founder wallet.

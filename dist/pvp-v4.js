@@ -359,8 +359,11 @@ function startPractice(opt = null) {
   if (!opt && mode === '3v3' && teamPick.length < 3) { fillTeam(); renderPicker(); }
   const ownTeam = mode === '3v3' ? teamPick.map(ownedFor) : [own];
   if (!opt && S.session() && ownTeam.length === (mode === '3v3' ? 3 : 1) && ownTeam.every(Boolean) && ws?.readyState === 1) {
-    try { sendWs({ t: 'ai', mode, squad: mode === '3v3' && squad, level: cpuLevel, serial: own?.serial, serials: ownTeam.map(m => m.serial) }); ended = null; fightAt = 0; renderer.reset(); resetVirtual();
-      const asked = performance.now(); setTimeout(() => { if (!room && performance.now() - asked > 2400) { toast('Server is slow, playing practice on this device.'); startPractice({ ...(opt || {}), forceLocal: true }); } }, 2500);
+    try { // Rematch: drop the finished match first, or its old frame stays frozen on screen and the new room is ignored
+      const oldCode = room?.code; local = null; room = null; ended = null; snapCur = null; snapPrev = null; renderRoom();
+      q('pvBig').textContent = 'Get ready!'; q('pvSmall').textContent = 'Finding your rival…';
+      sendWs({ t: 'ai', mode, squad: mode === '3v3' && squad, level: cpuLevel, serial: own?.serial, serials: ownTeam.map(m => m.serial) }); fightAt = 0; renderer.reset(); resetVirtual();
+      const asked = performance.now(); setTimeout(() => { if ((!room || room.code === oldCode) && performance.now() - asked > 2400) { toast('Server is slow, playing practice on this device.'); startPractice({ ...(opt || {}), forceLocal: true }); } }, 4000);
     } catch (e) { fail(e); } return; }
   if (!opt && S.session() && ws?.readyState !== 1) openSocket(); // reconnect in the background; this practice runs locally
   if (opt?.forceLocal) opt = null;
@@ -664,7 +667,14 @@ function teamStrips(you) {
 }
 // ---------- render (pixel arena) ----------
 function hpColor(p) { return p > 0.5 ? '#58d858' : p > 0.2 ? '#f8c838' : '#f85838'; }
-function draw() {
+let drawLoop = 0; // only ever one animation loop: every Rematch used to start another one on top, until the phone froze
+function draw() { if (!drawLoop) drawLoop = requestAnimationFrame(frame); }
+function frame() {
+  drawLoop = 0;
+  try { drawArena(); } catch (e) { console.warn('arena frame skipped:', e?.message || e); }
+  if (!pvp.classList.contains('hidden') || q('pvStage').classList.contains('live')) draw();
+}
+function drawArena() {
   const now = performance.now();
   if (snapCur && room?.players?.length === 2) {
     const t = Math.min(1, (now - snapAt) / (room.local ? 34 : 66)), you = room.you;
@@ -684,7 +694,6 @@ function draw() {
     callouts();
     updateMoves(meF); activeHud(you); teamStrips(you); updateStatus(0, meF); updateStatus(1, foe);
   } else renderer.idle();
-  if (!pvp.classList.contains('hidden') || q('pvStage').classList.contains('live')) requestAnimationFrame(draw);
 }
 
 // ---------- breeding ----------

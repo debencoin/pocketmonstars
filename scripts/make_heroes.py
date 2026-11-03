@@ -53,6 +53,22 @@ D = {
   'drakonis':    dict(suit='#8a1a1a', trim='#e8b840', cape='#3a0e0e', head='horns',  emb='flame',    eye='#ffcf4a', hair=None,      skin=2, f=False),
   'runeguard':   dict(suit='#5a4a2a', trim='#2ab8a8', cape='#8a6a2a', head='crest',  emb='diamond',  eye='#7affe8', hair=None,      skin=3, f=False),
   'sentrion':    dict(suit='#e8ecf6', trim='#5a6a8a', cape='#c8d0e0', head='cowl',   emb='eye',      eye='#5ac8ff', hair=None,      skin=4, f=False),
+  # Legend Heroes (gifted)
+  'aurorex':     dict(suit='#ffcf3a', trim='#8a3ac8', cape='#ffffff', head='crest',  emb='sun',      eye='#ffffff', hair='#ffe680', skin=3, f=False),
+  'titanor':     dict(suit='#5a6a88', trim='#ffd23f', cape='#2a3448', head='horns',  emb='hex',      eye='#ffd23f', hair=None,      skin=1, f=False),
+  'phantomir':   dict(suit='#1a1430', trim='#5ad8ff', cape='#2a1a4a', head='cowl',   emb='crescent', eye='#5ad8ff', hair=None,      skin=0, f=False),
+  'pyronyx':     dict(suit='#2a1410', trim='#ff5a1f', cape='#c8301a', head='flame',  emb='flame',    eye='#ffd23f', hair='#ff8a1f', skin=3, f=False),
+  'chronar':     dict(suit='#1a4a4a', trim='#5ad8c8', cape='#e8d8a0', head='antenna',emb='ring',     eye='#5ad8c8', hair=None,      skin=2, f=False),
+  'stormvane':   dict(suit='#1a5a7a', trim='#e8fbff', cape='#3ab8d8', head='visor',  emb='bolt',     eye='#e8fbff', hair=None,      skin=4, f=False),
+  'bulwarkus':   dict(suit='#2a5a44', trim='#d8c8a0', cape=None,      head='horns',  emb='hex',      eye='#a0ffd8', hair=None,      skin=3, f=False),
+  'venomaw':     dict(suit='#1a3a14', trim='#6ad83a', cape='#2a1a3a', head='cowl',   emb='drop',     eye='#c8ff60', hair=None,      skin=1, f=False),
+  'quasarion':   dict(suit='#2a1a5a', trim='#a07aff', cape='#ffffff', head='crest',  emb='star4',    eye='#ffffff', hair=None,      skin=2, f=False),
+  'gorrath':     dict(suit='#6a1a14', trim='#e8b840', cape='#2a0e0e', head='horns',  emb='flame',    eye='#ff8a3a', hair=None,      skin=3, f=False),
+  'starlara':    dict(suit='#ffffff', trim='#ff7ac8', cape='#ffd6f0', head='domino', emb='star4',    eye='#ff7ac8', hair='#ffe680', skin=3, f=True),
+  'lumivra':     dict(suit='#5a1a7a', trim='#ffd23f', cape='#e07aff', head='domino', emb='eye',      eye='#ffe0ff', hair='#1a1018', skin=1, f=True),
+  'frostelle':   dict(suit='#e8f8ff', trim='#3a8ad8', cape='#8ad8ff', head='crest',  emb='diamond',  eye='#3a8ad8', hair='#ffffff', skin=0, f=True),
+  'blazara':     dict(suit='#c8301a', trim='#ffd23f', cape='#ff7a3a', head='flame',  emb='flame',    eye='#fff1a0', hair='#2a0e0e', skin=4, f=True),
+  'sylphra':     dict(suit='#2a8a78', trim='#ffffff', cape='#7ae8c8', head='domino', emb='chevron',  eye='#e8fff8', hair='#c8f0e0', skin=2, f=True),
 }
 
 def emblem(P, g, kind, x, y, col, bg):

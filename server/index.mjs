@@ -14,7 +14,7 @@ import { MatchManager } from './matches.mjs';
 import { NftService } from './nft.mjs';
 import { Players } from './players.mjs';
 import { checkPayment, MEMO_PROGRAM } from './escrow.mjs';
-import { SPECIES, HERO_IDS, formName } from '../shared/monstars.mjs';
+import { SPECIES, HERO_IDS, SALE_IDS, SHOP_IDS, formName } from '../shared/monstars.mjs';
 import { AVATARS, AVATAR_BY_ID } from '../shared/avatars.mjs';
 import { STAKE_POLICY, formatSol } from '../shared/stake.mjs';
 import { randomBytes } from 'node:crypto';
@@ -100,10 +100,14 @@ export function createServer({ config = CONFIG, chain = new SolanaChain(config.r
     'GET /api/drop': () => ({ endsAt: config.dropEndsAt, now: Date.now(), treasury: config.dropTreasury, cluster: config.cluster,
       heroes: HERO_IDS.map(sid => { const sale = players.sale(sid), r = reserved.get(sid);
         return { speciesId: sid, name: SPECIES[sid].name, type: SPECIES[sid].type, top: SPECIES[sid].drop.top, priceLamports: SPECIES[sid].drop.priceLamports,
+          sold: !!sale, owner: sale ? registry.get(sale.serial)?.owner || sale.buyer : null, held: !sale && r && r.until > Date.now() }; }),
+      // Sky Bender market: one of each, sold for SOL with no time limit (COVA is 10 SOL)
+      shop: SHOP_IDS.map(sid => { const sale = players.sale(sid), r = reserved.get(sid), sp = SPECIES[sid];
+        return { speciesId: sid, name: sp.name, type: sp.type, element: sp.el2, female: !!sp.female, unique: !!sp.unique, priceLamports: sp.drop.priceLamports, mega: sp.kit.mega.name,
           sold: !!sale, owner: sale ? registry.get(sale.serial)?.owner || sale.buyer : null, held: !sale && r && r.until > Date.now() }; }) }),
     'POST /api/drop/tx': async req => { const w = needWallet(req), b = await body(req), sid = Number(b.speciesId);
-      if (!HERO_IDS.includes(sid)) throw Error('Unknown drop hero.');
-      if (Date.now() > config.dropEndsAt) throw Error('The Superhero Drop has ended.');
+      if (!SALE_IDS.includes(sid)) throw Error('That Monstar is not for sale.');
+      if (!SPECIES[sid].drop.shop && Date.now() > config.dropEndsAt) throw Error('The Superhero Drop has ended.');
       if (players.sale(sid)) throw Error(SPECIES[sid].name + ' is already sold.');
       const r = reserved.get(sid); if (r && r.until > Date.now() && r.wallet !== w) throw Error('Someone is buying ' + SPECIES[sid].name + ' right now. Try again in 2 minutes.');
       reserved.set(sid, { wallet: w, until: Date.now() + 120_000 });
@@ -113,7 +117,7 @@ export function createServer({ config = CONFIG, chain = new SolanaChain(config.r
         .add(new TransactionInstruction({ programId: new PublicKey(MEMO_PROGRAM), keys: [{ pubkey: payer, isSigner: true, isWritable: false }], data: Buffer.from(dropMemo(sid)) }));
       return { transaction: tx.serialize({ requireAllSignatures: false, verifySignatures: false }).toString('base64'), priceSol: formatSol(dropPrice(sid), 2) }; },
     'POST /api/drop/confirm': async req => { const w = needWallet(req), b = await body(req), sid = Number(b.speciesId);
-      if (!HERO_IDS.includes(sid)) throw Error('Unknown drop hero.');
+      if (!SALE_IDS.includes(sid)) throw Error('That Monstar is not for sale.');
       await waitConfirmed(b.signature);
       await chain.verifyPayment(b.signature, { from: w, to: config.dropTreasury, lamports: dropPrice(sid), memo: dropMemo(sid) });
       const sale = players.sale(sid);
@@ -269,7 +273,7 @@ export function createServer({ config = CONFIG, chain = new SolanaChain(config.r
     for (const { signature, tx } of await chain.memoPayments(config.dropTreasury, 'PMDROP:')) {
       try {
         const memo = tx.transaction.message.instructions.map(ix => (typeof ix.parsed === 'string' ? ix.parsed : '')).find(x => x.startsWith('PMDROP:'));
-        const sid = Number(memo?.slice(7)); if (!HERO_IDS.includes(sid) || players.sale(sid)) continue;
+        const sid = Number(memo?.slice(7)); if (!SALE_IDS.includes(sid) || players.sale(sid)) continue;
         const buyer = checkPayment(tx, { to: config.dropTreasury, lamports: dropPrice(sid), memo: dropMemo(sid) });
         const m = registry.grantHero(buyer, sid, signature); players.recordSale(sid, buyer, signature, m.serial);
       } catch {}
