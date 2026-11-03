@@ -161,6 +161,10 @@ export function createServer({ config = CONFIG, chain = new SolanaChain(config.r
       const esc = players.escrowOfClaim(c.id);
       if (esc && esc.state === 'held') { if (await nft.ownerOf(esc.asset) !== w) throw Error('The NFT did not arrive. Contact support with ' + b.signature); players.updateEscrow(esc.id, { state: 'released', release_to: w }); }
       registry.setOwner(m.serial, w); players.setSoulState(c.id, 'bought', b.signature); return registry.get(m.serial).toJSON(); },
+    // Immortal Guild: every open Immortal Combat waiting for a rival
+    'GET /api/immortal/open': () => ({ fights: [...matches.rooms.values()].filter(r => r.immortal && r.state === 'waiting' && r.players.length === 1)
+      .map(r => { const p = r.players[0], m = registry.get(p.monstar.serial) || p.monstar; return { code: r.code, owner: p.wallet, createdAt: r.createdAt, monstar: m.toJSON(), nft: !!m.asset, power: Object.values(m.stats).reduce((a, b) => a + b, 0) }; })
+      .sort((a, b) => b.createdAt - a.createdAt) }),
     // ---------- Immortal Combat: Phantom players sign before the fight ----------
     'POST /api/immortal/sign': async req => { const w = needWallet(req), b = await body(req); return matches.publicRoom(matches.signConsent(w, b.signature), w); },
     'POST /api/immortal/lock-tx': async req => { const w = needWallet(req), room = matches.roomOf(w), p = room?.players.find(x => x.wallet === w);

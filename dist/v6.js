@@ -11,7 +11,7 @@ const { SPECIES } = S.Monstars;
 const main = $('main'), header = $('header');
 
 // ---------- ☰ menu (all pages, Home first) ----------
-const PAGES = [['home', 'Home', '⌂'], ['pvp', 'Arena', '⚔'], ['play', 'Wild Expedition', '✦'], ['collection', 'Monstars', '◆'], ['market', 'Market', '◈'], ['breed', 'Breeding', '♥'], ['leaders', 'Leaderboard', '★'], ['guide', 'Guide', '?']];
+const PAGES = [['home', 'Home', '⌂'], ['pvp', 'Arena', '⚔'], ['guild', 'Immortal Guild', '☠'], ['play', 'Wild Expedition', '✦'], ['collection', 'Monstars', '◆'], ['market', 'Market', '◈'], ['breed', 'Breeding', '♥'], ['leaders', 'Leaderboard', '★'], ['guide', 'Guide', '?']];
 const burger = el('button', { className: 'v6-burger', ariaLabel: 'Menu' }, '<span></span><span></span><span></span>');
 burger.setAttribute('aria-label', 'Open menu'); burger.setAttribute('aria-expanded', 'false');
 header.prepend(burger);
@@ -177,6 +177,6 @@ if (S.session()) window.PMV5.signedIn(S.session().wallet);
 
 // ---------- start on Home (links like #arena, #wild, #market, #free still go straight there) ----------
 const h = location.hash.slice(1);
-const start = { arena: 'pvp', free: 'pvp', wild: 'play', market: 'market', collection: 'collection', guide: 'guide', leaders: 'leaders', breed: 'breed' }[h] || 'home';
+const start = { arena: 'pvp', free: 'pvp', wild: 'play', market: 'market', collection: 'collection', guide: 'guide', leaders: 'leaders', breed: 'breed', guild: 'guild' }[h] || 'home';
 setTimeout(() => window.tab(start), 0);
 })();

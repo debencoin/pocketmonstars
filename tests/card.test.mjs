@@ -121,7 +121,7 @@ test('Immortal Combat: the winner takes the loser\'s Monstar; the loser can buy 
     matches.join(B, { code: room.code, serial: mb.serial, immortalOk: true });
     for (let i = 0; i < 200 && room.state !== 'live'; i++) matches.tick();
     room.sim.fighters[1].hp = 0; // A wins
-    for (let i = 0; i < 10 && room.state === 'live'; i++) matches.tick();
+    for (let i = 0; i < 80 && room.state === 'live'; i++) matches.tick();
     assert.equal(registry.get(mb.serial).owner, A, 'the winner holds the loser\'s Monstar');
     const [c] = (await call('/api/soul/mine', tb)).claims; assert.equal(c.you, 'loser'); assert.equal(c.feeSol, '0.10'); assert.equal(c.canSol, false, 'accounts pay by card');
     assert.match((await call('/api/soul/fee', tb, { id: c.id, feeSol: 0.3 })).error, /winner/);
@@ -156,7 +156,7 @@ test('Immortal Combat with Phantom: both sign before the fight; the SOL buy-back
     matches.signConsent(A, sign(ka, A)); assert.equal(room.state, 'lock');
     matches.signConsent(B, sign(kb, B)); assert.equal(room.state, 'countdown', 'the fight starts once both signed');
     for (let i = 0; i < 200 && room.state !== 'live'; i++) matches.tick();
-    room.sim.fighters[0].hp = 0; for (let i = 0; i < 10 && room.state === 'live'; i++) matches.tick(); // B wins
+    room.sim.fighters[0].hp = 0; for (let i = 0; i < 80 && room.state === 'live'; i++) matches.tick(); // B wins
     assert.equal(registry.get(ma.serial).owner, B);
     // the SOL buy-back must pay both the winner (95%) and the company (5%)
     const T = CONFIG.treasury, ix = (to, l) => ({ program: 'system', parsed: { type: 'transfer', info: { source: A, destination: to, lamports: String(l) } } }), memo = { program: 'spl-memo', parsed: 'PMSOUL:1' };

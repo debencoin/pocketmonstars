@@ -257,8 +257,8 @@ function confirmImmortalJoin() {
   sendWs({ ...lastJoin, mode: '1v1', serial: m.serial, immortalOk: true });
 }
 const SOL_FEES = ['0.1', '0.2', '0.3', '0.4', '0.5'];
-async function renderSouls() {
-  const box = q('pvSouls'); if (!box) return; if (!S.session()) { box.innerHTML = ''; return; }
+async function renderSouls(box = q('pvSouls')) {
+  if (!box) return; if (!S.session()) { box.innerHTML = ''; return; }
   let r; try { r = await S.soulMine(); } catch { return; }
   const open = r.claims.filter(c => c.state === 'open'), done = r.claims.filter(c => c.state !== 'open').slice(0, 5);
   if (!r.claims.length && !r.collect?.length) { box.innerHTML = ''; return; }
@@ -270,10 +270,10 @@ async function renderSouls() {
     + (r.collect || []).map(e => `<div class="pv-soul">${e.monstar ? `<img src="${PA.spriteSrc(e.monstar.speciesId, e.monstar.stageId)}" alt="">` : ''}<div><b>${esc(e.monstar?.form || e.monstar?.name || 'NFT')}</b> is waiting in an escrow for you.<div class="pv-row"><button class="primary" data-collect="${e.id}">Collect NFT</button></div></div></div>`).join('')
     + done.map(c => `<div class="pv-soul done"><small>${esc(c.monstar?.form || c.monstar?.name || 'Monstar')}: ${c.state === 'bought' ? 'bought back' : c.you === 'winner' ? 'yours for good' : 'lost for good'}</small></div>`).join('');
   const fee = id => box.querySelector(`[data-sfee="${id}"][aria-pressed="true"]`)?.dataset.v || '0.1';
-  box.querySelectorAll('[data-sfee]').forEach(b => b.onclick = async () => { try { const usdIn = box.querySelector(`[data-susd="${b.dataset.sfee}"]`).value; await S.soulFee(Number(b.dataset.sfee), Number(b.dataset.v), usdIn === '' ? null : Number(usdIn)); toast('Soul fee set to ' + b.dataset.v + ' SOL.'); renderSouls(); } catch (e) { fail(e); } });
-  box.querySelectorAll('[data-ssave]').forEach(b => b.onclick = async () => { try { const id = Number(b.dataset.ssave), v = box.querySelector(`[data-susd="${id}"]`).value; await S.soulFee(id, Number(fee(id)), v === '' ? null : Number(v)); toast('Saved.'); renderSouls(); } catch (e) { fail(e); } });
-  box.querySelectorAll('[data-sbuy]').forEach(b => b.onclick = async () => { try { b.disabled = true; const m = await S.soulBuy(Number(b.dataset.sbuy)); toast(`${m.form || m.name} is back with you!`); refreshMine(); renderSouls(); } catch (e) { fail(e); b.disabled = false; } });
-  box.querySelectorAll('[data-collect]').forEach(b => b.onclick = async () => { try { b.disabled = true; const m = await S.escrowCollect(Number(b.dataset.collect)); toast(`${m.form || m.name} is in your wallet.`); refreshMine(); renderSouls(); } catch (e) { fail(e); b.disabled = false; } });
+  box.querySelectorAll('[data-sfee]').forEach(b => b.onclick = async () => { try { const usdIn = box.querySelector(`[data-susd="${b.dataset.sfee}"]`).value; await S.soulFee(Number(b.dataset.sfee), Number(b.dataset.v), usdIn === '' ? null : Number(usdIn)); toast('Soul fee set to ' + b.dataset.v + ' SOL.'); renderSouls(box); } catch (e) { fail(e); } });
+  box.querySelectorAll('[data-ssave]').forEach(b => b.onclick = async () => { try { const id = Number(b.dataset.ssave), v = box.querySelector(`[data-susd="${id}"]`).value; await S.soulFee(id, Number(fee(id)), v === '' ? null : Number(v)); toast('Saved.'); renderSouls(box); } catch (e) { fail(e); } });
+  box.querySelectorAll('[data-sbuy]').forEach(b => b.onclick = async () => { try { b.disabled = true; const m = await S.soulBuy(Number(b.dataset.sbuy)); toast(`${m.form || m.name} is back with you!`); refreshMine(); renderSouls(box); } catch (e) { fail(e); b.disabled = false; } });
+  box.querySelectorAll('[data-collect]').forEach(b => b.onclick = async () => { try { b.disabled = true; const m = await S.escrowCollect(Number(b.dataset.collect)); toast(`${m.form || m.name} is in your wallet.`); refreshMine(); renderSouls(box); } catch (e) { fail(e); b.disabled = false; } });
   box.querySelectorAll('[data-scard]').forEach(b => b.onclick = () => S.soulCard(Number(b.dataset.scard)).catch(fail));
 }
 setInterval(() => { if (!pvp.classList.contains('hidden')) renderSouls(); }, 30000);
@@ -436,7 +436,7 @@ function startPractice(opt = null) {
   const others = Monstars.WILD_IDS.map(id => Monstars.SPECIES[id]).filter(x => !x.mythic && !ids.includes(x.id)).sort(() => Math.random() - 0.5);
   const team = ids.map(monFor), lvl = () => Math.max(1, team[0].level + Math.floor(Math.random() * 3) - 1);
   const foes = opt?.foeId != null ? [new Monstars.Monstar({ speciesId: opt.foeId, level: opt.foeLevel })] : ids.map((_, i) => new Monstars.Monstar({ speciesId: others[i].id, level: lvl() }));
-  local = { m: Sim.createMatch(three ? team : team[0], three ? foes : foes[0], { arena: opt?.arena ?? Math.floor(Math.random() * Sim.ARENA_COUNT), squad: three && squad }), mem: { hard: !!opt?.hard, level: opt ? 'normal' : cpuLevel } };
+  local = { m: Sim.createMatch(three ? team : team[0], three ? foes : foes[0], { arena: opt?.arena ?? Math.floor(Math.random() * Sim.ARENA_COUNT), squad: three && squad, intro: true }), mem: { hard: !!opt?.hard, level: opt ? 'normal' : cpuLevel } };
   const a = team[0], b = foes[0], foe = b.species;
   room = { local: true, wild: opt || null, mode: three ? '3v3' : '1v1', squad: three && squad, state: 'live', you: 0, stake: '0', code: 'AI',
     players: [{ wallet: me || 'You', monstar: a.toJSON(), team: team.map(x => x.toJSON()) }, { wallet: 'AI', monstar: { ...b.toJSON(), name: opt ? 'Wild ' + foe.name : b.toJSON().name }, team: foes.map(x => x.toJSON()) }] };
@@ -445,7 +445,10 @@ function startPractice(opt = null) {
 }
 window.PMStartBattle = startPractice;
 window.PMArenaApi = {
-  afterSignIn: () => afterSignIn(), refreshMine: () => refreshMine(), toast, snap: () => snapCur, mine: () => mine,
+  afterSignIn: () => afterSignIn(), refreshMine: () => refreshMine(), toast, snap: () => snapCur, mine: () => mine, renderSouls: box => renderSouls(box), pickedMon: () => mine.find(x => x.serial === picked) || null,
+  /** Immortal Guild: join an open Immortal Combat with the Monstar picked in the Arena (the player already confirmed). */
+  joinImmortal(code) { const m = mine.find(x => x.serial === picked); if (!m) throw Error('Pick one of your own Monstars first.'); window.tab?.('pvp'); lastJoin = { t: 'join', code, mode: '1v1', serial: m.serial, speciesId: m.speciesId }; sendWs({ ...lastJoin, immortalOk: true }); },
+  pick(serial) { const m = mine.find(x => x.serial === serial); if (m) { picked = m.serial; pickedSpecies = m.speciesId; renderPicker(); } },
   signedIn: () => !!S.session(),
   ownedPick: () => ownedFor(pickedSpecies) || mine[0] || null,
   // paid wild battle run by the server: it picks the wild Monstar, and a win can catch it
@@ -762,7 +765,7 @@ function drawArena() {
     let capture = null;
     if (ended?.capture) capture = { side: 1, t: (now - (ended.at || now)) / 1000, col: ended.capture.col };
     else if (ended && ended.winner != null) faint[1 - ended.winner] = Math.min(1, (now - (ended.at || now)) / 1200);
-    renderer.draw(snapPrev, snapCur, t, { target: target && { x: target.x, y: target.y }, rangeFor: you, you, snapAt, hues: room.players.map(p => p.monstar.traits?.hue || 0), types: room.players.map(p => p.monstar.type), faint, capture, fight: fightAt ? Math.max(0, 1.4 - (now - fightAt) / 1000) : 0 });
+    renderer.draw(snapPrev, snapCur, t, { target: target && { x: target.x, y: target.y }, rangeFor: you, you, snapAt, hues: room.players.map(p => p.monstar.traits?.hue || 0), types: room.players.map(p => p.monstar.type), faint, capture, soulCol: sid => soulColor(Monstars.SPECIES[sid]), fight: fightAt ? Math.max(0, 1.4 - (now - fightAt) / 1000) : 0 });
     const meF = snapCur.f[you], foe = snapCur.f[1 - you];
     for (const [k, f] of [[0, meF], [1, foe]]) {
       const p = Math.max(0, f.hp / f.max), bar = q('pvH' + k);

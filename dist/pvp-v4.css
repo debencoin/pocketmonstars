@@ -573,3 +573,11 @@ header{overflow:hidden}
 .pv-soul{display:flex;gap:10px;align-items:flex-start;padding:10px;border:1px solid var(--line);border-radius:12px;margin-top:8px;background:#0c1222}
 .pv-soul img{width:48px;height:56px;object-fit:contain;image-rendering:pixelated}.pv-soul.done{opacity:.7;padding:6px 10px}
 .pv-soul .pv-row{display:flex;gap:6px;flex-wrap:wrap;margin:6px 0}.soul-fee button[aria-pressed=true]{background:#ffd84a;color:#111}
+/* Immortal Guild */
+.gd-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin-top:14px}
+.gd-card{position:relative;display:flex;flex-direction:column;align-items:center;gap:3px;padding:12px 8px;border-radius:14px;border:1px solid #c83a3a;background:linear-gradient(170deg,rgba(200,58,58,.18),#0c1222 60%);color:inherit;cursor:pointer;text-align:center}
+.gd-card img{width:72px;height:84px;object-fit:contain;image-rendering:pixelated}.gd-card small{color:var(--muted);font-size:11px}
+.gd-card.you{border-color:var(--line);opacity:.8;cursor:default}.gd-owner{font-size:12px;font-weight:700}
+.gd-code{font-family:'Press Start 2P',monospace;font-size:10px;letter-spacing:1px;color:#ffd84a}
+.gd-go{margin-top:6px;background:#c83a3a;color:#fff;font-weight:800;border-radius:10px;padding:6px 14px}
+.gd-mine select{width:100%}

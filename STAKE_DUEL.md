@@ -273,3 +273,7 @@ Stats: HP, Attack, Defense, Sp. Atk, Sp. Def, Speed. Types: EMBER, GROVE, TIDE, 
 - Phantom players sign before an Immortal Combat starts (new room state `lock`): an unminted Monstar is put on the line with a signed agreement (signMessage, checked with Ed25519), a minted NFT is moved into the match escrow by a transaction they sign. The fight starts only when both have signed, so the winner always gets the Monstar.
 - After the match: the winner's own NFT is released back to them; the loser's NFT stays in escrow during the 24 h buy-back. A SOL buy-back is one transaction: soul fee (95% winner, 5% PocketMonstars) + the NFT back. If time runs out the NFT is released to the winner. Card buy-backs release it to the loser. Released NFTs are collected from Soul claims (the receiver pays the network fee; the escrow co-signs).
 - A cancelled match releases escrowed NFTs back to their owners.
+
+## v40: Immortal Guild tab, orb teleport intro
+- New **Immortal Guild** tab (☰ menu and nav): every open Immortal Combat (`GET /api/immortal/open`) with the fighter's Monstar, level, power and code. Tap a card to take the challenge with the Monstar picked on the tab (confirm first). "Put my Monstar up" creates a fight; the soul claims list (buy back / set soul fee / collect NFTs) is on the tab too.
+- Every fight in every arena now opens with the Monstars teleporting in as soul orbs of their own colour (`createMatch({ intro: true })`, `INTRO_SECONDS` 1.3): the battle waits until they land, flash and appear.

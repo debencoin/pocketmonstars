@@ -251,7 +251,7 @@ export class MatchManager {
 
   start(room) {
     const side = p => (p.team?.length > 1 ? p.team : p.monstar);
-    room.sim = createMatch(side(room.players[0]), side(room.players[1]), { arena: room.wild ? [2, 1, 0, 3][Math.floor(Math.random() * 4)] : Math.floor(Math.random() * ARENA_COUNT), squad: !!room.squad });
+    room.sim = createMatch(side(room.players[0]), side(room.players[1]), { arena: room.wild ? [2, 1, 0, 3][Math.floor(Math.random() * 4)] : Math.floor(Math.random() * ARENA_COUNT), squad: !!room.squad, intro: true });
     room.ledger = new StakeLedger(room.stake, this.policy);
     room.state = 'live'; room.startedAt = this.now();
     this.persistState(room);

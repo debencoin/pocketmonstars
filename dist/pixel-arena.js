@@ -352,7 +352,7 @@ function createRenderer(canvas, arena) {
       const gc = GUARD_COL[f.gk] || '#bfefff'; ctx.strokeStyle = gc; ctx.globalAlpha = 0.9; ctx.lineWidth = (f.gk === 'fortress' ? 6 : 3) * U; ctx.beginPath(); ctx.arc(sx2, sy2, rr, 0, Math.PI * 2); ctx.stroke();
       ctx.lineWidth = 1.5 * U; for (let k = 0; k < 6; k++) { const a = k / 6 * 6.283 + now / 900; ctx.beginPath(); ctx.arc(sx2, sy2, rr, a, a + 0.5); ctx.stroke(); } ctx.globalAlpha = 1;
       label('SHIELD ' + (f.sh || 70) + '%', X, Y + 14 * U, '#48d0ff'); }
-    if (!opt.faint) { // owner marker
+    if (!opt.faint && !(opt.vanish > 0.5)) { // owner marker
       const mx = Math.round(X), my = Math.round(Y - dh - 12 * U + oy + (Math.floor(now * 3) % 2) * 2);
       if (opt.extra || opt.ctl) { // squad: a small HP bar over every Monstar, team-coloured; the one being controlled also gets the arrow
         const bw = 26 * U, bh = 4 * U, by2 = my - (opt.ctl ? 7 * U : 0), pct = Math.max(0, Math.min(1, f.hp / (f.max || 1)));
@@ -370,6 +370,21 @@ function createRenderer(canvas, arena) {
       }
       if (!opt.extra) { ctx.fillStyle = opt.you ? '#9ef0c8' : '#ff6b6b'; ctx.beginPath(); ctx.moveTo(mx - 6 * U, my); ctx.lineTo(mx + 6 * U, my); ctx.lineTo(mx, my + 7 * U); ctx.fill(); }
     }
+  }
+  // Fight intro: every Monstar teleports in as a soul orb of its own colour, flashes, and appears
+  function introFx(o, p, view, now) {
+    const f = o.f, col = view.soulCol?.(f.s) || '#ffffff', X = f.x * K * Z, Y = (f.y - 30) * K * Z;
+    const side = f.sd ?? o.i % 2, sx = X + (side ? 1 : -1) * 260 * U, sy = -40 * U, q = Math.min(1, p / 0.62), e = 1 - (1 - q) * (1 - q);
+    const ox = sx + (X - sx) * e, oy = sy + (Y - sy) * e - Math.sin(q * Math.PI) * 40 * U, r = 11 * U;
+    ctx.save(); ctx.globalCompositeOperation = 'lighter';
+    if (p < 0.7) {
+      for (let k = 1; k <= 5; k++) { const qq = Math.max(0, q - k * 0.05), ee = 1 - (1 - qq) * (1 - qq); glow(sx + (X - sx) * ee, sy + (Y - sy) * ee - Math.sin(qq * Math.PI) * 40 * U, r * (2.4 - k * 0.3), '#ffffff', col, 0.35 - k * 0.05); }
+      glow(ox, oy, r * 3.2, '#ffffff', col, 0.9); ctx.globalCompositeOperation = 'source-over'; ctx.fillStyle = col; ctx.beginPath(); ctx.arc(ox, oy, r, 0, 6.283); ctx.fill();
+      ctx.fillStyle = '#ffffff'; ctx.globalAlpha = 0.8; ctx.beginPath(); ctx.arc(ox - r * 0.3, oy - r * 0.3, r * 0.32, 0, 6.283); ctx.fill();
+    }
+    if (p >= 0.58 && p < 1) { const fl = 1 - (p - 0.58) / 0.42; ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'lighter'; glow(X, Y, (40 + (1 - fl) * 60) * U, '#ffffff', col, fl);
+      if (!impacts.has('in' + o.i + ':' + Math.round(f.x))) { impacts.add('in' + o.i + ':' + Math.round(f.x)); burst(X / Z, Y / Z, [col, col, '#ffffff', col], 18, 70); } }
+    ctx.restore(); ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';
   }
   // Catch: a vortex beam in the Monstar's own colour pulls it up, it vanishes, and a soul orb of that colour is left floating
   function captureFx(c, cur, now) {
@@ -718,8 +733,10 @@ function createRenderer(canvas, arena) {
       const list = cur.f.map((f, i) => ({ f, p: prev?.f?.[i], i, you: i === view.you, extra: false }));
       for (const f of cur.x || []) list.push({ f, p: prev?.x?.find(o => o.sd === f.sd && o.sl === f.sl), i: 2 + f.sd * 3 + f.sl, you: f.sd === view.you, extra: true });
       list.sort((a, b) => a.f.y - b.f.y);
-      for (const o of list) drawFighter(o.f, o.p, t, o.i, { now, dt, you: o.you, hue: o.extra ? 0 : view.hues?.[o.i] || 0, type: o.extra ? undefined : view.types?.[o.i], faint: o.extra ? 0 : view.faint?.[o.i] || 0, vanish: !o.extra && view.capture?.side === o.i ? Math.max(0, Math.min(1, (view.capture.t - 0.55) / 0.7)) : 0, extra: o.extra, ctl: !o.extra && !!cur.sq });
+      const introP = cur.in > 0 ? Math.max(0, 1 - cur.in / 1.3) : 1;
+      for (const o of list) drawFighter(o.f, o.p, t, o.i, { now, dt, you: o.you, hue: o.extra ? 0 : view.hues?.[o.i] || 0, type: o.extra ? undefined : view.types?.[o.i], faint: o.extra ? 0 : view.faint?.[o.i] || 0, vanish: introP < 1 ? Math.max(0, Math.min(1, 1 - (introP - 0.62) / 0.38)) : !o.extra && view.capture?.side === o.i ? Math.max(0, Math.min(1, (view.capture.t - 0.55) / 0.7)) : 0, extra: o.extra, ctl: !o.extra && !!cur.sq });
       if (view.capture) captureFx(view.capture, cur, now);
+      if (introP < 1) for (const o of list) introFx(o, introP, view, now);
       logical();
       for (const e of cur.e || []) if (e.st !== 'strike' && e.t + lagged >= 0) effect(e, e.t + lagged, now);
       for (const p of cur.p || []) { const pp = prev?.p?.find(o => o.id === p.id); projectile(p, (pp ? pp.x + (p.x - pp.x) * t : p.x) * K, (pp ? pp.y + (p.y - pp.y) * t : p.y) * K, now); }

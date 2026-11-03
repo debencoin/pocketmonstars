@@ -124,7 +124,8 @@ export function createMatch(monstarA, monstarB, opts = {}) {
   if (squad) for (const side of [0, 1]) roster[side].forEach((f, i) => { f.y = ARENA.h / 2 + 20 + [0, -120, 120][i]; f.x += i ? (side ? 60 : -60) : 0; f.slot = i; f.mem = {}; });
   return { t: 0, over: false, winner: null, reason: null, auto: opts.auto !== false, arena: opts.arena ?? 0, squad, pace: squad ? SQUAD_PACE : 1,
     teams, teamMax, roster, slot: [0, 0], swCd: [0, 0],
-    limit: teams[0].length > 1 || teams[1].length > 1 ? 150 : ARENA.roundSeconds, fighters, projectiles: [], effects: [], nextId: 1, finished: false, pickups: [], nextPickup: PICKUP.every, cpu: opts.cpu || null };
+    limit: teams[0].length > 1 || teams[1].length > 1 ? 150 : ARENA.roundSeconds, fighters, projectiles: [], effects: [], nextId: 1, finished: false, pickups: [], nextPickup: PICKUP.every, cpu: opts.cpu || null,
+    intro: opts.intro ? INTRO_SECONDS : 0 }; // Monstars teleport in as soul orbs first: nothing moves until they land
 }
 const alive = (m, side, i) => { const f = m.roster[side][i]; return !f || f.hp > 0; };
 /** Everyone fighting right now: both active Monstars, or in a squad match every Monstar still standing. */
@@ -457,8 +458,11 @@ function autoMove(m, f, foe) {
 }
 
 /** Advance one tick. Returns events: hit, miss and level ({type:'level', evolved}). */
+/** Seconds at the start of a fight while the Monstars teleport in as orbs (the battle waits for them). */
+export const INTRO_SECONDS = 1.3;
 export function step(m, realDt = TICK) {
   if (m.over) return [];
+  if (m.intro > 0) { m.intro = Math.max(0, m.intro - realDt); return []; }
   const events = [];
   m.t += realDt;
   const dt = realDt * GAME_SPEED * (m.pace || 1); // everything below runs at game speed (squad: 0.8x of that)
@@ -583,7 +587,7 @@ export function snapshot(m) {
   const r = v => Math.round(v * 10) / 10;
   const tm = m.teams[0].length > 1 || m.teams[1].length > 1
     ? m.teams.map((t, side) => t.map((mo, i) => { const f = m.roster[side][i]; return { s: mo.species.id, hp: f ? Math.max(0, Math.round(f.hp)) : mo.stats.hp * BATTLE_HP, mx: f ? f.maxHp : mo.stats.hp * BATTLE_HP, lv: f ? f.level : mo.level }; })) : null;
-  return { t: r(m.t), over: m.over, winner: m.winner, reason: m.reason, ar: m.arena, tm, sl: m.slot.slice(), sc: m.swCd.map(r),
+  return { t: r(m.t), in: r(m.intro || 0), over: m.over, winner: m.winner, reason: m.reason, ar: m.arena, tm, sl: m.slot.slice(), sc: m.swCd.map(r),
     f: m.fighters.map(f => { const p = expProgress(f); return { s: f.speciesId, x: r(f.x), y: r(f.y), fx: r(f.fx), fy: r(f.fy), hp: r(f.hp), max: f.maxHp, en: Math.round(f.energy),
       cd: { b: r(f.cd.basic), s: r(f.cd.special), d: r(f.cd.dash), g: r(f.cd.guard) }, i: f.iframes > 0, g: f.guardT > 0,
       mv: f.moving, ds: f.dashT > 0, ct: r(Math.min(f.castT, 9)), ck: f.castKind, hu: r(f.hurtT),
