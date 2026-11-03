@@ -26,7 +26,7 @@ function sessionSecret() {
 }
 export function createServer({ config = CONFIG, chain = new SolanaChain(config.rpc), dbFile = path.join(DATA_DIR, 'pocketmonstars.db'), keys = serverKeys() } = {}) {
   const db = openDb(dbFile);
-  const registry = new Registry(db, { legendaryOwner: config.legendaryOwner, royalOwner: config.royalOwner }), auth = new Auth({ secret: sessionSecret() });
+  const registry = new Registry(db, { legendaryOwner: config.legendaryOwner, royalOwner: config.royalOwner, gifts: config.gifts }), auth = new Auth({ secret: sessionSecret() });
   const matches = new MatchManager({ db, registry, chain, config });
   const nft = new NftService({ config, keys, chain });
   const roots = { '/shared/': path.resolve('shared'), '/': path.resolve('dist') };

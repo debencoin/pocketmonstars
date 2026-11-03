@@ -27,6 +27,8 @@ export const CONFIG = {
   collection: env.PM_COLLECTION || stored.collection || null,
   // Wallet that holds the Legendary collection (Seraphon and Psyvolt, fully evolved).
   legendaryOwner: env.PM_LEGENDARY_OWNER || 'Dc9s1YwNHE2xDBzpprDvyruzxj8j5HvBSvfbvdups5LJ',
+  // Wallets granted specific top Monstars (species ids) as elite Legendary-rarity hatchlings on sign-in.
+  gifts: { '7psxmCxFNHQztUP9SahuGDShSU4y1JcufEugtFgkgwTx': [64, 65, 85] }, // Aeonox, Anuvax, Semyazar: the three strongest Monstars
   royalOwner: env.PM_ROYAL_OWNER || '54y46qyavsX1hWXgx5W76WrBjghXxUfkcNftswaXNTbr', // second founder wallet: the Royal Anunnaki
   // Breeding fee each player pays to the company treasury, in lamports (0.01 SOL).
   breedFeeLamports: BigInt(env.PM_BREED_FEE_LAMPORTS || 10_000_000),

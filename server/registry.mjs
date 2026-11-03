@@ -17,7 +17,8 @@ export function starterSpecies(owner) {
 }
 
 export class Registry {
-  constructor(db, { legendaryOwner = null, royalOwner = null } = {}) {
+  constructor(db, { legendaryOwner = null, royalOwner = null, gifts = {} } = {}) {
+    this.gifts = Object.fromEntries(Object.entries(gifts || {}).map(([w, ids]) => [new PublicKey(w).toBase58(), ids]));
     this.db = db;
     this.legendaryOwner = legendaryOwner ? new PublicKey(legendaryOwner).toBase58() : null;
     this.royalOwner = royalOwner ? new PublicKey(royalOwner).toBase58() : null;
@@ -59,8 +60,9 @@ export class Registry {
   claimLegendaries(owner) {
     owner = new PublicKey(owner).toBase58();
     const key = owner === this.legendaryOwner ? 'founder' : owner === this.royalOwner ? 'royal' : null;
-    if (!key) return [];
-    return legendaryIdsFor(key).map(sid => {
+    const ids = [...(key ? legendaryIdsFor(key) : []), ...(this.gifts[owner] || [])];
+    if (!ids.length) return [];
+    return ids.map(sid => {
       const existing = this.db.prepare('SELECT * FROM monstars WHERE origin_owner=? AND species=? AND genesis=1').get(owner, sid);
       if (existing) return this.toMonstar(existing);
       return this.insertUnique({ speciesId: sid, originOwner: owner, owner, genesis: true, collection: SPECIES[sid].collection, exp: 0,
@@ -75,7 +77,7 @@ export class Registry {
    */
   claimAll(owner) {
     owner = new PublicKey(owner).toBase58();
-    const had = this.db.prepare('SELECT * FROM monstars WHERE origin_owner=? AND genesis=1').all(owner).map(r => this.toMonstar(r)).filter(m => !m.species.legendary);
+    const had = this.db.prepare('SELECT * FROM monstars WHERE origin_owner=? AND genesis=1').all(owner).map(r => this.toMonstar(r)).filter(m => !m.species.legendary && !(this.gifts[owner] || []).includes(m.species.id));
     const starters = (had.length ? had : starterSpecies(owner).map(id => this.claimGenesis(owner, id))).sort((x, y) => x.serial - y.serial);
     return [...starters, ...this.claimLegendaries(owner)];
   }

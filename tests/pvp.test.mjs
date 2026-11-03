@@ -451,3 +451,12 @@ test('burn and poison tick small, steady damage (about 2% of max HP per second)'
   const hp0 = f.hp, ticks = []; for (let i = 0; i < 30 * 3; i++) for (const e of S.step(m)) if (e.kind === 'status') ticks.push(e.damage);
   assert.ok(Math.max(...ticks) <= 3, 'each tick stays small'); assert.ok(hp0 - f.hp < f.maxHp * 0.08, 'about 2% per second, not escalating');
 });
+
+test('gift wallet gets the three strongest Monstars once, as elite Legendary hatchlings', async () => {
+  const { Registry } = await import('../server/registry.mjs'), { openDb } = await import('../server/db.mjs');
+  const w = '7psxmCxFNHQztUP9SahuGDShSU4y1JcufEugtFgkgwTx', reg = new Registry(openDb(':memory:'), { gifts: { [w]: [64, 65, 85] } });
+  const a = reg.claimAll(w), b = reg.claimAll(w);
+  assert.equal(a.length, 6); assert.equal(b.length, 6, 'no duplicates on second sign-in');
+  assert.deepEqual(a.slice(3).map(m => m.species.name), ['Aeonox', 'Anuvax', 'Semyazar']);
+  assert.ok(a.slice(3).every(m => m.traits.rarity === 'Legendary'));
+});
