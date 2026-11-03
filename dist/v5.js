@@ -16,6 +16,16 @@ const isAcct = () => (S.session()?.wallet || '').startsWith('@');
 const STAGES = ['Infant', 'Rookie', 'Champion', 'Ultimate', 'Mega', 'Ascended'];
 const LEVELS = [1, 3, 10, 25, 50, 80];
 const art = (sp, st) => `art/hd/${sp.art}_s${st}.png`;
+// Attributes: stats (at a given level, average DNA), class passive and the five abilities of a species.
+const { STAT_KEYS, STAT_LABELS } = Monstars;
+function statsOf(sp, level) { const m = new Monstars.Monstar({ speciesId: sp.id, level }); return m.stats; }
+function attrHtml(sp, level = 50, compact = false) {
+  const st = statsOf(sp, level), K = sp.kit, total = STAT_KEYS.reduce((t, k) => t + st[k], 0);
+  const bars = STAT_KEYS.map(k => `<span>${STAT_LABELS[k]}</span><i><s style="width:${Math.min(100, st[k] / (level >= 50 ? 3.2 : 2.6))}%"></s></i><em>${st[k]}</em>`).join('');
+  const abil = [['Attack', K.basic.name], ['Special', K.special.name], ['Dash', K.dash.name + ': ' + K.dash.note], ['Guard', K.guard.name + ': ' + K.guard.note], ['Mega Shot', K.mega.name + ': ' + K.mega.note]];
+  return `<div class="at-box${compact ? ' compact' : ''}"><div class="at-stats"><div class="pv-stats">${bars}</div><small>Stats at Lv${level} · total ${total}${sp.drop ? (sp.drop.top ? ' · +25% hero bonus' : ' · +15% hero bonus') : sp.legendary ? ' · +20% legendary bonus' : ''}</small></div>
+    <details class="at-abil"${compact ? '' : ' open'}><summary>Abilities &amp; passive</summary><ul>${abil.map(([k, v]) => `<li><b>${k}</b> ${esc(v)}</li>`).join('')}<li><b>Passive</b> ${esc(sp.cls.passive)}</li></ul></details></div>`;
+}
 
 function addTab(id, label, before) {
   const b = el('button', { textContent: label }); b.dataset.tab = id; b.onclick = () => window.tab(id);
@@ -46,7 +56,8 @@ if (col) {
   function renderDex() {
     const list = SPECIES.filter(sp => (filter === 'all' || sp.collection === filter) && (!search || sp.forms.concat(sp.name, sp.type).join(' ').toLowerCase().includes(search)));
     q('dxList').innerHTML = list.length ? list.map(sp => `<div class="dx-row"><div class="dx-head"><b>${esc(sp.name)}</b><span>${esc(sp.type)} · ${esc(sp.cls.label)}${sp.tier ? ' · ' + esc(sp.tier) : ''}${sp.hero ? ' · ' + (sp.drop.top ? 'Top 5 hero' : 'Hero') : ''} · ${esc((COLLECTIONS?.[sp.collection]?.name) || sp.collection)}</span></div>
-      <div class="dx-evo">${[0, 1, 2, 3, 4, 5].map(st => `<figure><img src="${art(sp, st)}" alt="${esc(Monstars.formName(sp, st))}" loading="lazy"><figcaption><b>${esc(Monstars.formName(sp, st))}</b><small>${STAGES[st]} · Lv${LEVELS[st]}</small></figcaption></figure>`).join('<i class="dx-arrow">›</i>')}</div></div>`).join('')
+      <div class="dx-evo">${[0, 1, 2, 3, 4, 5].map(st => `<figure><img src="${art(sp, st)}" alt="${esc(Monstars.formName(sp, st))}" loading="lazy"><figcaption><b>${esc(Monstars.formName(sp, st))}</b><small>${STAGES[st]} · Lv${LEVELS[st]}</small></figcaption></figure>`).join('<i class="dx-arrow">›</i>')}</div>
+      <details class="dx-more"><summary>Attributes</summary>${attrHtml(sp, 50)}</details></div>`).join('')
       : '<div class="pv-empty">No Monstar matches that.</div>';
   }
   renderDex();
@@ -69,7 +80,7 @@ function renderDrop() {
   const card = h => { const sp = SPECIES[h.speciesId];
     return `<div class="dr-card${h.top ? ' top' : ''}${h.sold ? ' sold' : ''}">${h.top ? '<span class="dr-badge">TOP 5</span>' : ''}
       <img src="art/hd/${sp.art}_s2.png" alt="${esc(sp.name)}" loading="lazy"><div class="dr-evo">${[0, 3, 5].map(st => `<img src="${art(sp, st)}" alt="" loading="lazy">`).join('')}</div>
-      <b>${esc(sp.name)}</b><small>${esc(sp.type)} · ${esc(sp.cls.label)} · Lv1</small>
+      <b>${esc(sp.name)}</b><small>${esc(sp.type)} · ${esc(sp.cls.label)} · Lv1</small>${attrHtml(sp, 1, true)}
       ${h.sold ? `<span class="pv-chip ok">Sold${h.owner ? ' · ' + esc(short(h.owner)) + (h.owner === me ? ' (you)' : '') : ''}</span>`
         : ended ? '<span class="pv-chip">Drop ended</span>'
         : `<button class="primary" data-buy="${h.speciesId}" ${h.held ? 'disabled' : ''}>${h.held ? 'Being bought…' : 'Buy · ' + sol(h.priceLamports) + ' SOL'}</button>`}</div>`; };

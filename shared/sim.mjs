@@ -20,7 +20,10 @@ export const TICK = 1 / 30;
 // Overall pace: lower = slower battles. Applied to movement, dashes and projectile speed.
 export const PACE = 0.8;
 // Whole-game speed: every timer, move and animation runs at 0.7x real time (the round clock stays real).
-export const GAME_SPEED = 0.56; // 0.8x of the previous 0.7
+export const GAME_SPEED = 0.63; // 0.9x of the original 0.7 pace
+// Walking and dashing run faster than the rest of the game (0.9 vs 0.63), so players can dodge shots.
+export const MOVE_SPEED = 0.9;
+const MV = MOVE_SPEED / GAME_SPEED;
 // All damage is 30% lower than the base formula, so battles last most of the minute.
 export const DAMAGE_SCALE = 0.7;
 export const ARENA_COUNT = 6; // 0 ruins coliseum, 1 dust bowl, 2 grass, 3 cosmic, 4 volcano, 5 ice
@@ -425,9 +428,9 @@ export function step(m, realDt = TICK) {
     const speed = (f.burstT > 0 ? 1.7 : 1) * (140 + f.stats.speed * 1.4) * PACE * (f.rootT > 0 ? 0.2 : 1) * (f.status && SS.slow || 1);
     if (wantDash && f.cd.dash === 0 && f.rootT === 0) doDash(m, f, foe, mx, my, events);
     const ox = f.x, oy = f.y;
-    if (f.dashT > 0) { const ds = (f.kit?.dash.dist ?? 1) * (f.sg >= 2 ? 1.25 : 1) * (f.dashKind === 'leap' ? 2.2 : 3.0); f.x += f.dvx * speed * ds * dt; f.y += f.dvy * speed * ds * dt; dashTick(m, f, foe, events); }
+    if (f.dashT > 0) { const ds = (f.kit?.dash.dist ?? 1) * (f.sg >= 2 ? 1.25 : 1) * (f.dashKind === 'leap' ? 2.2 : 3.0); f.x += f.dvx * speed * ds * dt * MV; f.y += f.dvy * speed * ds * dt * MV; dashTick(m, f, foe, events); }
     else if (f.dashKind) dashEnd(m, f, foe, events);
-    else { f.x += mx * speed * dt; f.y += my * speed * dt; }
+    else { f.x += mx * speed * dt * MV; f.y += my * speed * dt * MV; }
     f.x += f.vx * dt; f.y += f.vy * dt; const damp = Math.pow(0.02, dt); f.vx *= damp; f.vy *= damp;
     collide(f);
     f.moving = Math.hypot(f.x - ox, f.y - oy) > 0.5;

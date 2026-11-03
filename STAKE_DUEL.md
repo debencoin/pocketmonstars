@@ -190,3 +190,9 @@ Stats: HP, Attack, Defense, Sp. Atk, Sp. Def, Speed. Types: EMBER, GROVE, TIDE, 
 - **Referrals**: `?ref=<wallet or @name>` link + QR. When a referred player wins a staked match, 5% of their profit (payout − stake) goes to a wallet referrer in the same settlement tx.
 - Tabs: Breeding has its own tab; Monstars tab is a full dex with all six evolutions per species.
 - Free Render plan: accounts and referral records reset on each deploy (drop sales are rebuilt from chain).
+
+## v24 — phone app, 0.9x pace, attributes
+- Installable app (PWA): `manifest.webmanifest`, `sw.js` (art cached; /api and /ws never cached), icons in `dist/app/`. `app.js` adds an Install banner (Android prompt, iPhone Share → Add to Home Screen) and a bottom tab bar on phones.
+- Simpler menu: Journey and Rewards removed (hidden), old Genesis 1–9 NFT designer hidden in the market, header shows one Sign in button.
+- `GAME_SPEED` 0.63 (0.9x of the original 0.7); walking and dashing run at `MOVE_SPEED` 0.9 so players can dodge.
+- Every Monstar in the dex and every drop hero shows attributes: six stats, total, bonus, five abilities and passive.

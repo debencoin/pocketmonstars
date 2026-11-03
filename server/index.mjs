@@ -34,7 +34,7 @@ export function createServer({ config = CONFIG, chain = new SolanaChain(config.r
   const matches = new MatchManager({ db, registry, chain, config, players });
   const nft = new NftService({ config, keys, chain });
   const roots = { '/shared/': path.resolve('shared'), '/': path.resolve('dist') };
-  const types = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.mjs': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.png': 'image/png', '.json': 'application/json', '.svg': 'image/svg+xml', '.webp': 'image/webp' };
+  const types = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.mjs': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.png': 'image/png', '.json': 'application/json', '.svg': 'image/svg+xml', '.webp': 'image/webp', '.webmanifest': 'application/manifest+json' };
 
   const send = (res, code, body) => { const s = JSON.stringify(body, (_, v) => (typeof v === 'bigint' ? v.toString() : v)); res.writeHead(code, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' }); res.end(s); };
   const body = req => new Promise((ok, fail) => { let s = ''; req.on('data', c => { s += c; if (s.length > 20000) { fail(Error('Body too large')); req.destroy(); } }); req.on('end', () => { try { ok(s ? JSON.parse(s) : {}); } catch { fail(Error('Invalid JSON')); } }); });
@@ -196,7 +196,7 @@ export function createServer({ config = CONFIG, chain = new SolanaChain(config.r
       const prefix = name.startsWith('/shared/') ? '/shared/' : '/', root = roots[prefix];
       const file = path.resolve(root, '.' + name.slice(prefix.length - 1));
       if (!file.startsWith(root + path.sep) || !fs.existsSync(file) || !fs.statSync(file).isFile()) { res.writeHead(404); return res.end('Not found'); }
-      res.writeHead(200, { 'Content-Type': types[path.extname(file)] || 'application/octet-stream', 'Cache-Control': name.startsWith('/art/') ? 'public, max-age=604800' : 'no-cache', 'X-Content-Type-Options': 'nosniff' });
+      res.writeHead(200, { 'Content-Type': types[path.extname(file)] || 'application/octet-stream', 'Cache-Control': name.startsWith('/art/') ? 'public, max-age=604800' : 'no-cache', ...(name === '/sw.js' ? { 'Service-Worker-Allowed': '/' } : {}), 'X-Content-Type-Options': 'nosniff' });
       req.method === 'HEAD' ? res.end() : fs.createReadStream(file).pipe(res);
     } catch (e) { send(res, e.code === 401 ? 401 : 400, { error: e.message || String(e) }); }
   });

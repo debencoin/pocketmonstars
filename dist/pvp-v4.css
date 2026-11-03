@@ -452,3 +452,33 @@ img.px{image-rendering:auto}
 .dr-badge{position:absolute;top:8px;left:8px;background:var(--lime);color:#111;font-weight:800;font-size:10px;padding:2px 6px;border-radius:6px}
 #v5Ref{margin-top:12px}.rf-row{display:flex;gap:12px;align-items:flex-start}.rf-row img{border-radius:10px;background:#fff;flex:0 0 120px}.rf-main{flex:1;min-width:0}
 @media (max-width:520px){.rf-row{flex-direction:column;align-items:center}.rf-main{width:100%}.dr-clock{text-align:left}}
+/* v24: phone app — bottom tab bar, install bar, attributes */
+nav button i{font-style:normal;margin-right:6px;opacity:.85}
+@media (max-width:760px){
+  header{height:auto!important;padding:10px 16px!important;gap:10px!important;flex-wrap:nowrap!important;padding-top:max(10px,env(safe-area-inset-top))!important}
+  header .profile{margin-left:auto!important}
+  nav{position:fixed!important;left:0;right:0;bottom:0;z-index:50;height:auto!important;display:flex!important;gap:0!important;justify-content:space-around;background:rgba(8,12,24,.97);border-top:1px solid var(--line);padding:4px 2px max(6px,env(safe-area-inset-bottom));backdrop-filter:blur(10px);overflow-x:auto;scrollbar-width:none}
+  nav::-webkit-scrollbar{display:none}
+  nav button{flex:1 0 54px;height:auto!important;min-height:52px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font-size:11px!important;padding:4px 2px}
+  nav button i{margin:0;font-size:18px;line-height:1}
+  nav button.active:after{top:0;bottom:auto!important;height:3px}
+  main{padding-bottom:calc(84px + env(safe-area-inset-bottom))!important}
+  .app-install{bottom:calc(70px + env(safe-area-inset-bottom))}
+}
+.app-install{position:fixed;left:12px;right:12px;bottom:16px;z-index:60;display:flex;align-items:center;gap:10px;background:#141c34;border:1px solid var(--lime);border-radius:16px;padding:10px 12px;box-shadow:0 10px 30px rgba(0,0,0,.5);max-width:520px;margin:0 auto}
+.app-install img{width:44px;height:44px;border-radius:10px}
+.app-install div{flex:1;min-width:0}.app-install b{display:block}.app-install small{color:var(--muted);font-size:12px}
+.app-install .primary{min-height:40px;padding:0 14px}
+.app-x{background:none;border:0;color:var(--muted);font-size:18px;min-width:36px;min-height:40px}
+body.in-app header .brand span{display:none}
+.dx-more{margin-top:8px}.dx-more>summary{cursor:pointer;color:var(--lime);font-weight:700;min-height:32px;display:flex;align-items:center}
+.at-box{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px;margin-top:6px}
+.at-box small{color:var(--muted);font-size:11px;display:block;margin-top:4px}
+.at-abil summary{cursor:pointer;font-weight:700;font-size:13px}
+.at-abil ul{margin:6px 0 0;padding-left:16px;font-size:12px;line-height:1.45}.at-abil li b{color:var(--lime);margin-right:4px}
+.at-box.compact{grid-template-columns:1fr;width:100%;text-align:left;gap:6px}
+.at-box.compact .pv-stats{font-size:11px}
+@media (max-width:600px){.at-box{grid-template-columns:1fr}}
+.app-gone{display:none!important}
+@media (max-width:760px){.app-install{bottom:calc(74px + env(safe-area-inset-bottom))!important}}
+.app-install{z-index:55!important}
