@@ -54,7 +54,7 @@ def frame(d, f, stage=2):
     swing = -stride                                 # arms swing opposite to legs
     x = dict(d['x']); skin, robe, trim, eye, hc = d['skin'], d['robe'], d['trim'], d['eye'], d['hc']
     # --- evolution forms: each stage is a different character ---
-    FACE = ('tears', 'facelines', 'facepaint', 'halfmask', 'mask', 'thirdeye', 'cyber', 'nosering')
+    FACE = ('tears', 'facelines', 'facepaint', 'halfmask', 'mask', 'thirdeye', 'cyber', 'nosering', 'hair', 'queen')
     if stage <= 1:                                   # Infant / Rookie: young, plain, no gear
         keep = FACE + (('collar', 'scarab', 'ankh', 'beads', 'hoops') if stage == 1 else ())
         x = {k: v for k, v in x.items() if k in keep}
@@ -129,6 +129,9 @@ def frame(d, f, stage=2):
         P(hx - 10, hy - 4, 4, 14, hc); P(hx - 9, hy - 3, 2, 12, tint(hc, 0.2))
         P(hx - 3, hy - 4, 4, 2, eye); P(hx + 2, hy - 4, 3, 2, eye)
     else:
+        if x.get('hair'):                             # long hair falling past the shoulders
+            hc2 = x['hair']; P(hx - 11, hy - 6, 6, 24, hc2); P(hx + 6, hy - 6, 6, 22, hc2); P(hx - 10, hy - 9, 21, 6, hc2)
+            for k in range(4): P(hx - 10 + k, hy + 14 + k, 2, 3, shade(hc2, 0.2)); P(hx + 9 - k, hy + 12 + k, 2, 3, shade(hc2, 0.2))
         g.ellipse([hx - 8, hy - 9, hx + 8, hy + 8], fill=skin)
         g.ellipse([hx - 8, hy - 9, hx - 4, hy + 8], fill=shade(skin, 0.2))
         # eyes (glowing) - looking right
@@ -143,9 +146,19 @@ def frame(d, f, stage=2):
         if x.get('thirdeye'): P(hx, hy - 6, 2, 2, x['thirdeye'])
         if x.get('nosering'): g.ellipse([hx + 3, hy + 3, hx + 7, hy + 7], outline=x['nosering'])
         if x.get('beard'): P(hx - 4, hy + 6, 9, 6, x['beard']); P(hx - 3, hy + 7, 7, 4, tint(x['beard'], 0.3))
+        if x.get('queen'):                            # lashes, painted lips, gold earrings
+            for ex in (hx - 3, hx + 3): P(ex - 1, hy - 2, 4, 1, c('#1a1220'))
+            P(hx, hy + 4, 4, 1, c('#c83a5a')); P(hx - 8, hy + 2, 2, 4, GOLD); P(hx + 8, hy + 2, 2, 4, GOLD)
         if x.get('cyber'): g.ellipse([hx + 2, hy - 3, hx + 7, hy + 2], fill=c('#3a3a8a'), outline=GOLD)
         # headdress
-        if head == 'cap':
+        if head == 'queencrown':                      # tall horned crown of the queen of heaven, with jewels
+            P(hx - 9, hy - 22, 19, 15, GOLD); P(hx - 9, hy - 22, 19, 2, tint(GOLD, 0.4))
+            for t in range(3):                       # tiers of horns
+                yy = hy - 10 - t * 5
+                P(hx - 12, yy, 4, 2, c('#f6f0e2')); P(hx - 13, yy - 2, 2, 2, c('#f6f0e2')); P(hx + 9, yy, 4, 2, c('#f6f0e2')); P(hx + 12, yy - 2, 2, 2, c('#f6f0e2'))
+            P(hx - 1, hy - 26, 4, 5, GOLD); P(hx, hy - 25, 2, 2, RUBY); P(hx - 6, hy - 17, 2, 2, c('#2a6ad8')); P(hx + 5, hy - 17, 2, 2, TEAL); P(hx - 1, hy - 14, 3, 3, RUBY)
+            P(hx - 9, hy - 8, 19, 2, shade(GOLD, 0.25))
+        elif head == 'cap':
             g.chord([hx - 9, hy - 11, hx + 9, hy + 3], 180, 360, fill=hc); P(hx - 2, hy - 13, 4, 3, hc)
         elif head == 'circlet':
             g.chord([hx - 9, hy - 11, hx + 9, hy + 3], 180, 360, fill=hc); P(hx - 9, hy - 5, 19, 2, trim); P(hx - 1, hy - 7, 3, 3, eye)
@@ -230,7 +243,21 @@ def frame(d, f, stage=2):
             if any(0 <= xx + dx < GW and 0 <= yy + dy < GH and pa[xx + dx, yy + dy] for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1))): po[xx, yy] = OUT
     o.alpha_composite(im); return o
 
+# Royal Anunnaki (second founder wallet), led by Queen Ninshara
+D.update({
+  'ninshara': dict(skin=c('#7a4a2e'), robe=c('#5a2a7a'), trim=GOLD, eye=c('#ffd84a'), head='queencrown', hc=GOLD, x=dict(queen=True, hair=c('#1e1428'), sidewings=GOLD, pearls=PEARL, collar=RUBY, weapon='staff')),
+  'kingaru':  dict(skin=c('#5a3a2e'), robe=c('#5a1e1e'), trim=GOLD, eye=c('#ff5a3a'), head='ramhorns', hc=c('#8a2a2a'), x=dict(weapon='sword', chest=GOLD)),
+  'lahmuron': dict(skin=c('#4a3020'), robe=c('#6a5030'), trim=GOLD, eye=c('#ffffff'), head='band', hc=c('#2a1a14'), x=dict(beard=c('#2a1a14'), shoulders=c('#c89a40'))),
+  'gulani':   dict(skin=c('#8a5a3a'), robe=c('#2a7a4a'), trim=GOLD, eye=c('#9ef0c8'), head='veil', hc=c('#3ad87a'), x=dict(hoops=GOLD, scarab=TEAL, queen=True)),
+  'zababor':  dict(skin=c('#5a3424'), robe=c('#4a5a78'), trim=SILVER, eye=c('#48d0ff'), head='plume', hc=SILVER, x=dict(plume=c('#e04a4a'), weapon='staff', chest=SILVER)),
+  'shalira':  dict(skin=c('#6a4028'), robe=c('#2a8a78'), trim=GOLD, eye=c('#e8fff4'), head='sundisc', hc=c('#c8e8d8'), x=dict(beads=TEAL, sidewings=c('#c8f8e8'), queen=True, hair=c('#2a1a14'))),
+  'nisabel':  dict(skin=c('#7a4a2e'), robe=c('#4a2a7a'), trim=GOLD, eye=c('#c08cff'), head='tallcrown', hc=c('#6a4ab0'), x=dict(glyphs=GOLD, queen=True, hair=c('#1e1428'))),
+  'ninurtax': dict(skin=c('#3a2418'), robe=c('#2a3a6a'), trim=GOLD, eye=c('#ffe14a'), head='eyecrown', hc=GOLD, x=dict(weapon='staff', facelines=GOLD)),
+})
+import sys as _sys
+_only = set(_sys.argv[1:])
 for name, d in D.items():
+  if _only and name not in _only: continue
   for stage in range(6):
     frames = [frame(d, f, stage) for f in range(6)]
     sheet = Image.new('RGBA', (GW * 6, GH), (0, 0, 0, 0))

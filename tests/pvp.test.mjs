@@ -211,7 +211,7 @@ test('legendaries go only to the founder wallet, fully evolved; breeding gives e
   const founder = 'Dc9s1YwNHE2xDBzpprDvyruzxj8j5HvBSvfbvdups5LJ';
   const reg = new Registry(openDb(':memory:'), { legendaryOwner: founder });
   const mine = reg.claimAll(founder), legends = mine.filter(m => m.species.legendary);
-  assert.equal(legends.length, LEGENDARY_IDS.length);
+  assert.equal(legends.length, LEGENDARY_IDS.filter(id => SPECIES[id].legendFor === 'founder').length);
   for (const l of legends) { assert.equal(l.level, 1); assert.equal(l.stage.name, 'Infant'); assert.equal(l.traits.rarity, 'Legendary'); assert.equal(l.collection, l.species.collection); }
   const other = wallet(); assert.equal(reg.claimAll(other).filter(m => m.species.legendary).length, 0);
   const pa = reg.claimGenesis(founder, 0), pb = reg.claimGenesis(other, 6);
@@ -433,4 +433,13 @@ test('evolving mid-fight makes a new named form and unlocks an ability upgrade',
   assert.ok(evo); assert.equal(evo.stageId, 2); assert.equal(f.sg, 2); assert.equal(evo.perk, STAGE_PERKS[2]);
   assert.notEqual(formName(sp, 1), formName(sp, 2));
   const a = new Set(SPECIES.flatMap(s => s.forms)); assert.equal(a.size, SPECIES.length * 6);
+});
+
+test('the second founder wallet holds the Royal Anunnaki (led by Queen Ninshara); the first keeps its own legendaries', async () => {
+  const a = wallet(), b = wallet(), reg = new Registry(openDb(':memory:'), { legendaryOwner: a, royalOwner: b });
+  const ra = reg.claimAll(a).filter(m => m.species.legendary), rb = reg.claimAll(b).filter(m => m.species.legendary);
+  assert.equal(rb.length, 8); assert.ok(rb.every(m => m.collection === 'royals' && m.level === 1 && m.traits.rarity === 'Legendary'));
+  assert.ok(rb.some(m => m.species.name === 'Ninshara')); assert.equal(ra.length, 22);
+  assert.equal(new Set([...ra, ...rb].map(m => m.species.id)).size, 30, 'the two wallets get different legendaries');
+  assert.equal(reg.claimAll(wallet()).filter(m => m.species.legendary).length, 0);
 });

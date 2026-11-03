@@ -1,5 +1,5 @@
 import { kitFor } from './abilities.mjs';
-import { FRONTIER, MYTHIC, ANUNNAKI, WATCHERS, ASCENDANTS, TIERS } from './frontier.mjs';
+import { FRONTIER, MYTHIC, ANUNNAKI, WATCHERS, ASCENDANTS, ROYALS, TIERS } from './frontier.mjs';
 // PocketMonstars species, classes, evolution stages, EXP and DNA traits.
 // Pure ES module: runs in the browser (rendering) and in Node (authoritative server).
 // The server derives DNA; this file only turns a DNA hex string into traits and stats.
@@ -125,6 +125,7 @@ export const COLLECTIONS = {
   frontier: { name: 'Frontier', note: 'Fifty wild Monstars caught in the Wild Expedition. Rarer ones are stronger.' },
   mythic: { name: 'Mythic', note: 'Three angels and a god. Very rare in the wild and very hard to beat.' },
   anunnaki: { name: 'Anunnaki', note: 'Twenty ancient sky lords, winged genies and guardians from Mesopotamian myth.' },
+  royals: { name: 'Royal Anunnaki', note: 'Queen Ninshara and her court: eight legendaries held by the second founder wallet. Never found in the wild.' },
   ascendants: { name: 'Ascendants', note: 'Twenty legendary portraits held by the founder wallet. Never found in the wild.' },
   watchers: { name: 'Watchers', note: 'Twenty many-eyed, many-winged sentinels of the sky, from the Book of Enoch.' },
 };
@@ -141,9 +142,9 @@ export const SPECIES = [
   { id: 9, name: 'Seraphon', type: 'ASTRAL', art: 'seraphon', cls: Seraph, move: 'Holy lance', special: 'Heaven\'s judgment', basicStyle: 'bolt', specialStyle: 'strike', motion: 'hover', collection: 'legendary', legendary: true, color: '#f4f0ff' },
   { id: 10, name: 'Psyvolt', type: 'PSYCHIC', art: 'psyvolt', cls: Psion, move: 'Psy orb', special: 'Levitation storm', basicStyle: 'projectile', specialStyle: 'levitate', motion: 'hover', collection: 'legendary', legendary: true, color: '#c9a6ff' },
 ];
-for (const [list, coll] of [[FRONTIER, 'frontier'], [MYTHIC, 'mythic'], [ANUNNAKI, 'anunnaki'], [WATCHERS, 'watchers'], [ASCENDANTS, 'ascendants']]) for (const f of list) {
+for (const [list, coll] of [[FRONTIER, 'frontier'], [MYTHIC, 'mythic'], [ANUNNAKI, 'anunnaki'], [WATCHERS, 'watchers'], [ASCENDANTS, 'ascendants'], [ROYALS, 'royals']]) for (const f of list) {
   SPECIES.push({ id: SPECIES.length, name: f.name, type: f.type, art: f.name.toLowerCase(), cls: CLASS_BY_ID[f.cls], move: f.move, special: f.special,
-    basicStyle: f.basicStyle, specialStyle: f.specialStyle, motion: f.motion, collection: coll, tier: f.tier, mythic: ['Mythic', 'Divine'].includes(f.tier) || undefined, legendary: f.legendary || undefined, portrait: f.look.plan === 'portrait' || undefined, walker: f.look.plan === 'walker' || undefined, forms: f.look.plan === 'walker' ? walkerForms(f.name) : undefined, color: f.look.main });
+    basicStyle: f.basicStyle, specialStyle: f.specialStyle, motion: f.motion, collection: coll, tier: f.tier, mythic: ['Mythic', 'Divine'].includes(f.tier) || undefined, legendary: f.legendary || undefined, legendFor: f.legendFor, portrait: f.look.plan === 'portrait' || undefined, walker: f.look.plan === 'walker' || undefined, forms: f.look.plan === 'walker' ? walkerForms(f.name) : undefined, color: f.look.main });
 }
 export { TIERS };
 /** Ascendants evolve into a different character at every stage, each with its own name. */
@@ -180,7 +181,10 @@ export function rollWild(rand = Math.random()) {
   return WILD_IDS[0];
 }
 const _tc = {}; function tierCount(t) { return (_tc[t] ??= WILD_IDS.filter(id => SPECIES[id].tier === t).length); }
+for (const s of SPECIES) if (s.legendary) s.legendFor ||= 'founder';
 export const LEGENDARY_IDS = SPECIES.filter(s => s.legendary).map(s => s.id);
+/** Legendary species held by each founder wallet ('founder' = first wallet, 'royal' = second). */
+export const legendaryIdsFor = key => SPECIES.filter(s => s.legendary && s.legendFor === key).map(s => s.id);
 /** File name of a species' NFT / market picture in dist/art/nft (portraits are .jpg). */
 export const nftArt = sp => sp.art + (sp.portrait ? '.jpg' : '.png');
 

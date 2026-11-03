@@ -172,7 +172,7 @@ async function refreshMine() {
   if (!picked || !mine.some(m => m.serial === picked)) picked = mine[0]?.serial ?? null;
   q('pvCount').textContent = mine.length + ' owned'; q('pvCount').classList.add('ok');
   const box = q('pvCards'); box.innerHTML = '';
-  const groups = [['ascendants', 'Ascendants (founder legendaries)'], ['mythic', 'Mythic collection'], ['anunnaki', 'Anunnaki collection'], ['watchers', 'Watchers collection'], ['legendary', 'Legendary collection'], ['frontier', 'Frontier collection (caught in the wild)'], ['bred', 'Bred collection'], ['genesis', 'Genesis collection']];
+  const groups = [['royals', 'Royal Anunnaki (Queen Ninshara\'s court)'], ['ascendants', 'Ascendants (founder legendaries)'], ['mythic', 'Mythic collection'], ['anunnaki', 'Anunnaki collection'], ['watchers', 'Watchers collection'], ['legendary', 'Legendary collection'], ['frontier', 'Frontier collection (caught in the wild)'], ['bred', 'Bred collection'], ['genesis', 'Genesis collection']];
   for (const [key, label] of groups) {
     const list = mine.filter(m => m.collection === key); if (!list.length) continue;
     box.append(el('h4', { className: 'pv-coll', textContent: `${label} · ${list.length}` }));

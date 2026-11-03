@@ -134,7 +134,7 @@ export const WATCHERS = [
 const RUN = { Nyxara: 'dart', Serqeth: 'skate', Kaelor: 'charge', Lumiyah: 'dart', Thothex: 'prance', Khonsar: 'pounce', Selenox: 'stomp', Amunrah: 'charge', Azarath: 'pounce', Setekh: 'dart',
   Horuskai: 'dart', Neferion: 'prance', Ptahmos: 'stomp', Khepron: 'pounce', Osirak: 'stomp', Isisra: 'skate', Rasolar: 'prance', Anuket: 'charge', Anupex: 'pounce', Nefertek: 'skate' };
 const A = (name, file, type, cls, move, special, basicStyle, specialStyle, accent) =>
-  ({ ...F(name, type, cls, move, special, basicStyle, specialStyle, RUN[name] || 'pounce', 'walker', accent, '#ffffff', accent, { file }), legendary: true });
+  ({ ...F(name, type, cls, move, special, basicStyle, specialStyle, RUN[name] || 'pounce', 'walker', accent, '#ffffff', accent, { file }), legendary: true, legendFor: 'founder' });
 export const ASCENDANTS = [
   A('Nyxara', '5e80ff12', 'SHADE', 'psion', 'Violet tear', 'Gilded night', 'projectile', 'strike', '#8a4ae0'),
   A('Serqeth', 'd376a656', 'PSYCHIC', 'psion', 'Serpent gaze', 'Mind lock', 'projectile', 'levitate', '#a060ff'),
@@ -156,6 +156,21 @@ export const ASCENDANTS = [
   A('Anuket', 'eb2159af', 'STONE', 'titan', 'Copper fist', 'Buried city', 'projectile', 'strike', '#3ad8c8'),
   A('Anupex', '9ad7ad3b', 'SHADE', 'psion', 'Jackal fang', 'Weighing of hearts', 'whip', 'strike', '#3a5ad8'),
   A('Nefertek', 'e8c84bd3', 'PSYCHIC', 'seraph', 'Circuit glance', 'Queen of code', 'projectile', 'beam', '#e8a040'),
+];
+
+// Royal Anunnaki: 8 legendaries held by the second founder wallet, led by Queen Ninshara. Animated walkers.
+const ROYAL_RUN = { Ninshara: 'prance', Kingaru: 'charge', Lahmuron: 'stomp', Gulani: 'skate', Zababor: 'charge', Shalira: 'dart', Nisabel: 'prance', Ninurtax: 'dart' };
+const RY = (name, type, cls, move, special, basicStyle, specialStyle, accent) =>
+  ({ ...F(name, type, cls, move, special, basicStyle, specialStyle, ROYAL_RUN[name] || 'pounce', 'walker', accent, '#ffffff', accent, {}), legendary: true, legendFor: 'royal' });
+export const ROYALS = [
+  RY('Ninshara', 'ANCIENT', 'deity', 'Queen\'s decree', 'Crown of heaven', 'bolt', 'beam', '#ffd23f'),
+  RY('Kingaru', 'DRACO', 'titan', 'Tablet of fates', 'Dragon general', 'projectile', 'cone', '#e04a4a'),
+  RY('Lahmuron', 'STONE', 'sentinel', 'Gatekeeper fist', 'Six curls guard', 'projectile', 'strike', '#c89a40'),
+  RY('Gulani', 'GROVE', 'support', 'Healing star', 'Great physician', 'projectile', 'beam', '#3ad87a'),
+  RY('Zababor', 'STEEL', 'titan', 'War mace', 'Eagle standard', 'whip', 'strike', '#a8b4c8'),
+  RY('Shalira', 'GALE', 'seraph', 'Grain storm', 'Harvest tempest', 'projectile', 'beam', '#58c8a8'),
+  RY('Nisabel', 'PSYCHIC', 'arcanist', 'Reed stylus', 'Tablet of stars', 'projectile', 'levitate', '#c08cff'),
+  RY('Ninurtax', 'SPARK', 'ranger', 'Thunder arrow', 'Sharur strike', 'bolt', 'strike', '#ffe14a'),
 ];
 
 // Rarity tier of each wild species (how often it appears, how strong it is, how hard to catch).

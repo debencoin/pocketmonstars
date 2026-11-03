@@ -3,7 +3,7 @@
 // Levels (EXP) are stored here; Legendary and Bred collections are created here too.
 import { createHash, randomBytes } from 'node:crypto';
 import { PublicKey } from '@solana/web3.js';
-import { nftArt, SPECIES, GENESIS_IDS, LEGENDARY_IDS, WILD_IDS, RARITIES, Monstar, traitsFromDna, traitSignature, composeDna, rarityIndex, expForLevel } from '../shared/monstars.mjs';
+import { legendaryIdsFor, nftArt, SPECIES, GENESIS_IDS, LEGENDARY_IDS, WILD_IDS, RARITIES, Monstar, traitsFromDna, traitSignature, composeDna, rarityIndex, expForLevel } from '../shared/monstars.mjs';
 
 export function deriveDna(owner, speciesId, nonce) {
   return createHash('sha256').update(`pocketmonstars:dna:v1:${owner}:${speciesId}:${nonce}`).digest('hex');
@@ -17,9 +17,10 @@ export function starterSpecies(owner) {
 }
 
 export class Registry {
-  constructor(db, { legendaryOwner = null } = {}) {
+  constructor(db, { legendaryOwner = null, royalOwner = null } = {}) {
     this.db = db;
     this.legendaryOwner = legendaryOwner ? new PublicKey(legendaryOwner).toBase58() : null;
+    this.royalOwner = royalOwner ? new PublicKey(royalOwner).toBase58() : null;
     // one-time: legendaries used to hatch at level 80; reset those to level 1 Infants
     db.exec('CREATE TABLE IF NOT EXISTS meta(k TEXT PRIMARY KEY, v TEXT)');
     if (!db.prepare("SELECT 1 FROM meta WHERE k='legend-infants-v1'").get()) {
@@ -57,8 +58,9 @@ export class Registry {
   /** The founder wallet holds the Legendary collections. They hatch as level 1 Infants with elite attributes (Legendary rarity, near-perfect rolls, +20% stats). */
   claimLegendaries(owner) {
     owner = new PublicKey(owner).toBase58();
-    if (owner !== this.legendaryOwner) return [];
-    return LEGENDARY_IDS.map(sid => {
+    const key = owner === this.legendaryOwner ? 'founder' : owner === this.royalOwner ? 'royal' : null;
+    if (!key) return [];
+    return legendaryIdsFor(key).map(sid => {
       const existing = this.db.prepare('SELECT * FROM monstars WHERE origin_owner=? AND species=? AND genesis=1').get(owner, sid);
       if (existing) return this.toMonstar(existing);
       return this.insertUnique({ speciesId: sid, originOwner: owner, owner, genesis: true, collection: SPECIES[sid].collection, exp: 0,
