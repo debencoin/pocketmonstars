@@ -12,7 +12,7 @@ for (const id of ['journey', 'rewards']) { nav?.querySelector(`[data-tab=${id}]`
 const market = q('market'); if (market) [...market.children].forEach(c => { if (!['pvMarket'].includes(c.id)) c.hidden = true; });
 // Header: one clear Sign in button, no old shard coins.
 document.querySelector('.coins')?.classList.add('app-gone'); document.querySelector('.avatar')?.classList.add('app-gone');
-const wb = q('walletOpen'); if (wb) { const nb = wb.cloneNode(false); nb.id = 'appSignIn'; nb.textContent = 'Sign in'; wb.after(nb); wb.classList.add('app-gone');
+const wb = q('walletOpen'); if (wb) { const nb = wb.cloneNode(false); nb.id = 'appSignIn'; nb.textContent = 'Sign In'; wb.after(nb); wb.classList.add('app-gone');
   nb.onclick = () => { window.tab('pvp'); setTimeout(() => { document.querySelector('.pv-walletbar')?.scrollIntoView({ behavior: 'smooth', block: 'center' }); }, 50); }; }
 
 // Menu order and short labels with icons (a bottom tab bar on phones).

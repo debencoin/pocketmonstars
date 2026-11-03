@@ -30,17 +30,17 @@ window.tab = function (id) { baseTab(id); drawer.querySelectorAll('[data-go]').f
 // ---------- Home ----------
 const home = el('section', { id: 'home', className: 'view hidden' }); main.prepend(home);
 const heroes = SPECIES.filter(s => s.hero && s.drop.top).slice(0, 5);
-home.innerHTML = `<div class="v6-hero"><div><div class="eyebrow">Battle · capture · evolve</div><h1>Your Monstars.<br><em>Your arena.</em></h1>
-  <p class="muted">Real-time battles with original creatures. Play free right now, sign up to capture Monstars in the wild, or connect Phantom to battle for SOL.</p>
-  <div class="v6-cta"><button class="primary" id="hmFree">Play free now</button><button class="smallbtn" id="hmPhantom">Connect Phantom</button></div></div>
+home.innerHTML = `<div class="v6-hero"><div><div class="eyebrow">Battle · Capture · Evolve</div><h1>Your Monstars.<br><em>Your Arena!</em></h1>
+  <p class="muted">Real-Time Battles With Original Creatures. Play Free Right Now, Sign Up To Capture Monstars In The Wild, Or Connect Phantom To Battle For SOL.</p>
+  <div class="v6-cta"><button class="primary" id="hmFree">Play Free Now</button><button class="smallbtn" id="hmPhantom">Connect Phantom</button></div></div>
   <div class="v6-heroart">${heroes.map(s => `<img src="art/hd/${s.art}_s4.png" alt="${esc(s.name)}" loading="lazy">`).join('')}</div></div>
   <div class="v6-cards">
-   <button class="v6-card hot" data-go="pvp"><span class="k">1v1 · 3v3</span><b>Arena</b><span>Practice free vs the computer, or stake SOL against a real rival. Every hit moves SOL to your side.</span></button>
-   <button class="v6-card drop" data-go="market"><span class="k">Launch drop</span><b>Superhero Drop</b><span id="hmDrop">30 one-of-one heroes. Top 5 at 1 SOL, the rest 0.5 SOL.</span></button>
-   <button class="v6-card" data-go="play"><span class="k">Capture</span><b>Wild Expedition</b><span>103 wild Monstars. Get one into the red and capture it. Free with an account.</span></button>
-   <button class="v6-card" data-go="collection"><span class="k">${SPECIES.length} Monstars</span><b>Monstar Dex</b><span>Every Monstar, all six evolutions, stats and abilities.</span></button>
-   <button class="v6-card" data-go="leaders"><span class="k">Ranks</span><b>Leaderboard</b><span>Top players by SOL won.</span></button>
-   <button class="v6-card" data-go="guide"><span class="k">How it works</span><b>Guide</b><span>Controls, evolutions, and how the money moves.</span></button>
+   <button class="v6-card hot" data-go="pvp"><span class="k">1v1 · 3v3</span><b>Arena</b><span>Practice Free Vs The Computer, Or Stake SOL Against A Real Rival. Every Hit Moves SOL To Your Side.</span></button>
+   <button class="v6-card drop" data-go="market"><span class="k">Launch Drop</span><b>Superhero Drop</b><span id="hmDrop">30 One-Of-One Heroes. Top 5 At 1 SOL, The Rest 0.5 SOL.</span></button>
+   <button class="v6-card" data-go="play"><span class="k">Capture</span><b>Wild Expedition</b><span>103 Wild Monstars. Get One Into The Red And Capture It. Free With An Account.</span></button>
+   <button class="v6-card" data-go="collection"><span class="k">${SPECIES.length} Monstars</span><b>Monstar Dex</b><span>Every Monstar, All Six Evolutions, Stats And Abilities.</span></button>
+   <button class="v6-card" data-go="leaders"><span class="k">Ranks</span><b>Leaderboard</b><span>Top Players By SOL Won.</span></button>
+   <button class="v6-card" data-go="guide"><span class="k">How It Works</span><b>Guide</b><span>Controls, Evolutions, And How The Money Moves.</span></button>
   </div>`;
 home.addEventListener('click', e => { const g = e.target.closest('[data-go]'); if (g) go(g.dataset.go); });
 q('hmFree').onclick = () => { go('pvp'); setTimeout(() => q('pvPractice')?.click(), 50); };
@@ -49,12 +49,12 @@ let dropInfo = null;
 async function renderHome() {
   try { dropInfo ??= await S.drop(); } catch { return; }
   const ms = Math.max(0, dropInfo.endsAt - dropInfo.now), d = Math.floor(ms / 864e5), h = Math.floor(ms / 36e5) % 24, sold = dropInfo.heroes.filter(x => x.sold).length;
-  q('hmDrop').textContent = ms ? `${30 - sold} of 30 heroes left · ends in ${d}d ${h}h. Top 5 at 1 SOL, the rest 0.5 SOL.` : 'The drop has ended.';
+  q('hmDrop').textContent = ms ? `${30 - sold} Of 30 Heroes Left · Ends In ${d}d ${h}h. Top 5 At 1 SOL, The Rest 0.5 SOL.` : 'The Drop Has Ended.';
 }
 
 // ---------- Sign in: only the top-right button (username accounts; Phantom lives under the arena) ----------
 const signDlg = el('dialog', { className: 'v6-dlg', id: 'v6Sign' });
-signDlg.innerHTML = `<div class="v6-dlg-head"><h3>Sign in</h3><button class="v6-x" data-close aria-label="Close">✕</button></div><div id="v6SignBody"></div>
+signDlg.innerHTML = `<div class="v6-dlg-head"><h3>Sign In</h3><button class="v6-x" data-close aria-label="Close">✕</button></div><div id="v6SignBody"></div>
   <p class="pv-note" style="margin-top:12px">Want to play for SOL? Use <b>Connect Phantom</b> on the Arena.</p>`;
 document.body.append(signDlg);
 signDlg.addEventListener('click', e => { if (e.target === signDlg || e.target.closest('[data-close]')) signDlg.close(); });
@@ -99,7 +99,7 @@ async function openReferral(btn) {
   } catch (e) { toast(e.message || String(e), true); } finally { btn.disabled = false; }
 }
 for (const sec of ['pvp', 'home']) {
-  const b = el('button', { className: 'primary wide v6-refbtn' }, '🔗 Refer friends · earn 5%');
+  const b = el('button', { className: 'primary wide v6-refbtn' }, '🔗 Refer Friends · Earn 5%');
   b.onclick = () => openReferral(b); q(sec)?.append(b);
 }
 
@@ -133,7 +133,7 @@ async function renderProfile(me) {
 }
 function setTopAvatar(av) {
   if (!topBtn) return; const me = S.session()?.wallet;
-  topBtn.innerHTML = me ? `${av ? `<img class="v6-topav" src="${esc(av.thumb || av.img)}" alt="">` : ''}<span>${esc(shortId(me))}</span>` : 'Sign in';
+  topBtn.innerHTML = me ? `${av ? `<img class="v6-topav" src="${esc(av.thumb || av.img)}" alt="">` : ''}<span>${esc(shortId(me))}</span>` : 'Sign In';
 }
 function openAvatars() {
   const p = myProfile; if (!p) return;
