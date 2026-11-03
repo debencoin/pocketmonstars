@@ -20,7 +20,7 @@ export const TICK = 1 / 30;
 // Overall pace: lower = slower battles. Applied to movement, dashes and projectile speed.
 export const PACE = 0.8;
 // Whole-game speed: every timer, move and animation runs at 0.7x real time (the round clock stays real).
-export const GAME_SPEED = 0.7;
+export const GAME_SPEED = 0.56; // 0.8x of the previous 0.7
 // All damage is 30% lower than the base formula, so battles last most of the minute.
 export const DAMAGE_SCALE = 0.7;
 export const ARENA_COUNT = 6; // 0 ruins coliseum, 1 dust bowl, 2 grass, 3 cosmic, 4 volcano, 5 ice
@@ -43,7 +43,7 @@ export const STATUS = Object.freeze({
 export const TYPE_STATUS = Object.freeze({ SPARK: 'paralyze', FROST: 'freeze', EMBER: 'burn', DRACO: 'burn', VENOM: 'poison', GROVE: 'root',
   STONE: 'stun', STEEL: 'stun', SHADE: 'confuse', PSYCHIC: 'lift', TIDE: 'soak', GALE: 'soak', ASTRAL: 'dazzle', ANCIENT: 'weaken', WATCHER: 'mark' });
 export const ULT_GAIN = 1.0; // ULT meter per point of damage dealt (and 0.6 per point taken); a full meter powers up the next special
-export const BATTLE_HP = 1.7; // battle HP multiplier so a fight lasts close to the full minute
+export const BATTLE_HP = 1.6; // battle HP multiplier so a fight lasts close to the full minute
 export const PICKUP = Object.freeze({ every: 14, heal: 0.2, r: 34, life: 12 });
 export const BOUNDS = Object.freeze({ x0: 60, x1: 900, y0: 150, y1: 500 });
 export const EXP_RULES = Object.freeze({ perDamage: 1.2, critBonus: 1.5, koBonus: 40, finishBonus: 15 });
@@ -398,7 +398,7 @@ export function step(m, realDt = TICK) {
     const st = f.status, SS = st ? STATUS[st.k] : null;
     if (st) {
       st.t -= dt;
-      if (SS.dot) { st.acc += f.maxHp * SS.dot * dt; if (st.acc >= 2) { const dmg = Math.min(Math.floor(st.acc), Math.ceil(f.hp)); // burn/poison can finish a Monstar off st.acc -= Math.floor(st.acc);
+      if (SS.dot) { st.acc += f.maxHp * SS.dot * dt; if (st.acc >= 2) { const dmg = Math.min(Math.floor(st.acc), Math.ceil(f.hp)); st.acc -= Math.floor(st.acc); // burn/poison can finish a Monstar off
         if (dmg > 0) { f.hp -= dmg; const src = m.fighters[st.src]; events.push({ type: 'hit', attacker: st.src, victim: f.side, damage: dmg, kind: 'status', style: st.k, eff: 1, crit: false, exp: 0, victimMaxHp: f.teamMax || f.maxHp, lvl: src?.level || 1, atk: src?.stats.spAttack || 80, pw: 6 }); if (src) src.ult = Math.min(100, src.ult + dmg * 0.5); } } }
       if (SS.lift) { // carried around in the air by psychic force, can't do anything
         st.ph += dt * 4.2; const holder = m.fighters[st.src];

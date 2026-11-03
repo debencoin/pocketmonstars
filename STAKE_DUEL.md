@@ -175,3 +175,8 @@ Stats: HP, Attack, Defense, Sp. Atk, Sp. Def, Speed. Types: EMBER, GROVE, TIDE, 
 
 ## v21: second founder wallet and the Royal Anunnaki
 - Wallet `54y46qyavsX1hWXgx5W76WrBjghXxUfkcNftswaXNTbr` (`PM_ROYAL_OWNER`) holds its own legendary collection, different from the first founder wallet: eight Royal Anunnaki led by Queen Ninshara (horned crown of heaven, long hair, royal purple robe, golden side wings, staff), with Kingaru, Lahmuron, Gulani, Zababor, Shalira, Nisabel and Ninurtax. Animated walkers with six evolution forms each, elite level 1 Infants, never in the wild, mintable as NFTs. Species carry `legendFor` (founder | royal) and `legendaryIdsFor(key)` decides who gets which.
+
+## v22 — finger dodge, 0.8x pace
+- Touch: drag in the move zone to walk; a quick swipe (or double-tap toward a side) dashes/dodges that way.
+- Game speed 0.7 → 0.56 (0.8x). Battle HP x1.6 so fights still end by KO in ~30–40 s typical.
+- Fixed burn/poison accumulator (a comment had swallowed its reset, making DoT escalate).

@@ -54,7 +54,7 @@ pvp.innerHTML = `
    </div>
    <div class="pv-overlay" id="pvOverlay"><div class="big" id="pvBig">Ready to battle</div><div class="pv-note" id="pvSmall">Sign in with Phantom, pick your Monstar and create or join a match.</div><div class="pv-row" id="pvOvBtns"></div></div>
   </div>
-  <p class="pv-note" id="pvKeys">${coarse ? 'Your Monstar moves and dodges on its own. Touch the arena with your finger to run it there (it follows your finger), and use your thumb on the move cards.' : 'Your Monstar moves and dodges on its own. <b>Click or hold the mouse</b> on the arena to move it there. Hit with the keyboard: <b>1</b>–<b>5</b> (or <b>Q</b>/<b>J</b> attack · <b>E</b>/<b>K</b> special · <b>Space</b> dash · <b>L</b> guard · <b>R</b> Mega Shot), <b>6</b>–<b>8</b> switch · <b>WASD</b> also steers · <b>Esc</b> to run.'}</p>
+  <p class="pv-note" id="pvKeys">${coarse ? 'Your Monstar moves on its own. Touch the arena with your index finger to run it there (it follows your finger); swipe fast or double-tap to dodge-dash that way. Use your thumb on the move cards.' : 'Your Monstar moves and dodges on its own. <b>Click or hold the mouse</b> on the arena to move it there. Hit with the keyboard: <b>1</b>–<b>5</b> (or <b>Q</b>/<b>J</b> attack · <b>E</b>/<b>K</b> special · <b>Space</b> dash · <b>L</b> guard · <b>R</b> Mega Shot), <b>6</b>–<b>8</b> switch · <b>WASD</b> also steers · <b>Esc</b> to run.'}</p>
   <div class="panel"><div class="pv-row" style="justify-content:space-between"><h3>Your one-of-a-kind Monstars</h3><span class="pv-chip" id="pvCount">Sign in to reveal</span></div>
    <p class="pv-note" style="margin:6px 0 12px">Every wallet starts with three one-of-a-kind Monstars picked from its address, so no two players start the same. Catch the rest in the Wild Expedition: 103 species from common to divine. Mint any of yours as an NFT to trade or send.</p>
    <div id="pvCards"><div class="pv-empty">Sign in with Phantom to see your Monstars.</div></div></div>
@@ -547,8 +547,22 @@ const renderer = PA.createRenderer(cv, ARENA);
 cv.addEventListener('contextmenu', e => e.preventDefault());
 const zone = q('pvZone'); let movePointer = null;
 function toArena(e) { const r = cv.getBoundingClientRect(); return { x: Math.max(0, Math.min(ARENA.w, (e.clientX - r.left) / r.width * ARENA.w)), y: Math.max(0, Math.min(ARENA.h, (e.clientY - r.top) / r.height * ARENA.h)) }; }
-zone.addEventListener('pointerdown', e => { if (room?.state !== 'live') return; e.preventDefault(); movePointer = e.pointerId; try { zone.setPointerCapture(e.pointerId); } catch {} target = { ...toArena(e), held: true, until: 0 }; });
-zone.addEventListener('pointermove', e => { if (e.pointerId === movePointer && target) Object.assign(target, toArena(e)); });
+// Dodging with the finger: a quick swipe, or a double-tap, makes your Monstar dash that way.
+let lastTap = { at: 0, x: 0, y: 0 }, trail = [], dodgeDir = null;
+function dodge(dx, dy) { const d = Math.hypot(dx, dy) || 1; dodgeDir = { x: dx / d, y: dy / d, until: performance.now() + 220 }; touch.dash = true; setTimeout(() => { touch.dash = false; }, 220); }
+zone.addEventListener('pointerdown', e => {
+  if (room?.state !== 'live') return; e.preventDefault(); movePointer = e.pointerId; try { zone.setPointerCapture(e.pointerId); } catch {}
+  const pt = toArena(e), now = performance.now(); target = { ...pt, held: true, until: 0 }; trail = [{ x: e.clientX, y: e.clientY, t: now }];
+  if (now - lastTap.at < 320 && Math.hypot(e.clientX - lastTap.x, e.clientY - lastTap.y) < 60 && snapCur) { const f = snapCur.f[room.local ? 0 : room.you]; dodge(pt.x - f.x, pt.y - f.y); }
+  lastTap = { at: now, x: e.clientX, y: e.clientY };
+});
+zone.addEventListener('pointermove', e => {
+  if (e.pointerId !== movePointer || !target) return;
+  Object.assign(target, toArena(e));
+  const now = performance.now(); trail.push({ x: e.clientX, y: e.clientY, t: now }); while (trail.length > 2 && now - trail[0].t > 120) trail.shift();
+  const a = trail[0], dist = Math.hypot(e.clientX - a.x, e.clientY - a.y), dt = Math.max(1, now - a.t);
+  if (dist > 45 && dist / dt > 0.9 && (!dodgeDir || now > dodgeDir.until + 250)) { dodge(e.clientX - a.x, e.clientY - a.y); trail = [{ x: e.clientX, y: e.clientY, t: now }]; } // fast swipe = dodge
+});
 const endMove = e => { if (e.pointerId !== movePointer) return; movePointer = null; if (target) { target.held = false; target.until = performance.now() + 1200; } };
 zone.addEventListener('pointerup', endMove); zone.addEventListener('pointercancel', endMove);
 zone.addEventListener('contextmenu', e => e.preventDefault());
@@ -563,6 +577,7 @@ function currentInput() {
     if (d > 16) { mx = dx / d; my = dy / d; } else if (!target.held && performance.now() > target.until) target = null; else { mx = 0.0001; my = 0; }
     if (target && !target.held && d > 16 && performance.now() > target.until + 2500) target = null;
   }
+  if (dodgeDir && performance.now() < dodgeDir.until) { mx = dodgeDir.x; my = dodgeDir.y; } // dash the way the finger swiped
   const ax = 0, ay = 0; // aim is automatic: the Monstar faces its rival
   const swKey = keys.Digit6 ? 0 : keys.Digit7 ? 1 : keys.Digit8 ? 2 : -1;
   const i = { sw: touch.sw >= 0 ? touch.sw : swKey, mx, my, ax, ay, atk: !!(keys.KeyJ || keys.Digit1 || keys.KeyQ || touch.atk), sp: !!(keys.KeyK || keys.Digit2 || keys.KeyE || touch.sp), dash: !!(keys.Space || keys.Digit3 || touch.dash), guard: !!(keys.KeyL || keys.Digit4 || touch.guard), mega: !!(keys.Digit5 || keys.KeyR || touch.mega) };
