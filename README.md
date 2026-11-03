@@ -1,57 +1,65 @@
-# PocketMonstars MVP
+# PocketMonstars: Your Monstars. Your Arena!
 
-An original touch-controlled creature arena game with nine illustrated Monstars, local progression, Phantom connection, Solana devnet NFT tools, and a company-funded reward protocol reference.
+Real-time creature battles on Solana. Battle, capture and evolve original Monstars: free to play in the browser (installable as a phone app), or connect Phantom to stake SOL against real rivals.
 
-## Start here
+**Live (Solana devnet beta, free test SOL):** https://pocketmonstars.onrender.com
 
-Requires Node 24+ and npm. The artwork and prebuilt browser bundle are included.
+## What's in the game
+
+- **Arena**: 1v1, 3v3 tag team, and **3v3 squad** (all six Monstars on the field; tap a teammate's ⇄ button to take control, the others fight on their own). Free practice vs the computer (Easy / Normal / Hard) or real rivals online.
+- **Stake SOL (Phantom)**: both players deposit into a match escrow; every hit moves part of the rival's stake to you; KO wins the pot, paid in one settlement transaction.
+- **Wild Expedition**: 103 wild Monstars from Common to Divine. Get one into the red and tap **Capture!**; every species has its own odds and they change every throw.
+- **174 Monstars** in 10 collections: Genesis (9), Frontier (50), Anunnaki (20), Watchers (20), Mythic (4), Legendary (2), Ascendants (20), Royal Anunnaki (8), Superhero Drop (30), Elemental Benders (11).
+- **Evolution**: six forms (Infant, Rookie, Champion, Ultimate, Mega, Ascended), even mid-battle, each with an ability upgrade. Every Monstar has its own stats, attack, special, dash, guard and Mega Shot.
+- **Signature Mega Shots**: Neferion Storm Orbs, Tempestro Sky Splitter, Aerokai/Zephyrine Tornado Gust, Tidewen Hailstorm, Granitus Boulder Storm, Thundrik Soul Storm, and more.
+- **Elemental Benders**: original water, earth, fire, air and thunder martial artists, drawn at double detail with real run cycles. Gifted to chosen wallets only. Bred benders combine both parents' powers.
+- **Superhero Drop**: 30 one-of-one heroes for 30 days (top 5 at 1 SOL, the rest 0.5 SOL), paid on-chain and rebuilt from the chain after a server reset.
+- **Market**: mint Monstars as NFTs (Metaplex Core), list and buy them. Each sale pays 5% royalty to the wallet the Monstar was born to and 5% to PocketMonstars.
+- **Accounts and profiles**: free username + password accounts, or Phantom sign-in; profile card with avatar (one-of-one photo avatars or any owned Monstar).
+- **Referrals**: share your link or QR code; when a player you referred wins a SOL match, you get 5% of what they won.
+- **Breeding**, **Monstar Dex** with attributes and every evolution, **Leaderboard**, **Guide** (controls and how the money moves).
+- **Phone app**: installable PWA (Share → Add to Home Screen), ☰ menu, touch controls (drag to move, swipe or double-tap to dodge).
+
+## Run it
+
+Requires Node 22.13+.
 
 ```sh
 npm ci
-npm test
-npm run build
-npm start   # game server with 1v1 Stake Duel, registry and market
+npm test        # game, protocol and server tests
+npm run build   # browser bundle -> dist/stake-client.js
+npm start       # http://localhost:8080
 ```
 
-To put it online and test on two phones, see **DEPLOY.md**. New in v4: see **STAKE_DUEL.md** for the staked 1v1 mode, unique Monstars per wallet, classes and the royalty marketplace.
+Deploying: see **DEPLOY.md** (Render). The server runs on Solana **devnet** by default. Mainnet is locked unless `SOLANA_CLUSTER=mainnet-beta` and `PM_ALLOW_MAINNET=yes-reviewed` are both set, which should only happen after a security and legal review.
 
-Open http://localhost:8080. For a quick static preview without installing dependencies:
+## Important notes
 
-```sh
-python3 -m http.server 8080 --directory dist --bind 127.0.0.1
-```
+- **Devnet only right now.** All SOL is free test SOL until mainnet is switched on.
+- **Data on the free Render plan resets on every deploy** (accounts, captured Monstars, referrals). Superhero Drop and avatar purchases are rebuilt from on-chain payments. Use a paid plan with a disk (`PM_DATA_DIR`) before real-money play.
+- **Never enter a seed phrase.** Phantom only signs messages and transactions; the server never sees private keys. Server keys live in `data/keys/` (gitignored).
+- Staked PvP for real money can fall under gambling laws depending on where players are. Get legal advice before going to mainnet.
+- All characters and art are original.
 
-Phantom works through its supported desktop extension or mobile in-app browser. The deployed private Site requires ChatGPT sign-in in that browser. The localhost preview needs no ChatGPT sign-in. Do not enter a seed phrase anywhere in this app.
+## Project layout
 
-## Included
+| Path | What it is |
+|---|---|
+| `shared/` | Game rules shared by server and browser: `sim.mjs` (real-time battle), `monstars.mjs` (species, stats, evolutions, kits), `frontier.mjs` (species lists), `abilities.mjs`, `stake.mjs`, `avatars.mjs` |
+| `server/` | Node server: `index.mjs` (HTTP API + WebSocket), `matches.mjs` (rooms, escrow, settlement, capture), `registry.mjs` (unique Monstars per wallet/account), `players.mjs` (accounts, referrals, drop sales, avatars), `nft.mjs`, `escrow.mjs`, `auth.mjs`, `config.mjs` |
+| `src/` | Browser wallet/API client, bundled into `dist/stake-client.js` |
+| `dist/` | The web app: `index.html`, `pvp-v4.js` (Arena), `wild.js`, `v5.js` (Dex, drop, breeding), `v6.js` (Home, menu, sign-in, profile, referrals), `app.js` (PWA), `pixel-arena.js` (renderer), `art/` |
+| `scripts/` | Art generators (`make_heroes.py`, `make_benders.py`, `make_walkers.py`, `make_stages.py`, `make_cards.py`, …) |
+| `tests/` | `pvp.test.mjs`, `v5.test.mjs`, `protocol.test.mjs`, `game-mechanics.cjs` |
+| `STAKE_DUEL.md` | Change log for every version (v4 → v34) with design details |
 
-- Four game modes: Stadium duel vs AI, Wild expedition/capture, Survival arena, Titan challenge.
-- Drag/tap touchscreen movement, keyboard movement, four abilities, energy, cooldowns, shields, team switching, elemental advantages, leveling and local saves.
-- Nine original smooth illustrated creature assets, class types, six stats, local wallet-scoped DNA previews.
-- Phantom connect/disconnect/account changes and read-only mainnet/devnet SOL balances.
-- Devnet Core NFT inspection, standalone test minting, gifting, and buyer-specific, short-lived signed private sales. Public marketplace listings are not implemented.
-- Devnet SPL reward-token mint creation with nine decimals, fixed draft supply, no freeze authority, and mint-authority revocation.
-- Company-funded MNRG/native SOL reward policy, signed authoritative receipts, replay/budget ledger, payout transaction helpers, and tests.
-- A local practice reward estimate that is clearly not claimable money or an on-chain token balance.
+## Configuration (environment variables)
 
-## Important status
-
-No production reward mint, mainnet payments, official verified collection, global uniqueness registry, authoritative multiplayer battle server, or deployed reward service exists yet. Real Phantom signing and end-to-end chain execution have not been tested in this environment. There are no private keys, seed phrases, real treasury funds, or deployment credentials in this package.
-
-The draft MNRG token is an SPL token issued on Solana; it is not native SOL. No exchange rate, liquidity, or financial value is configured. All browser transaction tools are hardcoded to devnet. Creating a test mint requires the wallet owner's explicit approval and test SOL for account rent/network fees. Repeating it creates a different independent mint.
-
-Test NFT royalties are paid in the included private-sale flow, not universally across outside marketplaces. Test mint IDs are distinct asset addresses; the current local DNA previews do not guarantee unique artwork across every device or wallet.
-
-## Files
-
-- `START_HERE_CLAUDE.md`: Claude handoff and recommended next work.
-- `dist/`: ready-to-serve browser MVP and all nine original creature images.
-- `src/nft-client.js`: browser transaction builders; rebuild into `dist/chain-client.js`.
-- `protocol/README.md`: precise reward and marketplace specification.
-- `protocol/rewards.mjs`: deterministic reward policy and integer fee math.
-- `protocol/ledger.mjs`: server-only signed receipt ledger (Node SQLite).
-- `protocol/settlement.mjs`: server-only company treasury payout helpers.
-- `tests/`: gameplay and protocol/transaction signature tests.
-- `ARTWORK.md`: original image prompts and asset map.
-
-See `protocol/README.md` before connecting the reward helpers to any service or funded account.
+| Variable | Purpose |
+|---|---|
+| `PM_SESSION_SECRET` | Signs session tokens (set it so sign-ins survive redeploys) |
+| `PM_TREASURY` | Wallet that receives company fees (defaults to the founder wallet) |
+| `PM_DROP_TREASURY`, `PM_DROP_ENDS` | Superhero Drop payment wallet and end time |
+| `PM_LEGENDARY_OWNER`, `PM_ROYAL_OWNER` | Founder wallets that hold the legendary collections |
+| `PM_DATA_DIR` | Where the database and keys are stored (point at a persistent disk) |
+| `SOLANA_CLUSTER`, `SOLANA_RPC`, `PM_ALLOW_MAINNET` | Network selection (devnet by default) |
