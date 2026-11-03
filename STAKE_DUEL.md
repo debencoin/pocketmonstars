@@ -235,3 +235,9 @@ Stats: HP, Attack, Defense, Sp. Atk, Sp. Def, Speed. Types: EMBER, GROVE, TIDE, 
 - Breeding with a bender always gives a bender baby whose powers combine both parents (`Monstar.fusion` → its own attack, the other parent's special and, if that parent is a bender, its Mega Shot, all +15%). Cards show "Fused · <parent>".
 - Air benders look different at every stage (staff, hood + fan staff, blue fins, white robes on a whirlwind, white and gold).
 - Gifts also work for username accounts (`normOwner`).
+
+## v34 — water, earth and thunder bender signatures
+- **Tidewen** (water): special **Ice Balls** (2–3 balls, each freezes); Mega **Hailstorm** (`hailstorm`): 6 waves of sharp ice over a big area that follows the rival; each wave freezes and takes 5% HP (30% in all).
+- **Granitus** (earth): special **Slab Slide** (3–4 tall slabs at different angles and speeds, extra knockback); Mega **Boulder Storm** (`boulderstorm`): 7 boulders rain around the rival (3–6 usually hit a moving rival, all 7 a still one), then every rival hit is dazed.
+- **Thundrik** (thunder): Mega **Soul Storm** (`stormdrain`): 7 big-radius lightning strikes; 45% of the damage heals the caster.
+- `land()` takes an optional fixed share of HP (`frac`); strike effects can track the rival with an offset (`trackRate`, `ox`, `oy`), heal the caster (`heal`) and daze everyone hit when the storm ends (`grp`, `endDaze`).

@@ -434,6 +434,20 @@ function createRenderer(canvas, arena) {
   function projectile(p, x, y, now) {
     const pal = palFor(p.ty, p.sid), a = Math.atan2(p.vy, p.vx), fl = Math.floor(now * 20) % 2, v = vidOf(p);
     y -= 8;
+    if (p.lk === 'ice') { // Ice Balls: frosty blue spheres with a white glint
+      FULL(); ctx.save(); ctx.globalCompositeOperation = 'lighter'; glow(x * Z, y * Z, 20 * U, '#ffffff', '#7ad8ff', 0.8); ctx.restore(); LOG();
+      disc(x, y, 6, '#9be6ff'); disc(x - 1, y - 1, 4, '#dff8ff'); px(x - 3, y - 3, 2, 2, '#ffffff');
+      if (Math.random() < 0.4) part(x - Math.cos(a) * 6, y - Math.sin(a) * 6, 0, 0, 0.3, '#dff8ff', 1);
+      return;
+    }
+    if (p.lk === 'boulder') { // Slab Slide: a tall stone slab sliding along the ground, kicking up dust
+      const h2 = 22, w2 = 10, gy = y + 8;
+      ellipse(x, gy + 1, 9, 2, '#00000055');
+      px(x - w2 / 2, gy - h2, w2, h2, '#8f7a5a'); px(x - w2 / 2, gy - h2, 3, h2, '#6e5c44'); px(x + w2 / 2 - 2, gy - h2, 2, h2, '#b8a07a'); px(x - w2 / 2, gy - h2, w2, 2, '#c8b088');
+      px(x - 2, gy - h2 + 7, 4, 1, '#5e4e38'); px(x - 1, gy - h2 + 14, 3, 1, '#5e4e38');
+      if (Math.random() < 0.6) part(x - Math.cos(a) * 8, gy, -Math.cos(a) * 20, -8 - Math.random() * 8, 0.4, '#c8b088', 1, 40);
+      return;
+    }
     if (p.lt) { // Storm Orbs: crackling lightning balls (smaller while charging up beside the caster)
       const rr = p.w ? 9 : 13, t = now / 1000;
       FULL(); ctx.save(); ctx.globalCompositeOperation = 'lighter'; glow(x * Z, y * Z, (rr + 12) * U, '#ffffff', '#ffd23f', 0.95); ctx.restore();
@@ -545,6 +559,19 @@ function createRenderer(canvas, arena) {
         strokeGlow(boltPath(ox, oy - 6, tx, ty, sd + 3, 6, -0.15), '#ffd23f', '#fff27a', 2.2, al);
         if (!impacts.has('b' + e.id)) { impacts.add('b' + e.id); burst(tx, ty, PAL.SPARK, 14, 60); star(tx, ty, '#ffe14a', 80, 18); wave(tx, ty + 8, '#c08cff', 80); shake = Math.max(shake, 0.25); }
       }
+    } else if (e.st === 'strike' && e.hs) { // Hailstorm: a frosty zone with sharp ice shards falling inside it
+      const gx = e.gx * K, gy = e.gy * K + 6, rad = R((e.ra || S.radius) * K), t = now / 1000;
+      ring(gx, gy, rad, R(rad * 0.45), '#bfefff'); g.globalAlpha = 0.18; ellipse(gx, gy, rad, R(rad * 0.45), '#9be6ff'); g.globalAlpha = 1;
+      for (let i = 0; i < 9; i++) { const sx = gx + Math.sin(e.id * 3 + i * 1.7) * rad * 0.8, fall = ((t * 1.6 + i * 0.13 + e.id * 0.07) % 1), sy = gy - 60 + fall * 60 + Math.cos(i * 2.3) * rad * 0.3;
+        g.fillStyle = '#e8fbff'; g.beginPath(); g.moveTo(R(sx), R(sy - 6)); g.lineTo(R(sx + 2), R(sy)); g.lineTo(R(sx - 2), R(sy)); g.fill(); }
+      if (lt >= S.hitAt && lt < S.hitAt + 0.15) { g.globalAlpha = 0.5; ellipse(gx, gy, R(rad * 0.8), R(rad * 0.35), '#ffffff'); g.globalAlpha = 1; }
+    } else if (e.st === 'strike' && e.bs) { // Boulder Storm: a shadow grows, then a boulder slams down and shatters
+      const gx = e.gx * K, gy = e.gy * K + 6, rad = R((e.ra || S.radius) * K);
+      if (lt < S.hitAt) { const p2 = lt / S.hitAt; ellipse(gx, gy, R(rad * 0.5 * (0.4 + p2 * 0.6)), R(rad * 0.2 * (0.4 + p2 * 0.6)), '#00000066');
+        const by = gy - (1 - p2) * 110, br = 9; disc(gx, by - br, br, '#8f7a5a'); disc(gx - 2, by - br - 2, br - 4, '#b8a07a'); px(gx - 3, by - br + 2, 6, 2, '#5e4e38'); }
+      else { const fade = Math.max(0, 1 - (lt - S.hitAt) / (S.dur - S.hitAt)); g.globalAlpha = fade;
+        for (let i = 0; i < 6; i++) { const a2 = i * 1.05 + e.id; px(gx + Math.cos(a2) * (1 - fade) * 18, gy - 4 + Math.sin(a2) * (1 - fade) * 8, 4, 3, i % 2 ? '#8f7a5a' : '#c8b088'); }
+        ring(gx, gy, R(rad * 0.6 * (1.2 - fade * 0.2)), R(rad * 0.25), '#c8b088'); g.globalAlpha = 1; }
     } else if (e.st === 'strike' && e.tw) { // Tornado Gust: a spinning grey-white funnel around the caught Monstar
       const gx = e.gx * K, gy = e.gy * K + 6, fade = Math.min(1, (e.d - lt) / 0.3), t = now / 1000;
       g.globalAlpha = 0.85 * Math.max(0, fade);

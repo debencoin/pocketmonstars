@@ -252,9 +252,9 @@ const BE = (name, type, cls, move, special, basicStyle, specialStyle, main, titl
   ({ ...F(name, type, cls, move, special, basicStyle, specialStyle, BEND_RUN[cls] || 'dart', 'walker', main, '#ffffff', main, {}), legendary: true, legendFor: 'benders', bender: true, elite,
     forms: [`Young ${name}`, `${name} the Apprentice`, name, `Master ${name}`, `Mega ${name}`, `${title} ${name}`] });
 export const BENDERS = [
-  BE('Tidewen', 'TIDE', 'mystic', 'Water whip', 'Tidal surge', 'whip', 'beam', '#2b6fd0', 'Ocean Sage'),
+  BE('Tidewen', 'TIDE', 'mystic', 'Water whip', 'Ice balls', 'whip', 'projectile', '#2b6fd0', 'Ocean Sage'),
   BE('Marovek', 'TIDE', 'support', 'Ice shard', 'Healing tide', 'projectile', 'beam', '#1e5aa8', 'Ocean Sage'),
-  BE('Granitus', 'STONE', 'titan', 'Boulder throw', 'Earthquake stomp', 'projectile', 'strike', '#4f7a2a', 'Mountain Lord'),
+  BE('Granitus', 'STONE', 'titan', 'Boulder throw', 'Slab slide', 'projectile', 'projectile', '#4f7a2a', 'Mountain Lord'),
   BE('Terrala', 'STONE', 'sentinel', 'Stone fist', 'Rock wall', 'projectile', 'strike', '#6a8a3a', 'Mountain Lady'),
   BE('Pyreska', 'EMBER', 'striker', 'Fire dart', 'Blaze kick', 'projectile', 'cone', '#b8241c', 'Phoenix'),
   BE('Emberon', 'EMBER', 'warden', 'Flame jab', 'Inferno wheel', 'projectile', 'cone', '#8a1a14', 'Phoenix'),

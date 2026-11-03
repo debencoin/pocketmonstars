@@ -168,6 +168,11 @@ const KIT_SIGNATURE = {
   Aerokai: { basic: { name: 'Gale Push', knock: 6, note: 'A wind blast that knocks the rival back as it hits.' },
     special: { name: 'Gust Volley', shots: 3, note: 'Fires 3 or 4 wind-gust balls at once.' },
     mega: { kind: 'tornado', name: 'Aerokai Tornado Gust', note: 'A tornado grabs every rival, spins them up and slams them to the ground (damage), leaving them dazed for your follow-up attacks.', power: 1.2, size: 1 } },
+  Tidewen: { special: { name: 'Ice Balls', shots: 2, look: 'ice', status: 'freeze', note: 'Shoots 2 or 3 ice balls; each one that hits freezes the rival.' },
+    mega: { kind: 'hailstorm', name: 'Tidewen Hailstorm', note: 'A storm of sharp ice crashes down over a big area: rivals inside are frozen and lose 30% of their HP.', power: 1, size: 1.2 } },
+  Granitus: { special: { name: 'Slab Slide', shots: 3, look: 'boulder', note: 'Launches 3 or 4 tall stone slabs that slide out at different angles and speeds.' },
+    mega: { kind: 'boulderstorm', name: 'Granitus Boulder Storm', note: 'Boulders rain down over a big area: 3 to 7 can smash the rival, then it is dazed.', power: 1.15, size: 1.2 } },
+  Thundrik: { mega: { kind: 'stormdrain', name: 'Thundrik Soul Storm', note: 'Lightning rains down over a big area. 40-50% of the damage it deals comes back to you as HP.', power: 1.2, size: 1.2 } },
   Zephyrine: { mega: { kind: 'tornado', name: 'Zephyrine Cyclone Gust', note: 'A cyclone grabs every rival, spins them up and slams them down (damage), leaving them dazed.', power: 1.15, size: 1.05 } },
 };
 for (const sp of SPECIES) for (const [part, o] of Object.entries(KIT_SIGNATURE[sp.name] || {})) sp.kit[part] = { ...sp.kit[part], ...o };

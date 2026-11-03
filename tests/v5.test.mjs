@@ -191,3 +191,22 @@ test('Aerokai: Tornado Gust grabs every rival, slams them (damage) and dazes the
   const kids = reg.breed({ a: pa, b: pb }); assert.ok(kids.every(k => k.species.bender && k.fusion != null));
   const pyKid = kids.find(k => k.species.name === 'Pyreska'); if (pyKid) assert.equal(reg.get(pyKid.serial).kit.mega.kind, 'tornado', 'the fire baby inherits the tornado');
 });
+
+test('founder benders: Ice Balls freeze, Hailstorm takes 30% and freezes, Slab Slide fires 3-4 slabs, Boulder Storm dazes, Soul Storm heals 40-50%', async () => {
+  const S = await import('../shared/sim.mjs'), { Monstar } = await import('../shared/monstars.mjs'), sp = n => SPECIES.find(s => s.name === n);
+  function mega(name) {
+    const m = S.createMatch(new Monstar({ speciesId: sp(name).id, level: 10 }), new Monstar({ speciesId: 3, level: 10 }), { auto: false });
+    const a = m.fighters[0], b = m.fighters[1]; a.x = 300; a.y = 300; b.x = 620; b.y = 300; a.ult = 100; a.hp = a.maxHp / 2; a.input = S.sanitizeInput({ mega: true });
+    const out = { dmg: 0, hits: 0, k: new Set(), heal: 0 }, hp0 = a.hp;
+    for (let i = 0; i < 30 * 8; i++) { for (const e of S.step(m)) { if (e.type === 'hit' && e.attacker === 0 && e.kind === 'special') { out.dmg += e.damage; out.hits++; } if (e.type === 'status') out.k.add(e.k); }
+      a.input = S.sanitizeInput({}); b.x = 620; b.y = 300; b.vx = b.vy = 0; }
+    out.pct = out.dmg / b.maxHp; out.heal = (a.hp - hp0) / out.dmg; return out;
+  }
+  const hail = mega('Tidewen'); assert.ok(Math.abs(hail.pct - 0.3) < 0.03 && hail.k.has('freeze'), 'Hailstorm: about 30% and frozen');
+  const rocks = mega('Granitus'); assert.equal(rocks.hits, 7); assert.ok(rocks.k.has('daze'));
+  const soul = mega('Thundrik'); assert.ok(soul.heal >= 0.4 && soul.heal <= 0.5, 'Soul Storm heals 40-50% of its damage');
+  const shots = n => { const m = S.createMatch(new Monstar({ speciesId: sp(n).id, level: 1 }), new Monstar({ speciesId: 3, level: 1 }), { auto: false }); const f = m.fighters[0]; f.cd.special = 0; f.energy = 100; f.input = S.sanitizeInput({ sp: true }); S.step(m); return m.projectiles; };
+  const slabs = shots('Granitus'); assert.ok(slabs.length >= 3 && slabs.length <= 4 && slabs.every(p => p.look === 'boulder'));
+  assert.ok(new Set(slabs.map(p => Math.round(Math.hypot(p.vx, p.vy)))).size > 1, 'slabs come out at different speeds');
+  const ice = shots('Tidewen'); assert.ok(ice.length >= 2 && ice.every(p => p.onHit === 'freeze'));
+});
