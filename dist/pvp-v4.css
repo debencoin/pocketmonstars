@@ -423,3 +423,4 @@ img.px{image-rendering:auto}
 .pv-mv.mega.cool{opacity:.6}
 .pv-note .kit{display:block;margin:6px 0;line-height:1.55}
 @media (orientation:landscape) and (min-width:700px){.pv-stage.live .pv-mgrid{grid-template-columns:1fr 1fr}.pv-stage.live .pv-mv .mv-e{display:none}}
+.pv-walletbar{margin-top:12px}

@@ -54,10 +54,11 @@ pvp.innerHTML = `
    </div>
    <div class="pv-overlay" id="pvOverlay"><div class="big" id="pvBig">Ready to battle</div><div class="pv-note" id="pvSmall">Sign in with Phantom, pick your Monstar and create or join a match.</div><div class="pv-row" id="pvOvBtns"></div></div>
   </div>
+  <div class="panel pv-walletbar"><h3>Wallet</h3>
+   <div id="pvWallet" class="pv-note" style="margin:8px 0">Not signed in.</div>
+   <button class="primary wide" id="pvSignIn">Connect Phantom &amp; sign in</button>
+   <p class="pv-note" id="pvPhantomHint" style="margin-top:8px">Signing in only signs a message. It never moves funds.</p></div>
   <p class="pv-note" id="pvKeys">${coarse ? 'Your Monstar moves on its own. Touch the arena with your index finger to run it there (it follows your finger); swipe fast or double-tap to dodge-dash that way. Use your thumb on the move cards.' : 'Your Monstar moves and dodges on its own. <b>Click or hold the mouse</b> on the arena to move it there. Hit with the keyboard: <b>1</b>–<b>5</b> (or <b>Q</b>/<b>J</b> attack · <b>E</b>/<b>K</b> special · <b>Space</b> dash · <b>L</b> guard · <b>R</b> Mega Shot), <b>6</b>–<b>8</b> switch · <b>WASD</b> also steers · <b>Esc</b> to run.'}</p>
-  <div class="panel"><div class="pv-row" style="justify-content:space-between"><h3>Your one-of-a-kind Monstars</h3><span class="pv-chip" id="pvCount">Sign in to reveal</span></div>
-   <p class="pv-note" style="margin:6px 0 12px">Every wallet starts with three one-of-a-kind Monstars picked from its address, so no two players start the same. Catch the rest in the Wild Expedition: 103 species from common to divine. Mint any of yours as an NFT to trade or send.</p>
-   <div id="pvCards"><div class="pv-empty">Sign in with Phantom to see your Monstars.</div></div></div>
   <div class="panel" id="pvBreed"><div class="pv-row" style="justify-content:space-between"><h3>Breed Monstars</h3><span class="pv-chip" id="pvBreedFee">0.01 SOL each</span></div>
    <p class="pv-note" style="margin:6px 0 12px">Pair one of your Monstars with another player's. Each of you gets a new Infant. Its stats mix both parents with a random twist, so it can come out stronger or weaker. Each player pays a 0.01 SOL fee to PocketMonstars.</p>
    <div class="pv-row"><select class="pv-input" id="pvBreedPick" style="flex:1;min-width:0" aria-label="Your Monstar to breed"></select><button class="primary" id="pvBreedNew">Start</button></div>
@@ -65,10 +66,6 @@ pvp.innerHTML = `
    <div id="pvBreedBox" class="pv-note" style="margin-top:12px"></div></div>
  </div>
  <div class="pv-col">
-  <div class="panel"><h3>Wallet</h3>
-   <div id="pvWallet" class="pv-note" style="margin:8px 0">Not signed in.</div>
-   <button class="primary wide" id="pvSignIn">Connect Phantom &amp; sign in</button>
-   <p class="pv-note" id="pvPhantomHint" style="margin-top:8px">Signing in only signs a message. It never moves funds.</p></div>
   <div class="panel" id="pvLobby"><h3>Choose your Monstar</h3>
    <div class="pv-presets pv-mode" id="pvMode" role="group" aria-label="Battle size"><button data-m="1v1" aria-pressed="false">1v1</button><button data-m="3v3" aria-pressed="true">3v3 team</button></div>
    <div class="pv-team" id="pvTeamPick" hidden></div>
@@ -170,8 +167,8 @@ async function refreshMine() {
   try { mine = await S.myMonstars(); } catch (e) { return fail(e); }
   me = S.session()?.wallet;
   if (!picked || !mine.some(m => m.serial === picked)) picked = mine[0]?.serial ?? null;
-  q('pvCount').textContent = mine.length + ' owned'; q('pvCount').classList.add('ok');
-  const box = q('pvCards'); box.innerHTML = '';
+  const box = q('pvCards');
+  if (box) { box.innerHTML = '';
   const groups = [['royals', 'Royal Anunnaki (Queen Ninshara\'s court)'], ['ascendants', 'Ascendants (founder legendaries)'], ['mythic', 'Mythic collection'], ['anunnaki', 'Anunnaki collection'], ['watchers', 'Watchers collection'], ['legendary', 'Legendary collection'], ['frontier', 'Frontier collection (caught in the wild)'], ['bred', 'Bred collection'], ['genesis', 'Genesis collection']];
   for (const [key, label] of groups) {
     const list = mine.filter(m => m.collection === key); if (!list.length) continue;
@@ -184,6 +181,7 @@ async function refreshMine() {
     const mb = c.querySelector('[data-a=mint]');
     if (mb) mb.onclick = () => busy(mb, async () => { await S.mint(m.serial); toast(m.name + ' minted to your wallet.'); refreshMine(); refreshBalance(); });
     grid.append(c);
+  }
   }
   }
   renderBreedPick();
@@ -683,11 +681,13 @@ async function refreshMarket() {
 }
 function renderMineMarket() {
   const box = q('pvMine'); if (!box) return;
-  const minted = mine.filter(m => m.asset);
+  const minted = mine;
   if (!S.session()) { box.innerHTML = '<div class="pv-empty">Sign in on the 1v1 Stake tab to see your Monstars.</div>'; return; }
-  box.innerHTML = minted.length ? '' : '<div class="pv-empty">None minted yet. Mint from the 1v1 Stake tab.</div>';
+  box.innerHTML = minted.length ? '' : '<div class="pv-empty">No Monstars yet.</div>';
   for (const m of minted) {
     const c = el('div', { className: 'pv-card' });
+    if (!m.asset) { c.innerHTML = cardHtml(m, '<div class="acts"><button class="smallbtn" data-a="mint">Mint NFT to trade</button></div>'); const mb = c.querySelector('[data-a=mint]');
+      mb.onclick = () => busy(mb, async () => { await S.mint(m.serial); toast(m.name + ' minted to your wallet.'); refreshMine(); refreshBalance(); }); box.append(c); continue; }
     c.innerHTML = cardHtml(m, `<input class="pv-input" placeholder="Price in SOL" inputmode="decimal" data-f="price"><div class="acts"><button class="primary" data-a="list">List</button></div>
       <input class="pv-input" placeholder="Send to wallet address" data-f="to"><div class="acts"><button class="smallbtn" data-a="send">Send</button></div>`);
     const lb = c.querySelector('[data-a=list]'), sb = c.querySelector('[data-a=send]');
