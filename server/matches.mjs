@@ -4,6 +4,19 @@ import { createMatch, step, snapshot, sanitizeInput, forfeit, aiInput, TICK, ARE
 import { Monstar, GENESIS_IDS, SPECIES, TIERS, rollWild, stageFor } from '../shared/monstars.mjs';
 
 export const WILD_ZONE_MIN = [1, 6, 14, 26];
+import { createHash } from 'node:crypto';
+import { Players } from './players.mjs';
+
+/** Red HP: a wild Monstar at or below 25% HP can be captured. */
+export const CAPTURE_HP = 0.25;
+const TIER_CATCH = { Common: 1.15, Uncommon: 1.0, Rare: 0.85, Epic: 0.7, Mythic: 0.45, Divine: 0.3 };
+/** Each species has its own base catch rate (25-65%), scaled by rarity, how low its HP is, and a fresh random roll every throw. */
+export function captureChance(speciesId, hpFrac, rand = Math.random()) {
+  const h = createHash('sha256').update('pocketmonstars:catch:' + speciesId).digest()[0];
+  const base = 0.25 + (h % 41) / 100, tier = TIER_CATCH[SPECIES[speciesId].tier] ?? 0.8;
+  const low = 1 + Math.max(0, CAPTURE_HP - hpFrac) * 2; // lower HP, better odds (up to x1.5)
+  return Math.max(0.03, Math.min(0.9, base * tier * low * (0.7 + rand * 0.6)));
+}
 import { StakeLedger, STAKE_POLICY, validateStake, settlementSplit, formatSol } from '../shared/stake.mjs';
 import { newEscrow, buildSettlement, buildDeposit } from './escrow.mjs';
 
@@ -11,8 +24,8 @@ const CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 const newCode = () => [...randomBytes(6)].map(b => CODE_CHARS[b % CODE_CHARS.length]).join('');
 
 export class MatchManager {
-  constructor({ db, registry, chain, config, policy = STAKE_POLICY, now = () => Date.now() }) {
-    Object.assign(this, { db, registry, chain, config, policy, now });
+  constructor({ db, registry, chain, config, players = null, policy = STAKE_POLICY, now = () => Date.now() }) {
+    Object.assign(this, { db, registry, chain, config, players, policy, now });
     this.rooms = new Map(); // code -> room
     this.byWallet = new Map(); // wallet -> code
   }
@@ -52,11 +65,18 @@ export class MatchManager {
 
   /** Wild Expedition: a paid (0.0001 SOL) battle against a random wild Monstar. Win it for a chance to catch it. */
   async createWild(wallet, { serial, signature, zone = 0 }) {
-    if (!this.config.treasury) throw Error('The company fee wallet is not set up yet, so the wild is closed.');
-    const sig = String(signature || '');
-    if (this.db.prepare('SELECT 1 FROM wild_runs WHERE signature=?').get(sig)) throw Error('That entry fee was already used.');
+    let sig;
     const monstar = this.resolveMonstar(wallet, { serial }, true);
-    await this.chain.verifyDeposit(sig, { from: wallet, to: this.config.treasury, lamports: this.config.wildFeeLamports });
+    if (wallet.startsWith('@')) { // username accounts: free runs with a short cooldown
+      const last = this.db.prepare('SELECT MAX(created_at) t FROM wild_runs WHERE wallet=?').get(wallet)?.t || 0, wait = last + this.config.freeWildCooldownMs - this.now();
+      if (wait > 0) throw Error(`Your next free wild run is ready in ${Math.ceil(wait / 1000)} s.`);
+      sig = `free:${wallet}:${this.now()}:${randomBytes(4).toString('hex')}`;
+    } else {
+      if (!this.config.treasury) throw Error('The company fee wallet is not set up yet, so the wild is closed.');
+      sig = String(signature || '');
+      if (this.db.prepare('SELECT 1 FROM wild_runs WHERE signature=?').get(sig)) throw Error('That entry fee was already used.');
+      await this.chain.verifyDeposit(sig, { from: wallet, to: this.config.treasury, lamports: this.config.wildFeeLamports });
+    }
     const z = Math.max(0, Math.min(WILD_ZONE_MIN.length - 1, Number(zone) || 0)), sid = rollWild(), tier = TIERS[SPECIES[sid].tier];
     const level = WILD_ZONE_MIN[z] + Math.floor(Math.random() * 4) + tier.lvl;
     this.db.prepare('INSERT INTO wild_runs(signature,wallet,species,level,created_at) VALUES(?,?,?,?,?)').run(sig, wallet, sid, level, this.now());
@@ -80,6 +100,7 @@ export class MatchManager {
     const { stakeLamports = '0' } = msg;
     if (this.byWallet.has(wallet)) this.leave(wallet);
     const stake = validateStake(BigInt(stakeLamports), this.policy);
+    if (stake > 0n && wallet.startsWith('@')) throw Error('Sign in with Phantom to stake SOL. Username accounts play free matches.');
     const team = this.resolveTeam(wallet, msg, stake > 0n), monstar = team[0];
     let code; do code = newCode(); while (this.rooms.has(code));
     const escrow = stake > 0n ? newEscrow() : null;
@@ -97,6 +118,7 @@ export class MatchManager {
     if (!room) throw Error('No match with that code.');
     if (room.players.length > 1 || room.state !== 'waiting') throw Error('That match is already full.');
     if (room.players[0].wallet === wallet) throw Error('Use a second wallet to play yourself.');
+    if (room.stake > 0n && wallet.startsWith('@')) throw Error('This match is for SOL. Sign in with Phantom to join it.');
     if (this.byWallet.has(wallet)) this.leave(wallet);
     const team = this.resolveTeam(wallet, { ...msg, mode: room.mode }, room.stake > 0n), monstar = team[0];
     room.players.push({ wallet, monstar, team, deposit: null, sockets: new Set(), lastSeen: this.now() });
@@ -132,6 +154,22 @@ export class MatchManager {
     if (!room || room.state !== 'live') return;
     const idx = room.players.findIndex(p => p.wallet === wallet);
     room.sim.fighters[idx].input = sanitizeInput(raw);
+  }
+
+  /** Throw a capture at a wild Monstar whose HP is in the red. Odds differ per species and change every throw. */
+  capture(wallet) {
+    const room = this.roomOf(wallet);
+    if (!room?.wild || room.state !== 'live') throw Error('You can only capture in a wild battle.');
+    const foe = room.sim.fighters[1], frac = foe.hp / foe.maxHp, now = this.now();
+    if (frac > CAPTURE_HP) throw Error('Get its HP into the red first.');
+    room.throws ??= 0; if (room.throws >= 3) throw Error('No capture tries left this battle. KO it for one last chance.');
+    if (now - (room.lastThrow || 0) < 1500) throw Error('Wait a moment before throwing again.');
+    room.throws++; room.lastThrow = now;
+    const chance = captureChance(room.wild.speciesId, frac), ok = Math.random() < chance;
+    const msg = { t: 'capture', ok, chance: Math.round(chance * 100), left: 3 - room.throws, code: room.code };
+    if (ok) { room.captured = this.registry.catchWild(room.players[0].wallet, room.wild.speciesId); forfeit(room.sim, 1); this.end(room); }
+    else this.emit(room, msg);
+    return msg;
   }
 
   leave(wallet) {
@@ -215,7 +253,10 @@ export class MatchManager {
       return { gained: sim.roster[i].reduce((n, x) => n + (x?.expGained || 0), 0), level: f.level, stage: stageFor(f.level).name, saved: !p.ai && p.monstar.serial != null };
     });
     let caught;
-    if (room.wild) { // win a wild battle for a chance to catch it (as an Infant)
+    if (room.wild && room.captured) { // captured while its HP was in the red
+      caught = { won: true, captured: true, chance: 1, speciesId: room.wild.speciesId, tier: room.wild.tier, ok: true, monstar: room.captured.toJSON() };
+      this.db.prepare('UPDATE wild_runs SET won=1, caught_serial=? WHERE signature=?').run(room.captured.serial, room.wild.signature);
+    } else if (room.wild) { // win a wild battle for a chance to catch it (as an Infant)
       const won = sim.winner === 0, chance = TIERS[room.wild.tier].catch;
       caught = { won, chance, speciesId: room.wild.speciesId, tier: room.wild.tier, ok: false };
       if (won && Math.random() < chance) { const c = this.registry.catchWild(room.players[0].wallet, room.wild.speciesId); caught.ok = true; caught.monstar = c.toJSON(); }
@@ -247,13 +288,23 @@ export class MatchManager {
     }
     const policy = { ...this.policy, companyFeeLamports: refund || !treasury ? 0n : this.policy.companyFeeLamports, companyFeeBps: refund || !treasury ? 0 : this.policy.companyFeeBps };
     const split = settlementSplit({ escrowBalance: balance, shares, winner, policy });
+    // Referrals: whoever referred the winner gets 5% of what the winner won (their payout minus their stake).
+    let referral = null;
+    if (!refund && this.players && winner != null && room.players[winner]) {
+      const w = room.players[winner].wallet, ref = this.players.referrerOf(w), cut = Players.cutOf(split.payouts[winner] - room.stake);
+      if (ref && !ref.startsWith('@') && cut > 0n) {
+        const [rb, min] = await Promise.all([this.chain.balance(ref), this.chain.rentExemptMinimum(0)]).catch(() => [0n, 1n]);
+        if (rb + cut >= min) { split.payouts[winner] -= cut; referral = { to: ref, from: w, lamports: cut }; }
+      }
+    }
     const transfers = room.players.map((p, i) => ({ to: p.wallet, lamports: split.payouts[i] }));
     if (split.company > 0n) transfers.push({ to: treasury, lamports: split.company });
-    return { split, transfers, balance };
+    if (referral) transfers.push({ to: referral.to, lamports: referral.lamports });
+    return { split, transfers, balance, referral };
   }
 
   async settle(room, shares, winner, opts = {}) {
-    const { split, transfers } = await this.payoutPlan(room, shares, winner, opts);
+    const { split, transfers, referral } = await this.payoutPlan(room, shares, winner, opts);
     const { blockhash } = await this.chain.latestBlockhash();
     const signed = buildSettlement({ escrowSecret: room.escrow.secret, blockhash, transfers });
     // Persist the exact signed bytes BEFORE broadcasting; retries reuse them, never a new payout.
@@ -268,10 +319,11 @@ export class MatchManager {
     }
     const ok = !!status && !status.err && ['confirmed', 'finalized'].includes(status.confirmationStatus);
     room.state = ok ? (opts.refund ? 'refunded' : 'settled') : 'settlement-needs-review';
+    if (ok && referral) this.players.recordPayout(room.id, referral.to, referral.from, referral.lamports);
     this.persistState(room);
     this.emit(room, { t: 'settlement', ok, refund: !!opts.refund, signature: signed.signature,
       payouts: split.payouts.map(String), company: split.company.toString(), network: split.network.toString(),
-      summary: room.players.map((p, i) => `${p.wallet.slice(0, 4)}… receives ${formatSol(split.payouts[i])} SOL`).join(' · ') });
+      summary: room.players.map((p, i) => `${p.wallet.slice(0, 4)}… receives ${formatSol(split.payouts[i])} SOL`).join(' · ') + (referral ? ` · referrer ${referral.to.slice(0, 4)}… receives ${formatSol(referral.lamports)} SOL` : '') });
     this.close(room);
   }
 

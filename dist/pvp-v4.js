@@ -47,6 +47,7 @@ pvp.innerHTML = `
     <canvas id="pvCanvas" width="960" height="540" aria-label="Battle arena"></canvas>
     <div class="pv-pot" id="pvPot" hidden><div class="pv-potbar"><i id="pvP0" style="width:50%"></i><i id="pvP1" style="width:50%"></i></div><small id="pvPotTxt">Pot</small></div>
     <div class="pv-touch"><div class="pv-stickzone" id="pvZone"></div></div>
+    <button class="pv-capture" id="pvCapture" hidden>Capture!</button>
    </div>
    <div class="pv-moves" id="pvMoves" hidden>
     <div class="pv-ask"><span>What will <b id="pvAsk">YOUR MONSTAR</b> do?</span><button class="pv-run" id="pvExit">Run</button></div>
@@ -54,10 +55,18 @@ pvp.innerHTML = `
    </div>
    <div class="pv-overlay" id="pvOverlay"><div class="big" id="pvBig">Ready to battle</div><div class="pv-note" id="pvSmall">Sign in with Phantom, pick your Monstar and create or join a match.</div><div class="pv-row" id="pvOvBtns"></div></div>
   </div>
-  <div class="panel pv-walletbar"><h3>Wallet</h3>
-   <div id="pvWallet" class="pv-note" style="margin:8px 0">Not signed in.</div>
+  <div class="panel pv-walletbar"><h3>Sign in</h3>
+   <div id="pvWallet" class="pv-note" style="margin:8px 0">Not signed in. Practice is free with no sign-in.</div>
+   <form class="pv-acct" id="pvAcct" autocomplete="on" onsubmit="return false">
+    <div class="pv-note" style="margin-bottom:6px"><b>Play online free</b> with a username and password (no wallet needed).</div>
+    <div class="pv-row" style="flex-wrap:nowrap"><input class="pv-input" id="pvUser" name="username" placeholder="Username" autocomplete="username" maxlength="20" autocapitalize="none" style="flex:1;min-width:0">
+    <input class="pv-input" id="pvPass" name="password" type="password" placeholder="Password (8+)" autocomplete="current-password" maxlength="200" style="flex:1;min-width:0"></div>
+    <div class="pv-row" style="margin-top:8px"><button class="primary" id="pvSignUp" type="button">Sign up free</button><button class="smallbtn" id="pvLogIn" type="button">Log in</button></div>
+   </form>
+   <div class="pv-or"><span>or play for SOL</span></div>
    <button class="primary wide" id="pvSignIn">Connect Phantom &amp; sign in</button>
-   <p class="pv-note" id="pvPhantomHint" style="margin-top:8px">Signing in only signs a message. It never moves funds.</p></div>
+   <p class="pv-note" id="pvPhantomHint" style="margin-top:8px">Phantom sign-in only signs a message. It never moves funds. Phantom players can stake SOL, buy the Superhero Drop and mint NFTs.</p>
+   <button class="smallbtn" id="pvSignOut" hidden style="margin-top:8px">Sign out</button></div>
   <p class="pv-note" id="pvKeys">${coarse ? 'Your Monstar moves on its own. Touch the arena with your index finger to run it there (it follows your finger); swipe fast or double-tap to dodge-dash that way. Use your thumb on the move cards.' : 'Your Monstar moves and dodges on its own. <b>Click or hold the mouse</b> on the arena to move it there. Hit with the keyboard: <b>1</b>–<b>5</b> (or <b>Q</b>/<b>J</b> attack · <b>E</b>/<b>K</b> special · <b>Space</b> dash · <b>L</b> guard · <b>R</b> Mega Shot), <b>6</b>–<b>8</b> switch · <b>WASD</b> also steers · <b>Esc</b> to run.'}</p>
   <div class="panel" id="pvBreed"><div class="pv-row" style="justify-content:space-between"><h3>Breed Monstars</h3><span class="pv-chip" id="pvBreedFee">0.01 SOL each</span></div>
    <p class="pv-note" style="margin:6px 0 12px">Pair one of your Monstars with another player's. Each of you gets a new Infant. Its stats mix both parents with a random twist, so it can come out stronger or weaker. Each player pays a 0.01 SOL fee to PocketMonstars.</p>
@@ -134,15 +143,19 @@ let stageHome = null, stageNext = null;
 let snapPrev = null, snapCur = null, snapAt = 0, shares = null, pops = [], ended = null;
 
 // ---------- wallet ----------
+const isAcct = id => !!id && id.startsWith('@');
 async function afterSignIn() {
   me = S.session()?.wallet || null;
-  q('pvSignIn').textContent = me ? 'Signed in · switch wallet' : 'Connect Phantom & sign in';
-  if (!me) return;
-  q('pvWallet').innerHTML = `<span class="pv-addr">${esc(me)}</span><br><span id="pvBal">Loading balance…</span>`;
+  q('pvSignIn').textContent = me && !isAcct(me) ? 'Signed in · switch wallet' : 'Connect Phantom & sign in';
+  q('pvAcct').hidden = !!me; q('pvSignOut').hidden = !me;
+  window.PMV5?.signedIn?.(me);
+  if (!me) { q('pvWallet').textContent = 'Not signed in. Practice is free with no sign-in.'; return; }
+  q('pvWallet').innerHTML = isAcct(me) ? `Signed in as <b>${esc(me.slice(1))}</b> · free account. Connect Phantom any time to play for SOL.`
+    : `<span class="pv-addr">${esc(me)}</span><br><span id="pvBal">Loading balance…</span>`;
   refreshBalance(); await refreshMine(); openSocket();
   q('pvBig').textContent = 'Ready to duel'; q('pvSmall').textContent = 'Pick your Monstar below, then create a match or join with a code.';
 }
-async function refreshBalance() { if (!me) return; try { q('pvBal').textContent = sol(await S.balance(me), 6) + ' devnet SOL'; } catch { q('pvBal').textContent = 'Balance unavailable (RPC busy)'; } }
+async function refreshBalance() { if (!me || isAcct(me)) return; try { q('pvBal').textContent = sol(await S.balance(me), 6) + ' devnet SOL'; } catch { q('pvBal').textContent = 'Balance unavailable (RPC busy)'; } }
 q('pvSignIn').onclick = e => busy(e.target, async () => {
   if (!window.phantom?.solana?.isPhantom) {
     q('pvPhantomHint').innerHTML = coarse ? `Phantom isn't in this browser. <a href="${esc(S.phantomBrowseLink())}" style="color:var(--lime)">Open this game in the Phantom app</a>, then sign in there.` : 'Install the official Phantom extension, then reload this page.';
@@ -150,6 +163,14 @@ q('pvSignIn').onclick = e => busy(e.target, async () => {
   }
   await S.signIn(); await afterSignIn(); toast('Signed in as ' + short(me));
 });
+async function acct(btn, fn) { return busy(btn, async () => {
+  const u = q('pvUser').value.trim(), p = q('pvPass').value;
+  if (!u || !p) throw Error('Enter a username and a password.');
+  await fn(u, p); q('pvPass').value = ''; await afterSignIn(); toast('Signed in as ' + me.slice(1) + '. You can play online now.');
+}); }
+q('pvSignUp').onclick = e => acct(e.target, S.accountRegister);
+q('pvLogIn').onclick = e => acct(e.target, S.accountLogin);
+q('pvSignOut').onclick = () => { try { ws?.close(); } catch {} ws = null; S.signOut(); me = null; mine = []; picked = null; afterSignIn(); renderPicker(); toast('Signed out.'); };
 
 // ---------- Monstar cards ----------
 function statBars(st) {
@@ -166,6 +187,7 @@ async function refreshMine() {
   if (!S.session()) return;
   try { mine = await S.myMonstars(); } catch (e) { return fail(e); }
   me = S.session()?.wallet;
+  if (mine.length < 3 && mode === '3v3') setMode('1v1');
   if (!picked || !mine.some(m => m.serial === picked)) picked = mine[0]?.serial ?? null;
   const box = q('pvCards');
   if (box) { box.innerHTML = '';
@@ -284,7 +306,10 @@ let mode = '3v3', teamPick = []; // Quick battle is 3v3 like the reference; empt
 let cpuLevel = 'normal';
 q('pvCpu').onclick = e => { const b = e.target.closest('button'); if (!b) return; cpuLevel = b.dataset.l; q('pvCpu').querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', x === b)); };
 function fillTeam() { const pool = Monstars.SPECIES.filter(sp => usableSpecies(sp) && !teamPick.includes(sp.id)).sort(() => Math.random() - 0.5); while (teamPick.length < 3 && pool.length) teamPick.push(pool.shift().id); }
-q('pvMode').onclick = e => { const b = e.target.closest('button'); if (!b) return; mode = b.dataset.m; q('pvMode').querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', x === b)); if (mode === '3v3' && !teamPick.length) teamPick = [pickedSpecies]; renderPicker(); };
+function setMode(m) { mode = m; q('pvMode').querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', x.dataset.m === m)); }
+q('pvMode').onclick = e => { const b = e.target.closest('button'); if (!b) return;
+  if (b.dataset.m === '3v3' && S.session() && mine.length < 3) { toast('3v3 needs three Monstars. Capture more in the Wild or buy one in the Superhero Drop.', true); return; }
+  mode = b.dataset.m; q('pvMode').querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', x === b)); if (mode === '3v3' && !teamPick.length) teamPick = [pickedSpecies]; renderPicker(); };
 function renderTeamPick() {
   const box = q('pvTeamPick'); box.hidden = mode !== '3v3'; if (mode !== '3v3') return;
   box.innerHTML = `<span>Your team (${teamPick.length}/3):</span>` + [0, 1, 2].map(i => teamPick[i] != null ? `<button data-i="${i}" title="Remove"><img src="${PA.spriteSrc(teamPick[i])}" alt="${esc(Monstars.SPECIES[teamPick[i]].name)}"></button>` : '<i>?</i>').join('') + '<small>Tap Monstars below to add. The next one comes in when one faints, or tap its picture in battle to switch.</small>';
@@ -346,6 +371,7 @@ function startPractice(opt = null) {
 }
 window.PMStartBattle = startPractice;
 window.PMArenaApi = {
+  afterSignIn: () => afterSignIn(), refreshMine: () => refreshMine(), toast,
   signedIn: () => !!S.session(),
   ownedPick: () => ownedFor(pickedSpecies) || mine[0] || null,
   // paid wild battle run by the server: it picks the wild Monstar, and a win can catch it
@@ -402,16 +428,24 @@ function onMsg(m) {
   if (m.t === 'room') { if (room?.local) return; if (room && room.code !== m.code && ['live', 'countdown'].includes(room.state) && !ended && ['done', 'cancelled', 'settled', 'refunded'].includes(m.state)) return; room = m; shares = practiceMoney() ? (vLedger ? vLedger.shares.map(String) : null) : m.shares; renderRoom(); return; }
   if (m.t === 'state') {
     if (room && room.state !== 'live') { room.state = 'live'; fightAt = performance.now(); renderer.reset(); renderRoom(); }
-    snapPrev = snapCur; snapCur = m.s; snapAt = performance.now(); setShares(m.shares); return;
+    snapPrev = snapCur; snapCur = m.s; snapAt = performance.now(); setShares(m.shares); showCapture(); return;
   }
+  if (m.t === 'capture') { if (!m.ok) toast(`It broke free! (${m.chance}% chance) · ${m.left} ${m.left === 1 ? 'try' : 'tries'} left`, true); return; }
   if (m.t === 'hit') { setShares(m.shares, m); return; }
   if (['switch', 'status', 'ult', 'pickup', 'blocked', 'dash', 'guard', 'mega', 'quake'].includes(m.t)) { battleEvent({ ...m, type: m.t }); return; }
   if (m.t === 'miss' || m.t === 'level' || m.t === 'bonus') { battleEvent({ ...m, type: m.t }); if (m.t === 'level') refreshSoon(); return; }
-  if (m.t === 'end') { if (m.code) setTimeout(() => doneCodes.add(m.code), 60000); if (practiceMoney() && vLedger) { vLedger.finish(m.winner == null ? null : m.winner); shares = vLedger.shares.map(String); showShares(); } ended = { ...m, at: performance.now() }; refreshSoon(); if (room) room.state = room.stake === '0' ? 'done' : 'settling'; renderRoom(); return; }
+  if (m.t === 'end') { q('pvCapture').hidden = true; if (m.caught?.captured) toast('Captured! ' + (Monstars.SPECIES[m.caught.speciesId]?.name || 'It') + ' joined your team as an Infant.'); if (m.code) setTimeout(() => doneCodes.add(m.code), 60000); if (practiceMoney() && vLedger) { vLedger.finish(m.winner == null ? null : m.winner); shares = vLedger.shares.map(String); showShares(); } ended = { ...m, at: performance.now() }; refreshSoon(); if (room) room.state = room.stake === '0' ? 'done' : 'settling'; renderRoom(); return; }
   if (m.t === 'settlement') { ended = { at: 0, ...(ended || {}), settlement: m }; if (room) room.state = m.ok ? (m.refund ? 'refunded' : 'settled') : 'needs review'; renderRoom(); refreshBalance(); return; }
   if (m.t === 'cancelled') { toast('Match cancelled (' + m.reason + ').' + (room?.players?.some(p => p.deposited) ? ' Deposits are being refunded.' : '')); if (room) room.state = 'cancelled'; renderRoom(); }
   if (m.t === 'left') { room = null; renderRoom(); }
 }
+
+// Capture: during a wild battle on the server, the button appears once the wild Monstar's HP is in the red (25% or less).
+function showCapture() {
+  const b = q('pvCapture'), f = snapCur?.f?.[1];
+  b.hidden = !(room && !room.local && room.wild && room.state === 'live' && !ended && f && f.hp > 0 && f.hp / f.max <= 0.25);
+}
+q('pvCapture').onclick = () => { try { sendWs({ t: 'capture' }); } catch (e) { fail(e); } };
 
 let refreshT;
 function refreshSoon() { clearTimeout(refreshT); refreshT = setTimeout(() => { if (S.session()) refreshMine(); }, 1500); }
@@ -715,7 +749,7 @@ try {
     c.translate(Math.round(x), Math.round(bottom + bob)); if (flip) c.scale(-1, 1); c.drawImage(spr, -Math.round(w / 2), -h, w, h); c.restore();
   };
 } catch {}
-if (!location.hash || location.hash === '#arena') tab('pvp');
+if (!location.hash || location.hash === '#arena' || location.hash === '#free') tab('pvp');
 if (S.session()) afterSignIn();
 window.phantom?.solana?.on?.('accountChanged', () => { if (!S.session()) { me = null; mine = []; q('pvWallet').textContent = 'Wallet changed. Sign in again.'; q('pvSignIn').textContent = 'Connect Phantom & sign in'; } });
 })();

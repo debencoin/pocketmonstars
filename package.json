@@ -4,7 +4,7 @@
   "type": "module",
   "scripts": {
     "build": "node scripts/build.mjs",
-    "test": "node tests/game-mechanics.cjs && node --test tests/protocol.test.mjs tests/pvp.test.mjs",
+    "test": "node tests/game-mechanics.cjs && node --test tests/protocol.test.mjs tests/pvp.test.mjs tests/v5.test.mjs",
     "start": "node server/index.mjs",
     "dev": "node server/index.mjs",
     "dev:static": "node scripts/dev-server.mjs",
@@ -19,6 +19,7 @@
     "@solana/web3.js": "^1.98.4",
     "bs58": "^6.0.0",
     "esbuild": "^0.25.0",
+    "qrcode": "^1.5.4",
     "ws": "^8.18.0"
   },
   "engines": {

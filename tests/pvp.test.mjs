@@ -29,14 +29,16 @@ test('DNA traits are deterministic and differ between wallets', () => {
   assert.throws(() => traitsFromDna('xyz'));
 });
 
-test('registry gives each wallet three one-of-a-kind starters and refuses duplicates', () => {
+// New players start with ONE Monstar; tests that need a team catch two more.
+const team3 = (reg, w) => { const [s] = reg.claimAll(w), ids = [11, 12, 13, 14].filter(id => id !== s.species.id).slice(0, 2); return [s, ...ids.map(id => reg.catchWild(w, id))]; };
+test('registry gives each wallet one random one-of-a-kind starter and refuses duplicates', () => {
   const reg = new Registry(openDb(':memory:'));
   const a = wallet(), b = wallet();
   const mineA = reg.claimAll(a), mineB = reg.claimAll(b);
-  assert.equal(mineA.length, 3); assert.equal(reg.claimAll(a)[0].serial, mineA[0].serial); // three starters, idempotent
+  assert.equal(mineA.length, 1); assert.equal(reg.claimAll(a)[0].serial, mineA[0].serial); assert.equal(reg.claimAll(a).length, 1); // one starter, idempotent
   const all = [...mineA, ...mineB];
-  assert.equal(new Set(all.map(m => m.dna)).size, 6);
-  assert.equal(new Set(all.map(m => traitSignature(m.species.id, m.traits))).size, 6);
+  assert.equal(new Set(all.map(m => m.dna)).size, 2);
+  assert.equal(new Set(all.map(m => traitSignature(m.species.id, m.traits))).size, 2);
   // a forced duplicate is rejected by the database
   const row = reg.db.prepare('SELECT * FROM monstars WHERE serial=1').get();
   assert.throws(() => reg.db.prepare('INSERT INTO monstars(species,origin_owner,owner,dna,trait_sig,nonce,genesis,created_at) VALUES(?,?,?,?,?,?,0,?)')
@@ -102,7 +104,7 @@ test('staked 1v1: deposits, live per-hit shares, KO winner takes the pot, one se
   const treasury = wallet();
   const mm = new MatchManager({ db, registry, chain, config: { treasury, disconnectGraceMs: 1e9, depositTimeoutMs: 1e9 } });
   const a = wallet(), b = wallet();
-  const [ma] = registry.claimAll(a), mb = registry.claimAll(b)[1];
+  const [ma] = registry.claimAll(a), mb = registry.claimAll(b)[0];
   const stake = '5000000';
   const room = mm.create(a, { stakeLamports: stake, serial: ma.serial });
   assert.throws(() => mm.join(b, { code: room.code, serial: ma.serial }), /do not own/);
@@ -286,7 +288,7 @@ test('wild: paid entry is checked once, the server runs the battle, a win can ca
 test('3v3 rooms: both players bring three, the server runs a team match and saves EXP for every member used', async () => {
   const db = openDb(':memory:'), registry = new Registry(db), chain = new MockChain();
   const mm = new MatchManager({ db, registry, chain, config: { disconnectGraceMs: 1e9, depositTimeoutMs: 1e9 } });
-  const a = wallet(), b = wallet(), ta = registry.claimAll(a).slice(0, 3), tb = registry.claimAll(b).slice(0, 3);
+  const a = wallet(), b = wallet(), ta = team3(registry, a), tb = team3(registry, b);
   assert.throws(() => mm.create(a, { mode: '3v3', serials: [ta[0].serial] }), /three/);
   const room = mm.create(a, { mode: '3v3', serials: ta.map(m => m.serial) });
   mm.join(b, { code: room.code, serials: tb.map(m => m.serial) });
@@ -318,11 +320,13 @@ test('powers do things: levitation lifts and carries the rival, freeze stops it,
   assert.ok(f.hp < hp0 && dots > 0, 'burn deals damage over time');
 });
 
-test('starters: every wallet gets three of its own Genesis Monstars, and different wallets get different sets', async () => {
+test('starters: every new player (wallet or username) gets one random Monstar from the starter list', async () => {
+  const { STARTER_POOL } = await import('../server/registry.mjs');
   const reg = new Registry(openDb(':memory:'));
   const sets = new Set();
-  for (let i = 0; i < 12; i++) { const ms = reg.claimAll(wallet()); assert.equal(ms.length, 3); assert.equal(new Set(ms.map(m => m.species.id)).size, 3); sets.add(ms.map(m => m.species.id).sort().join(',')); }
-  assert.ok(sets.size > 4, 'starter sets vary between wallets');
+  for (let i = 0; i < 12; i++) { const ms = reg.claimAll(i % 2 ? wallet() : '@player' + i); assert.equal(ms.length, 1); assert.ok(STARTER_POOL.includes(ms[0].species.id)); sets.add(ms[0].species.id); }
+  assert.ok(sets.size > 4, 'starters vary between players');
+  assert.ok(!STARTER_POOL.some(id => SPECIES[id].hero || SPECIES[id].legendary || ['Mythic', 'Divine', 'Epic'].includes(SPECIES[id].tier)));
 });
 test('hit fees: tiny, grow with level, stats and move power, never above 0.00001 SOL', async () => {
   const { hitFee } = await import('../shared/stake.mjs');
@@ -387,7 +391,7 @@ test('Mega Shot fires from a full ULT meter; Mirror Shell reflects shots; Shadow
 test('a player in a new match never receives messages from an old one; finished matches are not re-broadcast', async () => {
   const db = openDb(':memory:'), registry = new Registry(db), chain = new MockChain();
   const mm = new MatchManager({ db, registry, chain, config: { disconnectGraceMs: 1e9, depositTimeoutMs: 1e9 } });
-  const w = wallet(), mine = registry.claimAll(w), got = [], sock = { send: s => got.push(JSON.parse(s)) };
+  const w = wallet(), mine = team3(registry, w), got = [], sock = { send: s => got.push(JSON.parse(s)) };
   const r1 = mm.createAi(w, { serial: mine[0].serial }); mm.attach(w, sock);
   for (let i = 0; i < 120; i++) mm.tick();
   mm.leave(w); const r2 = mm.createAi(w, { serial: mine[1].serial }); mm.attach(w, sock);
@@ -456,7 +460,7 @@ test('gift wallet gets the three strongest Monstars once, as elite Legendary hat
   const { Registry } = await import('../server/registry.mjs'), { openDb } = await import('../server/db.mjs');
   const w = '7psxmCxFNHQztUP9SahuGDShSU4y1JcufEugtFgkgwTx', reg = new Registry(openDb(':memory:'), { gifts: { [w]: [64, 65, 85] } });
   const a = reg.claimAll(w), b = reg.claimAll(w);
-  assert.equal(a.length, 6); assert.equal(b.length, 6, 'no duplicates on second sign-in');
-  assert.deepEqual(a.slice(3).map(m => m.species.name), ['Aeonox', 'Anuvax', 'Semyazar']);
-  assert.ok(a.slice(3).every(m => m.traits.rarity === 'Legendary'));
+  assert.equal(a.length, 4); assert.equal(b.length, 4, 'no duplicates on second sign-in');
+  assert.deepEqual(a.slice(1).map(m => m.species.name), ['Aeonox', 'Anuvax', 'Semyazar']);
+  assert.ok(a.slice(1).every(m => m.traits.rarity === 'Legendary'));
 });

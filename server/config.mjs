@@ -30,6 +30,10 @@ export const CONFIG = {
   // Wallets granted specific top Monstars (species ids) as elite Legendary-rarity hatchlings on sign-in.
   gifts: { '7psxmCxFNHQztUP9SahuGDShSU4y1JcufEugtFgkgwTx': [64, 65, 85] }, // Aeonox, Anuvax, Semyazar: the three strongest Monstars
   royalOwner: env.PM_ROYAL_OWNER || '54y46qyavsX1hWXgx5W76WrBjghXxUfkcNftswaXNTbr', // second founder wallet: the Royal Anunnaki
+  // Superhero Drop: 30 heroes sold once each (top 5 at 1 SOL, the rest 0.5 SOL), paid to the founder wallet.
+  dropTreasury: env.PM_DROP_TREASURY || env.PM_LEGENDARY_OWNER || 'Dc9s1YwNHE2xDBzpprDvyruzxj8j5HvBSvfbvdups5LJ',
+  dropEndsAt: Date.parse(env.PM_DROP_ENDS || '2026-12-03T03:30:00Z'), // 30 days from launch (2026-11-03)
+  freeWildCooldownMs: 45 * 1000, // username accounts play the wild for free, one run every 45 s
   // Breeding fee each player pays to the company treasury, in lamports (0.01 SOL).
   breedFeeLamports: BigInt(env.PM_BREED_FEE_LAMPORTS || 10_000_000),
   wildFeeLamports: BigInt(env.PM_WILD_FEE_LAMPORTS || 100_000), // 0.0001 SOL to enter the wild (paid to the company wallet)

@@ -3,17 +3,21 @@
 // Levels (EXP) are stored here; Legendary and Bred collections are created here too.
 import { createHash, randomBytes } from 'node:crypto';
 import { PublicKey } from '@solana/web3.js';
-import { legendaryIdsFor, nftArt, SPECIES, GENESIS_IDS, LEGENDARY_IDS, WILD_IDS, RARITIES, Monstar, traitsFromDna, traitSignature, composeDna, rarityIndex, expForLevel } from '../shared/monstars.mjs';
+import { HERO_IDS, legendaryIdsFor, nftArt, SPECIES, GENESIS_IDS, LEGENDARY_IDS, WILD_IDS, RARITIES, Monstar, traitsFromDna, traitSignature, composeDna, rarityIndex, expForLevel } from '../shared/monstars.mjs';
 
 export function deriveDna(owner, speciesId, nonce) {
   return createHash('sha256').update(`pocketmonstars:dna:v1:${owner}:${speciesId}:${nonce}`).digest('hex');
 }
 
-/** Three different Genesis species for a wallet, chosen from a hash of its address. */
+/** Players are wallets (base58) or username accounts ("@name"). */
+export const isAccount = id => typeof id === 'string' && id.startsWith('@');
+export const normOwner = id => (isAccount(id) ? id : new PublicKey(id).toBase58());
+/** Species a new player can start with: the Genesis nine plus every Common, Uncommon and Rare wild Monstar. */
+export const STARTER_POOL = SPECIES.filter(s => GENESIS_IDS.includes(s.id) || (WILD_IDS.includes(s.id) && ['Common', 'Uncommon', 'Rare'].includes(s.tier))).map(s => s.id);
+/** Every new player gets ONE random Monstar from the pool (fixed per player, so it is the same after a server reset). */
 export function starterSpecies(owner) {
-  const h = createHash('sha256').update('pocketmonstars:starters:v1:' + owner).digest(), pool = [...GENESIS_IDS], out = [];
-  for (let i = 0; out.length < 3; i++) out.push(...pool.splice(h[i] % pool.length, 1));
-  return out;
+  const h = createHash('sha256').update('pocketmonstars:starter:v2:' + owner).digest();
+  return [STARTER_POOL[h.readUInt32BE(0) % STARTER_POOL.length]];
 }
 
 export class Registry {
@@ -49,16 +53,16 @@ export class Registry {
 
   /** Give a wallet its own one-of-a-kind version of a Genesis species (one per species per wallet). Starts as an Infant. */
   claimGenesis(owner, speciesId) {
-    owner = new PublicKey(owner).toBase58();
-    if (!GENESIS_IDS.includes(speciesId)) throw Error('Unknown species');
+    owner = normOwner(owner);
+    if (!STARTER_POOL.includes(speciesId)) throw Error('Unknown species');
     const existing = this.db.prepare('SELECT * FROM monstars WHERE origin_owner=? AND species=? AND genesis=1').get(owner, speciesId);
     if (existing) return this.toMonstar(existing);
-    return this.insertUnique({ speciesId, originOwner: owner, owner, genesis: true, collection: 'genesis', dnaFor: n => deriveDna(owner, speciesId, n) });
+    return this.insertUnique({ speciesId, originOwner: owner, owner, genesis: true, collection: SPECIES[speciesId].collection, dnaFor: n => deriveDna(owner, speciesId, n) });
   }
 
   /** The founder wallet holds the Legendary collections. They hatch as level 1 Infants with elite attributes (Legendary rarity, near-perfect rolls, +20% stats). */
   claimLegendaries(owner) {
-    owner = new PublicKey(owner).toBase58();
+    owner = normOwner(owner); if (isAccount(owner)) return [];
     const key = owner === this.legendaryOwner ? 'founder' : owner === this.royalOwner ? 'royal' : null;
     const ids = [...(key ? legendaryIdsFor(key) : []), ...(this.gifts[owner] || [])];
     if (!ids.length) return [];
@@ -76,7 +80,7 @@ export class Registry {
    * Wallets that already hatched more before this rule keep everything they have.
    */
   claimAll(owner) {
-    owner = new PublicKey(owner).toBase58();
+    owner = normOwner(owner);
     const had = this.db.prepare('SELECT * FROM monstars WHERE origin_owner=? AND genesis=1').all(owner).map(r => this.toMonstar(r)).filter(m => !m.species.legendary && !(this.gifts[owner] || []).includes(m.species.id));
     const starters = (had.length ? had : starterSpecies(owner).map(id => this.claimGenesis(owner, id))).sort((x, y) => x.serial - y.serial);
     return [...starters, ...this.claimLegendaries(owner)];
@@ -89,7 +93,7 @@ export class Registry {
   breed({ a, b, seed = randomBytes(16).toString('hex') }) {
     if (a.owner === b.owner) throw Error('Breeding needs Monstars from two different players.');
     const rnd = (k) => parseInt(createHash('sha256').update(seed + ':' + k).digest('hex').slice(0, 8), 16) / 0xffffffff;
-    const genesisOf = m => (m.species.legendary ? null : m.species.id);
+    const genesisOf = m => (m.species.legendary || m.species.hero ? null : m.species.id); // legendaries and drop heroes never breed copies
     const children = [];
     for (const [i, parent] of [a, b].entries()) {
       let sid = rnd('sp' + i) < 0.5 ? genesisOf(a) : genesisOf(b);
@@ -106,11 +110,21 @@ export class Registry {
 
   /** A wild Monstar caught in the Wild Expedition. It always hatches as an Infant with its own unique DNA. */
   catchWild(owner, speciesId) {
-    owner = new PublicKey(owner).toBase58();
+    owner = normOwner(owner);
     if (!WILD_IDS.includes(speciesId)) throw Error('That is not a wild species.');
     const seed = randomBytes(8).toString('hex'), sp = SPECIES[speciesId];
     return this.insertUnique({ speciesId, originOwner: owner, owner, genesis: false, collection: sp.collection, exp: 0,
       dnaFor: n => createHash('sha256').update(`pocketmonstars:wild:${owner}:${speciesId}:${seed}:${n}`).digest('hex') });
+  }
+
+  /** A Superhero Drop Monstar bought with SOL: one of each hero ever, level 1, unique DNA. */
+  grantHero(owner, speciesId, signature) {
+    owner = normOwner(owner);
+    if (!HERO_IDS.includes(speciesId)) throw Error('That is not a drop hero.');
+    const had = this.db.prepare('SELECT * FROM monstars WHERE species=? ORDER BY serial LIMIT 1').get(speciesId);
+    if (had) return this.toMonstar(had);
+    return this.insertUnique({ speciesId, originOwner: owner, owner, genesis: false, collection: 'heroes', exp: 0,
+      dnaFor: n => composeDna(createHash('sha256').update(`pocketmonstars:hero:${speciesId}:${signature}:${n}`).digest('hex'), { rarity: 'Legendary', ivs: [15, 15, 14, 15, 14, 15] }) });
   }
 
   get(serial) { const row = this.db.prepare('SELECT * FROM monstars WHERE serial=?').get(serial); return row ? this.toMonstar(row) : null; }

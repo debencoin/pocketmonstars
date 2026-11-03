@@ -32,9 +32,13 @@ export class Auth {
     if (!c || c.expires < now) throw Error('Sign-in request expired. Try again.');
     if (!verifyWalletSignature(wallet, c.message, signatureB58)) throw Error('Signature does not match this wallet.');
     this.challenges.delete(wallet); // one use only
-    const exp = now + this.sessionTtlMs, body = `${wallet}.${exp}`;
+    return this.issue(wallet, now);
+  }
+  /** Session token for a wallet or a username account ("@name"). */
+  issue(id, now = Date.now()) {
+    const exp = now + this.sessionTtlMs, body = `${id}.${exp}`;
     const token = body + '.' + createHmac('sha256', this.secret).update(body).digest('base64url');
-    return { token, wallet };
+    return { token, wallet: id };
   }
   wallet(token, now = Date.now()) {
     if (typeof token !== 'string') return null;

@@ -50,6 +50,8 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
 .hero h1{font-size:clamp(40px,7.2vw,82px);line-height:.98;margin:14px 0 18px}
 .hero h1 em{font-style:normal;color:var(--lime)}
 .hero .lead{font-size:clamp(17px,2vw,20px);color:#d0d8ea;max-width:34ch}
+.cta-card.free{border-color:var(--lime);background:linear-gradient(180deg,#26310f,#141c10)}.cta-card.free b{color:var(--lime)}
+.free-top{margin-left:auto}@media (max-width:820px){.free-top{display:none}}
 .cta{display:flex;flex-wrap:wrap;gap:12px;margin-top:28px}
 .cta-note{margin-top:12px;font-size:13px;color:var(--muted);max-width:46ch}
 .duel{position:relative;aspect-ratio:1/0.82;border-radius:22px;border:1px solid #3a4670;background:radial-gradient(120% 90% at 50% 40%,#22305a,#0c1222 70%);overflow:hidden;max-width:100%}
@@ -358,6 +360,7 @@ img.px{image-rendering:auto}
   <a class="brand" href="/">PocketMonstars Arena</a><span class="sub">Official site · Solana devnet beta</span>
   <nav aria-label="Sections"><a href="#how">How it works</a><a href="#money">The money</a><a href="#monstars">Monstars</a><a href="#market">Market</a><a href="#faq">FAQ</a></nav>
   <div class="icons" id="pickRow" role="group" aria-label="Choose your Monstar for the mini battle"></div>
+  <a class="btn ghost free-top" data-free href="/play#free">Play free</a>
   <a class="btn primary" data-play href="/play">Play now</a>
 </div></header>
 
@@ -381,9 +384,10 @@ img.px{image-rendering:auto}
     </div>
    </div>
    <aside class="side">
+    <a class="cta-card free" data-free href="/play#free"><span class="k">Free · no wallet, no sign-up</span><b>Play free now</b><span>Jump straight into a full battle against the computer. Sign up with just a username and password to play online and capture Monstars.</span></a>
     <a class="cta-card hot" data-play href="/play"><span class="k">Stake SOL</span><b>Play in Phantom</b><span>Duel a real rival for a SOL pot. Every hit moves lamports to your side. Winner takes the pot when the match ends.</span></a>
-    <a class="cta-card" data-practice href="/play"><span class="k">Free</span><b>Practice vs AI</b><span>Full game, no wallet needed. Level up and watch your Monstar evolve.</span></a>
-    <a class="cta-card" href="/play#wild" data-wild><span class="k">Adventure · 0.0001 SOL</span><b>Wild Expedition</b><span>54 wild Monstars to catch, from common to three angels and a god.</span></a>
+    <a class="cta-card" href="/play#market" data-drop><span class="k">30-day launch drop</span><b>Superhero Drop</b><span>30 one-of-one hero Monstars. Top 5 at 1 SOL, the rest 0.5 SOL. Level 1, six hero evolutions each.</span></a>
+    <a class="cta-card" href="/play#wild" data-wild><span class="k">Free with an account</span><b>Wild Expedition</b><span>103 wild Monstars. Get one into the red and capture it. Every Monstar has its own odds.</span></a>
     <div class="cta-card info"><span class="k">How it works</span><ol><li>Connect Phantom (devnet)</li><li>Hatch your one-of-a-kind Monstars</li><li>Stake, battle, evolve, trade</li></ol><p class="cta-note" id="ctaNote">On a phone, the game opens inside the Phantom app so your wallet can connect.</p></div>
    </aside>
   </div>
@@ -488,12 +492,18 @@ img.px{image-rendering:auto}
     r.append(d);
   }
   // Play buttons: inside Phantom go straight in; on a phone open the game in Phantom's browser.
-  const play = new URL('/play', location.href).href;
+  const ref = new URLSearchParams(location.search).get('ref');
+  const play = new URL('/play' + (ref ? '?ref=' + encodeURIComponent(ref) : ''), location.href).href;
   const inPhantom = !!(window.phantom && window.phantom.solana && window.phantom.solana.isPhantom);
   const phone = matchMedia('(pointer:coarse)').matches;
   const target = inPhantom || !phone ? play : `https://phantom.com/ul/browse/${encodeURIComponent(play)}?ref=${encodeURIComponent(location.origin)}`;
   document.querySelectorAll('[data-play]').forEach(a => { a.href = target; });
   document.querySelectorAll('[data-practice]').forEach(a => { a.href = play; });
+  // Free play skips Phantom entirely; referral links (?ref=) carry through to the game.
+  document.querySelectorAll('[data-free]').forEach(a => { a.href = play + '#free'; });
+  document.querySelectorAll('[data-wild]').forEach(a => { a.href = play + '#wild'; });
+  document.querySelectorAll('[data-drop]').forEach(a => { a.href = play + '#market'; });
+  if (ref) try { localStorage.setItem('pm-ref', ref.slice(0, 64)); } catch {}
   if (inPhantom) document.querySelectorAll('[data-play]').forEach(a => { if (a.textContent.includes('Phantom')) a.textContent = 'Play now'; });
   if (!phone && !inPhantom) document.getElementById('ctaNote').textContent = 'On desktop, install the Phantom browser extension. On a phone, this button opens the game inside the Phantom app. Currently on Solana devnet with free test SOL.';
 })();

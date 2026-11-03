@@ -1,0 +1,69 @@
+// Username/password accounts, referrals (5% of a referred player's winnings) and the Superhero Drop sales book.
+import { scryptSync, randomBytes, timingSafeEqual } from 'node:crypto';
+import { PublicKey } from '@solana/web3.js';
+
+const NAME_RE = /^[A-Za-z0-9_]{3,20}$/;
+export const REFERRAL_BPS = 500; // 5%
+
+export class Players {
+  constructor(db) {
+    this.db = db; this.fails = new Map();
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS accounts(name TEXT PRIMARY KEY, display TEXT NOT NULL, salt TEXT NOT NULL, hash TEXT NOT NULL, created_at INTEGER NOT NULL);
+      CREATE TABLE IF NOT EXISTS referrals(user TEXT PRIMARY KEY, referrer TEXT NOT NULL, created_at INTEGER NOT NULL);
+      CREATE TABLE IF NOT EXISTS referral_payouts(match_id TEXT NOT NULL, referrer TEXT NOT NULL, user TEXT NOT NULL, lamports TEXT NOT NULL, created_at INTEGER NOT NULL, PRIMARY KEY(match_id, referrer));
+      CREATE TABLE IF NOT EXISTS drop_sales(species INTEGER PRIMARY KEY, buyer TEXT NOT NULL, signature TEXT NOT NULL UNIQUE, serial INTEGER, created_at INTEGER NOT NULL);
+    `);
+  }
+
+  // ---------- accounts ----------
+  register(username, password, now = Date.now()) {
+    const name = String(username || '').trim();
+    if (!NAME_RE.test(name)) throw Error('Pick a username of 3-20 letters, numbers or _.');
+    if (typeof password !== 'string' || password.length < 8) throw Error('Use a password of at least 8 characters.');
+    if (password.length > 200) throw Error('That password is too long.');
+    const key = name.toLowerCase();
+    if (this.db.prepare('SELECT 1 FROM accounts WHERE name=?').get(key)) throw Error('That username is taken.');
+    const salt = randomBytes(16).toString('hex'), hash = scryptSync(password, salt, 32).toString('hex');
+    this.db.prepare('INSERT INTO accounts(name,display,salt,hash,created_at) VALUES(?,?,?,?,?)').run(key, name, salt, hash, now);
+    return '@' + key;
+  }
+  login(username, password, now = Date.now()) {
+    const key = String(username || '').trim().toLowerCase(), f = this.fails.get(key);
+    if (f && f.n >= 6 && now - f.at < 10 * 60_000) throw Error('Too many tries. Wait 10 minutes and try again.');
+    const row = this.db.prepare('SELECT * FROM accounts WHERE name=?').get(key);
+    const ok = row && typeof password === 'string' && timingSafeEqual(scryptSync(password, row.salt, 32), Buffer.from(row.hash, 'hex'));
+    if (!ok) { this.fails.set(key, { n: (f && now - f.at < 10 * 60_000 ? f.n : 0) + 1, at: now }); throw Error('Wrong username or password.'); }
+    this.fails.delete(key); return '@' + key;
+  }
+  exists(id) { return id?.startsWith('@') ? !!this.db.prepare('SELECT 1 FROM accounts WHERE name=?').get(id.slice(1)) : (() => { try { new PublicKey(id); return true; } catch { return false; } })(); }
+
+  // ---------- referrals ----------
+  /** Remember who referred a player (first referrer only, never yourself). */
+  setReferrer(user, ref, now = Date.now()) {
+    ref = String(ref || '').trim(); if (!ref || ref === user || !this.exists(ref)) return false;
+    if (ref.startsWith('@')) ref = ref.toLowerCase();
+    if (this.db.prepare('SELECT 1 FROM referrals WHERE user=?').get(user)) return false;
+    if (this.referrerOf(ref) === user) return false; // no referral loops
+    this.db.prepare('INSERT INTO referrals(user,referrer,created_at) VALUES(?,?,?)').run(user, ref, now); return true;
+  }
+  referrerOf(user) { return this.db.prepare('SELECT referrer FROM referrals WHERE user=?').get(user)?.referrer || null; }
+  /** 5% of what a referred player won (their payout minus their own stake). */
+  static cutOf(profit) { return profit > 0n ? (profit * BigInt(REFERRAL_BPS)) / 10_000n : 0n; }
+  recordPayout(matchId, referrer, user, lamports, now = Date.now()) {
+    this.db.prepare('INSERT OR IGNORE INTO referral_payouts(match_id,referrer,user,lamports,created_at) VALUES(?,?,?,?,?)').run(matchId, referrer, user, String(lamports), now);
+  }
+  referralStats(id) {
+    const n = this.db.prepare('SELECT COUNT(*) n FROM referrals WHERE referrer=?').get(id).n;
+    const rows = this.db.prepare('SELECT lamports FROM referral_payouts WHERE referrer=?').all(id);
+    return { referred: n, payouts: rows.length, earnedLamports: rows.reduce((t, r) => t + BigInt(r.lamports), 0n).toString(), referrer: this.referrerOf(id) };
+  }
+
+  // ---------- Superhero Drop ----------
+  sale(species) { return this.db.prepare('SELECT * FROM drop_sales WHERE species=?').get(species) || null; }
+  sales() { return this.db.prepare('SELECT * FROM drop_sales').all(); }
+  recordSale(species, buyer, signature, serial, now = Date.now()) {
+    if (this.db.prepare('SELECT 1 FROM drop_sales WHERE signature=?').get(signature)) throw Error('That payment was already used.');
+    this.db.prepare('INSERT INTO drop_sales(species,buyer,signature,serial,created_at) VALUES(?,?,?,?,?)').run(species, buyer, signature, serial, now);
+  }
+}

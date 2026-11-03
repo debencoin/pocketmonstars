@@ -180,3 +180,13 @@ Stats: HP, Attack, Defense, Sp. Atk, Sp. Def, Speed. Types: EMBER, GROVE, TIDE, 
 - Touch: drag in the move zone to walk; a quick swipe (or double-tap toward a side) dashes/dodges that way.
 - Game speed 0.7 → 0.56 (0.8x). Battle HP x1.6 so fights still end by KO in ~30–40 s typical.
 - Fixed burn/poison accumulator (a comment had swallowed its reset, making DoT escalate).
+
+## v23 — accounts, Superhero Drop, referrals, capture
+- **Free play** on the front page (`/play#free` starts a battle at once, no sign-in).
+- **Username + password accounts** (`server/players.mjs`, scrypt): free online play, free wild runs (one per 45 s). SOL actions (staking, drop, mint, market, breeding) still need Phantom.
+- **One starter**: every new player gets one random Monstar from the Genesis nine + Common/Uncommon/Rare wild species. Existing players keep theirs.
+- **Capture**: in a server wild battle, once the wild Monstar is at ≤25% HP a Capture! button appears. 3 throws per battle; odds are per species (25–65% base × rarity × lower-HP bonus × a new random roll each throw). A KO still gets the old catch roll.
+- **Superhero Drop**: 30 original hero species (ids 133–162, `HEROES` in frontier.mjs, art from `scripts/make_heroes.py`). Top 5 = 1 SOL (×1.25 stats), others 0.5 SOL (×1.15). One of each, level 1. Paid to `dropTreasury` (founder wallet) with memo `PMDROP:<id>`; ends `PM_DROP_ENDS` (2026-12-03 03:30 UTC). On start the server rebuilds sales from on-chain memos, so buyers keep heroes after a wipe.
+- **Referrals**: `?ref=<wallet or @name>` link + QR. When a referred player wins a staked match, 5% of their profit (payout − stake) goes to a wallet referrer in the same settlement tx.
+- Tabs: Breeding has its own tab; Monstars tab is a full dex with all six evolutions per species.
+- Free Render plan: accounts and referral records reset on each deploy (drop sales are rebuilt from chain).

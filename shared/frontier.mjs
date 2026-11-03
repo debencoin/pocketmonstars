@@ -204,3 +204,43 @@ const TIER_OF = {
   Irinyx: 'Rare', Eyelurk: 'Common', Gazewing: 'Common', Vigilon: 'Common',
 };
 for (const s of [...FRONTIER, ...MYTHIC, ...ANUNNAKI, ...WATCHERS]) s.tier = TIER_OF[s.name] || 'Common';
+
+// Superhero Drop: 30 original hero Monstars sold once each in the 30-day launch drop (never wild).
+// The top five cost 1 SOL and are stronger; the other 25 cost 0.5 SOL. All hatch at level 1 and evolve.
+const HERO_RUN = { titan: 'charge', sentinel: 'stomp', warden: 'stomp', striker: 'dart', skirmisher: 'dart', ranger: 'skate', mystic: 'prance', arcanist: 'prance', support: 'skate', seraph: 'hover', psion: 'hover', deity: 'hover' };
+const H = (name, type, cls, move, special, basicStyle, specialStyle, main, top = false) =>
+  ({ ...F(name, type, cls, move, special, basicStyle, specialStyle, HERO_RUN[cls] || 'dart', 'walker', main, '#ffffff', main, {}), hero: true,
+    drop: { priceLamports: top ? '1000000000' : '500000000', top },
+    forms: [`Kid ${name}`, `${name} Cadet`, name, `${name} Prime`, `Mega ${name}`, `Ascended ${name}`] });
+export const HEROES = [
+  H('Solarch', 'ASTRAL', 'deity', 'Sunfire palm', 'Solar crown', 'bolt', 'beam', '#ffb020', true),
+  H('Voltaris', 'SPARK', 'titan', 'Arc punch', 'Thunder dome', 'bolt', 'strike', '#2a6aff', true),
+  H('Gravitas', 'PSYCHIC', 'psion', 'Mass pulse', 'Gravity well', 'projectile', 'levitate', '#7a3ac8', true),
+  H('Aegiron', 'STEEL', 'sentinel', 'Shield bash', 'Fortress wall', 'projectile', 'strike', '#3aa88a', true),
+  H('Nightvale', 'SHADE', 'striker', 'Shadow jab', 'Midnight cascade', 'projectile', 'cone', '#2a2a4a', true),
+  H('Blazewing', 'EMBER', 'skirmisher', 'Flare dart', 'Phoenix dive', 'projectile', 'cone', '#e0482a'),
+  H('Magmara', 'EMBER', 'mystic', 'Lava orb', 'Caldera burst', 'projectile', 'cone', '#c83a5a'),
+  H('Tidebreaker', 'TIDE', 'warden', 'Wave fist', 'Seawall slam', 'projectile', 'strike', '#1a7ac8'),
+  H('Coralon', 'TIDE', 'support', 'Coral spark', 'Reef shelter', 'projectile', 'beam', '#ff7a6a'),
+  H('Hailstrike', 'FROST', 'ranger', 'Ice arrow', 'Blizzard volley', 'bolt', 'cone', '#5ac8f0'),
+  H('Frostbyte', 'FROST', 'arcanist', 'Frost code', 'Absolute zero', 'projectile', 'beam', '#a0e8ff'),
+  H('Quakefist', 'STONE', 'titan', 'Rock punch', 'Fault line', 'projectile', 'strike', '#a0703a'),
+  H('Bouldra', 'STONE', 'sentinel', 'Pebble barrage', 'Granite guard', 'projectile', 'strike', '#8a8a6a'),
+  H('Galeforce', 'GALE', 'skirmisher', 'Wind cutter', 'Cyclone kick', 'projectile', 'cone', '#58c8a8'),
+  H('Vortexa', 'GALE', 'seraph', 'Air lance', 'Eye of the storm', 'bolt', 'levitate', '#b8e8f8'),
+  H('Thornheart', 'GROVE', 'warden', 'Thorn whip', 'Bramble fortress', 'whip', 'strike', '#3a8a3a'),
+  H('Verdantia', 'GROVE', 'support', 'Leaf glide', 'Bloom field', 'projectile', 'beam', '#7ad84a'),
+  H('Nebulor', 'ASTRAL', 'ranger', 'Star shot', 'Nebula rain', 'bolt', 'cone', '#5a4ad8'),
+  H('Comettra', 'ASTRAL', 'seraph', 'Comet tail', 'Meteor halo', 'bolt', 'beam', '#ff9ad8'),
+  H('Mindlock', 'PSYCHIC', 'arcanist', 'Psi bolt', 'Thought prison', 'projectile', 'levitate', '#c08cff'),
+  H('Psyra', 'PSYCHIC', 'mystic', 'Mind spark', 'Dream storm', 'projectile', 'beam', '#e05ad8'),
+  H('Steelbrand', 'STEEL', 'titan', 'Hammer arm', 'Iron quake', 'projectile', 'strike', '#8a98b0'),
+  H('Ferronix', 'STEEL', 'ranger', 'Rivet shot', 'Magnet storm', 'bolt', 'cone', '#c87a3a'),
+  H('Shadowstep', 'SHADE', 'skirmisher', 'Blink slash', 'Umbra rush', 'projectile', 'strike', '#4a3a6a'),
+  H('Duskara', 'SHADE', 'striker', 'Dusk dagger', 'Twilight bloom', 'projectile', 'cone', '#8a2a6a'),
+  H('Joltrix', 'SPARK', 'striker', 'Static jab', 'Overcharge', 'bolt', 'strike', '#ffd23f'),
+  H('Ampere', 'SPARK', 'ranger', 'Current shot', 'Power surge', 'bolt', 'beam', '#ffe86a'),
+  H('Drakonis', 'DRACO', 'titan', 'Dragon claw', 'Wyrmfire', 'projectile', 'cone', '#c82a2a'),
+  H('Runeguard', 'ANCIENT', 'sentinel', 'Rune stone', 'Glyph barrier', 'projectile', 'strike', '#c89a40'),
+  H('Sentrion', 'WATCHER', 'psion', 'Watchful eye', 'All-seeing beam', 'bolt', 'beam', '#ffffff'),
+];

@@ -1,0 +1,110 @@
+// Accounts, one starter, capture in the red, referrals (5% of a referred winner's profit), Superhero Drop.
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { Keypair } from '@solana/web3.js';
+import { openDb } from '../server/db.mjs';
+import { Registry } from '../server/registry.mjs';
+import { Players } from '../server/players.mjs';
+import { MatchManager, captureChance } from '../server/matches.mjs';
+import { createServer } from '../server/index.mjs';
+import { CONFIG } from '../server/config.mjs';
+import { SPECIES, HERO_IDS, WILD_IDS } from '../shared/monstars.mjs';
+
+const wallet = () => Keypair.generate().publicKey.toBase58();
+class MockChain {
+  constructor() { this.balances = new Map(); this.sent = []; this.payments = new Map(); }
+  async verifyDeposit(sig, { to, lamports }) { this.balances.set(to, (this.balances.get(to) || 0n) + BigInt(lamports)); return true; }
+  async verifyPayment(sig, want) { const p = this.payments.get(sig); if (!p || p.from !== want.from || p.to !== want.to || BigInt(p.lamports) !== BigInt(want.lamports) || p.memo !== want.memo) throw Error('That payment does not match this purchase.'); return p.from; }
+  async balance(a) { return this.balances.get(a) ?? 10_000_000n; }
+  async rentExemptMinimum() { return 890_880n; }
+  async latestBlockhash() { return { blockhash: Keypair.generate().publicKey.toBase58(), lastValidBlockHeight: 100 }; }
+  async sendRaw(b) { this.sent.push(b); return 'x'; }
+  async status() { return { confirmationStatus: 'confirmed', err: null }; }
+}
+
+test('accounts: sign up with a username and password, log in, wrong password refused, names unique', () => {
+  const p = new Players(openDb(':memory:'));
+  assert.equal(p.register('Ace_Trainer', 'hunter2hunter2'), '@ace_trainer');
+  assert.throws(() => p.register('ace_trainer', 'whatever123'), /taken/);
+  assert.throws(() => p.register('a!', 'whatever123'), /username/);
+  assert.throws(() => p.register('shorty', '123'), /8 characters/);
+  assert.equal(p.login('ACE_TRAINER', 'hunter2hunter2'), '@ace_trainer');
+  assert.throws(() => p.login('ace_trainer', 'nope-nope'), /Wrong/);
+  const row = p.db.prepare('SELECT * FROM accounts').get(); assert.ok(!JSON.stringify(row).includes('hunter2'), 'password is never stored');
+});
+
+test('username accounts play free: no staking, free wild runs with a cooldown', async () => {
+  const db = openDb(':memory:'), registry = new Registry(db);
+  const mm = new MatchManager({ db, registry, chain: new MockChain(), config: { treasury: wallet(), freeWildCooldownMs: 45_000, disconnectGraceMs: 1e9, depositTimeoutMs: 1e9 } });
+  const [m] = registry.claimAll('@kid');
+  assert.throws(() => mm.create('@kid', { stakeLamports: '5000000', serial: m.serial }), /Phantom/);
+  const free = mm.create('@kid', { stakeLamports: '0', serial: m.serial }); assert.equal(free.stake, 0n); mm.leave('@kid');
+  const room = await mm.createWild('@kid', { serial: m.serial }); assert.ok(room.wild);
+  mm.leave('@kid'); await assert.rejects(mm.createWild('@kid', { serial: m.serial }), /free wild run is ready/);
+});
+
+test('capture: only when the wild Monstar is in the red; odds differ per species and every throw; a catch is saved', async () => {
+  const db = openDb(':memory:'), registry = new Registry(db);
+  const mm = new MatchManager({ db, registry, chain: new MockChain(), config: { treasury: wallet(), freeWildCooldownMs: 0, disconnectGraceMs: 1e9, depositTimeoutMs: 1e9 } });
+  const [m] = registry.claimAll('@catcher');
+  const rates = new Set(WILD_IDS.map(id => Math.round(captureChance(id, 0.2, 0.5) * 100))); assert.ok(rates.size > 20, 'species have different odds');
+  assert.notEqual(captureChance(20, 0.2, 0.1), captureChance(20, 0.2, 0.9), 'each throw rolls new odds');
+  assert.ok(WILD_IDS.filter(id => captureChance(id, 0.1, 0.5) >= 0.15).length / WILD_IDS.length > 0.8, 'most Monstars are catchable');
+  let caught = null;
+  for (let tries = 0; tries < 40 && !caught; tries++) {
+    const room = await mm.createWild('@catcher', { serial: m.serial }); mm.attach('@catcher', { send() {} });
+    for (let i = 0; i < 100 && room.state !== 'live'; i++) mm.tick();
+    assert.throws(() => mm.capture('@catcher'), /red/);
+    const foe = room.sim.fighters[1]; foe.hp = foe.maxHp * 0.1;
+    for (let t = 0; t < 3 && room.state === 'live'; t++) { room.lastThrow = 0; const r = mm.capture('@catcher'); if (r.ok) caught = room; }
+    if (room.state === 'live') mm.leave('@catcher');
+  }
+  assert.ok(caught, 'a red-HP capture eventually works');
+  assert.ok(registry.ownedBy('@catcher').some(x => x.species.id === caught.wild.speciesId));
+});
+
+test('referrals: the referrer gets 5% of what a referred player wins, paid in the same settlement', async () => {
+  const db = openDb(':memory:'), registry = new Registry(db), players = new Players(db), chain = new MockChain();
+  const mm = new MatchManager({ db, registry, chain, players, config: { treasury: wallet(), disconnectGraceMs: 1e9, depositTimeoutMs: 1e9 } });
+  const ref = wallet(), a = wallet(), b = wallet();
+  assert.ok(players.setReferrer(a, ref)); assert.equal(players.setReferrer(a, wallet()), false, 'first referrer only'); assert.equal(players.setReferrer(ref, ref), false);
+  const [ma] = registry.claimAll(a), [mb] = registry.claimAll(b), stake = 5_000_000n;
+  const room = mm.create(a, { stakeLamports: String(stake), serial: ma.serial }); mm.join(b, { code: room.code, serial: mb.serial });
+  await mm.confirmDeposit(a, 'da'); await mm.confirmDeposit(b, 'db');
+  for (let i = 0; i < 100 && room.state === 'countdown'; i++) mm.tick();
+  const seen = []; room.players[0].sockets.add({ send: s => seen.push(JSON.parse(s)) });
+  const { forfeit } = await import('../shared/sim.mjs'); forfeit(room.sim, 1); mm.tick();
+  for (let i = 0; i < 50 && !seen.some(x => x.t === 'settlement'); i++) await new Promise(r => setTimeout(r, 10));
+  const st = seen.find(x => x.t === 'settlement'); assert.ok(st.ok);
+  const stats = players.referralStats(ref); assert.equal(stats.referred, 1); assert.equal(stats.payouts, 1);
+  const won = BigInt(st.payouts[0]) + BigInt(stats.earnedLamports) - stake;
+  assert.equal(BigInt(stats.earnedLamports), won * 500n / 10_000n);
+});
+
+test('Superhero Drop: 30 heroes, top five 1 SOL, others 0.5 SOL; each sells once; never wild or a starter', async () => {
+  assert.equal(HERO_IDS.length, 30);
+  assert.equal(HERO_IDS.filter(id => SPECIES[id].drop.top && SPECIES[id].drop.priceLamports === '1000000000').length, 5);
+  assert.equal(HERO_IDS.filter(id => !SPECIES[id].drop.top && SPECIES[id].drop.priceLamports === '500000000').length, 25);
+  assert.ok(!HERO_IDS.some(id => WILD_IDS.includes(id)));
+  const chain = new MockChain(), { server, players, registry } = createServer({ chain, dbFile: ':memory:', config: { ...CONFIG, rebuildDrops: false } });
+  await new Promise(r => server.listen(0, r)); const base = 'http://127.0.0.1:' + server.address().port;
+  const post = (path, body, token) => fetch(base + path, { method: 'POST', headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: 'Bearer ' + token } : {}) }, body: JSON.stringify(body) }).then(async r => ({ ok: r.ok, ...(await r.json()) }));
+  try {
+    const acct = await post('/api/account/register', { username: 'dropfan', password: 'password123' });
+    assert.equal(acct.wallet, '@dropfan');
+    const no = await post('/api/drop/tx', { speciesId: HERO_IDS[0] }, acct.token); assert.ok(!no.ok && /Phantom/.test(no.error));
+    const kp = Keypair.generate(), buyer = kp.publicKey.toBase58();
+    const { message } = await post('/api/auth/challenge', { wallet: buyer });
+    const { ed25519 } = await import('@noble/curves/ed25519'), bs58 = (await import('bs58')).default;
+    const { token } = await post('/api/auth/verify', { wallet: buyer, signature: bs58.encode(ed25519.sign(new TextEncoder().encode(message), kp.secretKey.slice(0, 32))) });
+    const sid = HERO_IDS[0];
+    const tx = await post('/api/drop/tx', { speciesId: sid }, token); assert.ok(tx.transaction, tx.error);
+    chain.payments.set('sig1', { from: buyer, to: CONFIG.dropTreasury, lamports: SPECIES[sid].drop.priceLamports, memo: 'PMDROP:' + sid });
+    const bad = await post('/api/drop/confirm', { speciesId: HERO_IDS[1], signature: 'sig1' }, token); assert.ok(!bad.ok, 'a payment for one hero cannot buy another');
+    const got = await post('/api/drop/confirm', { speciesId: sid, signature: 'sig1' }, token); assert.equal(got.speciesId, sid, got.error); assert.equal(got.level, 1);
+    const again = await post('/api/drop/tx', { speciesId: sid }, token); assert.ok(!again.ok && /sold/.test(again.error));
+    const list = await fetch(base + '/api/drop').then(r => r.json()); assert.equal(list.heroes.find(h => h.speciesId === sid).sold, true);
+    assert.equal(players.sale(sid).buyer, buyer);
+    assert.ok(registry.ownedBy(buyer).some(m => m.species.id === sid));
+  } finally { server.close(); }
+});
