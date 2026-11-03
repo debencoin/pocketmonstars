@@ -41,6 +41,8 @@ export const CONFIG = {
     // founder: one bender of each element (water, earth, fire, air, thunder)
     // + 5 Legend Heroes and COVO, the final air bender (all five elements)
     'Dc9s1YwNHE2xDBzpprDvyruzxj8j5HvBSvfbvdups5LJ': [163, 165, 167, 170, 172, ...ids('Aurorex', 'Titanor', 'Phantomir', 'Pyronyx', 'Chronar', 'COVO')],
+    // Ashley: women only. 5 heroines, 5 air bender women, 4 Anunnaki goddesses, a woman bender of water, earth, fire and thunder, and KENA (all five elements)
+    'HgPy9avE7tMVTgpehYwFQRQYGPUPbZKGzKPAuLNoeD3U': ids('Kena', 'Tidewen', 'Terrala', 'Pyreska', 'Voltessa', 'Starlara', 'Lumivra', 'Frostelle', 'Blazara', 'Sylphra', 'Aerisa', 'Sylvane', 'Zephra', 'Windara', 'Skylis', 'Inannox', 'Tiamaw', 'Ninhurra', 'Ereshkyl'),
     // second founder wallet: 5 heroines and 5 air bender women
     '54y46qyavsX1hWXgx5W76WrBjghXxUfkcNftswaXNTbr': ids('Starlara', 'Lumivra', 'Frostelle', 'Blazara', 'Sylphra', 'Aerisa', 'Sylvane', 'Zephra', 'Windara', 'Skylis'),
   },

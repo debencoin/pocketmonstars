@@ -45,6 +45,7 @@ D = {
   'skylis':   dict(el='air', el2='earth',   f=True,  skin=2, hair=c('#3a2418'), hs='braid',   top=c('#5a9a5a'), trim=c('#f0e0b0'), pants=c('#4a3a24'), boots=c('#2e2418')),
   'covo':     dict(el='air', el2='all',     f=False, skin=4, hair=c('#ffd23f'), hs='spiky',   top=c('#14141a'), trim=c('#ffd23f'), pants=c('#0e0e14'), boots=c('#0a0a0e'), elite=True, eyes=c('#ffe14a'), keep=True),
   'cova':     dict(el='air', el2='all',     f=True,  skin=4, hair=c('#ffd23f'), hs='long',    top=c('#14141a'), trim=c('#ffd23f'), pants=c('#0e0e14'), boots=c('#0a0a0e'), elite=True, eyes=c('#ffe14a'), keep=True),
+  'kena':     dict(el='air', el2='all',     f=True,  skin=3, hair=c('#f4f4ff'), hs='braid',   top=c('#2a1440'), trim=c('#5ef0e0'), pants=c('#14081f'), boots=c('#0e0618'), elite=True, eyes=c('#5ef0e0'), keep=True),
   # Starter Benders (every new player gets one at random)
   'aquari':   dict(el='water',   f=True,  skin=2, hair=c('#2a1a3a'), hs='twin',    top=c('#2a8ad8'), trim=c('#dff6ff'), pants=c('#1e3a6e'), boots=c('#e8eef8')),
   'rokko':    dict(el='earth',   f=False, skin=3, hair=c('#1a1010'), hs='afro',    top=c('#7a6a3a'), trim=c('#e0c890'), pants=c('#4a3a24'), boots=c('#2e2418'), band=c('#c8a060')),

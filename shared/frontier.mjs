@@ -348,3 +348,8 @@ export const STARTER_BENDERS = [
   ST('Aquari', 'water', 'mystic', '#2a8ad8', true), ST('Rokko', 'earth', 'titan', '#7a6a3a', false), ST('Blazen', 'fire', 'striker', '#d8401a', false),
   ST('Gusti', 'air', 'skirmisher', '#e8a03a', true), ST('Voltz', 'thunder', 'ranger', '#4a3ac8', false),
 ];
+
+// KENA: a final air bender like COVA (all five elements, teleport, very fast), gifted to Ashley's wallet. Appended last so no species id moves.
+export const GIFT_FINALS = [
+  { ...BE('Kena', 'GALE', 'deity', 'Fire gust', 'Ice balls', 'projectile', 'projectile', '#2a1440', 'Final Air Bender', true), el2: 'all', sky: true, unique: true, female: true, legendFor: 'gift', speedBoost: 1.35, sig: FINAL_SIG('Kena', 2) },
+];
