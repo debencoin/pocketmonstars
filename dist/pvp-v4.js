@@ -380,7 +380,7 @@ function startPractice(opt = null) {
 }
 window.PMStartBattle = startPractice;
 window.PMArenaApi = {
-  afterSignIn: () => afterSignIn(), refreshMine: () => refreshMine(), toast,
+  afterSignIn: () => afterSignIn(), refreshMine: () => refreshMine(), toast, snap: () => snapCur,
   signedIn: () => !!S.session(),
   ownedPick: () => ownedFor(pickedSpecies) || mine[0] || null,
   // paid wild battle run by the server: it picks the wild Monstar, and a win can catch it
@@ -591,8 +591,19 @@ function toArena(e) { const r = cv.getBoundingClientRect(); return { x: Math.max
 // Dodging with the finger: a quick swipe, or a double-tap, makes your Monstar dash that way.
 let lastTap = { at: 0, x: 0, y: 0 }, trail = [], dodgeDir = null;
 function dodge(dx, dy) { const d = Math.hypot(dx, dy) || 1; dodgeDir = { x: dx / d, y: dy / d, until: performance.now() + 220 }; touch.dash = true; setTimeout(() => { touch.dash = false; }, 220); }
+// Squad: tapping the swap button over a teammate (or the teammate itself) takes control of it.
+function squadMateAt(pt) {
+  if (!snapCur?.sq || !snapCur.x) return null;
+  const me = room?.local ? 0 : room?.you ?? 0;
+  let best = null, bd = 85;
+  for (const f of snapCur.x) if (f.sd === me) { const d = Math.min(Math.hypot(pt.x - f.x, pt.y - (f.y - 130)), Math.hypot(pt.x - f.x, pt.y - (f.y - 35))); if (d < bd) { bd = d; best = f; } }
+  return best;
+}
 zone.addEventListener('pointerdown', e => {
-  if (room?.state !== 'live') return; e.preventDefault(); movePointer = e.pointerId; try { zone.setPointerCapture(e.pointerId); } catch {}
+  if (room?.state !== 'live') return; e.preventDefault();
+  const mate = squadMateAt(toArena(e));
+  if (mate) { touch.sw = mate.sl; setTimeout(() => { touch.sw = -1; }, 250); return; } // switch control, don't move
+  movePointer = e.pointerId; try { zone.setPointerCapture(e.pointerId); } catch {}
   const pt = toArena(e), now = performance.now(); target = { ...pt, held: true, until: 0 }; trail = [{ x: e.clientX, y: e.clientY, t: now }];
   if (now - lastTap.at < 320 && Math.hypot(e.clientX - lastTap.x, e.clientY - lastTap.y) < 60 && snapCur) { const f = snapCur.f[room.local ? 0 : room.you]; dodge(pt.x - f.x, pt.y - f.y); }
   lastTap = { at: now, x: e.clientX, y: e.clientY };

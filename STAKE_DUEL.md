@@ -208,3 +208,7 @@ Stats: HP, Attack, Defense, Sp. Atk, Sp. Def, Speed. Types: EMBER, GROVE, TIDE, 
 - The Arena picker starts on **1v1**. Three modes: 1v1, 3v3 tag team (one at a time, swap in), **3v3 squad** (`createMatch(..., { squad: true })`).
 - Squad: all six Monstars on the field. Each side controls one (`m.fighters[side]`); tapping a teammate's picture switches control (0.4 s cooldown). The rest use `aiFor()` and fight on their own; every Monstar targets the nearest rival and shots/powers hit any rival they reach. A side loses when all three are down. Snapshot `x` carries the uncontrolled Monstars; the renderer draws them with HP bars.
 - Hit events now carry the victim position (`vx`, `vy`) so damage numbers appear on the Monstar actually hit.
+
+## v28 — squad pace and swap buttons
+- Squad battles run at `SQUAD_PACE` 0.8 of the normal pace (`m.pace`, applied to the sim step, autopilot and the snapshot `gs`).
+- A ⇄ swap button is drawn over each of your teammates in a squad battle; tapping it (or the teammate) takes control of that Monstar. The team pictures still work too.

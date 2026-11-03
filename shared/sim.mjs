@@ -23,6 +23,8 @@ export const PACE = 0.8;
 export const GAME_SPEED = 0.63; // 0.9x of the original 0.7 pace
 // Walking and dashing run faster than the rest of the game (0.9 vs 0.63), so players can dodge shots.
 export const MOVE_SPEED = 0.9;
+// Squad battles (six Monstars at once) run a little slower so the player can follow everything.
+export const SQUAD_PACE = 0.8;
 const MV = MOVE_SPEED / GAME_SPEED;
 // All damage is 30% lower than the base formula, so battles last most of the minute.
 export const DAMAGE_SCALE = 0.7;
@@ -118,7 +120,7 @@ export function createMatch(monstarA, monstarB, opts = {}) {
   const fighters = [makeFighter(teams[0][0], 0, teamMax[0]), makeFighter(teams[1][0], 1, teamMax[1])];
   const roster = teams.map((t, side) => t.map((mo, i) => (i === 0 ? fighters[side] : squad ? makeFighter(mo, side, teamMax[side]) : null)));
   if (squad) for (const side of [0, 1]) roster[side].forEach((f, i) => { f.y = ARENA.h / 2 + 20 + [0, -120, 120][i]; f.x += i ? (side ? 60 : -60) : 0; f.slot = i; f.mem = {}; });
-  return { t: 0, over: false, winner: null, reason: null, auto: opts.auto !== false, arena: opts.arena ?? 0, squad,
+  return { t: 0, over: false, winner: null, reason: null, auto: opts.auto !== false, arena: opts.arena ?? 0, squad, pace: squad ? SQUAD_PACE : 1,
     teams, teamMax, roster, slot: [0, 0], swCd: [0, 0],
     limit: teams[0].length > 1 || teams[1].length > 1 ? 150 : ARENA.roundSeconds, fighters, projectiles: [], effects: [], nextId: 1, finished: false, pickups: [], nextPickup: PICKUP.every, cpu: opts.cpu || null };
 }
@@ -365,7 +367,7 @@ function runEffect(m, e, dt, events) {
 // ---------- autopilot movement ----------
 function autoMove(m, f, foe) {
   const M = MOTION[f.motion], A = f.auto;
-  const T = TICK * GAME_SPEED; A.t -= T; A.phase += T;
+  const T = TICK * GAME_SPEED * (m.pace || 1); A.t -= T; A.phase += T;
   const dx = foe.x - f.x, dy = foe.y - f.y, d = Math.hypot(dx, dy), [nx, ny] = norm(dx, dy);
   if (A.t <= 0) {
     A.t = M.flip * (0.6 + Math.random() * 0.8);
@@ -406,7 +408,7 @@ export function step(m, realDt = TICK) {
   if (m.over) return [];
   const events = [];
   m.t += realDt;
-  const dt = realDt * GAME_SPEED; // everything below runs at game speed
+  const dt = realDt * GAME_SPEED * (m.pace || 1); // everything below runs at game speed (squad: 0.8x of that)
   // HP never comes back on its own: only healing powers (Mending Step, Renewal guard, Soul Drain) restore it
   for (const side of [0, 1]) { // 3v3 manual switch
     m.swCd[side] = Math.max(0, m.swCd[side] - dt);
@@ -533,7 +535,7 @@ export function snapshot(m) {
     x: m.squad ? m.roster.flat().filter(f => f.hp > 0 && m.fighters[f.side] !== f).map(f => ({ sd: f.side, sl: f.slot, s: f.speciesId, x: r(f.x), y: r(f.y), fx: r(f.fx), fy: r(f.fy), hp: r(f.hp), max: f.maxHp,
       mv: f.moving, ds: f.dashT > 0, ct: r(Math.min(f.castT, 9)), ck: f.castKind, hu: r(f.hurtT), lv: f.level, sg: stageFor(f.level).id, fl: MOTION[f.motion].float || f.levT > 0, lt: r(f.levT), bk: r(f.blinkT), mo: f.motion,
       bs: f.styles.basic, ss: f.styles.special, i: f.iframes > 0, g: f.guardT > 0, gk: f.guardT > 0 ? f.guardKind : null, st: f.status?.k || null, stt: f.status ? r(f.status.t / f.status.max) : 0, rc: f.recT > 0, ul: Math.round(f.ult), en: Math.round(f.energy) })) : null,
-    sq: m.squad ? 1 : 0, lim: m.limit, pk: m.pickups.map(q => ({ id: q.id, x: r(q.x), y: r(q.y), k: q.k, l: r(q.life) })), gs: GAME_SPEED,
+    sq: m.squad ? 1 : 0, lim: m.limit, pk: m.pickups.map(q => ({ id: q.id, x: r(q.x), y: r(q.y), k: q.k, l: r(q.life) })), gs: GAME_SPEED * (m.pace || 1),
     p: m.projectiles.map(p => ({ id: p.id, o: p.owner, k: p.kind, st: p.style, ty: p.type, sid: p.sid, x: r(p.x), y: r(p.y), vx: Math.round(p.vx), vy: Math.round(p.vy), r: p.r })),
     e: m.effects.map(e => ({ id: e.id, o: e.owner, k: e.kind, st: e.style, ty: e.type, sid: e.sid, x: r(e.x), y: r(e.y), dx: r(e.dx * 100) / 100, dy: r(e.dy * 100) / 100,
       gx: r(e.gx), gy: r(e.gy), t: Math.round(e.t * 100) / 100, d: e.dur, ra: e.rad || 0, wd: e.wid || 0, mg: e.mega ? 1 : 0 })) };

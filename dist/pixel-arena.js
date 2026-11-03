@@ -350,6 +350,14 @@ function createRenderer(canvas, arena) {
         ctx.fillStyle = pct > 0.5 ? '#58d858' : pct > 0.25 ? '#f8c838' : '#f85838'; ctx.fillRect(mx - bw / 2, by2, Math.round(bw * pct), bh);
         ctx.fillStyle = opt.you ? '#9ef0c8' : '#ff6b6b'; ctx.fillRect(mx - bw / 2 - U, by2 + bh + U, bw + 2 * U, U);
       }
+      if (opt.extra && opt.you) { // squad: swap button over each of your teammates; tap it to take control of that Monstar
+        const bx = mx, by3 = my - 36 * U, r = 24 * U, k = r / 11; // big enough to see and tap on a phone
+        ctx.globalAlpha = 0.92; ctx.fillStyle = '#141c34'; ctx.beginPath(); ctx.arc(bx, by3, r, 0, 6.283); ctx.fill(); ctx.globalAlpha = 1;
+        ctx.strokeStyle = '#9ef0c8'; ctx.lineWidth = 3 * U; ctx.stroke();
+        ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 2.6 * U; ctx.lineCap = 'round'; ctx.beginPath();
+        ctx.moveTo(bx - 5 * k * U, by3 - 2.5 * k * U); ctx.lineTo(bx + 5 * k * U, by3 - 2.5 * k * U); ctx.lineTo(bx + 2.5 * k * U, by3 - 5 * k * U);
+        ctx.moveTo(bx + 5 * k * U, by3 + 2.5 * k * U); ctx.lineTo(bx - 5 * k * U, by3 + 2.5 * k * U); ctx.lineTo(bx - 2.5 * k * U, by3 + 5 * k * U); ctx.stroke(); ctx.lineCap = 'butt';
+      }
       if (!opt.extra) { ctx.fillStyle = opt.you ? '#9ef0c8' : '#ff6b6b'; ctx.beginPath(); ctx.moveTo(mx - 6 * U, my); ctx.lineTo(mx + 6 * U, my); ctx.lineTo(mx, my + 7 * U); ctx.fill(); }
     }
   }
