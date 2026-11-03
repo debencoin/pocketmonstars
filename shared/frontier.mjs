@@ -353,3 +353,9 @@ export const STARTER_BENDERS = [
 export const GIFT_FINALS = [
   { ...BE('Kena', 'GALE', 'deity', 'Fire gust', 'Ice balls', 'projectile', 'projectile', '#2a1440', 'Final Air Bender', true), el2: 'all', sky: true, unique: true, female: true, legendFor: 'gift', speedBoost: 1.35, sig: FINAL_SIG('Kena', 2) },
 ];
+
+// Aurelia and Amyah: elite women benders gifted to Ashley's wallet (appended last so no species id moves).
+export const GIFT_ELITES = [
+  { ...SB('Aurelia', 'fire', 'seraph', '#e8a020', true, { gift: true, top: true }), elite: true, sig: { basic: { name: 'Golden Gust', look: 'fire', status: 'burn', knock: 4, note: 'A gust of golden fire that burns.' }, special: { name: 'Sun Flares', shots: 3, look: 'fire', status: 'burn', note: 'Fans out 3 or 4 sun flares that burn.' }, mega: M('meteors', 'Aurelia Phoenix Storm', 'Golden phoenix fire rains around the rival.', 1.42, 1.25) } },
+  { ...SB('Amyah', 'water', 'mystic', '#7a3ad8', true, { gift: true, top: true }), elite: true, sig: { basic: { name: 'Moon Mist', look: 'ice', knock: 3, note: 'A cold mist bolt.' }, special: { name: 'Ice Balls', shots: 2, look: 'ice', status: 'freeze', note: 'Shoots 2 or 3 ice balls that freeze.' }, mega: M('hailstorm', 'Amyah Moonlit Hailstorm', 'A moonlit ice storm over a big area: frozen and 30% HP.', 1.05, 1.3) } },
+];

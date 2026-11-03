@@ -288,3 +288,4 @@ Stats: HP, Attack, Defense, Sp. Atk, Sp. Def, Speed. Types: EMBER, GROVE, TIDE, 
 ## v44: Ashley's wallet and KENA
 - New species KENA (id 231, Sky Benders): a final air bender like COVA (all five elements, Five Element Storm, teleport dash, +35% speed), one of a kind, gifted.
 - HgPy9avE7tMVTgpehYwFQRQYGPUPbZKGzKPAuLNoeD3U (Ashley) gets women only, all as elite Legendary-rarity hatchlings: KENA; the woman benders of water, earth, fire and thunder (Tidewen, Terrala, Pyreska, Voltessa); the 5 heroines (Starlara, Lumivra, Frostelle, Blazara, Sylphra); the 5 air bender women (Aerisa, Sylvane, Zephra, Windara, Skylis); and 4 Anunnaki goddesses (Inannox, Tiamaw, Ninhurra, Ereshkyl).
+- Also for Ashley: two new elite women benders, Aurelia (id 232, golden fire: Golden Gust, Sun Flares, Phoenix Storm) and Amyah (id 233, moonlit ice: Moon Mist, Ice Balls, Moonlit Hailstorm). 21 gifts in all.
