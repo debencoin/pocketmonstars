@@ -14,6 +14,8 @@ export class Players {
       CREATE TABLE IF NOT EXISTS referral_payouts(match_id TEXT NOT NULL, referrer TEXT NOT NULL, user TEXT NOT NULL, lamports TEXT NOT NULL, created_at INTEGER NOT NULL, PRIMARY KEY(match_id, referrer));
       CREATE TABLE IF NOT EXISTS profiles(id TEXT PRIMARY KEY, avatar TEXT, updated_at INTEGER NOT NULL);
       CREATE TABLE IF NOT EXISTS avatar_sales(avatar TEXT PRIMARY KEY, buyer TEXT NOT NULL, signature TEXT NOT NULL UNIQUE, created_at INTEGER NOT NULL);
+      CREATE TABLE IF NOT EXISTS soul_claims(id INTEGER PRIMARY KEY AUTOINCREMENT, match_id TEXT NOT NULL, serial INTEGER NOT NULL, winner TEXT NOT NULL, loser TEXT NOT NULL,
+        fee_lamports TEXT NOT NULL, fee_cents INTEGER, expires_at INTEGER NOT NULL, state TEXT NOT NULL DEFAULT 'open', paid_by TEXT, created_at INTEGER NOT NULL);
       CREATE TABLE IF NOT EXISTS catch_credits(user TEXT PRIMARY KEY, credits INTEGER NOT NULL DEFAULT 0);
       CREATE TABLE IF NOT EXISTS payout_accounts(user TEXT PRIMARY KEY, account TEXT NOT NULL);
       CREATE TABLE IF NOT EXISTS usd_listings(serial INTEGER PRIMARY KEY, seller TEXT NOT NULL, cents INTEGER NOT NULL, created_at INTEGER NOT NULL);
@@ -83,6 +85,16 @@ export class Players {
   unlistUsd(serial) { this.db.prepare('DELETE FROM usd_listings WHERE serial=?').run(serial); }
   cardOrder(session) { return this.db.prepare('SELECT * FROM card_orders WHERE session=?').get(session) || null; }
   recordCardOrder(session, kind, result, now = Date.now()) { this.db.prepare('INSERT OR IGNORE INTO card_orders(session,kind,result,created_at) VALUES(?,?,?,?)').run(session, kind, JSON.stringify(result), now); }
+
+  // ---------- Immortal Combat soul claims: the winner holds the loser's Monstar; the loser can buy it back before it expires ----------
+  newSoulClaim({ matchId, serial, winner, loser, feeLamports, hours = 24 }, now = Date.now()) {
+    return Number(this.db.prepare('INSERT INTO soul_claims(match_id,serial,winner,loser,fee_lamports,expires_at,created_at) VALUES(?,?,?,?,?,?,?)').run(matchId, serial, winner, loser, String(feeLamports), now + hours * 3600_000, now).lastInsertRowid);
+  }
+  soulClaim(id, now = Date.now()) { const c = this.db.prepare('SELECT * FROM soul_claims WHERE id=?').get(Number(id)); if (c && c.state === 'open' && now > c.expires_at) { this.setSoulState(c.id, 'kept'); c.state = 'kept'; } return c || null; }
+  soulClaimsOf(user, now = Date.now()) { return this.db.prepare('SELECT id FROM soul_claims WHERE (winner=? OR loser=?) AND created_at > ? ORDER BY id DESC LIMIT 30').all(user, user, now - 14 * 864e5).map(r => this.soulClaim(r.id, now)); }
+  openSoulClaimFor(serial, now = Date.now()) { const r = this.db.prepare("SELECT id FROM soul_claims WHERE serial=? AND state='open' ORDER BY id DESC LIMIT 1").get(serial); const c = r && this.soulClaim(r.id, now); return c?.state === 'open' ? c : null; }
+  setSoulFee(id, feeLamports, feeCents) { this.db.prepare('UPDATE soul_claims SET fee_lamports=?, fee_cents=? WHERE id=?').run(String(feeLamports), feeCents, id); }
+  setSoulState(id, state, paidBy = null) { this.db.prepare('UPDATE soul_claims SET state=?, paid_by=COALESCE(?,paid_by) WHERE id=?').run(state, paidBy, id); }
 
   // ---------- catch passes (free accounts: 2 free catches, then one pass per catch, bought with a card) ----------
   catchCredits(user) { return this.db.prepare('SELECT credits FROM catch_credits WHERE user=?').get(user)?.credits || 0; }

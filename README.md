@@ -7,6 +7,7 @@ Real-time creature battles on Solana. Battle, capture and evolve original Monsta
 ## What's in the game
 
 - **Arena**: 1v1, 3v3 tag team, and **3v3 squad** (all six Monstars on the field; tap a teammate's ⇄ button to take control, the others fight on their own). Free practice vs the computer (Easy / Normal / Hard) or real rivals online.
+- **Immortal Combat 1v1**: no stake, the winner takes the loser's Monstar; the loser has 24 hours to buy it back for the winner's soul fee (0.1-0.5 SOL or dollars by card), or it's gone.
 - **Stake SOL (Phantom)**: both players deposit into a match escrow; every hit moves part of the rival's stake to you; KO wins the pot, paid in one settlement transaction.
 - **Wild Expedition**: 103 wild Monstars from Common to Divine. Get one into the red and tap **Capture!**; every species has its own odds and they change every throw.
 - **231 Monstars** in 13 collections: Starter Benders (5; every new player gets one at random), Genesis (9), Frontier (50), Anunnaki (20), Watchers (20), Mythic (4), Legendary (2), Ascendants (20), Royal Anunnaki (8), Superhero Drop (30), Elemental Benders (11), Legend Heroes (15, gifted), Sky Benders (37: 10 gifted, 25 in the market, plus COVO and COVA).

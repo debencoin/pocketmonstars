@@ -93,6 +93,15 @@ export function createServer({ config = CONFIG, chain = new SolanaChain(config.r
         if (live && charge && creatorAcct && split.creator > 0) { await stripe.transfer({ cents: split.creator, destination: creatorAcct, charge, group, metadata: { session: sess.id, role: 'creator' } }).catch(e => console.error('creator royalty:', e.message)); paid.push('creator'); }
         result = { ok: true, monstar: registry.get(m.serial).toJSON(), split, paid };
       }
+    } else if (md.kind === 'soul') { // Immortal Combat buy-back paid by card
+      const c = players.soulClaim(md.claim), m = c && registry.get(c.serial);
+      if (!c || c.state !== 'open' || !m || m.owner !== c.winner || c.loser !== md.buyer) { if (live) await stripe.refund(pi?.id || sess.payment_intent).catch(() => {}); result = { ok: false, refunded: true, error: 'That buy-back is closed, so your card was refunded.' }; }
+      else {
+        registry.setOwner(m.serial, c.loser); players.setSoulState(c.id, 'bought', 'card:' + sess.id);
+        const cents = Number(md.cents), company = Math.floor(cents * 500 / 10_000), acct = players.payoutAccount(c.winner), charge = pi?.latest_charge?.id || pi?.latest_charge;
+        if (live && acct && charge) await stripe.transfer({ cents: cents - company, destination: acct, charge, group: 'soul-' + c.id, metadata: { session: sess.id, role: 'winner' } }).catch(e => console.error('soul payout:', e.message));
+        result = { ok: true, monstar: registry.get(m.serial).toJSON(), soul: c.id };
+      }
     } else if (md.kind === 'catches') {
       const n = Number(md.qty); if (![1, 5].includes(n)) throw Error('Unknown pack.');
       players.addCatchCredits(md.buyer, n); result = { ok: true, catches: n, credits: players.catchCredits(md.buyer) };
@@ -118,6 +127,40 @@ export function createServer({ config = CONFIG, chain = new SolanaChain(config.r
       if (sess.metadata?.buyer !== w) throw Error('That payment belongs to another player.');
       if (sess.payment_status !== 'paid') return { ok: false, pending: true };
       return fulfil(sess); },
+    // ---------- Immortal Combat: soul fees and buy-backs ----------
+    'GET /api/soul/mine': req => { const w = need(req);
+      return { claims: players.soulClaimsOf(w).map(c => { const m = registry.get(c.serial);
+        return { id: c.id, serial: c.serial, monstar: m?.toJSON() || null, you: c.winner === w ? 'winner' : 'loser', winner: c.winner, loser: c.loser, state: c.state, expiresAt: c.expires_at,
+          feeSol: formatSol(BigInt(c.fee_lamports), 2), feeLamports: c.fee_lamports, feeUsd: c.fee_cents ? usd(c.fee_cents) : null, feeCents: c.fee_cents,
+          canSol: !c.winner.startsWith('@') && !c.loser.startsWith('@'), canCard: stripe.enabled && !!c.fee_cents && !!players.payoutAccount(c.winner) }; }) }; },
+    'POST /api/soul/fee': async req => { const w = need(req), b = await body(req), c = players.soulClaim(b.id);
+      if (!c || c.winner !== w) throw Error('Only the winner sets the soul fee.'); if (c.state !== 'open') throw Error('That claim is closed.');
+      const sol = Number(b.feeSol); if (!(sol >= 0.1 && sol <= 0.5)) throw Error('The soul fee is 0.1 to 0.5 SOL.');
+      let cents = null; if (b.feeUsd != null && b.feeUsd !== '') { cents = Math.round(Number(b.feeUsd) * 100); if (!(cents >= 100 && cents <= 100_000)) throw Error('The dollar fee is $1 to $1,000.');
+        if (!(await payoutReady(w).catch(() => ({}))).ready) throw Error('To take dollars, set up your payout account first (Market → Sell For Dollars).'); }
+      players.setSoulFee(c.id, BigInt(Math.round(sol * 1e9)), cents); return { ok: true }; },
+    'POST /api/soul/tx': async req => { const w = needWallet(req), b = await body(req), c = players.soulClaim(b.id);
+      if (!c || c.loser !== w) throw Error('Only the player who lost it can buy it back.'); if (c.state !== 'open') throw Error('Too late: that Monstar now belongs to the winner.');
+      if (c.winner.startsWith('@')) throw Error('The winner plays without Phantom, so this buy-back is by card only.');
+      const { blockhash } = await chain.latestBlockhash(), payer = new PublicKey(w);
+      const tx = new Transaction({ feePayer: payer, recentBlockhash: blockhash })
+        .add(SystemProgram.transfer({ fromPubkey: payer, toPubkey: new PublicKey(c.winner), lamports: BigInt(c.fee_lamports) }))
+        .add(new TransactionInstruction({ programId: new PublicKey(MEMO_PROGRAM), keys: [{ pubkey: payer, isSigner: true, isWritable: false }], data: Buffer.from('PMSOUL:' + c.id) }));
+      return { transaction: tx.serialize({ requireAllSignatures: false, verifySignatures: false }).toString('base64'), feeSol: formatSol(BigInt(c.fee_lamports), 2) }; },
+    'POST /api/soul/confirm': async req => { const w = needWallet(req), b = await body(req), c = players.soulClaim(b.id);
+      if (!c || c.loser !== w) throw Error('Only the player who lost it can buy it back.');
+      if (c.state === 'bought') return registry.get(c.serial).toJSON();
+      await waitConfirmed(b.signature); await chain.verifyPayment(b.signature, { from: w, to: c.winner, lamports: BigInt(c.fee_lamports), memo: 'PMSOUL:' + c.id });
+      const m = registry.get(c.serial); if (!m || m.owner !== c.winner) throw Error('The Monstar moved. Contact support with ' + b.signature);
+      registry.setOwner(m.serial, w); players.setSoulState(c.id, 'bought', b.signature); return registry.get(m.serial).toJSON(); },
+    'POST /api/card/soul': async req => { const w = need(req), b = await body(req), c = players.soulClaim(b.id);
+      if (!c || c.loser !== w) throw Error('Only the player who lost it can buy it back.'); if (c.state !== 'open') throw Error('Too late: that Monstar now belongs to the winner.');
+      if (!c.fee_cents) throw Error('The winner has not set a dollar price. Use SOL, or ask them to add one.');
+      if (!players.payoutAccount(c.winner)) throw Error('The winner cannot take dollars yet.');
+      const m = registry.get(c.serial);
+      const sess = await stripe.checkout({ name: `Buy back ${m.toJSON().form || m.species.name} · PocketMonstars`, image: `${config.publicUrl}/art/nft/${nftArt(m.species)}`, cents: c.fee_cents, ref: w,
+        metadata: { pm: '1', kind: 'soul', claim: String(c.id), buyer: w, cents: String(c.fee_cents) } });
+      return { url: sess.url }; },
     'GET /api/catches/me': req => { const w = need(req), a = matches.catchAllowance(w);
       return { wallet: !w.startsWith('@'), free: a.free ?? null, credits: a.credits ?? null, freeTotal: 2, card: stripe.enabled, packs: Object.entries(config.catchPacks).map(([n, usd]) => ({ n: Number(n), usd })) }; },
     'POST /api/card/catches': async req => { const w = need(req), b = await body(req), n = Number(b.pack), price = config.catchPacks[n];
@@ -134,6 +177,7 @@ export function createServer({ config = CONFIG, chain = new SolanaChain(config.r
       if (!stripe.enabled) throw Error('Card payments are not switched on yet.');
       if (!m || m.owner !== w) throw Error('You do not own that Monstar.');
       if (m.asset) throw Error('This Monstar is minted as an NFT: sell it for SOL in the NFT market instead.');
+      if (players.openSoulClaimFor(m.serial)) throw Error('Its old owner can still buy this Monstar back (Immortal Combat). Wait until the buy-back time ends.');
       if (!(cents >= 100 && cents <= 1_000_000)) throw Error('Pick a price from $1 to $10,000.');
       if (!(await payoutReady(w)).ready) throw Error('Set up your payout account first (tap "Get paid in dollars").');
       players.listUsd(m.serial, w, cents); return { ok: true, serial: m.serial, usd: usd(cents) }; },
@@ -208,6 +252,7 @@ export function createServer({ config = CONFIG, chain = new SolanaChain(config.r
     'GET /api/leaderboard': () => leaderboard(),
     'GET /api/monstars/mine': req => ({ monstars: registry.ownedBy(need(req)).map(m => m.toJSON()) }),
     'POST /api/mint/prepare': async req => { const w = needWallet(req), b = await body(req), m = registry.get(Number(b.serial));
+      if (m && players.openSoulClaimFor(m.serial)) throw Error('Its old owner can still buy this Monstar back (Immortal Combat). Mint it after the buy-back time ends.');
       if (!m || m.owner !== w) throw Error('You do not own that Monstar.'); if (m.asset) throw Error('Already minted.');
       return nft.mintTransaction({ monstar: m, owner: w }); },
     'POST /api/mint/confirm': async req => { const w = needWallet(req), b = await body(req), m = registry.get(Number(b.serial));

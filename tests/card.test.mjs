@@ -108,3 +108,35 @@ test('catch passes: free accounts catch 2 free, then need a pass (bought by card
     matches.takeCatch('@catcher'); assert.equal(players.catchCredits('@catcher'), 4, 'each catch uses one pass');
   } finally { server.close(); }
 });
+
+test('Immortal Combat: the winner takes the loser\'s Monstar; the loser can buy it back (card) before time runs out, else it is gone', async () => {
+  const fs = fakeStripe(), stripe = new StripePay({ secretKey: 'sk_test_x', publicUrl: 'https://pm.test', fetchImpl: fs.fetchImpl });
+  const { server, auth, matches, registry, players } = createServer({ dbFile: ':memory:', stripe, config: { ...CONFIG, rebuildDrops: false } });
+  await new Promise(r => server.listen(0, r)); const base = 'http://127.0.0.1:' + server.address().port;
+  const call = (p, t, b) => fetch(base + p, { method: b ? 'POST' : 'GET', headers: { 'Content-Type': 'application/json', ...(t ? { Authorization: 'Bearer ' + t } : {}) }, body: b ? JSON.stringify(b) : undefined }).then(r => r.json());
+  try {
+    const A = '@alpha', B = '@bravo', ta = auth.issue(A).token, tb = auth.issue(B).token, [ma] = registry.claimAll(A), [mb] = registry.claimAll(B);
+    const room = matches.create(A, { immortal: true, serial: ma.serial });
+    assert.ok(room.immortal); assert.throws(() => matches.join(B, { code: room.code, serial: mb.serial }), /IMMORTAL_CONFIRM/, 'the joiner must confirm');
+    matches.join(B, { code: room.code, serial: mb.serial, immortalOk: true });
+    for (let i = 0; i < 200 && room.state !== 'live'; i++) matches.tick();
+    room.sim.fighters[1].hp = 0; // A wins
+    for (let i = 0; i < 10 && room.state === 'live'; i++) matches.tick();
+    assert.equal(registry.get(mb.serial).owner, A, 'the winner holds the loser\'s Monstar');
+    const [c] = (await call('/api/soul/mine', tb)).claims; assert.equal(c.you, 'loser'); assert.equal(c.feeSol, '0.10'); assert.equal(c.canSol, false, 'accounts pay by card');
+    assert.match((await call('/api/soul/fee', tb, { id: c.id, feeSol: 0.3 })).error, /winner/);
+    assert.match((await call('/api/soul/fee', ta, { id: c.id, feeSol: 0.9 })).error, /0\.1 to 0\.5/);
+    await call('/api/payouts/connect', ta, {});
+    assert.ok((await call('/api/soul/fee', ta, { id: c.id, feeSol: 0.3, feeUsd: 12 })).ok);
+    assert.throws(() => matches.create(A, { immortal: true, serial: mb.serial }), /soul claim/, 'a held Monstar cannot be put on the line again');
+    assert.match((await call('/api/usd/list', ta, { serial: mb.serial, priceUsd: 5 })).error, /buy this Monstar back/);
+    const co = await call('/api/card/soul', tb, { id: c.id }); assert.match(co.url, /checkout/);
+    const id = [...fs.sessions.keys()].at(-1); assert.equal(fs.sessions.get(id).amount, 1200); fs.pay(id);
+    const r = await call('/api/card/confirm', tb, { session: id }); assert.ok(r.ok, r.error);
+    assert.equal(registry.get(mb.serial).owner, B, 'bought back');
+    assert.equal(fs.calls.filter(x => x.path === '/v1/transfers').at(-1).body.amount, '1140', 'winner gets 95%');
+    // a claim nobody buys back expires: the winner keeps it
+    const id2 = players.newSoulClaim({ matchId: 'x', serial: ma.serial, winner: B, loser: A, feeLamports: 100_000_000n, hours: 24 });
+    assert.equal(players.soulClaim(id2, Date.now() + 25 * 3600_000).state, 'kept');
+  } finally { server.close(); }
+});

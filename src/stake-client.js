@@ -156,6 +156,12 @@ export async function cardBuy(speciesId) { const { url } = await api('/api/card/
 export const cardConfirm = session => api('/api/card/confirm', { session });
 export const payoutsMe = () => api('/api/payouts/me');
 export const catchesMe = () => api('/api/catches/me');
+// ---------- Immortal Combat soul claims ----------
+export const soulMine = () => api('/api/soul/mine');
+export const soulFee = (id, feeSol, feeUsd) => api('/api/soul/fee', { id, feeSol, feeUsd });
+export async function soulBuy(id) { const { transaction } = await api('/api/soul/tx', { id }); const signature = await signAndSend(transaction);
+  for (let i = 0; ; i++) { try { return await api('/api/soul/confirm', { id, signature }); } catch (e) { if (i >= 6 || !/not (found|confirmed) yet/i.test(e.message)) throw e; await new Promise(r => setTimeout(r, 3000)); } } }
+export async function soulCard(id) { const { url } = await api('/api/card/soul', { id }); location.href = url; }
 export async function catchPassBuy(pack) { const { url } = await api('/api/card/catches', { pack }); location.href = url; }
 export async function payoutsConnect() { const { url } = await api('/api/payouts/connect', {}); location.href = url; }
 export const usdListings = () => api('/api/usd/listings');
@@ -178,4 +184,4 @@ export const qrDataUrl = text => QRCode.toDataURL(text, { margin: 1, width: 240,
 export const explorer = sig => `https://explorer.solana.com/tx/${sig}?cluster=devnet`;
 
 if (typeof window !== 'undefined') window.PMStake = { signIn, session, balance, getConfig, myMonstars, mint, syncOwner, listings, list, cancelListing, buy,
-  connectSocket, deposit, explorer, phantomBrowseLink, breedCreate, breedJoin, breedStatus, breedPay, wildPay, signOut, accountRegister, accountLogin, drop, dropBuy, cardStatus, cardBuy, cardConfirm, catchesMe, catchPassBuy, payoutsMe, payoutsConnect, usdListings, usdList, usdCancel, usdBuy, profile, setAvatar, avatars, avatarBuy, referrals, referralLink, qrDataUrl, Monstars, Stake, ARENA, Sim };
+  connectSocket, deposit, explorer, phantomBrowseLink, breedCreate, breedJoin, breedStatus, breedPay, wildPay, signOut, accountRegister, accountLogin, drop, dropBuy, cardStatus, cardBuy, cardConfirm, catchesMe, soulMine, soulFee, soulBuy, soulCard, catchPassBuy, payoutsMe, payoutsConnect, usdListings, usdList, usdCancel, usdBuy, profile, setAvatar, avatars, avatarBuy, referrals, referralLink, qrDataUrl, Monstars, Stake, ARENA, Sim };

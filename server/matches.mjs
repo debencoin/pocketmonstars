@@ -101,12 +101,15 @@ export class MatchManager {
   create(wallet, msg) {
     const { stakeLamports = '0' } = msg;
     if (this.byWallet.has(wallet)) this.leave(wallet);
-    const stake = validateStake(BigInt(stakeLamports), this.policy);
+    const immortal = !!msg.immortal;
+    const stake = immortal ? 0n : validateStake(BigInt(stakeLamports), this.policy);
     if (stake > 0n && wallet.startsWith('@')) throw Error('Sign in with Phantom to stake SOL. Username accounts play free matches.');
-    const team = this.resolveTeam(wallet, msg, stake > 0n), monstar = team[0];
+    if (immortal && msg.mode === '3v3') throw Error('Immortal Combat is 1v1 only.');
+    const team = this.resolveTeam(wallet, { ...msg, mode: immortal ? '1v1' : msg.mode }, stake > 0n || immortal), monstar = team[0];
+    if (immortal) this.checkImmortal(monstar);
     let code; do code = newCode(); while (this.rooms.has(code));
     const escrow = stake > 0n ? newEscrow() : null;
-    const room = { id: randomBytes(16).toString('hex'), code, stake, state: 'waiting', createdAt: this.now(), mode: team.length > 1 ? '3v3' : '1v1', squad: !!msg.squad && team.length > 1,
+    const room = { id: randomBytes(16).toString('hex'), code, stake, immortal, state: 'waiting', createdAt: this.now(), mode: team.length > 1 ? '3v3' : '1v1', squad: !!msg.squad && team.length > 1,
       players: [{ wallet, monstar, team, deposit: null, sockets: new Set(), lastSeen: this.now() }], escrow, sim: null, ledger: null, seq: 0, countdown: 0 };
     this.rooms.set(code, room); this.byWallet.set(wallet, code); this.release(wallet);
     this.db.prepare('INSERT INTO matches(id,code,stake,player_a,monstar_a,escrow,escrow_secret,state,created_at) VALUES(?,?,?,?,?,?,?,?,?)')
@@ -122,7 +125,8 @@ export class MatchManager {
     if (room.players[0].wallet === wallet) throw Error('Use a second wallet to play yourself.');
     if (room.stake > 0n && wallet.startsWith('@')) throw Error('This match is for SOL. Sign in with Phantom to join it.');
     if (this.byWallet.has(wallet)) this.leave(wallet);
-    const team = this.resolveTeam(wallet, { ...msg, mode: room.mode }, room.stake > 0n), monstar = team[0];
+    const team = this.resolveTeam(wallet, { ...msg, mode: room.mode }, room.stake > 0n || room.immortal), monstar = team[0];
+    if (room.immortal) { if (!msg.immortalOk) throw Error('IMMORTAL_CONFIRM'); this.checkImmortal(monstar); }
     room.players.push({ wallet, monstar, team, deposit: null, sockets: new Set(), lastSeen: this.now() });
     this.byWallet.set(wallet, room.code); this.release(wallet);
     room.state = room.stake > 0n ? 'deposit' : 'countdown';
@@ -151,6 +155,12 @@ export class MatchManager {
     return room;
   }
 
+  /** Immortal Combat puts your Monstar on the line: it must be yours, not minted as an NFT and not already held in a soul claim. */
+  checkImmortal(m) {
+    if (m.serial == null) throw Error('Immortal Combat needs one of your own Monstars.');
+    if (m.asset) throw Error('Minted NFT Monstars cannot be fought for in Immortal Combat.');
+    if (this.players?.openSoulClaimFor(m.serial)) throw Error('That Monstar is held in a soul claim right now. Pick another one.');
+  }
   input(wallet, raw) {
     const room = this.roomOf(wallet);
     if (!room || room.state !== 'live') return;
@@ -273,7 +283,16 @@ export class MatchManager {
       if (won && allow.ok && Math.random() < chance) { this.takeCatch(room.players[0].wallet); const c = this.registry.catchWild(room.players[0].wallet, room.wild.speciesId, room.wild.level); caught.ok = true; caught.monstar = c.toJSON(); }
       this.db.prepare('UPDATE wild_runs SET won=?, caught_serial=? WHERE signature=?').run(won ? 1 : 0, caught.monstar?.serial ?? null, room.wild.signature);
     }
-    this.emit(room, { t: 'end', winner: sim.winner, reason: sim.reason, shares: shares.map(String), stake: room.stake.toString(), progress, caught });
+    let immortal = null;
+    if (room.immortal && (sim.winner === 0 || sim.winner === 1) && room.players.length === 2) { // the winner takes the loser's Monstar
+      const W = room.players[sim.winner], L = room.players[1 - sim.winner], m = this.registry.get(L.monstar.serial);
+      if (m && m.owner === L.wallet && !m.asset) {
+        this.registry.setOwner(m.serial, W.wallet);
+        const id = this.players?.newSoulClaim({ matchId: room.id, serial: m.serial, winner: W.wallet, loser: L.wallet, feeLamports: 100_000_000n });
+        immortal = { claim: id, serial: m.serial, speciesId: m.species.id, name: m.toJSON().form || m.species.name, winner: W.wallet, loser: L.wallet, hours: 24 };
+      }
+    }
+    this.emit(room, { t: 'end', winner: sim.winner, reason: sim.reason, shares: shares.map(String), stake: room.stake.toString(), progress, caught, immortal });
     if (room.stake > 0n) this.settle(room, shares, sim.winner).catch(e => this.emit(room, { t: 'settlement', ok: false, error: e.message }));
     else this.close(room);
   }
@@ -352,7 +371,7 @@ export class MatchManager {
   publicRoom(room, wallet) {
     return { t: 'room', code: room.code, state: room.state, stake: room.stake.toString(), escrow: room.escrow?.address ?? null,
       you: room.players.findIndex(p => p.wallet === wallet), countdown: Math.max(0, Math.ceil(room.countdown || 0)),
-      ai: !!room.ai, mode: room.mode || '1v1', squad: !!room.squad, wild: room.wild ? { speciesId: room.wild.speciesId, level: room.wild.level, tier: room.wild.tier } : null,
+      ai: !!room.ai, immortal: !!room.immortal, mode: room.mode || '1v1', squad: !!room.squad, wild: room.wild ? { speciesId: room.wild.speciesId, level: room.wild.level, tier: room.wild.tier } : null,
       players: room.players.map(p => ({ wallet: p.wallet, ai: !!p.ai, deposited: !!p.deposit, monstar: p.monstar.toJSON(), team: (p.team || [p.monstar]).map(x => x.toJSON()) })),
       shares: room.ledger ? room.ledger.shares.map(String) : room.players.map(() => room.stake.toString()) };
   }

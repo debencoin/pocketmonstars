@@ -90,7 +90,12 @@ pvp.innerHTML = `
    <input class="pv-input" id="pvStake" inputmode="decimal" value="0.001" style="margin-top:8px">
    <p class="pv-note" id="pvStakeNote" style="margin:8px 0"></p>
    <button class="primary wide" id="pvCreate">Create match</button>
-   <div class="pv-row" style="margin-top:12px;flex-wrap:nowrap"><input class="pv-input" id="pvJoinCode" placeholder="Match code" maxlength="6" autocapitalize="characters" style="text-transform:uppercase"><button class="smallbtn" id="pvJoin">Join</button></div></div>
+   <div class="pv-row" style="margin-top:12px;flex-wrap:nowrap"><input class="pv-input" id="pvJoinCode" placeholder="Match code" maxlength="6" autocapitalize="characters" style="text-transform:uppercase"><button class="smallbtn" id="pvJoin">Join</button></div>
+   <div class="pv-immortal"><h3>⚔ Immortal Combat 1v1</h3>
+    <p class="pv-note">No SOL stake: your Monstar is the prize. <b>The winner takes the loser's Monstar.</b> The loser then has 24 hours to buy it back for the winner's soul fee (0.1 to 0.5 SOL, or a dollar price by card). If they can't, it's gone for good. Minted NFTs can't be fought for.</p>
+    <button class="primary wide pv-imm-btn" id="pvImmortal">Create Immortal Combat</button>
+    <p class="pv-note" style="margin-top:6px">To join one, enter its code above and tap Join.</p></div>
+   <div id="pvSouls"></div></div>
   <div class="panel" id="pvRoom" hidden><div class="pv-row" style="justify-content:space-between"><h3>Match</h3><span class="pv-chip" id="pvRoomState">waiting</span></div>
    <div class="pv-code" id="pvCode">——</div><p class="pv-note">Send this code to your rival.</p>
    <div class="pv-players" id="pvPlayers" style="margin:10px 0"></div>
@@ -152,7 +157,7 @@ async function afterSignIn() {
   me = S.session()?.wallet || null;
   q('pvSignIn').textContent = me && !isAcct(me) ? 'Signed in · switch wallet' : 'Connect Phantom & sign in';
   q('pvAcct').hidden = !!me; q('pvSignOut').hidden = !me;
-  window.PMV5?.signedIn?.(me);
+  window.PMV5?.signedIn?.(me); setTimeout(() => renderSouls(), 0);
   if (!me) { q('pvWallet').textContent = 'Not signed in. Practice is free with no sign-in.'; return; }
   q('pvWallet').innerHTML = isAcct(me) ? `Signed in as <b>${esc(me.slice(1))}</b> · free account. Connect Phantom any time to play for SOL.`
     : `<span class="pv-addr">${esc(me)}</span><br><span id="pvBal">Loading balance…</span>`;
@@ -237,7 +242,40 @@ function teamMsg3(needOwned) {
 function needSocket() { if (!S.session()) throw Error('Sign in with Phantom first.'); if (!ws || ws.readyState > 1) openSocket(); }
 function sendWs(msg) { needSocket(); const go = () => ws.send(JSON.stringify(msg)); ws.readyState === 1 ? go() : ws.addEventListener('open', go, { once: true }); }
 q('pvCreate').onclick = () => { try { const lam = Stake.toLamports(q('pvStake').value || '0'); if (lam < 1_000_000n) throw Error('The minimum stake is 0.001 SOL.'); sendWs({ t: 'create', stakeLamports: lam.toString(), serial: lam > 0n ? picked : undefined, speciesId: mine.find(m => m.serial === picked)?.speciesId ?? 0, ...teamMsg(lam > 0n) }); } catch (e) { fail(e); } };
-q('pvJoin').onclick = () => { try { sendWs({ t: 'join', code: q('pvJoinCode').value.trim().toUpperCase(), serial: picked, speciesId: mine.find(m => m.serial === picked)?.speciesId ?? 0, ...teamMsg(true) }); } catch (e) { fail(e); } };
+let lastJoin = null;
+q('pvJoin').onclick = () => { try { lastJoin = { t: 'join', code: q('pvJoinCode').value.trim().toUpperCase(), serial: picked, speciesId: mine.find(m => m.serial === picked)?.speciesId ?? 0, ...teamMsg(true) }; sendWs(lastJoin); } catch (e) { fail(e); } };
+// ---------- Immortal Combat: winner takes the loser's Monstar; the loser can buy it back for the winner's soul fee ----------
+q('pvImmortal').onclick = () => { try {
+  if (!S.session()) throw Error('Sign in first (top right).');
+  const m = mine.find(x => x.serial === picked); if (!m) throw Error('Pick one of your own Monstars first.');
+  if (m.asset) throw Error('Minted NFT Monstars cannot be fought for. Pick another one.');
+  if (!confirm(`Immortal Combat puts ${m.form || m.name} (Lv${m.level}) on the line.\n\nIf you lose, the winner takes it. You'll have 24 hours to buy it back for their soul fee, or it's gone for good.\n\nCreate the match?`)) return;
+  sendWs({ t: 'create', immortal: true, mode: '1v1', serial: m.serial, speciesId: m.speciesId }); } catch (e) { fail(e); } };
+function confirmImmortalJoin() {
+  const m = mine.find(x => x.serial === picked);
+  if (!lastJoin || !m) return toast('Pick one of your own Monstars to join an Immortal Combat.', true);
+  if (!confirm(`That match is IMMORTAL COMBAT: the winner takes the loser's Monstar.\n\nYou'd put ${m.form || m.name} (Lv${m.level}) on the line. If you lose, you have 24 hours to buy it back for the winner's soul fee, or it's gone.\n\nJoin anyway?`)) return;
+  sendWs({ ...lastJoin, mode: '1v1', serial: m.serial, immortalOk: true });
+}
+const SOL_FEES = ['0.1', '0.2', '0.3', '0.4', '0.5'];
+async function renderSouls() {
+  const box = q('pvSouls'); if (!box) return; if (!S.session()) { box.innerHTML = ''; return; }
+  let r; try { r = await S.soulMine(); } catch { return; }
+  const open = r.claims.filter(c => c.state === 'open'), done = r.claims.filter(c => c.state !== 'open').slice(0, 5);
+  if (!r.claims.length) { box.innerHTML = ''; return; }
+  const left = c => { const ms = Math.max(0, c.expiresAt - Date.now()), h = Math.floor(ms / 36e5), mi = Math.floor(ms / 6e4) % 60; return `${h}h ${mi}m left`; };
+  box.innerHTML = `<h3 style="margin-top:16px">Soul claims</h3>` + open.map(c => { const n = esc(c.monstar?.form || c.monstar?.name || 'Monstar');
+    return `<div class="pv-soul">${c.monstar ? `<img src="${PA.spriteSrc(c.monstar.speciesId, c.monstar.stageId)}" alt="">` : ''}<div><b>${n}</b> · Lv${c.monstar?.level ?? '?'}<br><small>${left(c)} · soul fee <b>${c.feeSol} SOL</b>${c.feeUsd ? ' or <b>' + c.feeUsd + '</b> by card' : ''}</small>
+      ${c.you === 'winner' ? `<div class="pv-row soul-fee">${SOL_FEES.map(v => `<button class="smallbtn" data-sfee="${c.id}" data-v="${v}" aria-pressed="${Number(v) === Number(c.feeSol)}">${v} SOL</button>`).join('')}<input class="pv-input" data-susd="${c.id}" inputmode="decimal" placeholder="$ (optional)" value="${c.feeCents ? (c.feeCents / 100).toFixed(2) : ''}" style="max-width:110px"><button class="smallbtn" data-ssave="${c.id}">Save $</button></div><small>You won it. Its old owner can buy it back until the time runs out, then it's yours for good.</small>`
+        : `<div class="pv-row">${c.canSol ? `<button class="primary" data-sbuy="${c.id}">Buy back · ${c.feeSol} SOL</button>` : ''}${c.canCard ? `<button class="smallbtn" data-scard="${c.id}">💳 Buy back · ${c.feeUsd}</button>` : ''}</div>${!c.canSol && !c.canCard ? '<small>Waiting for the winner to set a price you can pay.</small>' : '<small>Buy it back before the time runs out, or it is gone for good.</small>'}`}</div></div>`; }).join('')
+    + done.map(c => `<div class="pv-soul done"><small>${esc(c.monstar?.form || c.monstar?.name || 'Monstar')}: ${c.state === 'bought' ? 'bought back' : c.you === 'winner' ? 'yours for good' : 'lost for good'}</small></div>`).join('');
+  const fee = id => box.querySelector(`[data-sfee="${id}"][aria-pressed="true"]`)?.dataset.v || '0.1';
+  box.querySelectorAll('[data-sfee]').forEach(b => b.onclick = async () => { try { const usdIn = box.querySelector(`[data-susd="${b.dataset.sfee}"]`).value; await S.soulFee(Number(b.dataset.sfee), Number(b.dataset.v), usdIn === '' ? null : Number(usdIn)); toast('Soul fee set to ' + b.dataset.v + ' SOL.'); renderSouls(); } catch (e) { fail(e); } });
+  box.querySelectorAll('[data-ssave]').forEach(b => b.onclick = async () => { try { const id = Number(b.dataset.ssave), v = box.querySelector(`[data-susd="${id}"]`).value; await S.soulFee(id, Number(fee(id)), v === '' ? null : Number(v)); toast('Saved.'); renderSouls(); } catch (e) { fail(e); } });
+  box.querySelectorAll('[data-sbuy]').forEach(b => b.onclick = async () => { try { b.disabled = true; const m = await S.soulBuy(Number(b.dataset.sbuy)); toast(`${m.form || m.name} is back with you!`); refreshMine(); renderSouls(); } catch (e) { fail(e); b.disabled = false; } });
+  box.querySelectorAll('[data-scard]').forEach(b => b.onclick = () => S.soulCard(Number(b.dataset.scard)).catch(fail));
+}
+setInterval(() => { if (!pvp.classList.contains('hidden')) renderSouls(); }, 30000);
 // ---------- move cards ("What will X do?") ----------
 const MOVE_KEYS = ['atk', 'sp', 'dash', 'guard'];
 const TYPE_COL = { ANCIENT: '#c8902a', WATCHER: '#6a5ab0', VENOM: '#9a4ad0', STEEL: '#7a889e', GALE: '#3aa888', DRACO: '#c83a5a', EMBER: '#e8582c', TIDE: '#3a8ae0', GROVE: '#4caa3a', SPARK: '#d8b018', SHADE: '#7a4ad8', STONE: '#9a8458', FROST: '#5ab8d8', ASTRAL: '#d89a30', PSYCHIC: '#c050c8', NORMAL: '#8a8a9a' };
@@ -458,6 +496,7 @@ function onMsg(m) {
     if (/not found yet/i.test(m.error) && window.PMWild?.retry?.()) return toast('Waiting for Solana to confirm your entry fee…');
     if (/not found yet/i.test(m.error) && pendingDeposit && depositRetries < 10) { depositRetries++; setTimeout(() => sendWs({ t: 'deposit', signature: pendingDeposit.sig }), 3000); return toast('Waiting for Solana to confirm your deposit…'); }
     if (/free catches/i.test(m.error)) { offerPasses(); return; }
+    if (m.error === 'IMMORTAL_CONFIRM') { confirmImmortalJoin(); return; }
     return toast(m.error, true);
   }
   if (m.t === 'noroom') { if (room && !room.local) { serverLost('That match ended because the game server restarted. Start a new one.'); } return; }
@@ -581,7 +620,7 @@ function renderRoom() {
     return;
   }
   if (!room) { q('pvOverlay').hidden = false; q('pvBig').textContent = 'Ready to battle'; q('pvSmall').textContent = 'Pick a Monstar and tap Practice vs AI, or sign in with Phantom to battle a rival for SOL.'; q('pvOvBtns').innerHTML = ''; return; }
-  q('pvCode').textContent = room.code; q('pvRoomState').textContent = room.state;
+  q('pvCode').textContent = room.code; q('pvRoomState').textContent = (room.immortal ? 'IMMORTAL COMBAT · ' : '') + room.state;
   q('pvPlayers').innerHTML = [0, 1].map(i => { const p = room.players[i]; return p ? `<div class="pv-player"><b>${esc(p.monstar.name)}</b><small>${i === room.you ? 'You' : 'Rival'} · ${short(p.wallet)}</small><small>${esc(p.monstar.className)} · ${esc(p.monstar.type)}</small>${room.stake !== '0' ? `<span class="pv-chip ${p.deposited ? 'ok' : ''}">${p.deposited ? 'Deposited' : 'Deposit pending'}</span>` : ''}</div>` : '<div class="pv-player"><b>Waiting…</b><small>Share the code</small></div>'; }).join('');
   const myP = room.players[room.you];
   q('pvDeposit').hidden = !(room.state === 'deposit' && myP && !myP.deposited);
@@ -598,7 +637,10 @@ function renderRoom() {
     small.innerHTML = expLine.replace('<br>', '') + (expLine ? '<br>' : '') + (room.stake === '0' ? `${ended.reason === 'ko' ? 'KO' : ended.reason === 'time' ? 'Time up' : 'Forfeit'} · free match`
       : st ? (st.ok ? `Paid out on-chain: you receive <b>${sol(st.payouts[room.you], 9)} SOL</b>. Company fee ${st.company} lamport. <a href="${esc(S.explorer(st.signature))}" target="_blank" rel="noopener">View transaction</a>` : `Settlement needs review: ${esc(st.error || st.signature || '')}`)
       : `${draw ? 'Each keeps their share.' : won ? 'You take the pot: ' + sol(ended.shares[room.you], 6) + ' SOL.' : 'Your rival takes the pot.'} Paying out on Solana…`);
-    const again = el('button', { className: 'primary', textContent: 'New match' }); again.onclick = () => { room = null; ended = null; snapCur = null; renderRoom(); renderer.idle(); };
+    if (ended.immortal) { const im = ended.immortal, iWon = im.winner === S.session()?.wallet;
+      small.innerHTML = iWon ? `<b>You won ${esc(im.name)}!</b> It's yours now. Its old owner has ${im.hours} hours to buy it back for your soul fee (0.1 SOL until you change it in Soul claims).`
+        : `<b>${esc(im.name)} now belongs to the winner.</b> Buy it back within ${im.hours} hours in Soul claims, or it's gone for good.`; }
+    const again = el('button', { className: 'primary', textContent: ended.immortal ? 'Soul claims' : 'New match' }); again.onclick = () => { room = null; ended = null; snapCur = null; renderRoom(); renderer.idle(); refreshMine(); renderSouls().then(() => q('pvSouls')?.scrollIntoView({ block: 'center' })); };
     btns.append(again);
   } else if (room.state === 'waiting') { big.textContent = room.code; small.textContent = 'Waiting for your rival to join with this code.'; }
   else if (room.state === 'deposit') { big.textContent = 'Deposits'; small.textContent = `Both players deposit ${sol(room.stake, 6)} SOL into the match escrow. The duel starts when both confirm.`; }

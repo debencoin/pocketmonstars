@@ -263,3 +263,8 @@ Stats: HP, Attack, Defense, Sp. Atk, Sp. Def, Speed. Types: EMBER, GROVE, TIDE, 
 - The Run button is gone. In wild battles it is now **Catch** (it glows when the wild Monstar's HP is in the red; key C). Other battles play out to the end.
 - Free (username) accounts catch 2 wild Monstars free; after that each catch uses a catch pass bought by card (1 pass $0.99, 5 for $3.99; PM_CATCH1_USD / PM_CATCH5_USD). Phantom wallets pay SOL per wild run and are not limited.
 - A catch plays a vortex beam in the Monstar's own colour (bender element, else its type: red, blue, yellow, black, purple, orange, white, pink, green and more), the Monstar is pulled up and vanishes, and a soul orb of that colour floats before the result and Rematch buttons show.
+
+## v38: Immortal Combat 1v1
+- New 1v1 mode with no SOL stake: the winner takes the loser's Monstar (registry owner moves at the end of the match; a forfeit counts as a loss). Minted NFTs can't be put on the line, and the joiner must confirm (IMMORTAL_CONFIRM).
+- A soul claim opens for 24 hours: the winner sets the soul fee (0.1-0.5 SOL, default 0.1, and optionally a dollar price if they have a Stripe payout account). The loser buys it back with SOL (paid straight to the winner, memo PMSOUL:<id>) or by card (winner gets 95% through Stripe). After 24 hours it belongs to the winner for good.
+- While a claim is open the Monstar can't be minted, listed for dollars or put into another Immortal Combat.

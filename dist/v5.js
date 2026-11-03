@@ -163,7 +163,8 @@ async function renderUsd() {
 (async () => { const id = new URLSearchParams(location.search).get('paid'); if (!id || !S.session()) return;
   history.replaceState(null, '', location.pathname + location.hash);
   for (let i = 0; i < 8; i++) { try { const r = await S.cardConfirm(id); if (r.pending) { await new Promise(x => setTimeout(x, 2500)); continue; }
-      if (r.ok && r.catches) toast(`Payment done! +${r.catches} catch pass${r.catches > 1 ? 'es' : ''} (${r.credits} now). Go catch some Monstars!`);
+      if (r.ok && r.soul) { toast(`Bought back! ${r.monstar.form || r.monstar.name} is yours again.`); API.refreshMine?.(); }
+      else if (r.ok && r.catches) toast(`Payment done! +${r.catches} catch pass${r.catches > 1 ? 'es' : ''} (${r.credits} now). Go catch some Monstars!`);
       else if (r.ok) { toast(`Payment done! ${r.monstar.form || r.monstar.name} is yours. Find it in the Arena picker.`); API.refreshMine?.(); } else toast(r.error || 'Payment problem.', true);
       loadDrop(); return; } catch (e) { toast(e.message, true); return; } }
   toast('Your card payment is still processing. Your Monstar will appear in a minute.'); })();
