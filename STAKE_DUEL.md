@@ -218,3 +218,7 @@ Stats: HP, Attack, Defense, Sp. Atk, Sp. Def, Speed. Types: EMBER, GROVE, TIDE, 
 - Avatars (`shared/avatars.mjs`): one-of-one photo avatars, either reserved for a wallet (`reservedFor: 'founder'` = legendary account holder) or sold once for SOL (`priceLamports`, memo `PMAVATAR:<id>` to the treasury, rebuilt from chain on start). Any owned Monstar can also be your avatar. Routes: `GET /api/profile/me`, `POST /api/profile/avatar`, `GET /api/avatars`, `POST /api/avatar/tx|confirm`.
 - First photo avatar: **Gilded Voyager** (`dist/art/avatars/gilded-voyager.jpg`), held by the founder wallet. Add more by dropping images in `dist/art/avatars/` and adding entries with a price.
 - Script and CSS tags in `index.html` carry `?v=29` so phones and Phantom's browser load the newest code.
+
+## v30 — Neferion Storm Orbs
+- Signature Mega Shots can replace a species' generated one (`MEGA_SIGNATURE` in monstars.mjs). Neferion (Neferkit → Neferling → Neferion …) gets **Storm Orbs** (`kind: 'lightning'`): 7 lightning balls launched 0.16 s apart that home in on the rival. The first ball to hit stuns briefly (0.33 s); the rest zap it. A rival that keeps moving usually takes 3–6; one that stands still or stays stunned takes all 7.
+- Shield test now samples 24 wallets (one starter each) so it no longer fails by chance.

@@ -141,3 +141,17 @@ test('profile avatars: the founder wallet holds Gilded Voyager; others cannot us
     assert.equal((await call('/api/profile/avatar', o, { avatar: 'm:' + me.monstars[0].serial })).avatar.serial, me.monstars[0].serial);
   } finally { server.close(); }
 });
+
+test('Neferion Storm Orbs: 7 homing lightning balls; the first hit stuns; a rival that stands still takes all 7', async () => {
+  const S = await import('../shared/sim.mjs'), { Monstar, SPECIES } = await import('../shared/monstars.mjs');
+  const nef = SPECIES.find(s => s.name === 'Neferion'); assert.equal(nef.kit.mega.kind, 'lightning');
+  const m = S.createMatch(new Monstar({ speciesId: nef.id, level: 20 }), new Monstar({ speciesId: 3, level: 20 }), { auto: false });
+  const a = m.fighters[0], b = m.fighters[1]; a.x = 300; a.y = 300; b.x = 650; b.y = 300; a.ult = 100; a.input = S.sanitizeInput({ mega: true });
+  let hits = 0, stuns = 0;
+  for (let i = 0; i < 30 * 3.5 && !m.over; i++) {
+    for (const e of S.step(m)) { if (e.type === 'hit' && e.attacker === 0 && e.kind === 'special') hits++; if (e.type === 'status' && e.k === 'stun') stuns++; }
+    a.input = S.sanitizeInput({}); b.x = 650; b.y = 300; b.vx = b.vy = 0;
+    if (i === 2) assert.equal(m.projectiles.filter(p => p.lt).length, 7);
+  }
+  assert.equal(hits, 7); assert.equal(stuns, 1, 'only the first ball stuns');
+});

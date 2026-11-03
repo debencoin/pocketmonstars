@@ -432,6 +432,16 @@ function createRenderer(canvas, arena) {
   function projectile(p, x, y, now) {
     const pal = palFor(p.ty, p.sid), a = Math.atan2(p.vy, p.vx), fl = Math.floor(now * 20) % 2, v = vidOf(p);
     y -= 8;
+    if (p.lt) { // Storm Orbs: crackling lightning balls (smaller while charging up beside the caster)
+      const rr = p.w ? 9 : 13, t = now / 1000;
+      FULL(); ctx.save(); ctx.globalCompositeOperation = 'lighter'; glow(x * Z, y * Z, (rr + 12) * U, '#ffffff', '#ffd23f', 0.95); ctx.restore();
+      ctx.strokeStyle = '#fff6a8'; ctx.lineWidth = 1.6 * U; ctx.beginPath();
+      for (let k = 0; k < 3; k++) { let ang = t * 9 + k * 2.1 + (p.id % 7), px2 = x * Z, py2 = y * Z; ctx.moveTo(px2, py2);
+        for (let j = 1; j <= 3; j++) { px2 = x * Z + Math.cos(ang) * rr * U * j * 0.55 + (Math.random() - 0.5) * 5 * U; py2 = y * Z + Math.sin(ang) * rr * U * j * 0.55 + (Math.random() - 0.5) * 5 * U; ctx.lineTo(px2, py2); ang += 0.4; } }
+      ctx.stroke(); LOG(); disc(x, y, 3, '#ffffff');
+      if (!p.w && Math.random() < 0.5) part(x - Math.cos(a) * 6, y - Math.sin(a) * 6, (Math.random() - 0.5) * 20, (Math.random() - 0.5) * 20, 0.25, '#ffe14a', 1);
+      return;
+    }
     if (v === 0) { // fireball with a glowing core and flame trail
       FULL(); ctx.save(); ctx.globalCompositeOperation = 'lighter'; glow(x * Z, y * Z, 22 * U, '#fff6a8', '#ff8a1f', 0.9); ctx.restore(); LOG();
       disc(x, y, 4 + fl, pal[3]); disc(x, y, 3, pal[2]); disc(x + Math.cos(a), y, 1 + fl, pal[0]);

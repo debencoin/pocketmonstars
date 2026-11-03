@@ -162,6 +162,11 @@ export const STAGE_PERKS = [null, 'Attack upgrade: +10% attack power', 'Dash upg
 /** Name of a species in a given evolution stage (0 Infant ... 5 Ascended). */
 export function formName(species, stageId = 2) { return (species.forms ||= stageForms(species.name))[stageId] || species.name; }
 { const used = new Set(); for (const sp of SPECIES) sp.kit = kitFor(sp, used); } // every species gets its own ability kit
+// Signature Mega Shots designed for specific Monstars (replace the generated one).
+const MEGA_SIGNATURE = {
+  Neferion: { kind: 'lightning', name: 'Neferion Storm Orbs', note: 'Seven lightning balls chase the rival. The first one to hit stuns it so the rest can zap it.', power: 1.1, size: 1 },
+};
+for (const sp of SPECIES) if (MEGA_SIGNATURE[sp.name]) sp.kit.mega = { ...sp.kit.mega, ...MEGA_SIGNATURE[sp.name] };
 { const seen = new Set(), names = new Set(SPECIES.map(x => x.name)); for (const sp of SPECIES) { // six uniquely named forms per species
   let f = sp.forms || stageForms(sp.name), n = 0;
   while ((seen.has(f[0]) || seen.has(f[1]) || names.has(f[0]) || names.has(f[1])) && n++ < 6) { const r = sp.name.slice(0, f[0].length - 3 + 1); f = [r + 'kit', r + 'ling', ...f.slice(2)]; }

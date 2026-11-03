@@ -202,6 +202,11 @@ function megaShot(m, f, foe, events) {
     gx: clamp(x, 40, ARENA.w - 40), gy: clamp(y, BOUNDS.y0, BOUNDS.y1), t: 0, dur: S.dur, hit: false, nextTick: 0, thrown: 0, bolted: false, pw: P, mega: true, ...extra }); };
   if (k === 'barrage') { for (let i = 0; i < 7; i++) { const a = Math.atan2(f.fy, f.fx) + (i - 3) * 0.16, sp = STYLES.projectile.speed * 1.1;
     m.projectiles.push({ id: m.nextId++, owner: f.side, by: f, kind: 'special', style: 'projectile', type: f.type, sid: f.speciesId, x: f.x + Math.cos(a) * 36, y: f.y + Math.sin(a) * 36, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, r: 16, life: 1.4, hitDone: false, missDone: false, pw: P * 0.38, homing: true }); } }
+  else if (k === 'lightning') { // Storm Orbs: 7 homing lightning balls, launched one after another; the first hit stuns
+    const grp = m.nextId++;
+    for (let i = 0; i < 7; i++) { const a = Math.atan2(f.fy, f.fx) + (i - 3) * 0.3, sp = STYLES.projectile.speed * 0.95;
+      m.projectiles.push({ id: m.nextId++, owner: f.side, by: f, kind: 'special', style: 'projectile', type: f.type, sid: f.speciesId, x: f.x + Math.cos(a) * 30, y: f.y + Math.sin(a) * 30 - 20,
+        vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, r: 15, life: 1.9, hitDone: false, missDone: false, pw: P * 0.3, homing: true, turn: 4.0, lt: 1, grp, wait: i * 0.16, ox: Math.cos(a) * 30, oy: Math.sin(a) * 30 - 20 }); } }
   else if (k === 'nova') fx(f.x, f.y, 'strike', { rad: 170 * sz, t: 0.25 });
   else if (k === 'meteors') for (let i = 0; i < 4; i++) { const a = i * 1.57 + 0.4; fx(foe.x + Math.cos(a) * 60 * sz * (i ? 1 : 0), foe.y + Math.sin(a) * 40 * sz * (i ? 1 : 0), 'strike', { t: -i * 0.22, pw: P * 0.45, rad: 70 }); }
   else if (k === 'vortex') { const [nx, ny] = norm(f.x - foe.x, f.y - foe.y); foe.vx += nx * 600 * Math.max(0.3, foe.mods.knockback); foe.vy += ny * 600 * Math.max(0.3, foe.mods.knockback); fx(f.x + f.fx * 90, f.y + f.fy * 60, 'strike', { rad: 130 * sz }); }
@@ -472,7 +477,8 @@ export function step(m, realDt = TICK) {
     }
   }
   for (const p of m.projectiles) {
-    if (p.homing) { const tg = foeOf(m, p.by || m.fighters[p.owner]), sp = Math.hypot(p.vx, p.vy), [hx, hy] = norm(tg.x - p.x, tg.y - p.y), [cx, cy] = norm(p.vx, p.vy), tt = Math.min(1, 2.2 * dt);
+    if (p.wait > 0) { p.wait -= dt; const o = p.by || m.fighters[p.owner]; p.x = o.x + p.ox; p.y = o.y + p.oy; continue; } // charging up beside its owner
+    if (p.homing) { const tg = foeOf(m, p.by || m.fighters[p.owner]), sp = Math.hypot(p.vx, p.vy), [hx, hy] = norm(tg.x - p.x, tg.y - p.y), [cx, cy] = norm(p.vx, p.vy), tt = Math.min(1, (p.turn || 2.2) * dt);
       const [nx, ny] = norm(cx + (hx - cx) * tt, cy + (hy - cy) * tt); p.vx = nx * sp; p.vy = ny * sp; }
     p.x += p.vx * dt; p.y += p.vy * dt; p.life -= dt;
     if (p.x < 0 || p.x > ARENA.w || p.y < 0 || p.y > ARENA.h) p.life = 0;
@@ -483,7 +489,9 @@ export function step(m, realDt = TICK) {
       if (vic.iframes > 0) { if (!p.missDone) { p.missDone = true; events.push({ type: 'miss', attacker: att.side, victim: vic.side, style: p.style }); } }
       else if (vic.guardT > 0 && vic.guardKind === 'reflect' && !p.reflected) { // Mirror Shell sends it back
         p.owner = vic.side; p.by = vic; p.vx = -p.vx * 1.15; p.vy = -p.vy * 1.15; p.reflected = true; p.life = Math.max(p.life, 0.8); events.push({ type: 'blocked', attacker: att.side, victim: vic.side, style: p.style, guard: 'reflect' }); }
-      else { const [nx, ny] = norm(p.vx, p.vy); if (land(m, att, vic, p.kind, p.style, events, nx, ny, p.style === 'debris' ? 160 : 90, p.pw)) { p.hitDone = true; p.life = 0; } }
+      else { const [nx, ny] = norm(p.vx, p.vy); if (land(m, att, vic, p.kind, p.style, events, nx, ny, p.style === 'debris' ? 160 : p.lt ? 25 : 90, p.pw)) { p.hitDone = true; p.life = 0;
+        if (p.lt) { m.zapped ||= {}; // Storm Orbs: the first ball to hit stuns; the rest zap
+          if (!m.zapped[p.grp]) { m.zapped[p.grp] = 1; applyStatus(m, vic, 'stun', att, events, 0.3); } else events.push({ type: 'status', side: vic.side, k: 'paralyze', label: 'ZAP!' }); } } }
     }
   }
   m.projectiles = m.projectiles.filter(p => p.life > 0);
@@ -536,7 +544,7 @@ export function snapshot(m) {
       mv: f.moving, ds: f.dashT > 0, ct: r(Math.min(f.castT, 9)), ck: f.castKind, hu: r(f.hurtT), lv: f.level, sg: stageFor(f.level).id, fl: MOTION[f.motion].float || f.levT > 0, lt: r(f.levT), bk: r(f.blinkT), mo: f.motion,
       bs: f.styles.basic, ss: f.styles.special, i: f.iframes > 0, g: f.guardT > 0, gk: f.guardT > 0 ? f.guardKind : null, st: f.status?.k || null, stt: f.status ? r(f.status.t / f.status.max) : 0, rc: f.recT > 0, ul: Math.round(f.ult), en: Math.round(f.energy) })) : null,
     sq: m.squad ? 1 : 0, lim: m.limit, pk: m.pickups.map(q => ({ id: q.id, x: r(q.x), y: r(q.y), k: q.k, l: r(q.life) })), gs: GAME_SPEED * (m.pace || 1),
-    p: m.projectiles.map(p => ({ id: p.id, o: p.owner, k: p.kind, st: p.style, ty: p.type, sid: p.sid, x: r(p.x), y: r(p.y), vx: Math.round(p.vx), vy: Math.round(p.vy), r: p.r })),
+    p: m.projectiles.map(p => ({ id: p.id, o: p.owner, k: p.kind, st: p.style, ty: p.type, sid: p.sid, x: r(p.x), y: r(p.y), vx: Math.round(p.vx), vy: Math.round(p.vy), r: p.r, lt: p.lt ? 1 : 0, w: p.wait > 0 ? 1 : 0 })),
     e: m.effects.map(e => ({ id: e.id, o: e.owner, k: e.kind, st: e.style, ty: e.type, sid: e.sid, x: r(e.x), y: r(e.y), dx: r(e.dx * 100) / 100, dy: r(e.dy * 100) / 100,
       gx: r(e.gx), gy: r(e.gy), t: Math.round(e.t * 100) / 100, d: e.dur, ra: e.rad || 0, wd: e.wid || 0, mg: e.mega ? 1 : 0 })) };
 }

@@ -338,7 +338,7 @@ test('hit fees: tiny, grow with level, stats and move power, never above 0.00001
 test('shields differ per Monstar (from wallet DNA) and a raised shield can block a hit completely', async () => {
   const S = await import('../shared/sim.mjs'), { Monstar } = await import('../shared/monstars.mjs');
   const reg = new Registry(openDb(':memory:')), sh = new Set();
-  for (let i = 0; i < 8; i++) for (const m of reg.claimAll(wallet())) { assert.ok(m.traits.shield >= 55 && m.traits.shield <= 98); sh.add(m.traits.shield); }
+  for (let i = 0; i < 24; i++) for (const m of reg.claimAll(wallet())) { assert.ok(m.traits.shield >= 55 && m.traits.shield <= 98); sh.add(m.traits.shield); }
   assert.ok(sh.size > 6, 'shield strength varies');
   const m = S.createMatch(new Monstar({ speciesId: 0, level: 5 }), new Monstar({ speciesId: 1, level: 5 }), { auto: false });
   m.fighters[1].shield = 100; m.fighters[1].guardT = 99; const hp = m.fighters[1].hp; let blocked = 0;
