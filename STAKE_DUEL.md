@@ -196,3 +196,10 @@ Stats: HP, Attack, Defense, Sp. Atk, Sp. Def, Speed. Types: EMBER, GROVE, TIDE, 
 - Simpler menu: Journey and Rewards removed (hidden), old Genesis 1–9 NFT designer hidden in the market, header shows one Sign in button.
 - `GAME_SPEED` 0.63 (0.9x of the original 0.7); walking and dashing run at `MOVE_SPEED` 0.9 so players can dodge.
 - Every Monstar in the dex and every drop hero shows attributes: six stats, total, bonus, five abilities and passive.
+
+## v26 — Home, ☰ menu, sign-in pop-up
+- `/` and `/play` both open the app on its **Home** tab (old one-page site moved to `/site`). `v6.js` adds the ☰ menu (Home, Arena, Wild, Monstars, Market, Breeding, Leaderboard, Guide); the old tab bar is hidden.
+- Username sign-in lives only in the top-right button (pop-up). **Connect Phantom** sits right under the arena, then Choose your Monstar. On a phone without Phantom it opens the game inside the Phantom app (`phantom.com/ul/browse/<url>#arena`); on desktop it opens phantom.com/download.
+- Referral button at the bottom of Home and Arena: copies your link, then shows the QR code.
+- "How the money moves" moved to the Guide. NFT sales: 5% royalty to the origin wallet + **5% to PocketMonstars** (`COMPANY_SALE_BPS`). Treasury defaults to the founder wallet when `PM_TREASURY` is unset.
+- Monstar Dex lists the original nine last.

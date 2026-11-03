@@ -96,11 +96,14 @@ pvp.innerHTML = `
    <button class="primary wide" id="pvDeposit" hidden>Deposit stake</button>
    <p class="pv-note" id="pvEscrow"></p>
    <button class="smallbtn wide" id="pvLeave" style="margin-top:8px">Leave match</button></div>
-  <div class="panel"><h3>How the money moves</h3><p class="pv-note" style="margin-top:8px">
+  <div class="panel" id="pvMoney"><h3>How the money moves</h3><p class="pv-note" style="margin-top:8px">
    • Smallest unit: <b>1 lamport</b> = 0.000000001 SOL. Every hit moves at least 1 lamport.<br>
    • Hit fee = stake × damage ÷ rival max HP, taken from the victim's share and added to yours, live.<br>
    • KO = winner takes the full pot. Time out = higher HP wins it all. Exact tie = each keeps their share.<br>
-   • One settlement transaction pays out. Company fee: <b>1 lamport</b>. Network fee: 0.000005 SOL, paid from the pot.<br>
+   • One settlement transaction pays out. Company fee: <b>1 lamport</b> per match. Network fee: 0.000005 SOL, paid from the pot.<br>
+   • Referrals: whoever invited the winner gets 5% of what the winner won.<br>
+   • NFT market: on every sale, 5% goes to the wallet the Monstar was born to and 5% to PocketMonstars. The seller gets the rest.<br>
+   • Superhero Drop: 1 SOL (top 5) or 0.5 SOL, paid to PocketMonstars.<br>
    • Your Phantom balance updates once that settlement confirms (a few seconds).</p></div>
  </div>
 </div>`;
@@ -110,7 +113,7 @@ main.insertBefore(pvp, q('play').nextSibling);
 const marketSec = q('market');
 const mk = el('div', { id: 'pvMarket' });
 mk.innerHTML = `<div class="topline"><div><div class="eyebrow">Buy · Sell · Send</div><h1>Monstar Market</h1>
-<p class="muted">Every resale pays a royalty to the wallet the Monstar was born to, forever. Company fee per sale: 1 lamport.</p></div><button class="smallbtn" id="pvMkRefresh">Refresh</button></div>
+<p class="muted">Every resale pays a 5% royalty to the wallet the Monstar was born to, forever, and a 5% fee to PocketMonstars.</p></div><button class="smallbtn" id="pvMkRefresh">Refresh</button></div>
 <div class="panel" style="margin-bottom:16px"><h3>For sale</h3><div class="pv-cards" id="pvListings" style="margin-top:12px"></div></div>
 <div class="panel" style="margin-bottom:24px"><h3>Your minted Monstars</h3><p class="pv-note" style="margin:6px 0 12px">List for sale (Phantom approves the marketplace to transfer only that Monstar when someone pays), or send it to another player.</p><div class="pv-cards" id="pvMine"></div></div>`;
 marketSec.prepend(mk);
@@ -158,8 +161,9 @@ async function afterSignIn() {
 async function refreshBalance() { if (!me || isAcct(me)) return; try { q('pvBal').textContent = sol(await S.balance(me), 6) + ' devnet SOL'; } catch { q('pvBal').textContent = 'Balance unavailable (RPC busy)'; } }
 q('pvSignIn').onclick = e => busy(e.target, async () => {
   if (!window.phantom?.solana?.isPhantom) {
-    q('pvPhantomHint').innerHTML = coarse ? `Phantom isn't in this browser. <a href="${esc(S.phantomBrowseLink())}" style="color:var(--lime)">Open this game in the Phantom app</a>, then sign in there.` : 'Install the official Phantom extension, then reload this page.';
-    throw Error('Phantom wallet not found in this browser.');
+    if (coarse) { toast('Opening PocketMonstars in the Phantom app…'); location.href = S.phantomBrowseLink(); return; } // Phantom's browser has the wallet built in
+    q('pvPhantomHint').innerHTML = 'Phantom isn\'t installed in this browser. <a href="https://phantom.com/download" target="_blank" rel="noopener" style="color:var(--lime)">Get Phantom</a>, then reload this page.';
+    window.open('https://phantom.com/download', '_blank', 'noopener'); return;
   }
   await S.signIn(); await afterSignIn(); toast('Signed in as ' + short(me));
 });
@@ -700,7 +704,7 @@ async function refreshMarket() {
       if (!l.monstar) continue;
       const c = el('div', { className: 'pv-card pv-listing' }), price = BigInt(l.price), roy = price * BigInt(cfg.royaltyBps) / 10000n;
       const isMine = me && l.seller === me;
-      c.innerHTML = cardHtml(l.monstar, `<span class="price">${sol(price, 6)} SOL</span><span class="pv-split">Royalty ${cfg.royaltyBps / 100}% (${sol(roy, 6)}) → ${short(l.monstar.originOwner)} · fee 1 lamport</span><div class="acts"><button class="primary">${isMine ? 'Cancel listing' : 'Buy'}</button></div>`);
+      c.innerHTML = cardHtml(l.monstar, `<span class="price">${sol(price, 6)} SOL</span><span class="pv-split">Royalty ${cfg.royaltyBps / 100}% (${sol(roy, 6)}) → ${short(l.monstar.originOwner)} · PocketMonstars fee 5% (${sol(price * 500n / 10000n, 6)})</span><div class="acts"><button class="primary">${isMine ? 'Cancel listing' : 'Buy'}</button></div>`);
       const b = c.querySelector('button');
       b.onclick = () => busy(b, async () => {
         if (!S.session()) throw Error('Sign in on the 1v1 Stake tab first.');

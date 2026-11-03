@@ -21,7 +21,7 @@ export const CONFIG = {
   // Public HTTPS base URL where /api/meta/*.json and /art/*.png are served. NFT metadata URIs use it.
   publicUrl: (env.PM_PUBLIC_URL || env.RENDER_EXTERNAL_URL || (env.RAILWAY_PUBLIC_DOMAIN ? 'https://' + env.RAILWAY_PUBLIC_DOMAIN : '') || `http://localhost:${env.PORT || 8080}`).replace(/\/$/, ''),
   // Company wallet that receives the 1-lamport match and marketplace fees. Must already hold the rent minimum.
-  treasury: env.PM_TREASURY || stored.treasury || null,
+  treasury: env.PM_TREASURY || stored.treasury || env.PM_LEGENDARY_OWNER || 'Dc9s1YwNHE2xDBzpprDvyruzxj8j5HvBSvfbvdups5LJ', // founder wallet
   // Creator royalty paid to the wallet each Monstar was born to, on every marketplace resale.
   royaltyBps: Number(env.PM_ROYALTY_BPS || stored.royaltyBps || 500),
   collection: env.PM_COLLECTION || stored.collection || null,

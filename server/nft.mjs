@@ -4,7 +4,7 @@
 //         official collection authority, and the player approves and pays in Phantom. Only registry Monstars
 //         can join the collection, so the official collection never holds two identical Monstars.
 // Market: a seller lists by approving the market authority as the asset's Transfer Delegate. A buyer gets a
-//         transaction that pays seller + origin-owner royalty + 1-lamport company fee and transfers the NFT,
+//         transaction that pays seller + origin-owner royalty + 5% company fee and transfers the NFT,
 //         all in one atomic transaction co-signed by the market authority. If any part fails, nothing moves.
 import { PublicKey, Transaction, SystemProgram, Keypair } from '@solana/web3.js';
 import { createUmi } from '@metaplex-foundation/umi-bundle-defaults';
@@ -12,7 +12,7 @@ import { publicKey, createNoopSigner, signerIdentity, createSignerFromKeypair } 
 import { fromWeb3JsKeypair, toWeb3JsInstruction } from '@metaplex-foundation/umi-web3js-adapters';
 import { mplCore, create, fetchAsset, transferV1, ruleSet, createCollection } from '@metaplex-foundation/mpl-core';
 
-export const COMPANY_SALE_FEE = 1n; // smallest possible company fee per sale: 1 lamport
+export const COMPANY_SALE_BPS = 500; // PocketMonstars takes 5% of every NFT sale
 
 /** Integer split of a sale price. Every lamport goes somewhere; rounding dust stays with the seller. */
 export function saleSplit(price, royaltyBps, creators, withCompanyFee) {
@@ -22,7 +22,7 @@ export function saleSplit(price, royaltyBps, creators, withCompanyFee) {
   if (royaltyBps > 0 && creators.reduce((s, c) => s + c.percentage, 0) !== 100) throw Error('Creator shares must sum to 100');
   let paid = 0n;
   const payouts = royaltyBps > 0 ? creators.map(c => { const amount = royalty * BigInt(c.percentage) / 100n; paid += amount; return { address: String(c.address), amount }; }) : [];
-  const company = withCompanyFee ? COMPANY_SALE_FEE : 0n;
+  const company = withCompanyFee ? price * BigInt(COMPANY_SALE_BPS) / 10000n : 0n;
   if (paid + company >= price) throw Error('Price is too small to cover royalty and fee');
   return { seller: price - paid - company, royalty: paid, company, payouts };
 }

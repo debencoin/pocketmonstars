@@ -191,8 +191,8 @@ export function createServer({ config = CONFIG, chain = new SolanaChain(config.r
       if (url.pathname === '/healthz') return send(res, 200, { ok: true, cluster: config.cluster });
       if (url.pathname === '/play/') { res.writeHead(301, { Location: '/play' }); return res.end(); }
       let name = decodeURIComponent(url.pathname);
-      if (name === '/') name = '/site.html';         // responsive website
-      else if (name === '/play') name = '/index.html'; // the game
+      if (name === '/' || name === '/play') name = '/index.html'; // the game app opens on its Home tab
+      else if (name === '/site') name = '/site.html';              // the older one-page website
       const prefix = name.startsWith('/shared/') ? '/shared/' : '/', root = roots[prefix];
       const file = path.resolve(root, '.' + name.slice(prefix.length - 1));
       if (!file.startsWith(root + path.sep) || !fs.existsSync(file) || !fs.statSync(file).isFile()) { res.writeHead(404); return res.end('Not found'); }

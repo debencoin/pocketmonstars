@@ -482,3 +482,45 @@ body.in-app header .brand span{display:none}
 .app-gone{display:none!important}
 @media (max-width:760px){.app-install{bottom:calc(74px + env(safe-area-inset-bottom))!important}}
 .app-install{z-index:55!important}
+/* v26: ☰ menu, Home, sign-in pop-up, Phantom block, referral */
+nav{display:none!important}
+@media (max-width:760px){main{padding-bottom:24px!important}}
+.v6-burger{width:44px;height:44px;border:1px solid var(--line);border-radius:12px;background:#141c34;display:flex;flex-direction:column;justify-content:center;align-items:center;gap:5px;flex:0 0 44px}
+.v6-burger span{display:block;width:20px;height:2px;background:var(--white);border-radius:2px}
+.v6-drawer{position:fixed;inset:0;z-index:80;visibility:hidden}
+.v6-drawer.open{visibility:visible}
+.v6-scrim{position:absolute;inset:0;background:rgba(0,0,0,.55);opacity:0;transition:opacity .2s}
+.v6-drawer.open .v6-scrim{opacity:1}
+.v6-menu{position:absolute;top:0;left:0;bottom:0;width:min(300px,84vw);background:#0e1528;border-right:1px solid var(--line);padding:max(14px,env(safe-area-inset-top)) 12px 14px;transform:translateX(-100%);transition:transform .22s ease;overflow-y:auto}
+.v6-drawer.open .v6-menu{transform:none}
+@media (prefers-reduced-motion:reduce){.v6-menu,.v6-scrim{transition:none}}
+.v6-menu-head{display:flex;justify-content:space-between;align-items:center;padding:4px 6px 14px;border-bottom:1px solid var(--line);margin-bottom:8px}
+.v6-menu ul{list-style:none;margin:0;padding:0}
+.v6-menu li button{width:100%;display:flex;align-items:center;gap:14px;min-height:52px;padding:0 12px;border:0;border-radius:12px;background:none;color:var(--white);font:600 17px 'DM Sans',sans-serif;text-align:left}
+.v6-menu li button i{font-style:normal;width:24px;text-align:center;color:var(--lime);font-size:18px}
+.v6-menu li button.on{background:#1c2645;color:var(--lime)}
+.v6-x{background:none;border:0;color:var(--muted);font-size:20px;min-width:44px;min-height:44px}
+.v6-hero{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,.9fr);gap:20px;align-items:center;margin:8px 0 24px}
+.v6-hero h1{font-size:clamp(34px,8vw,56px);line-height:1.02;margin:8px 0}.v6-hero h1 em{color:var(--lime);font-style:normal}
+.v6-cta{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px}.v6-cta button{min-height:48px;padding:0 20px}
+.v6-heroart{display:flex;justify-content:center;align-items:flex-end;gap:2px}
+.v6-heroart img{width:20%;max-width:110px;image-rendering:pixelated}
+.v6-heroart img:nth-child(3){width:26%;max-width:140px}
+@media (max-width:640px){.v6-hero{grid-template-columns:1fr}.v6-heroart{order:-1}}
+.v6-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px}
+.v6-card{display:flex;flex-direction:column;gap:6px;text-align:left;background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:16px;color:var(--white)}
+.v6-card .k{font:700 11px 'Space Grotesk',sans-serif;letter-spacing:.12em;text-transform:uppercase;color:var(--lime)}
+.v6-card b{font:700 20px 'Space Grotesk',sans-serif}.v6-card span:last-child{color:var(--muted);font-size:14px}
+.v6-card.hot{border-color:var(--lime)}.v6-card.drop{background:linear-gradient(180deg,#1a1630,#10172a);border-color:#5a4a1e}
+.v6-dlg{border:1px solid var(--line);border-radius:18px;background:#10172a;color:var(--white);padding:16px;width:min(440px,92vw);max-height:88vh;overflow:auto}
+.v6-dlg::backdrop{background:rgba(0,0,0,.6)}
+.v6-dlg-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}.v6-dlg-head h3{margin:0}
+.v6-inbox{background:none!important;border:0!important;padding:0!important;margin:0!important}
+.v6-phantom{margin-top:12px}.v6-ph-row{display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+.v6-ph-row b{display:block}.v6-ph-row small{color:var(--muted)}
+.v6-ph-row #pvSignIn{width:auto;min-height:46px;padding:0 18px}
+.v6-phantom + #pvLobby{margin-top:12px}
+.v6-refbtn{margin:24px 0 8px;min-height:52px}
+.v6-copied{color:#5fd38a;font-weight:700;margin:4px 0 10px}
+.v6-qr{display:block;margin:0 auto 12px;background:#fff;border-radius:12px;width:220px;height:220px}
+.v6-money{margin:16px 0 24px}

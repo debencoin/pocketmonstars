@@ -29,7 +29,8 @@ function phantom() {
   return p;
 }
 export function phantomBrowseLink() {
-  return `https://phantom.com/ul/browse/${encodeURIComponent(location.href)}?ref=${encodeURIComponent(location.origin)}`;
+  const u = new URL(location.href); u.hash = 'arena'; // open straight on the Arena inside Phantom
+  return `https://phantom.com/ul/browse/${encodeURIComponent(u.href)}?ref=${encodeURIComponent(location.origin)}`;
 }
 
 async function api(path, body) {

@@ -43,7 +43,8 @@ const bp = q('pvBreed'); if (bp) breedSec.append(bp);
 const col = q('collection');
 if (col) {
   [...col.children].forEach(c => c.hidden = true);
-  const groups = [['genesis', 'Genesis'], ['frontier', 'Frontier'], ['anunnaki', 'Anunnaki'], ['watchers', 'Watchers'], ['mythic', 'Mythic'], ['heroes', 'Superhero Drop'], ['legendary', 'Legendary'], ['ascendants', 'Ascendants'], ['royals', 'Royal Anunnaki']];
+  const groups = [['heroes', 'Superhero Drop'], ['frontier', 'Frontier'], ['anunnaki', 'Anunnaki'], ['watchers', 'Watchers'], ['mythic', 'Mythic'], ['legendary', 'Legendary'], ['ascendants', 'Ascendants'], ['royals', 'Royal Anunnaki'], ['genesis', 'Original nine']];
+  const ORDER = Object.fromEntries(groups.map(([k], i) => [k, i]));
   const dex = el('div', { id: 'v5Dex' }); col.append(dex);
   let filter = 'all', search = '';
   dex.innerHTML = `<div class="topline"><div><div class="eyebrow">Every Monstar · every evolution</div><h1>Monstar Dex</h1>
@@ -54,7 +55,7 @@ if (col) {
   q('dxChips').onclick = e => { const b = e.target.closest('button'); if (!b) return; filter = b.dataset.k; q('dxChips').querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', x === b)); renderDex(); };
   q('dxSearch').oninput = e => { search = e.target.value.trim().toLowerCase(); renderDex(); };
   function renderDex() {
-    const list = SPECIES.filter(sp => (filter === 'all' || sp.collection === filter) && (!search || sp.forms.concat(sp.name, sp.type).join(' ').toLowerCase().includes(search)));
+    const list = SPECIES.slice().sort((a, b) => (ORDER[a.collection] ?? 99) - (ORDER[b.collection] ?? 99) || a.id - b.id).filter(sp => (filter === 'all' || sp.collection === filter) && (!search || sp.forms.concat(sp.name, sp.type).join(' ').toLowerCase().includes(search)));
     q('dxList').innerHTML = list.length ? list.map(sp => `<div class="dx-row"><div class="dx-head"><b>${esc(sp.name)}</b><span>${esc(sp.type)} · ${esc(sp.cls.label)}${sp.tier ? ' · ' + esc(sp.tier) : ''}${sp.hero ? ' · ' + (sp.drop.top ? 'Top 5 hero' : 'Hero') : ''} · ${esc((COLLECTIONS?.[sp.collection]?.name) || sp.collection)}</span></div>
       <div class="dx-evo">${[0, 1, 2, 3, 4, 5].map(st => `<figure><img src="${art(sp, st)}" alt="${esc(Monstars.formName(sp, st))}" loading="lazy"><figcaption><b>${esc(Monstars.formName(sp, st))}</b><small>${STAGES[st]} · Lv${LEVELS[st]}</small></figcaption></figure>`).join('<i class="dx-arrow">›</i>')}</div>
       <details class="dx-more"><summary>Attributes</summary>${attrHtml(sp, 50)}</details></div>`).join('')
@@ -101,7 +102,7 @@ setInterval(() => { const c = q('drClock'); if (c && dropData) c.textContent = l
 
 // ---------- Referral link + QR code ----------
 const refBox = el('div', { id: 'v5Ref', className: 'panel', hidden: true });
-const walletBar = document.querySelector('.pv-walletbar'); if (walletBar) walletBar.after(refBox);
+document.body.append(refBox); // v6 shows it in the referral pop-up
 async function renderRef() {
   const s = S.session(); refBox.hidden = !s; if (!s) return;
   let r; try { r = await S.referrals(); } catch { return; }

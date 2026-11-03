@@ -146,10 +146,10 @@ test('free 1v1 needs no escrow; unpaired deposits are refunded with no company f
   assert.ok(st.refund); assert.equal(st.company, '0'); assert.equal(st.payouts[0], String(2_000_000n - 5000n));
 });
 
-test('marketplace sale split pays seller, origin-owner royalty and a 1-lamport company fee exactly', () => {
+test('marketplace sale split pays seller, origin-owner royalty and a 5% company fee exactly', () => {
   const creator = wallet(), price = 123_456_789n;
   const s = saleSplit(price, 500, [{ address: creator, percentage: 100 }], true);
-  assert.equal(s.seller + s.royalty + s.company, price); assert.equal(s.company, 1n); assert.equal(s.royalty, 6_172_839n);
+  assert.equal(s.seller + s.royalty + s.company, price); assert.equal(s.company, 6_172_839n); assert.equal(s.royalty, 6_172_839n);
   assert.throws(() => saleSplit(10n, 10000, [{ address: creator, percentage: 100 }], true), /too small/);
 });
 
