@@ -183,8 +183,8 @@ function buildGround(rocks, theme = 0) {
 function createRenderer(canvas, arena) {
   canvas.width = CW; canvas.height = CH;
   const ctx = canvas.getContext('2d'); ctx.imageSmoothingEnabled = false;
-  let parts = [], decals = [], texts = [], trails = [[], []], shake = 0, flash = 0, impacts = new Set(), lastNow = performance.now();
-  let banner = null, grow = [0, 0], theme = 0, fx = [], SX = 0, SY = 0, dashSeen = [0, 0];
+  let parts = [], decals = [], texts = [], trails = [[], [], [], [], [], [], [], []], shake = 0, flash = 0, impacts = new Set(), lastNow = performance.now();
+  let banner = null, grow = [0, 0, 0, 0, 0, 0, 0, 0], theme = 0, fx = [], SX = 0, SY = 0, dashSeen = [0, 0, 0, 0, 0, 0, 0, 0];
   // ---------- smooth full-resolution effects (dust clouds, impact stars, shockwaves, flying rock, glowing bolts) ----------
   const FULL = () => ctx.setTransform(1, 0, 0, 1, SX * Z, SY * Z), LOG = () => ctx.setTransform(Z, 0, 0, Z, SX * Z, SY * Z);
   function puffs(x, y, n, col = '#d9c9a6', spd = 40, size = 9, life = 0.7) { // x,y logical
@@ -260,7 +260,7 @@ function createRenderer(canvas, arena) {
     if (ev.type === 'switch') { const f = snap.f[ev.side]; if (!f) return; trails[ev.side] = []; grow[ev.side] = 1.0;
       puffs(f.x * K, f.y * K, 14, '#ffffff', 60, 12, 0.7); wave(f.x * K, f.y * K + 6, '#ffd84a', 90); say(f.x * K, f.y * K - 40, ev.reason === 'faint' ? 'GO, ' + (ev.name || '') + '!' : 'SWITCH: ' + (ev.name || ''), '#ffd84a', 1.5, 6); return; }
     if (ev.type === 'bonus') { const f = snap.f[ev.side]; say(f.x * K, f.y * K - 30, `+${ev.exp} EXP bonus`, '#8fd0ff', 1.4, 6); return; }
-    const v = snap.f[ev.victim], a = snap.f[ev.attacker]; if (!v || !a) return;
+    let v = snap.f[ev.victim ?? 1 - ev.attacker], a = snap.f[ev.attacker]; if (!v || !a) return; if (ev.vx != null) v = { ...v, x: ev.vx, y: ev.vy }; // squad: the Monstar actually hit
     const x = v.x * K, y = v.y * K - 10;
     burst(x, y, ev.eff > 1 ? PAL.SPARK : ['#fff', '#fff', '#ffe', '#fdd'], 12, 50);
     const apal = palFor(a.ty || snap.types?.[ev.attacker], a.s), sid = a.s;
@@ -344,7 +344,13 @@ function createRenderer(canvas, arena) {
       label('SHIELD ' + (f.sh || 70) + '%', X, Y + 14 * U, '#48d0ff'); }
     if (!opt.faint) { // owner marker
       const mx = Math.round(X), my = Math.round(Y - dh - 12 * U + oy + (Math.floor(now * 3) % 2) * 2);
-      ctx.fillStyle = opt.you ? '#9ef0c8' : '#ff6b6b'; ctx.beginPath(); ctx.moveTo(mx - 6 * U, my); ctx.lineTo(mx + 6 * U, my); ctx.lineTo(mx, my + 7 * U); ctx.fill();
+      if (opt.extra || opt.ctl) { // squad: a small HP bar over every Monstar, team-coloured; the one being controlled also gets the arrow
+        const bw = 26 * U, bh = 4 * U, by2 = my - (opt.ctl ? 7 * U : 0), pct = Math.max(0, Math.min(1, f.hp / (f.max || 1)));
+        ctx.fillStyle = '#10141a'; ctx.fillRect(mx - bw / 2 - U, by2 - U, bw + 2 * U, bh + 2 * U);
+        ctx.fillStyle = pct > 0.5 ? '#58d858' : pct > 0.25 ? '#f8c838' : '#f85838'; ctx.fillRect(mx - bw / 2, by2, Math.round(bw * pct), bh);
+        ctx.fillStyle = opt.you ? '#9ef0c8' : '#ff6b6b'; ctx.fillRect(mx - bw / 2 - U, by2 + bh + U, bw + 2 * U, U);
+      }
+      if (!opt.extra) { ctx.fillStyle = opt.you ? '#9ef0c8' : '#ff6b6b'; ctx.beginPath(); ctx.moveTo(mx - 6 * U, my); ctx.lineTo(mx + 6 * U, my); ctx.lineTo(mx, my + 7 * U); ctx.fill(); }
     }
   }
   function glowAt(x, y, r, col, a) { const gr = ctx.createRadialGradient(x, y, 0, x, y, r); gr.addColorStop(0, col); gr.addColorStop(1, 'rgba(0,0,0,0)'); ctx.globalAlpha = a; ctx.fillStyle = gr; ctx.beginPath(); ctx.arc(x, y, r, 0, 6.283); ctx.fill(); ctx.globalAlpha = 1; }
@@ -577,8 +583,11 @@ function createRenderer(canvas, arena) {
       }
       for (const e of cur.e || []) if (e.st === 'strike' && e.t + lagged >= 0) effect(e, e.t + lagged, now);
       full();
-      const order = cur.f.map((f, i) => i).sort((a, b) => cur.f[a].y - cur.f[b].y);
-      for (const i of order) drawFighter(cur.f[i], prev?.f[i], t, i, { now, dt, you: i === view.you, hue: view.hues?.[i] || 0, type: view.types?.[i], faint: view.faint?.[i] || 0 });
+      // squad matches: the teammates and rivals not being controlled are drawn too (cur.x)
+      const list = cur.f.map((f, i) => ({ f, p: prev?.f?.[i], i, you: i === view.you, extra: false }));
+      for (const f of cur.x || []) list.push({ f, p: prev?.x?.find(o => o.sd === f.sd && o.sl === f.sl), i: 2 + f.sd * 3 + f.sl, you: f.sd === view.you, extra: true });
+      list.sort((a, b) => a.f.y - b.f.y);
+      for (const o of list) drawFighter(o.f, o.p, t, o.i, { now, dt, you: o.you, hue: o.extra ? 0 : view.hues?.[o.i] || 0, type: o.extra ? undefined : view.types?.[o.i], faint: o.extra ? 0 : view.faint?.[o.i] || 0, extra: o.extra, ctl: !o.extra && !!cur.sq });
       logical();
       for (const e of cur.e || []) if (e.st !== 'strike' && e.t + lagged >= 0) effect(e, e.t + lagged, now);
       for (const p of cur.p || []) { const pp = prev?.p?.find(o => o.id === p.id); projectile(p, (pp ? pp.x + (p.x - pp.x) * t : p.x) * K, (pp ? pp.y + (p.y - pp.y) * t : p.y) * K, now); }
@@ -609,7 +618,7 @@ function createRenderer(canvas, arena) {
       if (banner.sub) { ctx.font = '700 16px Inter, system-ui, sans-serif'; ctx.fillStyle = '#ffd84a'; ctx.fillText(banner.sub, CW / 2, CH / 2 + 18); }
       ctx.textBaseline = 'alphabetic'; ctx.globalAlpha = 1; if (banner.t <= 0) banner = null; }
   }
-  function reset() { fx = []; parts = []; decals = []; texts = []; trails = [[], []]; impacts.clear(); shake = 0; flash = 0; banner = null; grow = [0, 0]; }
+  function reset() { fx = []; parts = []; decals = []; texts = []; trails = [[], [], [], [], [], [], [], []]; impacts.clear(); shake = 0; flash = 0; banner = null; grow = [0, 0, 0, 0, 0, 0, 0, 0]; }
   return { draw, hit, event, reset, idle: (th = theme) => { g = ctx; ctx.setTransform(Z, 0, 0, Z, 0, 0); ctx.drawImage(groundFor(th), 0, 0); ctx.setTransform(1, 0, 0, 1, 0, 0); }, themes: THEMES };
 }
 

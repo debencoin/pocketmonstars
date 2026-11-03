@@ -203,3 +203,8 @@ Stats: HP, Attack, Defense, Sp. Atk, Sp. Def, Speed. Types: EMBER, GROVE, TIDE, 
 - Referral button at the bottom of Home and Arena: copies your link, then shows the QR code.
 - "How the money moves" moved to the Guide. NFT sales: 5% royalty to the origin wallet + **5% to PocketMonstars** (`COMPANY_SALE_BPS`). Treasury defaults to the founder wallet when `PM_TREASURY` is unset.
 - Monstar Dex lists the original nine last.
+
+## v27 — 1v1 first, 3v3 squad
+- The Arena picker starts on **1v1**. Three modes: 1v1, 3v3 tag team (one at a time, swap in), **3v3 squad** (`createMatch(..., { squad: true })`).
+- Squad: all six Monstars on the field. Each side controls one (`m.fighters[side]`); tapping a teammate's picture switches control (0.4 s cooldown). The rest use `aiFor()` and fight on their own; every Monstar targets the nearest rival and shots/powers hit any rival they reach. A side loses when all three are down. Snapshot `x` carries the uncontrolled Monstars; the renderer draws them with HP bars.
+- Hit events now carry the victim position (`vx`, `vy`) so damage numbers appear on the Monstar actually hit.

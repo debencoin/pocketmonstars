@@ -108,18 +108,35 @@ function makeFighter(monstar, side, teamMax = 0) {
   };
 }
 
-/** 1v1: pass two Monstars. 3v3: pass two arrays of up to three; the next one comes in when one faints. */
+/** 1v1: pass two Monstars. 3v3: pass two arrays of up to three; the next one comes in when one faints.
+ *  Squad (opts.squad): all three of each team fight at once; each side controls one and can switch control,
+ *  the others move and attack on their own. */
 export function createMatch(monstarA, monstarB, opts = {}) {
   const teams = [monstarA, monstarB].map(x => (Array.isArray(x) ? x.slice(0, 3) : [x]));
   const teamMax = teams.map(t => t.reduce((n, mo) => n + mo.stats.hp, 0));
+  const squad = !!opts.squad && teams[0].length > 1 && teams[1].length > 1;
   const fighters = [makeFighter(teams[0][0], 0, teamMax[0]), makeFighter(teams[1][0], 1, teamMax[1])];
-  return { t: 0, over: false, winner: null, reason: null, auto: opts.auto !== false, arena: opts.arena ?? 0,
-    teams, teamMax, roster: teams.map((t, side) => t.map((_, i) => (i === 0 ? fighters[side] : null))), slot: [0, 0], swCd: [0, 0],
+  const roster = teams.map((t, side) => t.map((mo, i) => (i === 0 ? fighters[side] : squad ? makeFighter(mo, side, teamMax[side]) : null)));
+  if (squad) for (const side of [0, 1]) roster[side].forEach((f, i) => { f.y = ARENA.h / 2 + 20 + [0, -120, 120][i]; f.x += i ? (side ? 60 : -60) : 0; f.slot = i; f.mem = {}; });
+  return { t: 0, over: false, winner: null, reason: null, auto: opts.auto !== false, arena: opts.arena ?? 0, squad,
+    teams, teamMax, roster, slot: [0, 0], swCd: [0, 0],
     limit: teams[0].length > 1 || teams[1].length > 1 ? 150 : ARENA.roundSeconds, fighters, projectiles: [], effects: [], nextId: 1, finished: false, pickups: [], nextPickup: PICKUP.every, cpu: opts.cpu || null };
 }
 const alive = (m, side, i) => { const f = m.roster[side][i]; return !f || f.hp > 0; };
+/** Everyone fighting right now: both active Monstars, or in a squad match every Monstar still standing. */
+const onField = m => (m.squad ? m.roster.flat().filter(f => f && f.hp > 0) : m.fighters);
+/** The rival a Monstar fights: the other active one, or in a squad match the nearest rival still standing. */
+function foeOf(m, f) {
+  if (!m.squad) return m.fighters[1 - f.side];
+  let best = null, bd = Infinity;
+  for (const o of m.roster[1 - f.side]) if (o.hp > 0) { const d = Math.hypot(o.x - f.x, o.y - f.y); if (d < bd) { bd = d; best = o; } }
+  return best || m.fighters[1 - f.side];
+}
+const rivalsOf = (m, side) => (m.squad ? m.roster[1 - side].filter(f => f.hp > 0) : [m.fighters[1 - side]]);
 function switchIn(m, side, slot, events, reason) {
   const old = m.fighters[side];
+  if (m.squad) { const nf = m.roster[side][slot]; nf.input = old.input; old.input = sanitizeInput(); m.fighters[side] = nf; m.slot[side] = slot; m.swCd[side] = 0.4;
+    events.push({ type: 'switch', side, slot, speciesId: nf.speciesId, reason, control: true }); return; }
   const nf = (m.roster[side][slot] ||= makeFighter(m.teams[side][slot], side, m.teamMax[side]));
   nf.x = old.x; nf.y = old.y; nf.vx = nf.vy = 0; nf.iframes = Math.max(nf.iframes, 1.0); nf.input = old.input; nf.castT = 9;
   if (reason === 'faint') nf.x = side === 0 ? 170 : ARENA.w - 170;
@@ -137,7 +154,7 @@ function updatePickups(m, dt, events) {
   }
   for (const p of m.pickups) {
     p.life -= dt;
-    for (const f of m.fighters) if (p.life > 0 && f.hp > 0 && Math.hypot(f.x - p.x, f.y - p.y) < PICKUP.r + ARENA.radius) {
+    for (const f of onField(m)) if (p.life > 0 && f.hp > 0 && Math.hypot(f.x - p.x, f.y - p.y) < PICKUP.r + ARENA.radius) {
       const heal = Math.round(f.maxHp * PICKUP.heal); f.hp = Math.min(f.maxHp, f.hp + heal); p.life = 0;
       events.push({ type: 'pickup', side: f.side, k: 'heal', amount: heal, x: p.x, y: p.y });
     }
@@ -179,10 +196,10 @@ function megaShot(m, f, foe, events) {
   const g = f.kit?.mega || { kind: 'nova', power: 1, size: 1 }, P = 30 * g.power * (f.sg >= 5 ? 1.35 : 1), sz = g.size, k = g.kind;
   f.castT = 0; f.castKind = 'special'; f.actions++;
   events.push({ type: 'mega', side: f.side, k, name: g.name });
-  const fx = (x, y, style, extra = {}) => { const S = STYLES[style]; m.effects.push({ id: m.nextId++, owner: f.side, kind: 'special', style, type: f.type, sid: f.speciesId, x: f.x, y: f.y, dx: f.fx, dy: f.fy,
+  const fx = (x, y, style, extra = {}) => { const S = STYLES[style]; m.effects.push({ id: m.nextId++, owner: f.side, by: f, kind: 'special', style, type: f.type, sid: f.speciesId, x: f.x, y: f.y, dx: f.fx, dy: f.fy,
     gx: clamp(x, 40, ARENA.w - 40), gy: clamp(y, BOUNDS.y0, BOUNDS.y1), t: 0, dur: S.dur, hit: false, nextTick: 0, thrown: 0, bolted: false, pw: P, mega: true, ...extra }); };
   if (k === 'barrage') { for (let i = 0; i < 7; i++) { const a = Math.atan2(f.fy, f.fx) + (i - 3) * 0.16, sp = STYLES.projectile.speed * 1.1;
-    m.projectiles.push({ id: m.nextId++, owner: f.side, kind: 'special', style: 'projectile', type: f.type, sid: f.speciesId, x: f.x + Math.cos(a) * 36, y: f.y + Math.sin(a) * 36, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, r: 16, life: 1.4, hitDone: false, missDone: false, pw: P * 0.38, homing: true }); } }
+    m.projectiles.push({ id: m.nextId++, owner: f.side, by: f, kind: 'special', style: 'projectile', type: f.type, sid: f.speciesId, x: f.x + Math.cos(a) * 36, y: f.y + Math.sin(a) * 36, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, r: 16, life: 1.4, hitDone: false, missDone: false, pw: P * 0.38, homing: true }); } }
   else if (k === 'nova') fx(f.x, f.y, 'strike', { rad: 170 * sz, t: 0.25 });
   else if (k === 'meteors') for (let i = 0; i < 4; i++) { const a = i * 1.57 + 0.4; fx(foe.x + Math.cos(a) * 60 * sz * (i ? 1 : 0), foe.y + Math.sin(a) * 40 * sz * (i ? 1 : 0), 'strike', { t: -i * 0.22, pw: P * 0.45, rad: 70 }); }
   else if (k === 'vortex') { const [nx, ny] = norm(f.x - foe.x, f.y - foe.y); foe.vx += nx * 600 * Math.max(0.3, foe.mods.knockback); foe.vy += ny * 600 * Math.max(0.3, foe.mods.knockback); fx(f.x + f.fx * 90, f.y + f.fy * 60, 'strike', { rad: 130 * sz }); }
@@ -271,7 +288,7 @@ function land(m, att, vic, kind, style, events, dirx, diry, knock = 90, power) {
   const kb = knock * vic.mods.knockback * push; vic.vx += dirx * kb; vic.vy += diry * kb;
   const exp = Math.max(1, Math.round(damage * EXP_RULES.perDamage * (crit ? EXP_RULES.critBonus : 1)));
   const pw = (power ?? STYLES[style].power) * (kind === 'special' && att.ultOn ? 1.7 : 1);
-  events.push({ type: 'hit', attacker: att.side, victim: vic.side, damage, kind, style, eff, crit, exp, victimMaxHp: vic.teamMax || vic.maxHp,
+  events.push({ type: 'hit', attacker: att.side, victim: vic.side, damage, kind, style, eff, crit, exp, victimMaxHp: vic.teamMax || vic.maxHp, vx: Math.round(vic.x), vy: Math.round(vic.y),
     lvl: att.level, atk: kind === 'special' ? att.stats.spAttack : att.stats.attack, pw }); // lvl/atk/pw size the SOL moved (hitFee)
   gainExp(m, att, exp, events);
   return true;
@@ -286,15 +303,15 @@ function cast(m, f, kind) {
     const sp = S.speed * f.mods.projectileSpeed * (kind === 'basic' ? f.kit?.basic.speed ?? 1 : 1), shots = kind === 'basic' ? f.kit?.basic.shots ?? 1 : 1;
     for (let k = 0; k < shots; k++) {
       const a = Math.atan2(f.fy, f.fx) + (shots > 1 ? (k - (shots - 1) / 2) * 0.22 : 0), dx = Math.cos(a), dy = Math.sin(a);
-      m.projectiles.push({ id: k ? m.nextId++ : id, owner: f.side, kind, style, type: f.type, sid: f.speciesId, x: f.x + dx * 36, y: f.y + dy * 36,
+      m.projectiles.push({ id: k ? m.nextId++ : id, owner: f.side, by: f, kind, style, type: f.type, sid: f.speciesId, x: f.x + dx * 36, y: f.y + dy * 36,
         vx: dx * sp, vy: dy * sp, r: S.r, life: S.life, hitDone: false, missDone: false, homing: kind === 'basic' && f.kit?.basic.homing, pw: shots > 1 ? S.power * 0.62 : undefined });
     }
     return;
   }
-  const e = { id, owner: f.side, kind, style, type: f.type, sid: f.speciesId, x: f.x, y: f.y, dx: f.fx, dy: f.fy,
+  const e = { id, owner: f.side, by: f, kind, style, type: f.type, sid: f.speciesId, x: f.x, y: f.y, dx: f.fx, dy: f.fy,
     gx: 0, gy: 0, t: 0, dur: S.dur, hit: false, nextTick: 0, thrown: 0, bolted: false };
   if (style === 'strike') {
-    const vic = m.fighters[1 - f.side];
+    const vic = foeOf(m, f);
     const along = clamp((vic.x - f.x) * f.fx + (vic.y - f.y) * f.fy, 90, S.range * (f.kit?.special.reach ?? 1) + 40);
     e.gx = clamp(f.x + f.fx * along, 30, ARENA.w - 30); e.gy = clamp(f.y + f.fy * along, 60, ARENA.h - 30);
   }
@@ -304,15 +321,16 @@ function cast(m, f, kind) {
 }
 
 function runEffect(m, e, dt, events) {
-  const att = m.fighters[e.owner], vic = m.fighters[1 - e.owner], S = STYLES[e.style];
+  const att = e.by || m.fighters[e.owner], S = STYLES[e.style], vics = rivalsOf(m, e.owner), vic = m.squad ? foeOf(m, att) : vics[0];
+  if (!vic) { e.t = e.dur; return; }
   const prevT = e.t; e.t += dt;
   if (S.root) { e.x = att.x; e.y = att.y; }
   const R = ARENA.radius * 0.9;
   if (e.style === 'cone') {
     while (e.nextTick <= e.t && e.nextTick < S.dur) {
-      const dx = vic.x - e.x, dy = vic.y - e.y, d = Math.hypot(dx, dy);
-      const ang = Math.acos(clamp((dx * e.dx + dy * e.dy) / (d || 1), -1, 1));
-      if (d < S.range + R && ang < S.angle + 0.15) land(m, att, vic, e.kind, e.style, events, e.dx, e.dy, 40);
+      for (const v of vics) { const dx = v.x - e.x, dy = v.y - e.y, d = Math.hypot(dx, dy);
+        const ang = Math.acos(clamp((dx * e.dx + dy * e.dy) / (d || 1), -1, 1));
+        if (d < S.range + R && ang < S.angle + 0.15) land(m, att, v, e.kind, e.style, events, e.dx, e.dy, 40); }
       e.nextTick += S.tick;
     }
   } else if (e.style === 'levitate') {
@@ -320,7 +338,7 @@ function runEffect(m, e, dt, events) {
     while (e.thrown < S.throws.length && e.t >= S.throws[e.thrown]) {
       const k = e.thrown++, a = k * 2.1 + 0.6, ox = att.x + Math.cos(a) * 46, oy = att.y - 30 + Math.sin(a) * 24;
       const [nx, ny] = norm(vic.x - ox, vic.y - oy), D = STYLES.debris;
-      m.projectiles.push({ id: m.nextId++, owner: att.side, kind: 'special', style: 'debris', type: att.type, sid: att.speciesId, x: ox, y: oy,
+      m.projectiles.push({ id: m.nextId++, owner: att.side, by: att, kind: 'special', style: 'debris', type: att.type, sid: att.speciesId, x: ox, y: oy,
         vx: nx * D.speed, vy: ny * D.speed, r: D.r, life: D.life, hitDone: false, missDone: false });
     }
     if (!e.bolted && e.t >= S.boltAt) {
@@ -330,15 +348,17 @@ function runEffect(m, e, dt, events) {
     }
   } else if (!e.hit && prevT < S.hitAt && e.t >= S.hitAt) {
     e.hit = true;
-    if (e.style === 'strike') {
-      if (Math.hypot(vic.x - e.gx, vic.y - e.gy) < (e.rad || S.radius) + R * 0.6) { const [nx, ny] = norm(vic.x - e.gx, vic.y - e.gy);
-        if (land(m, att, vic, e.kind, e.style, events, nx, ny, 200, e.pw) && e.then) e.then(vic, events); }
-      else events.push({ type: 'miss', attacker: att.side, victim: vic.side, style: e.style });
-    } else {
-      const x2 = e.x + e.dx * S.range * (e.reach || 1), y2 = e.y + e.dy * S.range * (e.reach || 1);
-      if (segDist(vic.x, vic.y, e.x, e.y, x2, y2) < (e.wid || S.width) / 2 + R) { const hp0 = vic.hp; if (land(m, att, vic, e.kind, e.style, events, e.dx, e.dy, e.style === 'beam' ? 280 : 90, e.pw) && e.drain) att.hp = Math.min(att.maxHp, att.hp + (hp0 - vic.hp) * 0.5); }
-      else if (e.style !== 'whip' || Math.hypot(vic.x - e.x, vic.y - e.y) < S.range + 60) events.push({ type: 'miss', attacker: att.side, victim: vic.side, style: e.style });
+    let any = false;
+    for (const v of vics) {
+      if (e.style === 'strike') {
+        if (Math.hypot(v.x - e.gx, v.y - e.gy) < (e.rad || S.radius) + R * 0.6) { any = true; const [nx, ny] = norm(v.x - e.gx, v.y - e.gy);
+          if (land(m, att, v, e.kind, e.style, events, nx, ny, 200, e.pw) && e.then) e.then(v, events); }
+      } else {
+        const x2 = e.x + e.dx * S.range * (e.reach || 1), y2 = e.y + e.dy * S.range * (e.reach || 1);
+        if (segDist(v.x, v.y, e.x, e.y, x2, y2) < (e.wid || S.width) / 2 + R) { any = true; const hp0 = v.hp; if (land(m, att, v, e.kind, e.style, events, e.dx, e.dy, e.style === 'beam' ? 280 : 90, e.pw) && e.drain) att.hp = Math.min(att.maxHp, att.hp + (hp0 - v.hp) * 0.5); }
+      }
     }
+    if (!any && (e.style === 'strike' || e.style !== 'whip' || Math.hypot(vic.x - e.x, vic.y - e.y) < S.range + 60)) events.push({ type: 'miss', attacker: att.side, victim: vic.side, style: e.style });
   }
 }
 
@@ -393,8 +413,9 @@ export function step(m, realDt = TICK) {
     const want = m.fighters[side].input.sw;
     if (want >= 0 && want < m.teams[side].length && want !== m.slot[side] && m.swCd[side] === 0 && alive(m, side, want)) switchIn(m, side, want, events, 'switch');
   }
-  for (const f of m.fighters) {
-    const foe = m.fighters[1 - f.side];
+  if (m.squad) for (const f of onField(m)) if (m.fighters[f.side] !== f) f.input = sanitizeInput(aiFor(m, f, f.mem)); // teammates fight on their own
+  for (const f of onField(m)) {
+    const foe = foeOf(m, f);
     const inp = f.input, mods = f.mods;
     for (const k in f.cd) f.cd[k] = Math.max(0, f.cd[k] - dt);
     for (const k of ['iframes', 'guardT', 'dashT', 'rootT', 'hurtT', 'blinkT', 'levT', 'recT']) f[k] = Math.max(0, f[k] - dt);
@@ -449,17 +470,17 @@ export function step(m, realDt = TICK) {
     }
   }
   for (const p of m.projectiles) {
-    if (p.homing) { const tg = m.fighters[1 - p.owner], sp = Math.hypot(p.vx, p.vy), [hx, hy] = norm(tg.x - p.x, tg.y - p.y), [cx, cy] = norm(p.vx, p.vy), tt = Math.min(1, 2.2 * dt);
+    if (p.homing) { const tg = foeOf(m, p.by || m.fighters[p.owner]), sp = Math.hypot(p.vx, p.vy), [hx, hy] = norm(tg.x - p.x, tg.y - p.y), [cx, cy] = norm(p.vx, p.vy), tt = Math.min(1, 2.2 * dt);
       const [nx, ny] = norm(cx + (hx - cx) * tt, cy + (hy - cy) * tt); p.vx = nx * sp; p.vy = ny * sp; }
     p.x += p.vx * dt; p.y += p.vy * dt; p.life -= dt;
     if (p.x < 0 || p.x > ARENA.w || p.y < 0 || p.y > ARENA.h) p.life = 0;
     for (const r of ARENA.rocks) if (Math.hypot(p.x - r.x, p.y - r.y) < r.r + p.r * 0.5) p.life = 0;
-    const vic = m.fighters[1 - p.owner], att = m.fighters[p.owner];
+    const att = p.by || m.fighters[p.owner], vic = rivalsOf(m, p.owner).find(v => Math.hypot(p.x - v.x, p.y - v.y) < p.r + ARENA.radius * 0.9) || m.fighters[1 - p.owner];
     const near = Math.hypot(p.x - vic.x, p.y - vic.y) < p.r + ARENA.radius * 0.9;
     if (p.life > 0 && !p.hitDone && near) {
       if (vic.iframes > 0) { if (!p.missDone) { p.missDone = true; events.push({ type: 'miss', attacker: att.side, victim: vic.side, style: p.style }); } }
       else if (vic.guardT > 0 && vic.guardKind === 'reflect' && !p.reflected) { // Mirror Shell sends it back
-        p.owner = vic.side; p.vx = -p.vx * 1.15; p.vy = -p.vy * 1.15; p.reflected = true; p.life = Math.max(p.life, 0.8); events.push({ type: 'blocked', attacker: att.side, victim: vic.side, style: p.style, guard: 'reflect' }); }
+        p.owner = vic.side; p.by = vic; p.vx = -p.vx * 1.15; p.vy = -p.vy * 1.15; p.reflected = true; p.life = Math.max(p.life, 0.8); events.push({ type: 'blocked', attacker: att.side, victim: vic.side, style: p.style, guard: 'reflect' }); }
       else { const [nx, ny] = norm(p.vx, p.vy); if (land(m, att, vic, p.kind, p.style, events, nx, ny, p.style === 'debris' ? 160 : 90, p.pw)) { p.hitDone = true; p.life = 0; } }
     }
   }
@@ -467,10 +488,11 @@ export function step(m, realDt = TICK) {
   for (const e of m.effects) runEffect(m, e, dt, events);
   m.effects = m.effects.filter(e => e.t < e.dur);
   const out = [false, false];
-  for (const side of [0, 1]) if (m.fighters[side].hp <= 0) { // fainted: send in the next team member, if any
+  for (const side of [0, 1]) if (m.fighters[side].hp <= 0) { // fainted: send in the next team member (squad: take control of one still standing)
     const next = m.teams[side].findIndex((_, i) => i !== m.slot[side] && alive(m, side, i));
     if (next >= 0) switchIn(m, side, next, events, 'faint'); else out[side] = true;
   }
+  if (m.squad) for (const f of m.roster.flat()) if (f.hp <= 0 && !f.down) { f.down = true; events.push({ type: 'faint', side: f.side, slot: f.slot, speciesId: f.speciesId }); }
   if (out[0] || out[1]) {
     m.over = true; m.reason = 'ko';
     m.winner = out[0] && out[1] ? null : out[0] ? 1 : 0;
@@ -508,15 +530,19 @@ export function snapshot(m) {
       lv: f.level, sg: stageFor(f.level).id, xi: p.into, xn: p.need, xg: f.expGained, fl: MOTION[f.motion].float || f.levT > 0, lt: r(f.levT), bk: r(f.blinkT), mo: f.motion,
       bs: f.styles.basic, ss: f.styles.special, sh: f.shield ?? 0, gk: f.guardT > 0 ? f.guardKind : null, bt: f.burstT > 0,
       st: f.status?.k || null, stt: f.status ? r(f.status.t / f.status.max) : 0, rc: f.recT > 0, ul: Math.round(f.ult), uo: f.ultOn && f.castT < 1.2 }; }),
-    lim: m.limit, pk: m.pickups.map(q => ({ id: q.id, x: r(q.x), y: r(q.y), k: q.k, l: r(q.life) })), gs: GAME_SPEED,
+    x: m.squad ? m.roster.flat().filter(f => f.hp > 0 && m.fighters[f.side] !== f).map(f => ({ sd: f.side, sl: f.slot, s: f.speciesId, x: r(f.x), y: r(f.y), fx: r(f.fx), fy: r(f.fy), hp: r(f.hp), max: f.maxHp,
+      mv: f.moving, ds: f.dashT > 0, ct: r(Math.min(f.castT, 9)), ck: f.castKind, hu: r(f.hurtT), lv: f.level, sg: stageFor(f.level).id, fl: MOTION[f.motion].float || f.levT > 0, lt: r(f.levT), bk: r(f.blinkT), mo: f.motion,
+      bs: f.styles.basic, ss: f.styles.special, i: f.iframes > 0, g: f.guardT > 0, gk: f.guardT > 0 ? f.guardKind : null, st: f.status?.k || null, stt: f.status ? r(f.status.t / f.status.max) : 0, rc: f.recT > 0, ul: Math.round(f.ult), en: Math.round(f.energy) })) : null,
+    sq: m.squad ? 1 : 0, lim: m.limit, pk: m.pickups.map(q => ({ id: q.id, x: r(q.x), y: r(q.y), k: q.k, l: r(q.life) })), gs: GAME_SPEED,
     p: m.projectiles.map(p => ({ id: p.id, o: p.owner, k: p.kind, st: p.style, ty: p.type, sid: p.sid, x: r(p.x), y: r(p.y), vx: Math.round(p.vx), vy: Math.round(p.vy), r: p.r })),
     e: m.effects.map(e => ({ id: e.id, o: e.owner, k: e.kind, st: e.style, ty: e.type, sid: e.sid, x: r(e.x), y: r(e.y), dx: r(e.dx * 100) / 100, dy: r(e.dy * 100) / 100,
       gx: r(e.gx), gy: r(e.gy), t: Math.round(e.t * 100) / 100, d: e.dur, ra: e.rad || 0, wd: e.wid || 0, mg: e.mega ? 1 : 0 })) };
 }
 
 /** Opponent brain for AI matches: movement is the autopilot; this decides when to attack. */
-export function aiInput(m, side, mem = {}) {
-  const me = m.fighters[side], foe = m.fighters[1 - side];
+export function aiInput(m, side, mem = {}) { return aiFor(m, m.fighters[side], mem); }
+function aiFor(m, me, mem = {}) {
+  const foe = foeOf(m, me);
   const d = Math.hypot(foe.x - me.x, foe.y - me.y);
   const reach = { whip: 230, bolt: 430, cone: 230, projectile: 560 }[me.styles.basic] || 500;
   const sst = me.styles.special, inRange = sst === 'cone' ? d < 230 : sst === 'beam' ? d < 600 : d < 480;

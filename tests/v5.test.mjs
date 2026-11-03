@@ -108,3 +108,23 @@ test('Superhero Drop: 30 heroes, top five 1 SOL, others 0.5 SOL; each sells once
     assert.ok(registry.ownedBy(buyer).some(m => m.species.id === sid));
   } finally { server.close(); }
 });
+
+test('3v3 squad: all six fight at once, teammates act on their own, switching takes control, KO of all three ends it', async () => {
+  const S = await import('../shared/sim.mjs'), { Monstar } = await import('../shared/monstars.mjs');
+  const team = ids => ids.map(i => new Monstar({ speciesId: i, level: 12 }));
+  const m = S.createMatch(team([0, 1, 2]), team([3, 4, 5]), { squad: true }); assert.ok(m.squad);
+  const hpStart = m.roster[1].map(f => f.hp), mem = [{}, {}];
+  let switched = false, mateHits = 0;
+  for (let i = 0; i < 30 * 200 && !m.over; i++) {
+    m.fighters[1].input = S.sanitizeInput(S.aiInput(m, 1, mem[1]));
+    m.fighters[0].input = S.sanitizeInput(i === 90 ? { sw: 2 } : {}); // the player does nothing but switch once
+    for (const e of S.step(m)) { if (e.type === 'switch' && e.side === 0 && e.control) switched = true; if (e.type === 'hit' && e.attacker === 0) mateHits++; }
+    if (i === 1) assert.equal(S.snapshot(m).x.length, 4, 'the four Monstars not being controlled are on the field too');
+  }
+  assert.ok(switched && m.slot[0] !== 0 || m.over, 'switching control works');
+  assert.ok(mateHits > 0, 'teammates deal damage while not controlled');
+  assert.ok(m.roster[1].some((f, i) => f.hp < hpStart[i]));
+  assert.ok(m.over && ['ko', 'time'].includes(m.reason));
+  if (m.reason === 'ko') assert.ok(m.roster[m.winner === 0 ? 1 : 0].every(f => f.hp <= 0), 'a squad loses only when all three are down');
+  const one = S.createMatch(new Monstar({ speciesId: 0 }), new Monstar({ speciesId: 1 })); assert.ok(!one.squad); assert.equal(S.snapshot(one).x, null);
+});

@@ -76,7 +76,8 @@ pvp.innerHTML = `
  </div>
  <div class="pv-col">
   <div class="panel" id="pvLobby"><h3>Choose your Monstar</h3>
-   <div class="pv-presets pv-mode" id="pvMode" role="group" aria-label="Battle size"><button data-m="1v1" aria-pressed="false">1v1</button><button data-m="3v3" aria-pressed="true">3v3 team</button></div>
+   <div class="pv-presets pv-mode" id="pvMode" role="group" aria-label="Battle size"><button data-m="1v1" aria-pressed="true">1v1</button><button data-m="3v3" aria-pressed="false">3v3 tag team</button><button data-m="squad" aria-pressed="false">3v3 squad</button></div>
+   <p class="pv-note" id="pvModeNote" style="margin:6px 0 10px">One Monstar each. Pick 3v3 tag team (one at a time, swap in) or 3v3 squad (all six fight at once).</p>
    <div class="pv-team" id="pvTeamPick" hidden></div>
    <div class="pv-picker" id="pvPicker" role="group" aria-label="Choose your Monstar"></div>
    <p class="pv-note" id="pvPickInfo" style="margin:8px 0 12px"></p>
@@ -224,6 +225,9 @@ q('pvPresets').onclick = e => { const b = e.target.closest('button'); if (!b) re
 q('pvStake').oninput = stakeNote; stakeNote();
 function teamMsg(needOwned) {
   if (mode !== '3v3') return { mode };
+  return { ...teamMsg3(needOwned), squad };
+}
+function teamMsg3(needOwned) {
   if (teamPick.length < 3) { fillTeam(); renderPicker(); }
   const owned = teamPick.map(ownedFor);
   if (owned.every(Boolean)) return { mode, serials: owned.map(m => m.serial) };
@@ -306,14 +310,15 @@ function monFor(sid) {
     : new Monstars.Monstar({ speciesId: sid, exp: guestExp()[sid] || 0 });
 }
 // ---------- 1v1 / 3v3 ----------
-let mode = '3v3', teamPick = []; // Quick battle is 3v3 like the reference; empty slots fill themselves
+let mode = '1v1', squad = false, teamPick = []; // new players start with 1v1; 3v3 is tag team or squad (all three fight at once)
+const MODE_NOTES = { '1v1': 'One Monstar each.', '3v3': '3v3 tag team: one Monstar at a time. Tap a teammate\'s picture in battle to swap it in.', squad: '3v3 squad: all six Monstars fight at once. You control one; tap a teammate\'s picture to take control of it. The others fight on their own.' };
 let cpuLevel = 'normal';
 q('pvCpu').onclick = e => { const b = e.target.closest('button'); if (!b) return; cpuLevel = b.dataset.l; q('pvCpu').querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', x === b)); };
 function fillTeam() { const pool = Monstars.SPECIES.filter(sp => usableSpecies(sp) && !teamPick.includes(sp.id)).sort(() => Math.random() - 0.5); while (teamPick.length < 3 && pool.length) teamPick.push(pool.shift().id); }
-function setMode(m) { mode = m; q('pvMode').querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', x.dataset.m === m)); }
+function setMode(m) { squad = m === 'squad'; mode = squad ? '3v3' : m; q('pvMode').querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', x.dataset.m === m)); const n = q('pvModeNote'); if (n) n.textContent = MODE_NOTES[m]; }
 q('pvMode').onclick = e => { const b = e.target.closest('button'); if (!b) return;
-  if (b.dataset.m === '3v3' && S.session() && mine.length < 3) { toast('3v3 needs three Monstars. Capture more in the Wild or buy one in the Superhero Drop.', true); return; }
-  mode = b.dataset.m; q('pvMode').querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', x === b)); if (mode === '3v3' && !teamPick.length) teamPick = [pickedSpecies]; renderPicker(); };
+  if (b.dataset.m !== '1v1' && S.session() && mine.length < 3) { toast('3v3 needs three Monstars. Capture more in the Wild or buy one in the Superhero Drop.', true); return; }
+  setMode(b.dataset.m); if (mode === '3v3' && !teamPick.length) teamPick = [pickedSpecies]; renderPicker(); };
 function renderTeamPick() {
   const box = q('pvTeamPick'); box.hidden = mode !== '3v3'; if (mode !== '3v3') return;
   box.innerHTML = `<span>Your team (${teamPick.length}/3):</span>` + [0, 1, 2].map(i => teamPick[i] != null ? `<button data-i="${i}" title="Remove"><img src="${PA.spriteSrc(teamPick[i])}" alt="${esc(Monstars.SPECIES[teamPick[i]].name)}"></button>` : '<i>?</i>').join('') + '<small>Tap Monstars below to add. The next one comes in when one faints, or tap its picture in battle to switch.</small>';
@@ -354,7 +359,7 @@ function startPractice(opt = null) {
   if (!opt && mode === '3v3' && teamPick.length < 3) { fillTeam(); renderPicker(); }
   const ownTeam = mode === '3v3' ? teamPick.map(ownedFor) : [own];
   if (!opt && S.session() && ownTeam.length === (mode === '3v3' ? 3 : 1) && ownTeam.every(Boolean) && ws?.readyState === 1) {
-    try { sendWs({ t: 'ai', mode, level: cpuLevel, serial: own?.serial, serials: ownTeam.map(m => m.serial) }); ended = null; fightAt = 0; renderer.reset(); resetVirtual();
+    try { sendWs({ t: 'ai', mode, squad: mode === '3v3' && squad, level: cpuLevel, serial: own?.serial, serials: ownTeam.map(m => m.serial) }); ended = null; fightAt = 0; renderer.reset(); resetVirtual();
       const asked = performance.now(); setTimeout(() => { if (!room && performance.now() - asked > 2400) { toast('Server is slow, playing practice on this device.'); startPractice({ ...(opt || {}), forceLocal: true }); } }, 2500);
     } catch (e) { fail(e); } return; }
   if (!opt && S.session() && ws?.readyState !== 1) openSocket(); // reconnect in the background; this practice runs locally
@@ -366,9 +371,9 @@ function startPractice(opt = null) {
   const others = Monstars.WILD_IDS.map(id => Monstars.SPECIES[id]).filter(x => !x.mythic && !ids.includes(x.id)).sort(() => Math.random() - 0.5);
   const team = ids.map(monFor), lvl = () => Math.max(1, team[0].level + Math.floor(Math.random() * 3) - 1);
   const foes = opt?.foeId != null ? [new Monstars.Monstar({ speciesId: opt.foeId, level: opt.foeLevel })] : ids.map((_, i) => new Monstars.Monstar({ speciesId: others[i].id, level: lvl() }));
-  local = { m: Sim.createMatch(three ? team : team[0], three ? foes : foes[0], { arena: opt?.arena ?? Math.floor(Math.random() * Sim.ARENA_COUNT) }), mem: { hard: !!opt?.hard, level: opt ? 'normal' : cpuLevel } };
+  local = { m: Sim.createMatch(three ? team : team[0], three ? foes : foes[0], { arena: opt?.arena ?? Math.floor(Math.random() * Sim.ARENA_COUNT), squad: three && squad }), mem: { hard: !!opt?.hard, level: opt ? 'normal' : cpuLevel } };
   const a = team[0], b = foes[0], foe = b.species;
-  room = { local: true, wild: opt || null, mode: three ? '3v3' : '1v1', state: 'live', you: 0, stake: '0', code: 'AI',
+  room = { local: true, wild: opt || null, mode: three ? '3v3' : '1v1', squad: three && squad, state: 'live', you: 0, stake: '0', code: 'AI',
     players: [{ wallet: me || 'You', monstar: a.toJSON(), team: team.map(x => x.toJSON()) }, { wallet: 'AI', monstar: { ...b.toJSON(), name: opt ? 'Wild ' + foe.name : b.toJSON().name }, team: foes.map(x => x.toJSON()) }] };
   ended = null; snapPrev = null; snapCur = Sim.snapshot(local.m); snapAt = performance.now(); renderer.reset(); fightAt = performance.now(); resetVirtual();
   renderRoom(); draw();
