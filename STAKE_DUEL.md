@@ -281,3 +281,6 @@ Stats: HP, Attack, Defense, Sp. Atk, Sp. Def, Speed. Types: EMBER, GROVE, TIDE, 
 ## v41: Target Practice
 - New **Target Practice** tab (dist/targets.js): 30 seconds on a shooting range with random targets: bullseye boards (50/25/10 by ring), hay stacks (an HP bar, take several hits), cans on a fence (tip over in one hit) and rows of moving ducks (one hit each). Tap a target to fire your Monstar's own attack, special (multi-shot where it has one) or Mega Shot (charges from hits). Every hit shows its damage.
 - Nothing is earned yet; the result shows what the same hits would earn in a real match (EXP from EXP_RULES, SOL from hitFee). Best score is kept on the device.
+
+## v43: no rematch
+- The Rematch button is gone. After a fight the result shows with one button, "Back to pick your Monstar": the page reloads to the Arena picker (a clean start every time). Free fights go back on their own after 6 seconds; staked SOL matches wait for the tap so the payout can be seen.

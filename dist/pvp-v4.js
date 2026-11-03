@@ -324,6 +324,19 @@ function hudNames() {
   order.forEach((pi, k) => { const m = room.players[pi].monstar; q('pvN' + k).textContent = Monstars.SPECIES[m.speciesId].name.toUpperCase(); const t = q('pvT' + k); if (!t.classList.contains('cast')) t.textContent = m.type; t.dataset.type = m.type; t.style.setProperty('--tc', TYPE_COL[m.type] || '#888');
     q('pvPic' + k).src = PA.spriteSrc(m.speciesId); q('pvPic' + k).style.filter = `hue-rotate(${m.traits?.hue || 0}deg)`; });
 }
+/** After a fight: one button back to the start (a fresh page load on the Arena picker); free fights also go back on their own. */
+let backTimer = null, backAt = 0;
+function backToPick(autoSec = 0) {
+  const b = el('button', { className: 'primary', textContent: 'Back to pick your Monstar' });
+  const go = () => { clearInterval(backTimer); backAt = 0; location.replace(location.pathname + location.search + '#arena'); location.reload(); };
+  b.onclick = go; clearInterval(backTimer);
+  if (autoSec > 0) { // the overlay can be redrawn: keep one deadline so the countdown never restarts
+    if (!backAt) backAt = Date.now() + autoSec * 1000;
+    const tick = () => { const n = Math.ceil((backAt - Date.now()) / 1000); if (n <= 0) go(); else b.textContent = `Back to pick your Monstar (${n})`; };
+    tick(); backTimer = setInterval(tick, 250);
+  }
+  return b;
+}
 function leaveBattle() { if (room?.code && !room.local) doneCodes.add(room.code); if (room?.local) { room = null; local = null; ended = null; snapCur = null; renderRoom(); renderer.idle(); return; } try { sendWs({ t: 'leave' }); } catch {} room = null; ended = null; renderRoom(); }
 q('pvLeave').onclick = leaveBattle;
 // No running away: in the wild this button is Catch, in other battles it is hidden (the match plays out).
@@ -617,9 +630,8 @@ function renderRoom() {
         const nx = el('button', { className: 'primary', textContent: 'Next wild encounter' }); nx.onclick = () => { room = null; local = null; ended = null; snapCur = null; renderRoom(); w.next(); };
         const mp = el('button', { className: 'smallbtn', textContent: 'Expedition map' }); mp.onclick = () => { room = null; local = null; ended = null; snapCur = null; renderRoom(); w.map(); };
         btns.append(nx, mp); if (!ended._rec) { ended._rec = 1; w.record(won, c); if (c?.ok) refreshMine(); } return; }
-      const again = el('button', { className: 'primary', textContent: 'Rematch' }); again.onclick = () => startPractice();
-      const back = el('button', { className: 'smallbtn', textContent: 'Change Monstar' }); back.onclick = () => { room = null; local = null; ended = null; snapCur = null; renderRoom(); renderer.idle(); };
-      btns.append(again, back);
+      // No rematch: the game reloads to the start, where you pick your Monstar again (a clean start every time)
+      btns.append(backToPick(6));
     }
     return;
   }
@@ -644,7 +656,8 @@ function renderRoom() {
     if (ended.immortal) { const im = ended.immortal, iWon = im.winner === S.session()?.wallet;
       small.innerHTML = iWon ? `<b>You won ${esc(im.name)}!</b> It's yours now. Its old owner has ${im.hours} hours to buy it back for your soul fee (0.1 SOL until you change it in Soul claims).`
         : `<b>${esc(im.name)} now belongs to the winner.</b> Buy it back within ${im.hours} hours in Soul claims, or it's gone for good.`; }
-    const again = el('button', { className: 'primary', textContent: ended.immortal ? 'Soul claims' : 'New match' }); again.onclick = () => { room = null; ended = null; snapCur = null; renderRoom(); renderer.idle(); refreshMine(); renderSouls().then(() => q('pvSouls')?.scrollIntoView({ block: 'center' })); };
+    if (!ended.immortal) { btns.append(backToPick(room.stake === '0' ? 6 : 0)); return; }
+    const again = el('button', { className: 'primary', textContent: 'Soul claims' }); again.onclick = () => { room = null; ended = null; snapCur = null; renderRoom(); renderer.idle(); refreshMine(); renderSouls().then(() => q('pvSouls')?.scrollIntoView({ block: 'center' })); };
     btns.append(again);
   } else if (room.state === 'waiting') { big.textContent = room.code; small.textContent = 'Waiting for your rival to join with this code.'; }
   else if (room.state === 'lock') { // Immortal Combat: Phantom players sign before the fight

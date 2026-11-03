@@ -1,5 +1,5 @@
 // PocketMonstars app service worker: the game shell and art work offline-fast; live data never comes from cache.
-const V = 'pm-v42', SHELL = ['/play', '/pvp-v4.css', '/game.js', '/arena-v2.js', '/monstars-v3.js', '/stake-client.js', '/pixel-arena.js', '/lock.js', '/pvp-v4.js', '/wild.js', '/v5.js', '/guild.js', '/targets.js', '/app.js', '/v6.js', '/manifest.webmanifest', '/app/icon-192.png'];
+const V = 'pm-v43', SHELL = ['/play', '/pvp-v4.css', '/game.js', '/arena-v2.js', '/monstars-v3.js', '/stake-client.js', '/pixel-arena.js', '/lock.js', '/pvp-v4.js', '/wild.js', '/v5.js', '/guild.js', '/targets.js', '/app.js', '/v6.js', '/manifest.webmanifest', '/app/icon-192.png'];
 self.addEventListener('install', e => { e.waitUntil(caches.open(V).then(c => c.addAll(SHELL)).catch(() => {})); self.skipWaiting(); });
 self.addEventListener('activate', e => { e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== V).map(k => caches.delete(k)))).then(() => self.clients.claim())); });
 self.addEventListener('fetch', e => {
