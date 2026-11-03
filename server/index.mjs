@@ -14,7 +14,8 @@ import { MatchManager } from './matches.mjs';
 import { NftService } from './nft.mjs';
 import { Players } from './players.mjs';
 import { checkPayment, MEMO_PROGRAM } from './escrow.mjs';
-import { SPECIES, HERO_IDS, SALE_IDS, SHOP_IDS, formName } from '../shared/monstars.mjs';
+import { SPECIES, HERO_IDS, SALE_IDS, SHOP_IDS, formName, nftArt } from '../shared/monstars.mjs';
+import { StripePay, verifyWebhook, resaleSplit } from './stripe.mjs';
 import { AVATARS, AVATAR_BY_ID } from '../shared/avatars.mjs';
 import { STAKE_POLICY, formatSol } from '../shared/stake.mjs';
 import { randomBytes } from 'node:crypto';
@@ -28,7 +29,8 @@ function sessionSecret() {
   try { return fs.readFileSync(f, 'utf8').trim(); } catch {}
   const s = randomBytes(32).toString('hex'); try { fs.writeFileSync(f, s, { mode: 0o600 }); } catch {} return s;
 }
-export function createServer({ config = CONFIG, chain = new SolanaChain(config.rpc), dbFile = path.join(DATA_DIR, 'pocketmonstars.db'), keys = serverKeys() } = {}) {
+export function createServer({ config = CONFIG, chain = new SolanaChain(config.rpc), dbFile = path.join(DATA_DIR, 'pocketmonstars.db'), keys = serverKeys(),
+  stripe = new StripePay({ secretKey: config.stripeSecretKey, webhookSecret: config.stripeWebhookSecret, fixedSolUsd: config.solUsd, publicUrl: config.publicUrl }) } = {}) {
   const db = openDb(dbFile);
   const registry = new Registry(db, { legendaryOwner: config.legendaryOwner, royalOwner: config.royalOwner, gifts: config.gifts }), auth = new Auth({ secret: sessionSecret() });
   const players = new Players(db);
@@ -47,6 +49,7 @@ export function createServer({ config = CONFIG, chain = new SolanaChain(config.r
   const welcome = (id, ref) => { if (isNew(id) && ref) players.setReferrer(id, ref); registry.claimAll(id); return auth.issue(id); };
   const dropMemo = sid => `PMDROP:${sid}`;
   const dropPrice = sid => BigInt(SPECIES[sid].drop.priceLamports);
+  let dropsReadyCard = null;
   const reserved = new Map(); // species -> { wallet, until }: holds a hero for 2 minutes while its buyer pays
   // ---------- profile avatars ----------
   const avatarOwner = a => (a.reservedFor === 'founder' ? config.legendaryOwner : a.reservedFor || players.avatarSale(a.id)?.buyer || null);
@@ -65,7 +68,74 @@ export function createServer({ config = CONFIG, chain = new SolanaChain(config.r
   const listingRow = id => db.prepare('SELECT * FROM listings WHERE id=?').get(Number(id));
   const waitConfirmed = async sig => { for (let i = 0; i < 30; i++) { const s = await chain.status(sig); if (s?.err) throw Error('Transaction failed on-chain.'); if (['confirmed', 'finalized'].includes(s?.confirmationStatus)) return; await new Promise(r => setTimeout(r, 1000)); } throw Error('Not confirmed yet. Try again in a moment.'); };
 
+  // ---------- card payments (Stripe) ----------
+  const usd = c => '$' + (c / 100).toFixed(2);
+  /** Fulfil a paid Checkout Session once (store sale or dollar resale). `live` = may refund / pay out; false while rebuilding. */
+  async function fulfil(sess, live = true) {
+    const done = players.cardOrder(sess.id); if (done) return JSON.parse(done.result);
+    const md = sess.metadata || {}, pi = typeof sess.payment_intent === 'object' ? sess.payment_intent : null; let result;
+    if (sess.payment_status !== 'paid' || !md.pm) throw Error('That payment is not complete.');
+    if (md.kind === 'sale') {
+      const sid = Number(md.sid), sale = players.sale(sid), sig = 'card:' + sess.id;
+      if (!SALE_IDS.includes(sid)) throw Error('Unknown item.');
+      if (sale && sale.signature !== sig) { // sold to someone else first (SOL and card at the same moment): refund the card
+        if (live) await stripe.refund(pi?.id || sess.payment_intent).catch(() => {});
+        result = { ok: false, refunded: true, error: SPECIES[sid].name + ' was already sold, so your card was refunded.' };
+      } else { const m = registry.grantHero(md.buyer, sid, sig); if (!sale) players.recordSale(sid, md.buyer, sig, m.serial); reserved.delete(sid); result = { ok: true, monstar: m.toJSON() }; }
+    } else if (md.kind === 'resale') {
+      const m = registry.get(Number(md.serial));
+      if (!m || m.owner !== md.seller || m.asset || m.dna !== md.dna) { if (live) await stripe.refund(pi?.id || sess.payment_intent).catch(() => {}); result = { ok: false, refunded: true, error: 'That Monstar is no longer for sale, so your card was refunded.' }; }
+      else {
+        registry.setOwner(m.serial, md.buyer); players.unlistUsd(m.serial);
+        const cents = Number(md.cents), creatorAcct = m.originOwner !== md.seller ? players.payoutAccount(m.originOwner) : null, split = resaleSplit(cents, !!creatorAcct);
+        const charge = pi?.latest_charge?.id || pi?.latest_charge, group = 'resale-' + sess.id, sellerAcct = players.payoutAccount(md.seller), paid = [];
+        if (live && charge && sellerAcct) { await stripe.transfer({ cents: split.seller, destination: sellerAcct, charge, group, metadata: { session: sess.id, role: 'seller' } }); paid.push('seller'); }
+        if (live && charge && creatorAcct && split.creator > 0) { await stripe.transfer({ cents: split.creator, destination: creatorAcct, charge, group, metadata: { session: sess.id, role: 'creator' } }).catch(e => console.error('creator royalty:', e.message)); paid.push('creator'); }
+        result = { ok: true, monstar: registry.get(m.serial).toJSON(), split, paid };
+      }
+    } else throw Error('Unknown order.');
+    players.recordCardOrder(sess.id, md.kind, result); return result;
+  }
+  const payoutReady = async w => { const a = players.payoutAccount(w); if (!a) return { account: null, ready: false };
+    const acct = await stripe.account(a); return { account: a, ready: acct.capabilities?.transfers === 'active' && !!acct.payouts_enabled, details: !!acct.details_submitted }; };
+
   const routes = {
+    'GET /api/card/status': async () => { const on = stripe.enabled; let solUsd = null; if (on) solUsd = await stripe.solUsd().catch(() => null);
+      return { enabled: on, solUsd, resale: { sellerPct: 90, creatorPct: 5, companyPct: 5 } }; },
+    'POST /api/card/checkout': async req => { const w = need(req), b = await body(req), sid = Number(b.speciesId), sp = SPECIES[sid];
+      if (!SALE_IDS.includes(sid)) throw Error('That Monstar is not for sale.');
+      if (!sp.drop.shop && Date.now() > config.dropEndsAt) throw Error('The Superhero Drop has ended.');
+      if (players.sale(sid)) throw Error(sp.name + ' is already sold.');
+      const r = reserved.get(sid); if (r && r.until > Date.now() && r.wallet !== w) throw Error('Someone is buying ' + sp.name + ' right now. Try again in a few minutes.');
+      const cents = await stripe.centsFor(sp.drop.priceLamports); reserved.set(sid, { wallet: w, until: Date.now() + 10 * 60_000 });
+      const sess = await stripe.checkout({ name: `${sp.name} · PocketMonstars (one of one)`, image: `${config.publicUrl}/art/nft/${nftArt(sp)}`, cents, ref: w,
+        metadata: { pm: '1', kind: 'sale', sid: String(sid), buyer: w, sol: formatSol(BigInt(sp.drop.priceLamports), 2) } });
+      return { url: sess.url, cents, usd: usd(cents) }; },
+    'POST /api/card/confirm': async req => { const w = need(req), b = await body(req), sess = await stripe.session(String(b.session || ''));
+      if (sess.metadata?.buyer !== w) throw Error('That payment belongs to another player.');
+      if (sess.payment_status !== 'paid') return { ok: false, pending: true };
+      return fulfil(sess); },
+    'GET /api/payouts/me': async req => payoutReady(need(req)),
+    'POST /api/payouts/connect': async req => { const w = need(req); let a = players.payoutAccount(w);
+      if (!a) { a = (await stripe.createAccount(w)).id; players.setPayoutAccount(w, a); }
+      return { url: (await stripe.onboardingLink(a)).url }; },
+    'GET /api/usd/listings': () => ({ enabled: stripe.enabled, listings: players.usdListings().map(l => { const m = registry.get(l.serial); return m && m.owner === l.seller && !m.asset ? { serial: l.serial, seller: l.seller, cents: l.cents, usd: usd(l.cents), monstar: m.toJSON() } : null; }).filter(Boolean) }),
+    'POST /api/usd/list': async req => { const w = need(req), b = await body(req), m = registry.get(Number(b.serial)), cents = Math.round(Number(b.priceUsd) * 100);
+      if (!stripe.enabled) throw Error('Card payments are not switched on yet.');
+      if (!m || m.owner !== w) throw Error('You do not own that Monstar.');
+      if (m.asset) throw Error('This Monstar is minted as an NFT: sell it for SOL in the NFT market instead.');
+      if (!(cents >= 100 && cents <= 1_000_000)) throw Error('Pick a price from $1 to $10,000.');
+      if (!(await payoutReady(w)).ready) throw Error('Set up your payout account first (tap "Get paid in dollars").');
+      players.listUsd(m.serial, w, cents); return { ok: true, serial: m.serial, usd: usd(cents) }; },
+    'POST /api/usd/cancel': async req => { const w = need(req), b = await body(req), l = players.usdListing(Number(b.serial));
+      if (!l || l.seller !== w) throw Error('No listing of yours for that Monstar.'); players.unlistUsd(l.serial); return { ok: true }; },
+    'POST /api/usd/buy': async req => { const w = need(req), b = await body(req), l = players.usdListing(Number(b.serial)), m = l && registry.get(l.serial);
+      if (!l || !m || m.owner !== l.seller || m.asset) throw Error('That Monstar is not for sale any more.');
+      if (l.seller === w) throw Error('That is your own listing.');
+      const name = (m.toJSON().form || m.species.name) + ' #' + m.serial;
+      const sess = await stripe.checkout({ name: `${name} · Lv${m.level} · PocketMonstars`, image: `${config.publicUrl}/art/nft/${nftArt(m.species)}`, cents: l.cents, ref: w, transferGroup: 'resale-' + m.serial,
+        metadata: { pm: '1', kind: 'resale', serial: String(m.serial), seller: l.seller, buyer: w, cents: String(l.cents), dna: m.dna } });
+      return { url: sess.url, usd: usd(l.cents) }; },
     'GET /api/config': () => ({ wildFeeLamports: config.wildFeeLamports.toString(), cluster: config.cluster, treasury: config.treasury, royaltyBps: config.royaltyBps, collection: config.collection,
       marketAuthority: keys.marketAuthority.publicKey.toBase58(), policy: { minStake: STAKE_POLICY.minStake, maxStake: STAKE_POLICY.maxStake, companyFeeLamports: STAKE_POLICY.companyFeeLamports, networkFeeLamports: STAKE_POLICY.networkFeeLamports } }),
     'POST /api/auth/challenge': async req => ({ message: auth.challenge((await body(req)).wallet) }),
@@ -133,7 +203,7 @@ export function createServer({ config = CONFIG, chain = new SolanaChain(config.r
     'POST /api/mint/confirm': async req => { const w = needWallet(req), b = await body(req), m = registry.get(Number(b.serial));
       if (!m || m.owner !== w) throw Error('You do not own that Monstar.');
       await waitConfirmed(b.signature); const { owner } = await nft.verifyMint({ monstar: m, asset: b.asset });
-      registry.bindAsset(m.serial, b.asset, b.signature); return registry.setOwner(m.serial, owner).toJSON(); },
+      registry.bindAsset(m.serial, b.asset, b.signature); players.unlistUsd(m.serial); return registry.setOwner(m.serial, owner).toJSON(); },
     'POST /api/monstars/sync': async req => { const b = await body(req), m = registry.get(Number(b.serial));
       if (!m?.asset) throw Error('Not minted yet.'); return registry.setOwner(m.serial, await nft.ownerOf(m.asset)).toJSON(); },
     'GET /api/market': () => ({ listings: db.prepare("SELECT * FROM listings WHERE state='active' ORDER BY id DESC LIMIT 200").all()
@@ -220,6 +290,12 @@ export function createServer({ config = CONFIG, chain = new SolanaChain(config.r
   const server = http.createServer(async (req, res) => {
     try {
       const url = new URL(req.url, 'http://x'), key = req.method + ' ' + url.pathname;
+      if (key === 'POST /api/stripe/webhook') { // Stripe calls this when a card payment completes (signature checked)
+        const raw = await new Promise((ok, fail) => { let s = ''; req.on('data', c => { s += c; if (s.length > 500_000) { fail(Error('Body too large')); req.destroy(); } }); req.on('end', () => ok(s)); });
+        const ev = verifyWebhook(raw, req.headers['stripe-signature'], config.stripeWebhookSecret);
+        if (['checkout.session.completed', 'checkout.session.async_payment_succeeded'].includes(ev.type) && ev.data.object.metadata?.pm) await fulfil(await stripe.session(ev.data.object.id));
+        return send(res, 200, { received: true });
+      }
       if (routes[key]) return send(res, 200, await routes[key](req));
       let m;
       if (req.method === 'GET' && (m = url.pathname.match(/^\/api\/meta\/(\d+)\.json$/))) {
@@ -287,6 +363,12 @@ export function createServer({ config = CONFIG, chain = new SolanaChain(config.r
         players.recordAvatarSale(a.id, checkPayment(tx, { to: config.treasury, lamports: BigInt(a.priceLamports), memo: avatarMemo(a.id) }), signature); } catch {}
     }
   }
+  // Card sales also survive a reset: replay paid Stripe sessions (store sales to Phantom wallets; username accounts need a persistent disk).
+  async function rebuildCard() {
+    for (const [user, acct] of await stripe.accountsByUser()) if (!players.payoutAccount(user)) players.setPayoutAccount(user, acct);
+    for (const sess of await stripe.paidSessions()) if (sess.metadata.kind === 'sale' && !sess.metadata.buyer.startsWith('@')) { try { await fulfil(await stripe.session(sess.id), false); } catch {} }
+  }
+  if (config.rebuildDrops !== false && stripe.enabled) dropsReadyCard = rebuildCard().catch(e => console.error('card rebuild:', e.message));
   if (config.rebuildDrops !== false && AVATARS.some(a => a.priceLamports)) rebuildAvatars().catch(e => console.error('avatar rebuild:', e.message));
   const dropsReady = config.rebuildDrops === false ? Promise.resolve() : rebuildDrops().catch(e => console.error('drop rebuild:', e.message));
 

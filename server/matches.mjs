@@ -1,7 +1,7 @@
 // 1v1 Stake Duel rooms: lobby, escrow deposits, authoritative 30 Hz simulation, live per-hit pot shares, settlement.
 import { randomBytes } from 'node:crypto';
 import { createMatch, step, snapshot, sanitizeInput, forfeit, aiInput, TICK, ARENA_COUNT } from '../shared/sim.mjs';
-import { Monstar, GENESIS_IDS, SPECIES, TIERS, rollWild, stageFor } from '../shared/monstars.mjs';
+import { Monstar, GENESIS_IDS, SPECIES, TIERS, rollWild, stageFor, wildLevel } from '../shared/monstars.mjs';
 
 export const WILD_ZONE_MIN = [1, 6, 14, 26];
 import { createHash } from 'node:crypto';
@@ -78,7 +78,7 @@ export class MatchManager {
       await this.chain.verifyDeposit(sig, { from: wallet, to: this.config.treasury, lamports: this.config.wildFeeLamports });
     }
     const z = Math.max(0, Math.min(WILD_ZONE_MIN.length - 1, Number(zone) || 0)), sid = rollWild(), tier = TIERS[SPECIES[sid].tier];
-    const level = WILD_ZONE_MIN[z] + Math.floor(Math.random() * 4) + tier.lvl;
+    const level = wildLevel(SPECIES[sid], monstar.level, Math.random, WILD_ZONE_MIN[z]); // always above your Monstar (special ones: 1% chance of a level 1)
     this.db.prepare('INSERT INTO wild_runs(signature,wallet,species,level,created_at) VALUES(?,?,?,?,?)').run(sig, wallet, sid, level, this.now());
     if (this.byWallet.has(wallet)) this.leave(wallet);
     return this.aiRoom(wallet, [monstar], [new Monstar({ speciesId: sid, level })], { wild: { signature: sig, speciesId: sid, level, tier: SPECIES[sid].tier }, hard: tier.lvl >= 12 });
@@ -167,7 +167,7 @@ export class MatchManager {
     room.throws++; room.lastThrow = now;
     const chance = captureChance(room.wild.speciesId, frac), ok = Math.random() < chance;
     const msg = { t: 'capture', ok, chance: Math.round(chance * 100), left: 3 - room.throws, code: room.code };
-    if (ok) { room.captured = this.registry.catchWild(room.players[0].wallet, room.wild.speciesId); forfeit(room.sim, 1); this.end(room); }
+    if (ok) { room.captured = this.registry.catchWild(room.players[0].wallet, room.wild.speciesId, room.wild.level); forfeit(room.sim, 1); this.end(room); }
     else this.emit(room, msg);
     return msg;
   }
@@ -259,7 +259,7 @@ export class MatchManager {
     } else if (room.wild) { // win a wild battle for a chance to catch it (as an Infant)
       const won = sim.winner === 0, chance = TIERS[room.wild.tier].catch;
       caught = { won, chance, speciesId: room.wild.speciesId, tier: room.wild.tier, ok: false };
-      if (won && Math.random() < chance) { const c = this.registry.catchWild(room.players[0].wallet, room.wild.speciesId); caught.ok = true; caught.monstar = c.toJSON(); }
+      if (won && Math.random() < chance) { const c = this.registry.catchWild(room.players[0].wallet, room.wild.speciesId, room.wild.level); caught.ok = true; caught.monstar = c.toJSON(); }
       this.db.prepare('UPDATE wild_runs SET won=?, caught_serial=? WHERE signature=?').run(won ? 1 : 0, caught.monstar?.serial ?? null, room.wild.signature);
     }
     this.emit(room, { t: 'end', winner: sim.winner, reason: sim.reason, shares: shares.map(String), stake: room.stake.toString(), progress, caught });

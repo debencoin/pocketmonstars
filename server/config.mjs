@@ -48,6 +48,10 @@ export const CONFIG = {
   // Superhero Drop: 30 heroes sold once each (top 5 at 1 SOL, the rest 0.5 SOL), paid to the founder wallet.
   dropTreasury: env.PM_DROP_TREASURY || env.PM_LEGENDARY_OWNER || 'Dc9s1YwNHE2xDBzpprDvyruzxj8j5HvBSvfbvdups5LJ',
   dropEndsAt: Date.parse(env.PM_DROP_ENDS || '2026-12-03T03:30:00Z'), // 30 days from launch (2026-11-03)
+  // Card payments (Stripe). Set these in Render → Environment, never in the repo. Off while STRIPE_SECRET_KEY is empty.
+  stripeSecretKey: env.STRIPE_SECRET_KEY || null,
+  stripeWebhookSecret: env.STRIPE_WEBHOOK_SECRET || null,
+  solUsd: env.PM_SOL_USD || null, // fixed dollars per SOL for card prices (default: live SOL price)
   freeWildCooldownMs: 45 * 1000, // username accounts play the wild for free, one run every 45 s
   // Breeding fee each player pays to the company treasury, in lamports (0.01 SOL).
   breedFeeLamports: BigInt(env.PM_BREED_FEE_LAMPORTS || 10_000_000),

@@ -336,3 +336,15 @@ export const FINAL_BENDERS = [
   { ...BE('COVA', 'GALE', 'deity', 'Fire gust', 'Ice balls', 'projectile', 'projectile', '#14141a', 'Final Air Bender', true), el2: 'all', sky: true, unique: true, female: true, legendary: undefined, legendFor: undefined,
     drop: { priceLamports: '10000000000', shop: true }, speedBoost: 1.35, sig: FINAL_SIG('COVA', 1) },
 ];
+
+// Starter Benders: every new player (username account or Phantom wallet) starts with ONE of these, picked at random:
+// one per element. Each player's copy is their own (unique DNA). They also roam the wild, so they can be caught.
+const ST = (name, el, cls, main, f) => {
+  const b = BE(name, ELEM_TYPE[el], cls, 'Element jab', ELEMENT_SIG[el](name).special.name, 'projectile', 'projectile', main, 'Grand');
+  return { ...b, legendary: undefined, legendFor: undefined, starter: true, el2: el, female: f,
+    sig: { basic: { name: { water: 'Water Jab', earth: 'Pebble Shot', fire: 'Ember Jab', air: 'Air Blast', thunder: 'Spark Jab' }[el], look: el === 'fire' ? 'fire' : el === 'air' ? 'gust' : el === 'water' ? 'ice' : undefined, note: 'A quick bending strike.' }, ...ELEMENT_SIG[el](name) } };
+};
+export const STARTER_BENDERS = [
+  ST('Aquari', 'water', 'mystic', '#2a8ad8', true), ST('Rokko', 'earth', 'titan', '#7a6a3a', false), ST('Blazen', 'fire', 'striker', '#d8401a', false),
+  ST('Gusti', 'air', 'skirmisher', '#e8a03a', true), ST('Voltz', 'thunder', 'ranger', '#4a3ac8', false),
+];

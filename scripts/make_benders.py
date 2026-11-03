@@ -45,6 +45,12 @@ D = {
   'skylis':   dict(el='air', el2='earth',   f=True,  skin=2, hair=c('#3a2418'), hs='braid',   top=c('#5a9a5a'), trim=c('#f0e0b0'), pants=c('#4a3a24'), boots=c('#2e2418')),
   'covo':     dict(el='air', el2='all',     f=False, skin=4, hair=c('#ffd23f'), hs='spiky',   top=c('#14141a'), trim=c('#ffd23f'), pants=c('#0e0e14'), boots=c('#0a0a0e'), elite=True, eyes=c('#ffe14a'), keep=True),
   'cova':     dict(el='air', el2='all',     f=True,  skin=4, hair=c('#ffd23f'), hs='long',    top=c('#14141a'), trim=c('#ffd23f'), pants=c('#0e0e14'), boots=c('#0a0a0e'), elite=True, eyes=c('#ffe14a'), keep=True),
+  # Starter Benders (every new player gets one at random)
+  'aquari':   dict(el='water',   f=True,  skin=2, hair=c('#2a1a3a'), hs='twin',    top=c('#2a8ad8'), trim=c('#dff6ff'), pants=c('#1e3a6e'), boots=c('#e8eef8')),
+  'rokko':    dict(el='earth',   f=False, skin=3, hair=c('#1a1010'), hs='afro',    top=c('#7a6a3a'), trim=c('#e0c890'), pants=c('#4a3a24'), boots=c('#2e2418'), band=c('#c8a060')),
+  'blazen':   dict(el='fire',    f=False, skin=1, hair=c('#c83a1a'), hs='spiky',   top=c('#d8401a'), trim=c('#ffd060'), pants=c('#2a1414'), boots=c('#1a0e0e')),
+  'gusti':    dict(el='air',     f=True,  skin=0, hair=c('#c8a060'), hs='pony',    top=c('#e8a03a'), trim=c('#fff0b0'), pants=c('#f4e8c8'), boots=c('#8a5a2a'), scarf=c('#ffd060')),
+  'voltz':    dict(el='thunder', f=False, skin=4, hair=c('#ffe14a'), hs='mohawk',  top=c('#4a3ac8'), trim=c('#ffe14a'), pants=c('#1e1840'), boots=c('#14102a'), goggles=c('#ffe14a')),
   # Market Sky Benders (1 SOL each): five per element, boys and girls
   'breezo': dict(el='air', el2='air', f=False, skin=0, hair=c('#1a1414'), hs='short', top=c('#4ac8e8'), trim=c('#ffffff' if 0 else '#ffe080'), pants=shade(c('#4ac8e8'), 0.55), boots=c('#2a2018')),
   'nimbra': dict(el='air', el2='air', f=True, skin=1, hair=c('#e8d8c0'), hs='pony', top=c('#c8e8ff'), trim=c('#ffffff' if 1 else '#ffe080'), pants=shade(c('#c8e8ff'), 0.55), boots=c('#2a2018'), goggles=c('#5ec2ff')),

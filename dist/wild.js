@@ -1,6 +1,6 @@
 'use strict';
 // Wild Expedition: random wild Monstars from the 50 Frontier species (plus very rare angels and a god).
-// Signed in: pay 0.0001 SOL, the server runs the battle and a win can catch the wild Monstar (it hatches as an Infant).
+// Signed in: pay 0.0001 SOL, the server runs the battle and a win can catch the wild Monstar (Phantom wallets keep its level; username accounts get a level 1 Infant).
 // Not signed in: practice runs on this device, no catching.
 (() => {
 const S = window.PMStake, PA = window.PMArena, API = window.PMArenaApi; if (!S || !PA || !window.PMStartBattle || !API) return;
@@ -35,7 +35,7 @@ function render() {
       <div class="wx-dex">${ids.map(id => `<span class="wx-mon${st.caught.includes(id) ? ' got' : ''}" title="${esc(SPECIES[id].name)} · ${SPECIES[id].type}"><img src="${PA.spriteSrc(id)}" alt="${esc(SPECIES[id].name)}" loading="lazy"><small>${esc(SPECIES[id].name)}</small></span>`).join('')}</div></div>`;
   }).join('');
   box.innerHTML = `<div class="topline"><div><div class="eyebrow">Wild Expedition</div><h1>Into the wild</h1>
-  <p class="muted">103 wild Monstars roam here: the Genesis nine, the fifty Frontier, twenty Anunnaki and twenty Watchers, plus angels and gods that almost never appear. Knock a wild Monstar's HP into the red and tap <b>Capture!</b>. Every Monstar has its own catch odds and they change with every throw (3 throws per battle), and a KO gives one last chance. Rarer ones are stronger and harder to catch. Everything you catch hatches as an Infant.</p></div>
+  <p class="muted">${WILD_IDS.length} wild Monstars roam here: the Genesis nine, the fifty Frontier, twenty Anunnaki, twenty Watchers, the five Starter Benders and ten Elemental Benders, plus angels and gods that almost never appear. Wild Monstars are always above your level: usually 1 to 3 levels up, sometimes far more. Anunnaki, benders and mythics are at least 2 up (a rare 1% are level 1). Knock one's HP into the red and tap <b>Capture!</b>. Every Monstar has its own catch odds and they change with every throw (3 throws per battle), and a KO gives one last chance. <b>Phantom players keep the level of what they catch</b>; free and card accounts get it as a level 1 Infant.</p></div>
   <span class="pill"><i class="dot"></i> ${st.wins} WINS · ${st.caught.length} CAUGHT</span></div>
   <div class="wx-grid">
    <div class="wx-next panel">
@@ -58,7 +58,8 @@ function render() {
 
 function practice() { // local battle against a random wild Monstar, no catch
   const sid = rollWild(), tier = TIERS[SPECIES[sid].tier], Z = ZONES[st.z];
-  window.PMStartBattle({ foeId: sid, foeLevel: Z.min + Math.floor(Math.random() * 4) + tier.lvl, arena: Z.theme, hard: tier.lvl >= 12, speciesId: sid, practice: true });
+  const myLv = API.ownedPick()?.level || 1; // wild Monstars are always above your level (special ones: a rare level 1)
+  window.PMStartBattle({ foeId: sid, foeLevel: Monstars.wildLevel(SPECIES[sid], myLv, Math.random, Z.min), arena: Z.theme, hard: tier.lvl >= 12, speciesId: sid, practice: true });
 }
 async function enter(btn) {
   if (busy) return;

@@ -23,7 +23,7 @@ function attrHtml(sp, level = 50, compact = false) {
   const st = statsOf(sp, level), K = sp.kit, total = STAT_KEYS.reduce((t, k) => t + st[k], 0);
   const bars = STAT_KEYS.map(k => `<span>${STAT_LABELS[k]}</span><i><s style="width:${Math.min(100, st[k] / (level >= 50 ? 3.2 : 2.6))}%"></s></i><em>${st[k]}</em>`).join('');
   const abil = [['Attack', K.basic.name], ['Special', K.special.name], ['Dash', K.dash.name + ': ' + K.dash.note], ['Guard', K.guard.name + ': ' + K.guard.note], ['Mega Shot', K.mega.name + ': ' + K.mega.note]];
-  return `<div class="at-box${compact ? ' compact' : ''}"><div class="at-stats"><div class="pv-stats">${bars}</div><small>Stats at Lv${level} · total ${total}${sp.drop ? (sp.drop.top ? ' · +25% hero bonus' : ' · +15% hero bonus') : sp.legendary ? ' · +20% legendary bonus' : ''}</small></div>
+  return `<div class="at-box${compact ? ' compact' : ''}"><div class="at-stats"><div class="pv-stats">${bars}</div><small>Stats at Lv${level} · total ${total}${sp.starter ? ' · +20% starter bender power' : sp.bender ? (sp.elite ? ' · +80% elite bender power' : ' · +55% bender power') : sp.giftHero ? ' · +45% legend hero power' : sp.drop ? (sp.drop.top ? ' · +25% hero bonus' : ' · +15% hero bonus') : sp.legendary ? ' · +20% legendary bonus' : ''}</small></div>
     <details class="at-abil"${compact ? '' : ' open'}><summary>Abilities &amp; passive</summary><ul>${abil.map(([k, v]) => `<li><b>${k}</b> ${esc(v)}</li>`).join('')}<li><b>Passive</b> ${esc(sp.cls.passive)}</li></ul></details></div>`;
 }
 
@@ -69,8 +69,15 @@ if (col) {
 const mk = q('pvMarket');
 const dropBox = el('div', { id: 'v5Drop', className: 'panel' });
 if (mk) mk.insertBefore(dropBox, mk.children[1] || null);
-let dropData = null, dropAt = 0, offset = 0;
-async function loadDrop() { try { dropData = await S.drop(); offset = dropData.now - Date.now(); dropAt = Date.now(); renderDrop(); } catch { dropBox.innerHTML = '<div class="pv-empty">The drop is unavailable right now.</div>'; } }
+let dropData = null, dropAt = 0, offset = 0, card = null;
+// Card price: the same price as in SOL, in dollars at the live SOL price (Stripe's minimum is $0.50)
+const usdOf = lam => '$' + (Math.max(50, Math.round(Number(lam) / 1e9 * (card?.solUsd || 0) * 100)) / 100).toFixed(2);
+const cardBtn = (sid, lam) => card?.enabled && card.solUsd ? `<button class="smallbtn pay-card" data-card="${sid}">💳 Pay with card · ${usdOf(lam)}</button>` : '';
+function wireCard(box) { box.querySelectorAll('[data-card]').forEach(b => b.onclick = () => busy(b, async () => {
+  if (!S.session()) throw Error('Sign in first (top right): a free account or Phantom both work for card payments.');
+  const sp = SPECIES[Number(b.dataset.card)]; if (!confirm(`Pay for ${sp.name} with a debit or credit card? You'll go to Stripe's secure checkout and come back here.`)) return;
+  await S.cardBuy(sp.id); })); }
+async function loadDrop() { try { if (!card) card = await S.cardStatus().catch(() => ({ enabled: false })); dropData = await S.drop(); offset = dropData.now - Date.now(); dropAt = Date.now(); renderDrop(); } catch { dropBox.innerHTML = '<div class="pv-empty">The drop is unavailable right now.</div>'; } }
 function left() {
   const ms = Math.max(0, dropData.endsAt - (Date.now() + offset)), d = Math.floor(ms / 864e5), h = Math.floor(ms / 36e5) % 24, m = Math.floor(ms / 6e4) % 60, s = Math.floor(ms / 1000) % 60;
   return ms ? `${d}d ${String(h).padStart(2, '0')}h ${String(m).padStart(2, '0')}m ${String(s).padStart(2, '0')}s` : 'Ended';
@@ -84,13 +91,13 @@ function renderDrop() {
       <b>${esc(sp.name)}</b><small>${esc(sp.type)} · ${esc(sp.cls.label)} · Lv1</small>${attrHtml(sp, 1, true)}
       ${h.sold ? `<span class="pv-chip ok">Sold${h.owner ? ' · ' + esc(short(h.owner)) + (h.owner === me ? ' (you)' : '') : ''}</span>`
         : ended ? '<span class="pv-chip">Drop ended</span>'
-        : `<button class="primary" data-buy="${h.speciesId}" ${h.held ? 'disabled' : ''}>${h.held ? 'Being bought…' : 'Buy · ' + sol(h.priceLamports) + ' SOL'}</button>`}</div>`; };
+        : `<button class="primary" data-buy="${h.speciesId}" ${h.held ? 'disabled' : ''}>${h.held ? 'Being bought…' : 'Buy · ' + sol(h.priceLamports) + ' SOL'}</button>${h.held ? '' : cardBtn(h.speciesId, h.priceLamports)}`}</div>`; };
   dropBox.innerHTML = `<div class="dr-head"><div><div class="eyebrow">Launch drop · ${dropData.cluster === 'devnet' ? 'devnet test SOL' : 'SOL'}</div><h2>Superhero Drop</h2>
      <p class="pv-note">30 one-of-one hero Monstars. The top 5 are 1 SOL and stronger, the other 25 are 0.5 SOL. Each one hatches at level 1 and evolves into six hero forms. Buying needs Phantom.</p></div>
      <div class="dr-clock"><small>Ends in</small><b id="drClock">${left()}</b><small>${sold} / 30 sold</small></div></div>
     <h3 class="dr-sub">Top 5 · 1 SOL</h3><div class="dr-grid">${dropData.heroes.filter(h => h.top).map(card).join('')}</div>
     <h3 class="dr-sub">Heroes · 0.5 SOL</h3><div class="dr-grid">${dropData.heroes.filter(h => !h.top).map(card).join('')}</div>`;
-  renderShop();
+  renderShop(); wireCard(dropBox); renderUsd();
   dropBox.querySelectorAll('[data-buy]').forEach(b => b.onclick = () => busy(b, async () => {
     if (!S.session()) throw Error('Sign in with Phantom on the Arena tab to buy.');
     if (isAcct()) throw Error('The drop is paid in SOL. Sign out, then connect Phantom on the Arena tab to buy.');
@@ -113,7 +120,7 @@ function renderShop() {
       <b>${esc(sp.name)}</b><small>${h.female ? 'Air bender (girl)' : 'Air bender (boy)'} · ${esc(sp.cls.label)} · Lv1</small>
       <small class="sb-kit"><b>Special</b> ${esc(K.special.name)} · <b>Mega Shot</b> ${esc(K.mega.name)}${h.unique ? '<br>' + esc(K.mega.note) + '<br><b>Dash</b> ' + esc(K.dash.name) + ': ' + esc(K.dash.note) : ''}</small>${attrHtml(sp, 1, true)}
       ${h.sold ? `<span class="pv-chip ok">Sold${h.owner ? ' · ' + esc(short(h.owner)) + (h.owner === me ? ' (you)' : '') : ''}</span>`
-        : `<button class="primary" data-sbuy="${h.speciesId}" ${h.held ? 'disabled' : ''}>${h.held ? 'Being bought…' : 'Buy · ' + sol(h.priceLamports) + ' SOL'}</button>`}</div>`; };
+        : `<button class="primary" data-sbuy="${h.speciesId}" ${h.held ? 'disabled' : ''}>${h.held ? 'Being bought…' : 'Buy · ' + sol(h.priceLamports) + ' SOL'}</button>${h.held ? '' : cardBtn(h.speciesId, h.priceLamports)}`}</div>`; };
   const shown = rest.filter(h => shopEl === 'all' || h.element === shopEl);
   shopBox.innerHTML = `<div class="dr-head"><div><div class="eyebrow">Market · ${dropData.cluster === 'devnet' ? 'devnet test SOL' : 'SOL'}</div><h2>Sky Bender Market</h2>
      <p class="pv-note">25 one-of-one air benders, boys and girls. Each also bends a second element: water, earth, fire or thunder (or pure air). Strong from level 1 and they evolve into six forms. Buying needs Phantom.</p></div>
@@ -121,6 +128,7 @@ function renderShop() {
     ${star ? `<h3 class="dr-sub">The final air bender · ${sol(star.priceLamports)} SOL</h3><div class="dr-grid sb-star">${card(star)}</div>` : ''}
     <div class="dx-chips sb-chips">${[['all', 'All'], ['air', 'Air'], ['water', 'Water'], ['earth', 'Earth'], ['fire', 'Fire'], ['thunder', 'Thunder']].map(([k, n]) => `<button class="smallbtn" data-sel="${k}" aria-pressed="${k === shopEl}">${n}</button>`).join('')}</div>
     <div class="dr-grid">${shown.map(card).join('')}</div>`;
+  wireCard(shopBox);
   shopBox.querySelectorAll('[data-sel]').forEach(b => b.onclick = () => { shopEl = b.dataset.sel; renderShop(); });
   shopBox.querySelectorAll('[data-sbuy]').forEach(b => b.onclick = () => busy(b, async () => {
     if (!S.session()) throw Error('Sign in with Phantom on the Arena tab to buy.');
@@ -130,6 +138,34 @@ function renderShop() {
     const m = await S.dropBuy(sid); toast(`${m.form || sp.name} is yours! Find it in the Arena picker.`); API.refreshMine?.(); loadDrop();
   }));
 }
+// ---------- Sell for dollars: list a Monstar for a card price; buyers pay with a card; you get 90% paid out by Stripe ----------
+const usdBox = el('div', { id: 'v5Usd', className: 'panel' });
+if (mk) mk.insertBefore(usdBox, shopBox.nextSibling);
+let usdData = null, payout = null;
+async function renderUsd() {
+  if (!card?.enabled) { usdBox.innerHTML = `<h2>Sell for dollars</h2><p class="pv-note">Card payments are being set up. Soon you can buy store Monstars with a debit card and resell your Monstars for dollars.</p>`; return; }
+  try { usdData = await S.usdListings(); } catch { return; }
+  if (S.session()) payout = await S.payoutsMe().catch(() => null);
+  const me = S.session()?.wallet, mine = (window.PMArenaApi?.mine?.() || []).filter(m => !m.asset && !usdData.listings.some(l => l.serial === m.serial));
+  usdBox.innerHTML = `<div class="dr-head"><div><div class="eyebrow">Player market · US dollars</div><h2>Sell For Dollars</h2>
+    <p class="pv-note">List a Monstar for a dollar price. Buyers pay with a debit or credit card. You get <b>90%</b>, the player it was born to gets <b>5%</b> royalty and PocketMonstars keeps 5% (it covers card fees). Payouts go to your bank through Stripe. Minted NFTs sell for SOL in the NFT market instead.</p></div></div>
+    ${!me ? '<p class="pv-note">Sign in (top right) to sell.</p>' : !payout?.ready ? `<button class="primary" id="usdConnect">${payout?.account ? 'Finish payout setup' : 'Get paid in dollars'}</button> <small class="muted">Stripe asks for your name and bank details (one time).</small>`
+      : `<div class="pv-row usd-sell"><select class="pv-input" id="usdPick">${mine.map(m => `<option value="${m.serial}">${esc(m.form || m.name)} · Lv${m.level}</option>`).join('')}</select><input class="pv-input" id="usdPrice" inputmode="decimal" placeholder="Price in $" style="max-width:110px"><button class="primary" id="usdList" ${mine.length ? '' : 'disabled'}>List for $</button></div>`}
+    <div class="dr-grid" style="margin-top:12px">${usdData.listings.map(l => { const sp = SPECIES[l.monstar.speciesId];
+      return `<div class="dr-card"><img src="art/hd/${sp.art}_s${l.monstar.stageId}.png" alt="${esc(sp.name)}" loading="lazy"><b>${esc(l.monstar.form || sp.name)}</b><small>${esc(sp.type)} · Lv${l.monstar.level} · #${l.serial}</small><small>Seller ${esc(short(l.seller))}</small>
+        ${l.seller === me ? `<button class="smallbtn" data-ucancel="${l.serial}">Remove · ${l.usd}</button>` : `<button class="primary" data-ubuy="${l.serial}">💳 Buy · ${l.usd}</button>`}</div>`; }).join('') || '<div class="pv-empty">No Monstars for sale in dollars yet.</div>'}</div>`;
+  const c = q('usdConnect'); if (c) c.onclick = () => busy(c, () => S.payoutsConnect());
+  const ls = q('usdList'); if (ls) ls.onclick = () => busy(ls, async () => { const r = await S.usdList(Number(q('usdPick').value), Number(q('usdPrice').value)); toast('Listed for ' + r.usd + '.'); renderUsd(); });
+  usdBox.querySelectorAll('[data-ucancel]').forEach(b => b.onclick = () => busy(b, async () => { await S.usdCancel(Number(b.dataset.ucancel)); renderUsd(); }));
+  usdBox.querySelectorAll('[data-ubuy]').forEach(b => b.onclick = () => busy(b, async () => { if (!S.session()) throw Error('Sign in first (top right).'); await S.usdBuy(Number(b.dataset.ubuy)); }));
+}
+// Back from Stripe Checkout: /play?paid=<session> -> hand over the Monstar
+(async () => { const id = new URLSearchParams(location.search).get('paid'); if (!id || !S.session()) return;
+  history.replaceState(null, '', location.pathname + location.hash);
+  for (let i = 0; i < 8; i++) { try { const r = await S.cardConfirm(id); if (r.pending) { await new Promise(x => setTimeout(x, 2500)); continue; }
+      if (r.ok) { toast(`Payment done! ${r.monstar.form || r.monstar.name} is yours. Find it in the Arena picker.`); API.refreshMine?.(); } else toast(r.error || 'Payment problem.', true);
+      loadDrop(); return; } catch (e) { toast(e.message, true); return; } }
+  toast('Your card payment is still processing. Your Monstar will appear in a minute.'); })();
 setInterval(() => { const c = q('drClock'); if (c && dropData) c.textContent = left(); if (dropData && Date.now() - dropAt > 30000 && !q('market')?.classList.contains('hidden')) loadDrop(); }, 1000);
 
 // ---------- Referral link + QR code ----------

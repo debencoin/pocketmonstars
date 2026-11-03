@@ -561,3 +561,5 @@ header{overflow:hidden}
 .sb-kit{display:block;line-height:1.35;margin:2px 0}
 .sb-star{grid-template-columns:minmax(0,320px)!important}
 .sb-star .dr-card>img{width:144px;height:168px}
+.dr-card .pay-card{width:100%;min-height:36px;margin-top:4px;font-weight:700}
+.usd-sell{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}.usd-sell select{flex:1;min-width:0}

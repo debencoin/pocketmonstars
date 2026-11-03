@@ -326,10 +326,10 @@ function renderTeamPick() {
 }
 // Every player starts with three Monstars (a wallet's three are picked from its address; a guest gets three at random).
 // Everything else is caught in the Wild Expedition.
-const STARTER_KEY = 'pm-guest-starters-v1';
-function guestStarters() {
+const STARTER_KEY = 'pm-guest-starters-v2';
+function guestStarters() { // a guest practises with one random Starter Bender (like a new account) plus two of the original nine for 3v3
   try { const v = JSON.parse(localStorage.getItem(STARTER_KEY) || 'null'); if (Array.isArray(v) && v.length === 3) return v; } catch {}
-  const v = Monstars.GENESIS_IDS.slice().sort(() => Math.random() - 0.5).slice(0, 3);
+  const ids = Monstars.STARTER_IDS, v = [ids[Math.floor(Math.random() * ids.length)], ...Monstars.GENESIS_IDS.slice().sort(() => Math.random() - 0.5).slice(0, 2)];
   try { localStorage.setItem(STARTER_KEY, JSON.stringify(v)); } catch {} return v;
 }
 const usableSpecies = sp => (S.session() && mine.length ? mine.some(m => m.speciesId === sp.id) : guestStarters().includes(sp.id));
@@ -383,7 +383,7 @@ function startPractice(opt = null) {
 }
 window.PMStartBattle = startPractice;
 window.PMArenaApi = {
-  afterSignIn: () => afterSignIn(), refreshMine: () => refreshMine(), toast, snap: () => snapCur,
+  afterSignIn: () => afterSignIn(), refreshMine: () => refreshMine(), toast, snap: () => snapCur, mine: () => mine,
   signedIn: () => !!S.session(),
   ownedPick: () => ownedFor(pickedSpecies) || mine[0] || null,
   // paid wild battle run by the server: it picks the wild Monstar, and a win can catch it
@@ -446,7 +446,7 @@ function onMsg(m) {
   if (m.t === 'hit') { setShares(m.shares, m); return; }
   if (['switch', 'status', 'ult', 'pickup', 'blocked', 'dash', 'guard', 'mega', 'quake'].includes(m.t)) { battleEvent({ ...m, type: m.t }); return; }
   if (m.t === 'miss' || m.t === 'level' || m.t === 'bonus') { battleEvent({ ...m, type: m.t }); if (m.t === 'level') refreshSoon(); return; }
-  if (m.t === 'end') { q('pvCapture').hidden = true; if (m.caught?.captured) toast('Captured! ' + (Monstars.SPECIES[m.caught.speciesId]?.name || 'It') + ' joined your team as an Infant.'); if (m.code) setTimeout(() => doneCodes.add(m.code), 60000); if (practiceMoney() && vLedger) { vLedger.finish(m.winner == null ? null : m.winner); shares = vLedger.shares.map(String); showShares(); } ended = { ...m, at: performance.now() }; refreshSoon(); if (room) room.state = room.stake === '0' ? 'done' : 'settling'; renderRoom(); return; }
+  if (m.t === 'end') { q('pvCapture').hidden = true; if (m.caught?.captured) toast('Captured! ' + (Monstars.SPECIES[m.caught.speciesId]?.name || 'It') + ' joined your team' + (m.caught.monstar?.level > 1 ? ' at Lv' + m.caught.monstar.level + '.' : ' as a level 1 Infant.')); if (m.code) setTimeout(() => doneCodes.add(m.code), 60000); if (practiceMoney() && vLedger) { vLedger.finish(m.winner == null ? null : m.winner); shares = vLedger.shares.map(String); showShares(); } ended = { ...m, at: performance.now() }; refreshSoon(); if (room) room.state = room.stake === '0' ? 'done' : 'settling'; renderRoom(); return; }
   if (m.t === 'settlement') { ended = { at: 0, ...(ended || {}), settlement: m }; if (room) room.state = m.ok ? (m.refund ? 'refunded' : 'settled') : 'needs review'; renderRoom(); refreshBalance(); return; }
   if (m.t === 'cancelled') { toast('Match cancelled (' + m.reason + ').' + (room?.players?.some(p => p.deposited) ? ' Deposits are being refunded.' : '')); if (room) room.state = 'cancelled'; renderRoom(); }
   if (m.t === 'left') { room = null; renderRoom(); }
@@ -540,7 +540,8 @@ function renderRoom() {
       const won = ended.winner === 0;
       if (room.wild) { const w = window.PMWild, c = ended.caught, wsp = Monstars.SPECIES[room.wild.speciesId ?? room.wild.foeId];
         q('pvBig').textContent = c?.ok ? 'Caught!' : won ? 'Victory!' : 'Defeated';
-        const line = c ? (c.ok ? `<b>You caught ${esc(wsp.name)}!</b> It hatched as an Infant and joined your ${wsp.mythic ? 'Mythic' : 'Frontier'} collection.`
+        const keepLv = !String(me || '').startsWith('@') && c?.monstar?.level > 1;
+        const line = c ? (c.ok ? `<b>You caught ${esc(wsp.name)}!</b> ${keepLv ? `It kept its level (Lv${c.monstar.level}) because you play with Phantom.` : 'It joined your team as a level 1 Infant (Phantom players keep the level they beat).'}`
             : won ? `${esc(wsp.name)} got away (${Math.round(c.chance * 100)}% catch chance for ${esc(c.tier)}).` : `${esc(wsp.name)} was too strong this time.`)
           : `Practice run. <b>Sign in and pay ${esc(w.feeSol())} SOL</b> to enter the wild for real and catch what you beat.`;
         q('pvSmall').innerHTML += '<br>' + line;

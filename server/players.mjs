@@ -14,6 +14,9 @@ export class Players {
       CREATE TABLE IF NOT EXISTS referral_payouts(match_id TEXT NOT NULL, referrer TEXT NOT NULL, user TEXT NOT NULL, lamports TEXT NOT NULL, created_at INTEGER NOT NULL, PRIMARY KEY(match_id, referrer));
       CREATE TABLE IF NOT EXISTS profiles(id TEXT PRIMARY KEY, avatar TEXT, updated_at INTEGER NOT NULL);
       CREATE TABLE IF NOT EXISTS avatar_sales(avatar TEXT PRIMARY KEY, buyer TEXT NOT NULL, signature TEXT NOT NULL UNIQUE, created_at INTEGER NOT NULL);
+      CREATE TABLE IF NOT EXISTS payout_accounts(user TEXT PRIMARY KEY, account TEXT NOT NULL);
+      CREATE TABLE IF NOT EXISTS usd_listings(serial INTEGER PRIMARY KEY, seller TEXT NOT NULL, cents INTEGER NOT NULL, created_at INTEGER NOT NULL);
+      CREATE TABLE IF NOT EXISTS card_orders(session TEXT PRIMARY KEY, kind TEXT NOT NULL, result TEXT, created_at INTEGER NOT NULL);
       CREATE TABLE IF NOT EXISTS drop_sales(species INTEGER PRIMARY KEY, buyer TEXT NOT NULL, signature TEXT NOT NULL UNIQUE, serial INTEGER, created_at INTEGER NOT NULL);
     `);
   }
@@ -69,6 +72,16 @@ export class Players {
     if (this.db.prepare('SELECT 1 FROM avatar_sales WHERE signature=?').get(signature)) throw Error('That payment was already used.');
     this.db.prepare('INSERT INTO avatar_sales(avatar,buyer,signature,created_at) VALUES(?,?,?,?)').run(avatar, buyer, signature, now);
   }
+
+  // ---------- card payments (Stripe) ----------
+  payoutAccount(user) { return this.db.prepare('SELECT account FROM payout_accounts WHERE user=?').get(user)?.account || null; }
+  setPayoutAccount(user, account) { this.db.prepare('INSERT OR REPLACE INTO payout_accounts(user,account) VALUES(?,?)').run(user, account); }
+  usdListing(serial) { return this.db.prepare('SELECT * FROM usd_listings WHERE serial=?').get(serial) || null; }
+  usdListings() { return this.db.prepare('SELECT * FROM usd_listings ORDER BY created_at DESC').all(); }
+  listUsd(serial, seller, cents, now = Date.now()) { this.db.prepare('INSERT OR REPLACE INTO usd_listings(serial,seller,cents,created_at) VALUES(?,?,?,?)').run(serial, seller, cents, now); }
+  unlistUsd(serial) { this.db.prepare('DELETE FROM usd_listings WHERE serial=?').run(serial); }
+  cardOrder(session) { return this.db.prepare('SELECT * FROM card_orders WHERE session=?').get(session) || null; }
+  recordCardOrder(session, kind, result, now = Date.now()) { this.db.prepare('INSERT OR IGNORE INTO card_orders(session,kind,result,created_at) VALUES(?,?,?,?)').run(session, kind, JSON.stringify(result), now); }
 
   // ---------- Superhero Drop ----------
   sale(species) { return this.db.prepare('SELECT * FROM drop_sales WHERE species=?').get(species) || null; }

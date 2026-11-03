@@ -3,7 +3,7 @@
 // Levels (EXP) are stored here; Legendary and Bred collections are created here too.
 import { createHash, randomBytes } from 'node:crypto';
 import { PublicKey } from '@solana/web3.js';
-import { HERO_IDS, SALE_IDS, legendaryIdsFor, nftArt, SPECIES, GENESIS_IDS, LEGENDARY_IDS, WILD_IDS, RARITIES, Monstar, traitsFromDna, traitSignature, composeDna, rarityIndex, expForLevel } from '../shared/monstars.mjs';
+import { HERO_IDS, SALE_IDS, STARTER_IDS, expForLevel as expAt, legendaryIdsFor, nftArt, SPECIES, GENESIS_IDS, LEGENDARY_IDS, WILD_IDS, RARITIES, Monstar, traitsFromDna, traitSignature, composeDna, rarityIndex, expForLevel } from '../shared/monstars.mjs';
 
 export function deriveDna(owner, speciesId, nonce) {
   return createHash('sha256').update(`pocketmonstars:dna:v1:${owner}:${speciesId}:${nonce}`).digest('hex');
@@ -13,10 +13,11 @@ export function deriveDna(owner, speciesId, nonce) {
 export const isAccount = id => typeof id === 'string' && id.startsWith('@');
 export const normOwner = id => (isAccount(id) ? id : new PublicKey(id).toBase58());
 /** Species a new player can start with: the Genesis nine plus every Common, Uncommon and Rare wild Monstar. */
-export const STARTER_POOL = SPECIES.filter(s => GENESIS_IDS.includes(s.id) || (WILD_IDS.includes(s.id) && ['Common', 'Uncommon', 'Rare'].includes(s.tier))).map(s => s.id);
+/** New players start with ONE Starter Bender (water, earth, fire, air or thunder), picked at random. */
+export const STARTER_POOL = STARTER_IDS.slice();
 /** Every new player gets ONE random Monstar from the pool (fixed per player, so it is the same after a server reset). */
 export function starterSpecies(owner) {
-  const h = createHash('sha256').update('pocketmonstars:starter:v2:' + owner).digest();
+  const h = createHash('sha256').update('pocketmonstars:starter:v3:' + randomBytes(8).toString('hex') + owner).digest();
   return [STARTER_POOL[h.readUInt32BE(0) % STARTER_POOL.length]];
 }
 
@@ -54,7 +55,7 @@ export class Registry {
   /** Give a wallet its own one-of-a-kind version of a Genesis species (one per species per wallet). Starts as an Infant. */
   claimGenesis(owner, speciesId) {
     owner = normOwner(owner);
-    if (!STARTER_POOL.includes(speciesId)) throw Error('Unknown species');
+    if (!STARTER_POOL.includes(speciesId) && !GENESIS_IDS.includes(speciesId)) throw Error('Unknown species');
     const existing = this.db.prepare('SELECT * FROM monstars WHERE origin_owner=? AND species=? AND genesis=1').get(owner, speciesId);
     if (existing) return this.toMonstar(existing);
     return this.insertUnique({ speciesId, originOwner: owner, owner, genesis: true, collection: SPECIES[speciesId].collection, dnaFor: n => deriveDna(owner, speciesId, n) });
@@ -112,11 +113,12 @@ export class Registry {
   }
 
   /** A wild Monstar caught in the Wild Expedition. It always hatches as an Infant with its own unique DNA. */
-  catchWild(owner, speciesId) {
+  /** A caught wild Monstar. Phantom wallets keep the level it had when they beat it; username accounts get it as a level 1 Infant. */
+  catchWild(owner, speciesId, level = 1) {
     owner = normOwner(owner);
     if (!WILD_IDS.includes(speciesId)) throw Error('That is not a wild species.');
-    const seed = randomBytes(8).toString('hex'), sp = SPECIES[speciesId];
-    return this.insertUnique({ speciesId, originOwner: owner, owner, genesis: false, collection: sp.collection, exp: 0,
+    const seed = randomBytes(8).toString('hex'), sp = SPECIES[speciesId], keep = !owner.startsWith('@') && level > 1;
+    return this.insertUnique({ speciesId, originOwner: owner, owner, genesis: false, collection: sp.collection, exp: keep ? expAt(Math.min(100, Math.floor(level))) : 0,
       dnaFor: n => createHash('sha256').update(`pocketmonstars:wild:${owner}:${speciesId}:${seed}:${n}`).digest('hex') });
   }
 

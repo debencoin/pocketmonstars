@@ -262,7 +262,7 @@ test('wild: rarity tiers are weighted and rarer species are stronger', async () 
   assert.ok(god.stats.hp > common.stats.hp * 1.5 && god.level === 1 && TIERS.Divine.catch < TIERS.Common.catch);
 });
 
-test('wild: paid entry is checked once, the server runs the battle, a win can catch the wild Monstar as an Infant', async () => {
+test('wild: paid entry is checked once, the server runs the battle, a win can catch the wild Monstar (wallets keep its level)', async () => {
   const db = openDb(':memory:'), registry = new Registry(db), chain = new MockChain();
   const mm = new MatchManager({ db, registry, chain, config: { treasury: wallet(), wildFeeLamports: 100_000n, disconnectGraceMs: 1e9, depositTimeoutMs: 1e9 } });
   const a = wallet(), [ma] = registry.claimAll(a);
@@ -282,7 +282,7 @@ test('wild: paid entry is checked once, the server runs the battle, a win can ca
   }
   assert.ok(caught, 'caught something within 40 wins');
   const m = registry.get(caught.monstar.serial);
-  assert.equal(m.owner, a); assert.equal(m.level, 1); assert.equal(m.stage.name, 'Infant'); assert.ok(['genesis', 'frontier', 'mythic', 'anunnaki', 'watchers'].includes(m.collection));
+  assert.equal(m.owner, a); assert.ok(m.level > ma.level || m.level === 1, 'a Phantom wallet keeps the level it beat'); assert.ok(['genesis', 'frontier', 'mythic', 'anunnaki', 'watchers', 'starters', 'benders'].includes(m.collection));
 });
 
 test('3v3 rooms: both players bring three, the server runs a team match and saves EXP for every member used', async () => {
@@ -320,12 +320,12 @@ test('powers do things: levitation lifts and carries the rival, freeze stops it,
   assert.ok(f.hp < hp0 && dots > 0, 'burn deals damage over time');
 });
 
-test('starters: every new player (wallet or username) gets one random Monstar from the starter list', async () => {
+test('starters: every new player (wallet or username) gets one random Starter Bender (one of five elements)', async () => {
   const { STARTER_POOL } = await import('../server/registry.mjs');
   const reg = new Registry(openDb(':memory:'));
   const sets = new Set();
-  for (let i = 0; i < 12; i++) { const ms = reg.claimAll(i % 2 ? wallet() : '@player' + i); assert.equal(ms.length, 1); assert.ok(STARTER_POOL.includes(ms[0].species.id)); sets.add(ms[0].species.id); }
-  assert.ok(sets.size > 4, 'starters vary between players');
+  for (let i = 0; i < 24; i++) { const ms = reg.claimAll(i % 2 ? wallet() : '@player' + i); assert.equal(ms.length, 1); assert.ok(STARTER_POOL.includes(ms[0].species.id)); sets.add(ms[0].species.id); }
+  assert.ok(sets.size >= 3, 'starters vary between players'); assert.equal(STARTER_POOL.length, 5); assert.ok(STARTER_POOL.every(id => SPECIES[id].bender && SPECIES[id].collection === 'starters'));
   assert.ok(!STARTER_POOL.some(id => SPECIES[id].hero || SPECIES[id].legendary || ['Mythic', 'Divine', 'Epic'].includes(SPECIES[id].tier)));
 });
 test('hit fees: tiny, grow with level, stats and move power, never above 0.00001 SOL', async () => {
@@ -351,7 +351,7 @@ test('founder wallet holds the 20 Ascendants as elite level 1 Infants', async ()
   const founder = wallet(), reg = new Registry(openDb(':memory:'), { legendaryOwner: founder });
   const asc = reg.claimAll(founder).filter(m => m.collection === 'ascendants');
   assert.equal(asc.length, 20); assert.ok(asc.every(m => m.level === 1));
-  const normal = reg.claimAll(wallet())[0]; assert.ok(asc[0].stats.hp > normal.stats.hp, 'elite Infant beats a normal Infant');
+  const normal = reg.claimGenesis(wallet(), asc[0].species.id === 0 ? 1 : 0); assert.ok(asc.some(a => a.stats.hp > normal.stats.hp), 'elite Infants beat a normal Infant');
   assert.ok(SPECIES[asc[0].species.id].walker && nftArt(SPECIES[asc[0].species.id]).endsWith('.png'));
   assert.equal(reg.claimAll(wallet()).some(m => m.collection === 'ascendants'), false);
 });
@@ -463,4 +463,22 @@ test('gift wallet gets the three strongest Monstars once, as elite Legendary hat
   assert.equal(a.length, 4); assert.equal(b.length, 4, 'no duplicates on second sign-in');
   assert.deepEqual(a.slice(1).map(m => m.species.name), ['Aeonox', 'Anuvax', 'Semyazar']);
   assert.ok(a.slice(1).every(m => m.traits.rarity === 'Legendary'));
+});
+
+test('wild levels: always above your Monstar; special ones at least 2 up with a rare level 1; Phantom keeps the caught level, accounts get Lv1', async () => {
+  const M = await import('../shared/monstars.mjs');
+  const anu = M.SPECIES.find(s => s.collection === 'anunnaki'), plain = M.SPECIES.find(s => s.collection === 'frontier' && s.tier === 'Common');
+  let ones = 0;
+  for (let i = 0; i < 4000; i++) { assert.ok(M.wildLevel(plain, 10) >= 11); const l = M.wildLevel(anu, 10); if (l === 1) ones++; else assert.ok(l >= 12); }
+  assert.ok(ones > 10 && ones < 90, 'about 1% special level 1: ' + ones);
+  assert.ok(M.WILD_IDS.some(id => M.SPECIES[id].bender) && !M.WILD_IDS.some(id => M.SPECIES[id].elite || M.SPECIES[id].drop));
+  const reg = new Registry(openDb(':memory:')), sid = M.WILD_IDS.find(id => M.SPECIES[id].collection === 'benders');
+  assert.equal(reg.catchWild(wallet(), sid, 17).level, 17);
+  assert.equal(reg.catchWild('@freeplayer', sid, 17).level, 1);
+});
+test('SOL per hit follows damage: a big hit moves more than a weak tick', async () => {
+  const { StakeLedger } = await import('../shared/stake.mjs');
+  const L = new StakeLedger(1_000_000n), ev = { lvl: 10, atk: 120, pw: 12 };
+  const big = L.hit(0, 30, 200, ev), tick = L.hit(1, 2, 200, { ...ev, kind: 'status' });
+  assert.ok(big > tick * 10n, `${big} vs ${tick}`);
 });

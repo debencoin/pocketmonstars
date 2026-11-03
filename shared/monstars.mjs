@@ -1,5 +1,5 @@
 import { kitFor, GUARD_KINDS } from './abilities.mjs';
-import { FRONTIER, MYTHIC, ANUNNAKI, WATCHERS, ASCENDANTS, ROYALS, HEROES, BENDERS, LEGEND_HEROES, SKY_BENDERS, FINAL_BENDERS, TIERS } from './frontier.mjs';
+import { FRONTIER, MYTHIC, ANUNNAKI, WATCHERS, ASCENDANTS, ROYALS, HEROES, BENDERS, LEGEND_HEROES, SKY_BENDERS, FINAL_BENDERS, STARTER_BENDERS, TIERS } from './frontier.mjs';
 // PocketMonstars species, classes, evolution stages, EXP and DNA traits.
 // Pure ES module: runs in the browser (rendering) and in Node (authoritative server).
 // The server derives DNA; this file only turns a DNA hex string into traits and stats.
@@ -128,6 +128,7 @@ export const COLLECTIONS = {
   royals: { name: 'Royal Anunnaki', note: 'Queen Ninshara and her court: eight legendaries held by the second founder wallet. Never found in the wild.' },
   benders: { name: 'Elemental Benders', note: 'Masters of water, earth, fire, air and thunder. Gifted to chosen players only. Never found in the wild.' },
   legendheroes: { name: 'Legend Heroes', note: 'Fifteen superheroes with their own signature powers, gifted to chosen players. Never found in the wild.' },
+  starters: { name: 'Starter Benders', note: 'Every new player starts with one of these five, one per element, picked at random. They also roam the wild.' },
   skybenders: { name: 'Sky Benders', note: 'Air benders. Some are gifted, 25 are sold in the market (each also bends fire, water, earth or thunder), and COVO and COVA bend all five elements.' },
   heroes: { name: 'Superhero Drop', note: 'Thirty original heroes sold once each in the 30-day launch drop. The top five are stronger. Never found in the wild.' },
   ascendants: { name: 'Ascendants', note: 'Twenty legendary portraits held by the founder wallet. Never found in the wild.' },
@@ -146,9 +147,9 @@ export const SPECIES = [
   { id: 9, name: 'Seraphon', type: 'ASTRAL', art: 'seraphon', cls: Seraph, move: 'Holy lance', special: 'Heaven\'s judgment', basicStyle: 'bolt', specialStyle: 'strike', motion: 'hover', collection: 'legendary', legendary: true, color: '#f4f0ff' },
   { id: 10, name: 'Psyvolt', type: 'PSYCHIC', art: 'psyvolt', cls: Psion, move: 'Psy orb', special: 'Levitation storm', basicStyle: 'projectile', specialStyle: 'levitate', motion: 'hover', collection: 'legendary', legendary: true, color: '#c9a6ff' },
 ];
-for (const [list, coll] of [[FRONTIER, 'frontier'], [MYTHIC, 'mythic'], [ANUNNAKI, 'anunnaki'], [WATCHERS, 'watchers'], [ASCENDANTS, 'ascendants'], [ROYALS, 'royals'], [HEROES, 'heroes'], [BENDERS, 'benders'], [LEGEND_HEROES, 'legendheroes'], [SKY_BENDERS, 'skybenders'], [FINAL_BENDERS, 'skybenders']]) for (const f of list) {
+for (const [list, coll] of [[FRONTIER, 'frontier'], [MYTHIC, 'mythic'], [ANUNNAKI, 'anunnaki'], [WATCHERS, 'watchers'], [ASCENDANTS, 'ascendants'], [ROYALS, 'royals'], [HEROES, 'heroes'], [BENDERS, 'benders'], [LEGEND_HEROES, 'legendheroes'], [SKY_BENDERS, 'skybenders'], [FINAL_BENDERS, 'skybenders'], [STARTER_BENDERS, 'starters']]) for (const f of list) {
   SPECIES.push({ id: SPECIES.length, name: f.name, type: f.type, art: f.name.toLowerCase(), cls: CLASS_BY_ID[f.cls], move: f.move, special: f.special,
-    basicStyle: f.basicStyle, specialStyle: f.specialStyle, motion: f.motion, collection: coll, tier: f.tier, mythic: ['Mythic', 'Divine'].includes(f.tier) || undefined, legendary: f.legendary || undefined, legendFor: f.legendFor, portrait: f.look.plan === 'portrait' || undefined, walker: f.look.plan === 'walker' || undefined, forms: f.forms || (f.look.plan === 'walker' ? walkerForms(f.name) : undefined), hero: f.hero, drop: f.drop, bender: f.bender, elite: f.elite, giftHero: f.giftHero, sky: f.sky, el2: f.el2, female: f.female, unique: f.unique, speedBoost: f.speedBoost, sig: f.sig, color: f.look.main });
+    basicStyle: f.basicStyle, specialStyle: f.specialStyle, motion: f.motion, collection: coll, tier: f.tier, mythic: ['Mythic', 'Divine'].includes(f.tier) || undefined, legendary: f.legendary || undefined, legendFor: f.legendFor, portrait: f.look.plan === 'portrait' || undefined, walker: f.look.plan === 'walker' || undefined, forms: f.forms || (f.look.plan === 'walker' ? walkerForms(f.name) : undefined), hero: f.hero, drop: f.drop, bender: f.bender, elite: f.elite, giftHero: f.giftHero, sky: f.sky, el2: f.el2, female: f.female, unique: f.unique, starter: f.starter, speedBoost: f.speedBoost, sig: f.sig, color: f.look.main });
 }
 export { TIERS };
 /** Ascendants evolve into a different character at every stage, each with its own name. */
@@ -207,7 +208,23 @@ export const ANUNNAKI_IDS = SPECIES.filter(s => s.collection === 'anunnaki').map
 export const WATCHER_IDS = SPECIES.filter(s => s.collection === 'watchers').map(s => s.id);
 // Genesis species roam the wild too, so players can catch the ones they didn't start with.
 for (const id of GENESIS_IDS) SPECIES[id].tier = 'Uncommon';
-export const WILD_IDS = [...GENESIS_IDS, ...FRONTIER_IDS, ...MYTHIC_IDS, ...ANUNNAKI_IDS, ...WATCHER_IDS];
+/** Benders roam the wild too: the five Starter Benders (Rare) and the Elemental Benders (Epic; Tempestro stays one of a kind). */
+export const STARTER_IDS = SPECIES.filter(s => s.collection === 'starters').map(s => s.id);
+for (const id of STARTER_IDS) SPECIES[id].tier = 'Rare';
+export const WILD_BENDER_IDS = SPECIES.filter(s => s.collection === 'benders' && !s.elite).map(s => s.id);
+for (const id of WILD_BENDER_IDS) SPECIES[id].tier = 'Epic';
+export const WILD_IDS = [...GENESIS_IDS, ...FRONTIER_IDS, ...MYTHIC_IDS, ...ANUNNAKI_IDS, ...WATCHER_IDS, ...STARTER_IDS, ...WILD_BENDER_IDS];
+/** "Special" wild Monstars (Anunnaki, benders, mythics): always above your level, except a 1% chance of a level 1 one. */
+export const isSpecialWild = sp => ['anunnaki', 'benders', 'starters', 'mythic'].includes(sp.collection);
+/**
+ * Level of a wild Monstar met by a player whose Monstar is level `myLevel`. Always above you: usually 1-3 levels up,
+ * sometimes much more. Special ones are always at least 2 up, except a rare (1%) level 1 one. `rand` is () => 0..1.
+ */
+export function wildLevel(sp, myLevel = 1, rand = Math.random, floor = 1) {
+  const extra = Math.min(12, Math.floor(-Math.log(1 - rand() * 0.999) * 1.4)); // 0 most often, a few big jumps
+  if (isSpecialWild(sp)) return rand() < 0.01 ? 1 : Math.max(floor, myLevel + 2 + extra + (TIERS[sp.tier]?.lvl > 6 ? 1 : 0));
+  return Math.max(floor, myLevel + 1 + extra);
+}
 /** Weighted random wild species (rarer tiers show up less often). `rand` is 0..1. */
 export function rollWild(rand = Math.random()) {
   const total = WILD_IDS.reduce((t, id) => t + TIERS[SPECIES[id].tier].weight / tierCount(SPECIES[id].tier), 0);
@@ -334,8 +351,8 @@ export class Monstar {
 /** Stats for a Monstar at any level: base + DNA rolls, grown by level and evolution stage, shaped by nature. */
 export function statsAt(m, level) {
   const nat = NATURES.find(n => n.name === m.traits.nature) || NATURES[7];
-  const elite = m.species.bender ? (m.species.elite ? 1.8 : 1.55) : m.species.giftHero ? 1.45 : m.species.legendary ? 1.2 : m.species.drop ? (m.species.drop.top ? 1.25 : 1.15) : 1; // founder legendaries: elite Infants, 20% stronger at every level
-  const st = stageFor(level), growth = (1 + (level - 1) * 0.03) * (TIERS[m.species.tier]?.mult || 1) * elite; // rarer wild species are stronger
+  const elite = m.species.starter ? 1.2 : m.species.bender ? (m.species.elite ? 1.8 : 1.55) : m.species.giftHero ? 1.45 : m.species.legendary ? 1.2 : m.species.drop ? (m.species.drop.top ? 1.25 : 1.15) : 1; // founder legendaries: elite Infants, 20% stronger at every level
+  const st = stageFor(level), growth = (1 + (level - 1) * 0.03) * (m.species.bender ? 1 : TIERS[m.species.tier]?.mult || 1) * elite; // benders' wild tier only sets how often they show up // rarer wild species are stronger
   const out = {};
   STAT_KEYS.forEach((k, i) => {
     let v = (m.cls.base[i] + m.traits.ivs[i] + m.traits.rarityBonus) * growth * st.mult;

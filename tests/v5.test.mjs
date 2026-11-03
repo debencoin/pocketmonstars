@@ -159,13 +159,13 @@ test('Neferion Storm Orbs: 7 homing lightning balls; the first hit stuns; a riva
 test('Elemental Benders: gifted wallets get their benders (Tempestro only to q2xb…); Sky Splitter strikes all land on a still rival', async () => {
   const { gifts } = CONFIG, reg = new Registry(openDb(':memory:'), { gifts });
   const q = reg.claimAll('q2xb75XhmJ7HL8PYMMFUsanusoakBtMXfYqdqUkHjUW'), names = q.map(m => m.species.name);
-  assert.ok(names.includes('Tempestro') && names.filter(n => SPECIES.find(s => s.name === n).bender).length === 11);
+  assert.ok(names.includes('Tempestro') && names.filter(n => SPECIES.find(s => s.name === n).collection === 'benders').length === 11);
   const f = reg.claimAll(CONFIG.legendaryOwner).filter(m => m.species.collection === 'benders').map(m => m.species.type).sort();
   assert.deepEqual(f, ['EMBER', 'GALE', 'SPARK', 'STONE', 'TIDE'], 'founder: one bender of each element');
   const g = reg.claimAll('7psxmCxFNHQztUP9SahuGDShSU4y1JcufEugtFgkgwTx');
   assert.equal(g.filter(m => m.species.collection === 'benders').length, 10); assert.equal(g.filter(m => m.species.collection === 'anunnaki').length, 11); // 10 + Anuvax
   assert.ok(!g.some(m => m.species.name === 'Tempestro'));
-  assert.equal(reg.claimAll(Keypair.generate().publicKey.toBase58()).filter(m => m.species.bender).length, 0);
+  assert.equal(reg.claimAll(Keypair.generate().publicKey.toBase58()).filter(m => m.species.collection === 'benders').length, 0);
   const S = await import('../shared/sim.mjs'), t = SPECIES.find(s => s.name === 'Tempestro'); assert.equal(t.kit.mega.kind, 'thunderstrike');
   const { Monstar } = await import('../shared/monstars.mjs');
   const m = S.createMatch(new Monstar({ speciesId: t.id, level: 20 }), new Monstar({ speciesId: 3, level: 20 }), { auto: false });
@@ -187,7 +187,7 @@ test('Aerokai: Tornado Gust grabs every rival, slams them (damage) and dazes the
   assert.ok(shots.every(n => n === 3 || n === 4));
   assert.ok(new Monstar({ speciesId: A.id, level: 1 }).stats.attack > new Monstar({ speciesId: 3, level: 1 }).stats.attack * 1.5, 'benders are powerful at level 1');
   const reg = new Registry(openDb(':memory:'), { gifts: { '@a': [A.id], '@b': [SPECIES.find(s => s.name === 'Pyreska').id] } });
-  const [pa] = reg.claimAll('@a').filter(x => x.species.bender), [pb] = reg.claimAll('@b').filter(x => x.species.bender);
+  const [pa] = reg.claimAll('@a').filter(x => x.species.collection === 'benders'), [pb] = reg.claimAll('@b').filter(x => x.species.collection === 'benders');
   const kids = reg.breed({ a: pa, b: pb }); assert.ok(kids.every(k => k.species.bender && k.fusion != null));
   const pyKid = kids.find(k => k.species.name === 'Pyreska'); if (pyKid) assert.equal(reg.get(pyKid.serial).kit.mega.kind, 'tornado', 'the fire baby inherits the tornado');
 });

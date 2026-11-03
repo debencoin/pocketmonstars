@@ -249,3 +249,12 @@ Stats: HP, Attack, Defense, Sp. Atk, Sp. Def, Speed. Types: EMBER, GROVE, TIDE, 
 - Legend Heroes (15, gifted): founder Aurorex, Titanor, Phantomir, Pyronyx, Chronar; 7psx… Stormvane, Bulwarkus, Venomaw, Quasarion, Gorrath; 54y4… heroines Starlara, Lumivra, Frostelle, Blazara, Sylphra.
 - Sky Benders: 7psx… Galdris, Skyvar, Windrik, Aeromar, Cyrran; 54y4… Aerisa, Sylvane, Zephra, Windara, Skylis; 25 in the Sky Bender Market at 1 SOL (memo PMDROP:<id>, rebuilt from the chain like the drop).
 - COVO (founder) and COVA (market, 10 SOL): Fire Gust attack (burns), Ice Balls special (freeze), long teleport dash, +35% speed, Five Element Storm mega (`omnistorm`): wind grab, fire gust, lightning, hail, ice wave at 12% each = 60%, then a returning bolt heals 10%. They never breed copies or pass the storm on.
+
+## v36: Starter Benders, wild level rules, card payments and dollar resale
+- New players (username accounts and Phantom wallets) start with ONE random Starter Bender: Aquari (water), Rokko (earth), Blazen (fire), Gusti (air) or Voltz (thunder). Existing players keep what they have.
+- The wild now holds the 5 Starter Benders (Rare) and the 10 Elemental Benders (Epic; Tempestro stays one of a kind), alongside the Anunnaki. 118 wild species.
+- Wild levels (`wildLevel`): always above your Monstar, usually +1 to +3, sometimes far more; Anunnaki, benders and mythics at least +2, with a 1% chance of a level 1 one. Same for free, card and Phantom players. The zone minimum still applies.
+- Catching: Phantom wallets keep the level they beat; username accounts get a level 1 Infant.
+- Card payments (server/stripe.mjs, off until STRIPE_SECRET_KEY is set): Stripe Checkout for every store Monstar at the same price as in SOL, converted at the live SOL price (or PM_SOL_USD). Fulfilled by /api/card/confirm on return and by the signed webhook /api/stripe/webhook; a double sale is refunded. Paid sessions to Phantom wallets are replayed after a reset.
+- Sell for dollars: sellers connect a Stripe Express payout account, list an unminted Monstar ($1-$10,000); buyers pay by card; the Monstar moves and Stripe transfers 90% to the seller and 5% royalty to the creator (if they have a payout account); PocketMonstars keeps 5%.
+- SOL per hit is tied to the damage the hit did (v35) and tested.

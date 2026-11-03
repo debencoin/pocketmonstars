@@ -4,7 +4,7 @@
   "type": "module",
   "scripts": {
     "build": "node scripts/build.mjs",
-    "test": "node tests/game-mechanics.cjs && node --test tests/protocol.test.mjs tests/pvp.test.mjs tests/v5.test.mjs",
+    "test": "node tests/game-mechanics.cjs && node --test tests/protocol.test.mjs tests/pvp.test.mjs tests/v5.test.mjs tests/card.test.mjs",
     "start": "node server/index.mjs",
     "dev": "node server/index.mjs",
     "dev:static": "node scripts/dev-server.mjs",

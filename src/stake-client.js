@@ -149,6 +149,17 @@ export async function dropBuy(speciesId) {
   const signature = await signAndSend(transaction);
   for (let i = 0; ; i++) { try { return await api('/api/drop/confirm', { speciesId, signature }); } catch (e) { if (i >= 6 || !/not (found|confirmed) yet/i.test(e.message)) throw e; await new Promise(r => setTimeout(r, 3000)); } }
 }
+// ---------- Card payments (Stripe) and dollar resale ----------
+export const cardStatus = () => api('/api/card/status');
+/** Opens Stripe Checkout for a store Monstar (same price as in SOL, in dollars). Comes back to /play?paid=<session>. */
+export async function cardBuy(speciesId) { const { url } = await api('/api/card/checkout', { speciesId }); location.href = url; }
+export const cardConfirm = session => api('/api/card/confirm', { session });
+export const payoutsMe = () => api('/api/payouts/me');
+export async function payoutsConnect() { const { url } = await api('/api/payouts/connect', {}); location.href = url; }
+export const usdListings = () => api('/api/usd/listings');
+export const usdList = (serial, priceUsd) => api('/api/usd/list', { serial, priceUsd });
+export const usdCancel = serial => api('/api/usd/cancel', { serial });
+export async function usdBuy(serial) { const { url } = await api('/api/usd/buy', { serial }); location.href = url; }
 // ---------- Profile avatars ----------
 export const profile = () => api('/api/profile/me');
 export const setAvatar = avatar => api('/api/profile/avatar', { avatar });
@@ -165,4 +176,4 @@ export const qrDataUrl = text => QRCode.toDataURL(text, { margin: 1, width: 240,
 export const explorer = sig => `https://explorer.solana.com/tx/${sig}?cluster=devnet`;
 
 if (typeof window !== 'undefined') window.PMStake = { signIn, session, balance, getConfig, myMonstars, mint, syncOwner, listings, list, cancelListing, buy,
-  connectSocket, deposit, explorer, phantomBrowseLink, breedCreate, breedJoin, breedStatus, breedPay, wildPay, signOut, accountRegister, accountLogin, drop, dropBuy, profile, setAvatar, avatars, avatarBuy, referrals, referralLink, qrDataUrl, Monstars, Stake, ARENA, Sim };
+  connectSocket, deposit, explorer, phantomBrowseLink, breedCreate, breedJoin, breedStatus, breedPay, wildPay, signOut, accountRegister, accountLogin, drop, dropBuy, cardStatus, cardBuy, cardConfirm, payoutsMe, payoutsConnect, usdListings, usdList, usdCancel, usdBuy, profile, setAvatar, avatars, avatarBuy, referrals, referralLink, qrDataUrl, Monstars, Stake, ARENA, Sim };
