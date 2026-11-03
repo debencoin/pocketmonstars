@@ -125,7 +125,7 @@ async function renderProfile(me) {
   const av = myProfile.avatar;
   prof.innerHTML = `<button class="v6-av" id="v6AvBtn" aria-label="Change avatar">${av ? `<img src="${esc(av.img)}" alt="">` : '<span>?</span>'}<i>✎</i></button>
     <div class="v6-prof-main"><span class="v6-conn">● ${wallet ? 'Phantom connected' : 'Signed in · free account'}</span><b>${esc(shortId(me))}</b>
-    <small>${av ? 'Avatar: ' + esc(av.name) : 'Pick an avatar'}${wallet ? '<span id="v6Bal"></span>' : ''}</small></div>
+    <small>${av ? 'Avatar: ' + esc(av.name) : 'Pick an avatar'}${wallet ? '<span id="v6Bal"></span>' : ''}</small>${myProfile.record ? `<span class="v6-rec">Record <b>${myProfile.record.wins}W – ${myProfile.record.losses}L</b>${myProfile.record.draws ? ' – ' + myProfile.record.draws + 'D' : ''} · vs players ${myProfile.record.pvpWins}–${myProfile.record.pvpLosses}</span>` : ''}</div>
     <button class="smallbtn" id="v6AvChange">Avatar</button>`;
   q('v6AvBtn').onclick = q('v6AvChange').onclick = openAvatars;
   if (wallet) S.balance(me).then(b => { const e = q('v6Bal'); if (e) e.textContent = ' · ' + (Number(b) / 1e9).toLocaleString(undefined, { maximumFractionDigits: 4 }) + ' SOL'; }).catch(() => {});

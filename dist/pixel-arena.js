@@ -237,7 +237,7 @@ function createRenderer(canvas, arena) {
     }
     ctx.globalAlpha = 1; fx = fx.filter(q => q.life > 0); if (fx.length > 400) fx = fx.slice(-400); LOG();
   }
-  const groundFor = th => (grounds[th] ||= buildGround(arena.rocks, th));
+  const groundFor = th => (grounds[th] ||= buildGround([], th)); // barriers and hazards are drawn per fight (random layout)
 
   function part(x, y, vx, vy, life, col, size = 1, grav = 0) { parts.push({ x, y, vx, vy, life, max: life, col, size, grav }); }
   function burst(x, y, pal, n = 10, spd = 40) { for (let i = 0; i < n; i++) { const a = Math.random() * 6.283, s = spd * (0.4 + Math.random()); part(x, y, Math.cos(a) * s, Math.sin(a) * s, 0.3 + Math.random() * 0.3, pal[1 + (i % 3)], Math.random() < 0.3 ? 2 : 1); } }
@@ -258,6 +258,12 @@ function createRenderer(canvas, arena) {
       wave(f.x * K, f.y * K + 6, '#ffd84a', 160); star(f.x * K, f.y * K - 10, '#ffd84a', 110, 24); return; }
     if (ev.type === 'dash') { const f = snap.f[ev.side]; if (!f) return; puffs(f.x * K, f.y * K, 6, ev.k === 'shadow' || ev.k === 'blink' ? '#b98cff' : ev.k === 'mend' ? '#9ef0c8' : '#e2d6bc', 40, 8, 0.5);
       if (ev.k === 'burst') say(f.x * K, f.y * K - 40, 'SPEED UP!', '#48d0ff', 1, 5); if (ev.k === 'mend') say(f.x * K, f.y * K - 40, 'HEAL', '#9ef0c8', 1, 5); return; }
+    if (ev.type === 'hazard') { const col = { water: '#5ec2ff', lava: '#ff6a1a', crack: '#c8a070' }[ev.k] || '#fff';
+      if (ev.k === 'water') puffs(ev.x * K, ev.y * K, 5, '#bfefff', 30, 6, 0.5); else if (ev.k === 'lava') { burst(ev.x * K, ev.y * K, ['#ff6a1a', '#ff6a1a', '#ffd23f', '#ff3b1f'], 8, 40); } else { chunks(ev.x * K, ev.y * K, 6, ['#6e5c44', '#8f7a5a', '#3a2e22']); shake = Math.max(shake, 0.15); }
+      say(ev.x * K, ev.y * K - 40, '-' + ev.damage + (ev.k === 'crack' ? ' ' + (ev.label || '') : ''), col, 0.9, 6); return; }
+    if (ev.type === 'earthquake') { shake = Math.max(shake, 0.6); wave(ev.x * K, ev.y * K + 6, '#c8a070', 200); chunks(ev.x * K, ev.y * K, 10, ['#6e5c44', '#8f7a5a', '#3a2e22'], 160);
+      banner = { txt: 'EARTHQUAKE!', sub: 'The ground cracked open', t: 1.3 }; return; }
+    if (ev.type === 'wallhit') { burst(ev.x * K, ev.y * K, ev.k === 'crystal' ? ['#bfefff', '#bfefff', '#ffffff', '#7ad8ff'] : ev.k === 'fence' ? ['#8a5a2a', '#8a5a2a', '#c8a070', '#5a3a1a'] : ['#8f8676', '#8f8676', '#b0a690', '#6e665a'], 8, 50); return; }
     if (ev.type === 'quake') { wave(ev.x * K, ev.y * K + 6, '#e2d6bc', 120); puffs(ev.x * K, ev.y * K, 12, '#d9c9a6', 70, 10, 0.7); chunks(ev.x * K, ev.y * K, 5); shake = Math.max(shake, 0.2); return; }
     if (ev.type === 'guard') { const f = snap.f[ev.side]; if (!f) return; say(f.x * K, f.y * K - 46, (ev.name || 'GUARD').toUpperCase(), GUARD_COL[ev.k] || '#48d0ff', 1.2, 5); if (ev.k === 'barrier') wave(f.x * K, f.y * K, '#48d0ff', 140); return; }
     if (ev.type === 'blocked') { const v = snap.f[ev.victim]; if (!v) return; say(v.x * K, v.y * K - 30, ev.guard === 'reflect' ? 'REFLECTED!' : 'BLOCKED!', '#48d0ff', 1.1, 7); wave(v.x * K, v.y * K - 6, '#48d0ff', 70); star(v.x * K, v.y * K - 10, '#bfefff', 50, 12); return; }
@@ -371,6 +377,31 @@ function createRenderer(canvas, arena) {
       if (!opt.extra) { ctx.fillStyle = opt.you ? '#9ef0c8' : '#ff6b6b'; ctx.beginPath(); ctx.moveTo(mx - 6 * U, my); ctx.lineTo(mx + 6 * U, my); ctx.lineTo(mx, my + 7 * U); ctx.fill(); }
     }
   }
+  // Arena hazards (water, lava, earthquake cracks) and barriers (stone pillars, wooden fences, ice crystals), logical coordinates
+  function drawLayout(L, now) {
+    if (!L) { for (const k of arena.rocks) { const cx = k.x * K, cy = k.y * K, rr = R(k.r * K); disc(cx, cy, rr, '#5e5a52'); disc(cx - 1, cy - 1, rr - 1, '#8a857a'); } return; }
+    const t = now / 1000;
+    for (const o of L.hz) { const cx = o.x * K, cy = o.y * K, rx = R(o.rx * K), ry = R(o.ry * K);
+      if (o.k === 'water') { ellipse(cx, cy + 1, rx + 1, ry + 1, '#1e4a7a'); ellipse(cx, cy, rx, ry, '#2a7ad0'); ellipse(cx - 2, cy - 1, R(rx * 0.75), R(ry * 0.65), '#3a90e0');
+        for (let i = 0; i < 3; i++) { const p = (t * 0.5 + i / 3) % 1; g.globalAlpha = 1 - p; ring(cx + (i - 1) * rx * 0.4, cy + (i % 2) * 2 - 1, R(2 + p * rx * 0.3), R(1 + p * ry * 0.3), '#bfefff'); } g.globalAlpha = 1;
+        px(cx - rx * 0.5, cy - ry * 0.4, 4, 1, '#dff6ff'); px(cx + rx * 0.2, cy + ry * 0.2, 3, 1, '#dff6ff'); }
+      else { ellipse(cx, cy + 1, rx + 1, ry + 1, '#3a1208'); ellipse(cx, cy, rx, ry, '#c8301a'); ellipse(cx, cy, R(rx * 0.78), R(ry * 0.7), '#ff6a1a'); ellipse(cx + 1, cy - 1, R(rx * 0.45), R(ry * 0.4), '#ffb030');
+        for (let i = 0; i < 4; i++) { const p = (t * 0.7 + i * 0.27) % 1, bx = cx + Math.sin(i * 2.3) * rx * 0.55, by = cy + Math.cos(i * 1.7) * ry * 0.45; disc(bx, by - p * 2, R(1 + p * 2), p < 0.8 ? '#ffd23f' : '#ff8a1f'); }
+        if (Math.random() < 0.15) part(cx + (Math.random() - 0.5) * rx, cy + (Math.random() - 0.5) * ry, 0, -14, 0.6, '#ff8a1f', 1, -10); } }
+    for (const c of L.ck || []) { const cx = c.x * K, cy = c.y * K, rx = R(c.rx * K), a = Math.min(1, c.l / 0.6); g.globalAlpha = a;
+      ellipse(cx, cy, rx, R(c.ry * K), '#00000055'); g.fillStyle = '#140e08';
+      for (let i = -rx; i < rx; i += 2) { const w = Math.max(1, R((1 - Math.abs(i) / rx) * 4)), off = Math.sin(i * 0.7 + c.x) * 2; g.fillRect(R(cx + i), R(cy + off - w / 2), 2, w); }
+      for (let i = 0; i < 4; i++) { const sx = cx + (i - 1.5) * rx * 0.45; g.fillRect(R(sx), R(cy - 3 - (i % 2) * 2), 1, 3); } g.globalAlpha = 1; }
+    for (const w of L.wl) { const cx = w.x * K, cy = w.y * K;
+      if (w.k === 'pillar') { const rr = R(w.r * K), h = rr + 6; ellipse(cx + 1, cy + rr * 0.6, rr, R(rr * 0.4), '#00000044'); px(cx - rr, cy - h, rr * 2, h + R(rr * 0.4), '#7a7e8e'); px(cx - rr, cy - h, 2, h + R(rr * 0.4), '#5a5e6e'); px(cx + rr - 2, cy - h, 2, h, '#9a9eae');
+        ellipse(cx, cy - h, rr, R(rr * 0.45), '#a8acba'); ellipse(cx, cy - h, rr - 2, R(rr * 0.3), '#c0c4d0'); }
+      else if (w.k === 'crystal') { const rr = R(w.r * K); ellipse(cx + 1, cy + rr * 0.5, rr, R(rr * 0.35), '#00000044');
+        g.fillStyle = '#7ad8ff'; g.beginPath(); g.moveTo(cx, cy - rr * 2.2); g.lineTo(cx + rr, cy - rr * 0.4); g.lineTo(cx, cy + rr * 0.4); g.lineTo(cx - rr, cy - rr * 0.4); g.fill();
+        g.fillStyle = '#dff8ff'; g.beginPath(); g.moveTo(cx, cy - rr * 2.2); g.lineTo(cx + rr * 0.35, cy - rr * 0.6); g.lineTo(cx, cy); g.fill(); if (Math.floor(t * 2 + w.x) % 5 === 0) px(cx - 1, cy - rr * 1.6, 2, 2, '#ffffff'); }
+      else { const hw = R(w.w * K / 2), hh = R(w.h * K / 2), horiz = w.w > w.h; ellipse(cx, cy + hh + 1, hw + 1, 2, '#00000033');
+        if (horiz) { px(cx - hw, cy - 6, hw * 2, 3, '#a8743a'); px(cx - hw, cy - 1, hw * 2, 3, '#a8743a'); for (let x = -hw; x <= hw; x += 8) px(cx + x, cy - 9, 3, 12, '#7a5228'); }
+        else { for (let y = -hh; y <= hh; y += 3) px(cx - 1, cy + y - 6, 3, 3, y % 6 ? '#a8743a' : '#7a5228'); px(cx - 2, cy - hh - 8, 5, 3, '#7a5228'); px(cx - 2, cy + hh - 8, 5, 3, '#7a5228'); } } }
+  }
   // Fight intro: every Monstar teleports in as a soul orb of its own colour, flashes, and appears
   function introFx(o, p, view, now) {
     const f = o.f, col = view.soulCol?.(f.s) || '#ffffff', X = f.x * K * Z, Y = (f.y - 30) * K * Z;
@@ -468,7 +499,11 @@ function createRenderer(canvas, arena) {
     const x = (pf ? pf.x + (f.x - pf.x) * t : f.x) * K * Z, y = (pf ? pf.y + (f.y - pf.y) * t : f.y) * K * Z + 22 * U, fx = foe.x * K * Z, fy = foe.y * K * Z + 22 * U;
     if (view.target) { const tx = view.target.x * K * Z, ty = view.target.y * K * Z + 22 * U, p = (now / 400) % 1; // where your finger / mouse sent it
       dashedRing(tx, ty, 18 * U, '#48d0ff', 0.9); ctx.globalAlpha = 1 - p; ctx.strokeStyle = '#48d0ff'; ctx.lineWidth = 2 * U; ctx.beginPath(); ctx.ellipse(tx, ty, 18 * U + p * 26 * U, (18 * U + p * 26 * U) * 0.5, 0, 0, 6.283); ctx.stroke(); ctx.globalAlpha = 1; }
-    const rb = REACH[f.bs]; if (rb && f.bs !== 'projectile') dashedRing(x, y, rb * K * Z, '#ffffff', 0.22);
+    // every Monstar on the field shows how far its attack reaches: yours in white, rivals in red, teammates in green
+    const all = [...cur.f.map((o, j) => ({ o, p: prev?.f?.[j], mine: j === i, side: j })), ...(cur.x || []).map(o => ({ o, p: prev?.x?.find(q => q.sd === o.sd && q.sl === o.sl), mine: false, side: o.sd }))];
+    for (const a of all) { const rr = REACH[a.o.bs]; if (!rr || a.o.hp <= 0) continue;
+      const ax = (a.p ? a.p.x + (a.o.x - a.p.x) * t : a.o.x) * K * Z, ay = (a.p ? a.p.y + (a.o.y - a.p.y) * t : a.o.y) * K * Z + 22 * U;
+      dashedRing(ax, ay, rr * K * Z, a.mine ? '#ffffff' : a.side === i ? '#9ef0c8' : '#ff6b6b', a.mine ? 0.3 : 0.2); }
     const ready = f.cd && f.cd.s <= 0 && f.en >= 40;
     if (ready && f.ss) {
       const col = f.ul >= 100 ? '#ffd84a' : '#48d0ff';
@@ -491,6 +526,21 @@ function createRenderer(canvas, arena) {
       FULL(); ctx.save(); ctx.globalCompositeOperation = 'lighter'; glow(x * Z, y * Z, 20 * U, '#ffffff', '#7ad8ff', 0.8); ctx.restore(); LOG();
       disc(x, y, 6, '#9be6ff'); disc(x - 1, y - 1, 4, '#dff8ff'); px(x - 3, y - 3, 2, 2, '#ffffff');
       if (Math.random() < 0.4) part(x - Math.cos(a) * 6, y - Math.sin(a) * 6, 0, 0, 0.3, '#dff8ff', 1);
+      return;
+    }
+    if (p.lk === 'firenado') { // COVO's Fire Tornado: a spinning funnel of flame that chases the rival
+      const t = now / 1000; FULL(); ctx.save(); ctx.globalCompositeOperation = 'lighter'; glow(x * Z, y * Z, 30 * U, '#fff6a8', '#ff6a1a', 0.85); ctx.restore(); LOG();
+      for (let i = 0; i < 9; i++) { const yy = y + 6 - i * 2.4, w = 2 + i * 1.3, ph = t * 16 + i * 0.8, col = i < 3 ? '#fff1a0' : i < 6 ? '#ffb030' : '#ff5a1a';
+        ellipse(x + Math.sin(ph * 0.5) * i * 0.4, yy, R(w), 1, col); px(R(x + Math.cos(ph) * w), R(yy), 2, 1, i % 2 ? '#ffd23f' : '#ff3b1f'); }
+      if (Math.random() < 0.7) part(x + (Math.random() - 0.5) * 8, y - 12 - Math.random() * 6, (Math.random() - 0.5) * 20, -30, 0.45, Math.random() < 0.5 ? '#ff8a1f' : '#ffd23f', 1, -20);
+      return;
+    }
+    if (p.lk === 'icezap') { // COVO's Thunder Ice Balls: an ice ball with lightning crackling out of it
+      FULL(); ctx.save(); ctx.globalCompositeOperation = 'lighter'; glow(x * Z, y * Z, 22 * U, '#ffffff', '#7ad8ff', 0.8);
+      for (let k = 0; k < 2; k++) { const a2 = now * 0.02 + k * 3.1, ex = x * Z + Math.cos(a2) * 22 * U, ey = y * Z + Math.sin(a2) * 16 * U; strokeGlow(boltPath(x * Z / Z, y * Z / Z, ex / Z, ey / Z, Math.floor(now / 40) + k, 3, 0.2), '#ffd23f', '#fff6a8', 1.6, 0.9); }
+      ctx.restore(); LOG();
+      disc(x, y, 6, '#9be6ff'); disc(x - 1, y - 1, 4, '#dff8ff'); px(x - 3, y - 3, 2, 2, '#ffffff');
+      if (Math.random() < 0.3) part(x + (Math.random() - 0.5) * 10, y + (Math.random() - 0.5) * 10, 0, 0, 0.2, '#ffe14a', 1);
       return;
     }
     if (p.lk === 'fire') { // Fire Gust / fireballs: a flickering orange ball with a flame tail
@@ -715,7 +765,7 @@ function createRenderer(canvas, arena) {
     theme = cur?.ar ?? view.theme ?? 0;
     let sx = 0, sy = 0; if (shake > 0) { sx = R((Math.random() - 0.5) * 4 * shake * 3); sy = R((Math.random() - 0.5) * 4 * shake * 3); shake = Math.max(0, shake - dt); } SX = sx; SY = sy;
     const logical = () => ctx.setTransform(Z, 0, 0, Z, sx * Z, sy * Z), full = () => ctx.setTransform(1, 0, 0, 1, sx * Z, sy * Z);
-    logical(); ctx.drawImage(groundFor(theme), 0, 0);
+    logical(); ctx.drawImage(groundFor(theme), 0, 0); drawLayout(cur?.lay, now);
     for (const d of decals) { d.life -= dt; g.globalAlpha = Math.min(1, d.life / 2);
       if (d.kind === 'crater') { ellipse(d.x, d.y, R(d.r * 0.7), R(d.r * 0.28), '#00000055'); ellipse(d.x, d.y + 1, R(d.r * 0.5), R(d.r * 0.18), '#00000077');
         const r = rng(R(d.x * 7 + d.y)); for (let k = 0; k < 7; k++) { let cx = d.x, cy = d.y; const a = k / 7 * 6.283 + r(); for (let s = 0; s < d.r * 0.9; s++) { cx += Math.cos(a) + (r() - 0.5); cy += (Math.sin(a) + (r() - 0.5)) * 0.45; px(cx, cy, 1, 1, '#00000088'); } }
@@ -770,7 +820,7 @@ function createRenderer(canvas, arena) {
       ctx.textBaseline = 'alphabetic'; ctx.globalAlpha = 1; if (banner.t <= 0) banner = null; }
   }
   function reset() { fx = []; parts = []; decals = []; texts = []; trails = [[], [], [], [], [], [], [], []]; impacts.clear(); shake = 0; flash = 0; banner = null; grow = [0, 0, 0, 0, 0, 0, 0, 0]; }
-  return { draw, hit, event, reset, idle: (th = theme) => { g = ctx; ctx.setTransform(Z, 0, 0, Z, 0, 0); ctx.drawImage(groundFor(th), 0, 0); ctx.setTransform(1, 0, 0, 1, 0, 0); }, themes: THEMES };
+  return { draw, hit, event, reset, ground: (th, lay) => { g = ctx; ctx.setTransform(Z, 0, 0, Z, 0, 0); ctx.drawImage(groundFor(th), 0, 0); drawLayout(lay, performance.now()); ctx.setTransform(1, 0, 0, 1, 0, 0); }, idle: (th = theme) => { g = ctx; ctx.setTransform(Z, 0, 0, Z, 0, 0); ctx.drawImage(groundFor(th), 0, 0); ctx.setTransform(1, 0, 0, 1, 0, 0); }, themes: THEMES };
 }
 
 window.PMArena = { createRenderer, sprite, stageSprite, STAGE_SCALE, THEMES, spriteSrc: (sid, stage) => 'art/hd/' + NAMES[sid] + (stage != null ? '_s' + stage : '') + '.png', W, H, preload, onReady: cb => Promise.all(imgs.map(i => i.complete ? 1 : new Promise(r => { i.onload = i.onerror = r; }))).then(cb) };

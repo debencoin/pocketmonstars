@@ -292,3 +292,10 @@ Stats: HP, Attack, Defense, Sp. Atk, Sp. Def, Speed. Types: EMBER, GROVE, TIDE, 
 
 ## v45: defeat soul orb
 - When a fight ends, the Monstar that lost shrinks back into a soul orb of its own colour, floats for a moment and flies away (about 3 seconds) before the result shows; then the "Back to pick your Monstar" countdown returns to the main picker.
+
+## v46: living arenas, COVO's Fire Tornado, reach rings for everyone, win-loss records
+- Every real fight gets a random layout (`makeLayout`) instead of the two rocks: 2-3 patches of **water** (slows, 2.2%/s) and **lava** (5%/s), plus 3-4 **barriers** that block shots and bodies (stone pillars, wooden fences, ice crystals). Every 16-26 s an **earthquake** cracks the ground near someone: falling in a crack costs 7% HP and a short stagger. Element rules: water and ice Monstars swim, fire and dragon Monstars walk on lava, earth and steel Monstars skip cracks, benders are safe in their own element, COVO / COVA / Kena in all, and flying or lifted Monstars float over everything. Hazard damage moves no SOL.
+- Target Practice is now played on the same arena grounds, with barriers that block your shots and water / lava patches.
+- COVO: attack is now a homing **Fire Tornado** that chases the rival and burns; special **Thunder Ice Balls** freeze and an electric zap jumps out (2% HP).
+- Every Monstar on the field shows its attack-reach ring (you white, teammates green, rivals red).
+- Win-loss records (all finished server matches, and vs players) on the profile card, the leaderboard (W–L) and Immortal Guild cards.

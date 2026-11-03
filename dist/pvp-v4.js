@@ -137,8 +137,8 @@ async function refreshLeaders() {
   try {
     const r = await fetch('/api/leaderboard').then(x => x.json()), me2 = S.session()?.wallet;
     if (!r.players?.length) { box.innerHTML = '<div class="pv-empty">No staked matches yet. Win one to take the top spot.</div>'; return; }
-    box.innerHTML = '<div class="lb-row lb-head"><span>#</span><span>Wallet</span><span>Net SOL</span><span>Won</span><span>Wins</span><span>Played</span></div>' + r.players.map(p =>
-      `<div class="lb-row${p.wallet === me2 ? ' me' : ''}"><span class="lb-rank r${p.rank}">${p.rank}</span><span class="pv-addr">${esc(short(p.wallet))}${p.wallet === me2 ? ' <b>(you)</b>' : ''}</span><span class="${BigInt(p.net) >= 0n ? 'up' : 'dn'}">${BigInt(p.net) > 0n ? '+' : ''}${esc(p.netSol)}</span><span>${esc(p.earnedSol)}</span><span>${p.wins}</span><span>${p.played}</span></div>`).join('');
+    box.innerHTML = '<div class="lb-row lb-head"><span>#</span><span>Wallet</span><span>Net SOL</span><span>Won</span><span>W–L</span><span>Played</span></div>' + r.players.map(p =>
+      `<div class="lb-row${p.wallet === me2 ? ' me' : ''}"><span class="lb-rank r${p.rank}">${p.rank}</span><span class="pv-addr">${esc(short(p.wallet))}${p.wallet === me2 ? ' <b>(you)</b>' : ''}</span><span class="${BigInt(p.net) >= 0n ? 'up' : 'dn'}">${BigInt(p.net) > 0n ? '+' : ''}${esc(p.netSol)}</span><span>${esc(p.earnedSol)}</span><span>${p.wins}–${p.losses ?? (p.played - p.wins)}</span><span>${p.played}</span></div>`).join('');
   } catch { box.innerHTML = '<div class="pv-empty">Leaderboard unavailable right now.</div>'; }
 }
 q('lbRefresh').onclick = refreshLeaders;
@@ -524,7 +524,7 @@ function onMsg(m) {
   }
   if (m.t === 'capture') { if (!m.ok) toast(`It broke free! (${m.chance}% chance) · ${m.left} ${m.left === 1 ? 'try' : 'tries'} left`, true); return; }
   if (m.t === 'hit') { setShares(m.shares, m); return; }
-  if (['switch', 'status', 'ult', 'pickup', 'blocked', 'dash', 'guard', 'mega', 'quake'].includes(m.t)) { battleEvent({ ...m, type: m.t }); return; }
+  if (['switch', 'status', 'ult', 'pickup', 'blocked', 'dash', 'guard', 'mega', 'quake', 'hazard', 'earthquake', 'wallhit'].includes(m.t)) { battleEvent({ ...m, type: m.t }); return; }
   if (m.t === 'miss' || m.t === 'level' || m.t === 'bonus') { battleEvent({ ...m, type: m.t }); if (m.t === 'level') refreshSoon(); return; }
   if (m.t === 'end') { q('pvCapture').hidden = true; if (m.caught?.captured) toast('Captured! ' + (Monstars.SPECIES[m.caught.speciesId]?.name || 'It') + ' joined your team' + (m.caught.monstar?.level > 1 ? ' at Lv' + m.caught.monstar.level + '.' : ' as a level 1 Infant.')); if (m.code) setTimeout(() => doneCodes.add(m.code), 60000); if (practiceMoney() && vLedger) { vLedger.finish(m.winner == null ? null : m.winner); shares = vLedger.shares.map(String); showShares(); } ended = { ...m, at: performance.now(), capture: m.caught?.ok ? { col: soulColor(Monstars.SPECIES[m.caught.speciesId]) } : null }; if (m.caught?.needPass) setTimeout(offerPasses, 3500); refreshSoon(); if (room) room.state = room.stake === '0' ? 'done' : 'settling'; renderRoom(); return; }
   if (m.t === 'settlement') { ended = { at: 0, ...(ended || {}), settlement: m }; if (room) room.state = m.ok ? (m.refund ? 'refunded' : 'settled') : 'needs review'; renderRoom(); refreshBalance(); return; }

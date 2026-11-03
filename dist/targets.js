@@ -12,7 +12,7 @@ const btn = document.createElement('button'); btn.textContent = 'Target Practice
 nav?.insertBefore(btn, nav.querySelector('[data-tab=market]'));
 const sec = document.createElement('section'); sec.id = 'targets'; sec.className = 'view hidden'; main.insertBefore(sec, main.querySelector('footer'));
 sec.innerHTML = `<div class="topline"><div><div class="eyebrow">Practice your moves · 30 seconds</div><h1>Target Practice</h1>
-  <p class="muted">Tap a target to fire at it. Bullseyes score by ring, hay stacks take a beating, cans tip over and ducks go down in one hit. Your Monstar's real moves and damage are used. No EXP or SOL is earned here yet, but you'll see what you would have earned.</p></div>
+  <p class="muted">Tap a target to fire at it. It's a real arena: barriers block your shots. Bullseyes score by ring, hay stacks take a beating, cans tip over and ducks go down in one hit. Your Monstar's real moves and damage are used. No EXP or SOL is earned here yet, but you'll see what you would have earned.</p></div>
   <span class="pill"><i class="dot"></i> BEST <span id="tpBest">0</span></span></div>
   <div class="panel tp-wrap">
    <div class="tp-bar"><select class="pv-input" id="tpPick"></select><button class="primary" id="tpStart">Start · 30 s</button></div>
@@ -22,6 +22,8 @@ sec.innerHTML = `<div class="topline"><div><div class="eyebrow">Practice your mo
    <div class="tp-result" id="tpResult" hidden></div>
   </div>`;
 const cv = q('tpCanvas'), ctx = cv.getContext('2d'), W = 960, H = 540;
+// The range is a real arena: same grounds as the battles, with a random set of barriers (they block your shots) and water / lava patches
+const bg = document.createElement('canvas'); bg.width = W; bg.height = H; const bgR = PA.createRenderer(bg, S.ARENA);
 let G = null, raf = 0, best = 0; try { best = Number(localStorage.getItem('pm-tp-best') || 0); } catch {}
 q('tpBest').textContent = best;
 
@@ -48,19 +50,21 @@ const dmgOf = (mv, mon) => Math.max(1, Math.round(mv.power * (1 + (mon.level - 1
 // ---------- targets ----------
 const KINDS = ['bull', 'hay', 'cans', 'ducks'];
 function spawn(kind = KINDS[Math.floor(Math.random() * KINDS.length)]) {
-  const x = 330 + Math.random() * 560, y = 110 + Math.random() * 360, id = G.nextId++;
+  let x = 0, y = 0; for (let i = 0; i < 30; i++) { x = 330 + Math.random() * 560; y = 110 + Math.random() * 360; if (!blocked(x, y, 50)) break; } const id = G.nextId++;
   if (kind === 'bull') G.targets.push({ id, kind, x, y, r: 62, life: 4 + Math.random() * 2, hp: 3 });
   else if (kind === 'hay') G.targets.push({ id, kind, x, y, w: 120, h: 92, life: 7, hp: 40 + G.mon.level * 4, max: 40 + G.mon.level * 4 });
   else if (kind === 'cans') { const fy = 160 + Math.random() * 300, fx = 380 + Math.random() * 330; for (let i = 0; i < 4; i++) G.targets.push({ id: G.nextId++, kind: 'can', x: fx + i * 56, y: fy, w: 34, h: 52, life: 7, hp: 1, fence: fx }); }
   else { const row = 120 + Math.random() * 320, dir = Math.random() < 0.5 ? 1 : -1, sp = (120 + Math.random() * 110) * dir;
     for (let i = 0; i < 5; i++) G.targets.push({ id: G.nextId++, kind: 'duck', x: (dir > 0 ? 300 : W + 40) - dir * i * 95, y: row, r: 32, vx: sp, life: 9, hp: 1 }); }
 }
+const blocked = (x, y, pad = 0) => !!Sim.wallAt(G.lay.wl, x, y, pad) || G.lay.hz.some(o => ((x - o.x) / (o.rx + pad)) ** 2 + ((y - o.y) / (o.ry + pad)) ** 2 < 1);
 const hitTest = (t, x, y, r) => t.kind === 'hay' || t.kind === 'can' ? x + r > t.x - t.w / 2 && x - r < t.x + t.w / 2 && y + r > t.y - t.h && y - r < t.y : Math.hypot(t.x - x, t.y - y) < t.r + r;
 
 // ---------- game ----------
 function start() {
   const f = fighters().find(x => x.key === q('tpPick').value) || fighters()[0];
   G = { mon: f.mon, stage: f.stage, img: new Image(), moves: movesFor(f.mon), sel: 0, cds: [0, 0, 0], ult: 0, t: 30, targets: [], shots: [], fx: [], texts: [], nextId: 1, spawnT: 0,
+    theme: Math.floor(Math.random() * Sim.ARENA_COUNT), lay: Sim.makeLayout(), bgAt: 0,
     score: 0, dmg: 0, fired: 0, hits: 0, exp: 0, lam: 0n, kills: { bull: 0, hay: 0, can: 0, duck: 0 }, last: performance.now(), px: 130, py: 300 };
   G.img.src = PA.spriteSrc(f.mon.species.id, f.stage);
   for (let i = 0; i < 3; i++) spawn(KINDS[i]);
@@ -104,6 +108,7 @@ function loop(now) {
     G.targets = G.targets.filter(t => t.life > 0 && t.y < H + 80 && t.x > -80 && t.x < W + 80 && !(t.down > 3));
     for (const s of G.shots) { if (s.done) continue; s.x += s.vx * dt; s.y += s.vy * dt; s.life -= dt;
       for (const t of G.targets) if (t.hp > 0 && hitTest(t, s.x, s.y, s.r)) { hit(t, s.mv, s.x, s.y); s.done = true; break; }
+      if (!s.done && Sim.wallAt(G.lay.wl, s.x, s.y, s.r * 0.4)) { s.done = true; G.fx.push({ k: 'pop', x: s.x, y: s.y, t: 0, col: '#c8b088' }); say(s.x, s.y - 10, 'BLOCKED', '#c8b088', 0.6); }
       if (!s.done && (s.life <= 0 || s.x > W + 20 || s.y < -20 || s.y > H + 20)) { s.done = true; } }
     G.shots = G.shots.filter(s => !s.done);
     if (G.t <= 0) finish();
@@ -128,11 +133,9 @@ function finish() {
 
 // ---------- drawing ----------
 function draw(dt) {
-  // the range: sky, grass, a fence line
-  const sky = ctx.createLinearGradient(0, 0, 0, H); sky.addColorStop(0, '#9ad8ff'); sky.addColorStop(0.35, '#d8f0ff'); sky.addColorStop(0.36, '#6ab84a'); sky.addColorStop(1, '#3a8a2a');
-  ctx.fillStyle = sky; ctx.fillRect(0, 0, W, H);
-  ctx.fillStyle = 'rgba(255,255,255,.08)'; for (let i = 0; i < 12; i++) ctx.fillRect(0, 200 + i * 30, W, 14);
-  ctx.fillStyle = '#c8a070'; ctx.fillRect(0, 186, W, 6);
+  // the range: a real arena ground with its barriers and hazards (redrawn a few times a second so water and lava move)
+  G.bgAt -= dt; if (G.bgAt <= 0) { bgR.ground(G.theme, G.lay); G.bgAt = 0.25; }
+  ctx.drawImage(bg, 0, 0);
   for (const t of G.targets) drawTarget(t);
   // your Monstar
   ctx.fillStyle = 'rgba(0,0,0,.25)'; ctx.beginPath(); ctx.ellipse(G.px, G.py + 6, 40, 10, 0, 0, 6.283); ctx.fill();
@@ -183,6 +186,6 @@ addEventListener('keydown', e => { if (!G || sec.classList.contains('hidden')) r
 q('tpStart').onclick = start;
 const baseTab = window.tab;
 window.tab = function (id) { baseTab(id); btn.classList.toggle('active', id === 'targets'); if (id === 'targets') { fillPick(); if (!G) { G = null; idle(); } } else if (G && G.t > 0) { G.t = 0.0001; } };
-function idle() { ctx.fillStyle = '#3a8a2a'; ctx.fillRect(0, 0, W, H); ctx.fillStyle = '#fff'; ctx.textAlign = 'center'; ctx.font = '900 34px Inter, sans-serif'; ctx.fillText('Pick your Monstar and tap Start', W / 2, H / 2); ctx.font = '600 18px Inter, sans-serif'; ctx.fillText('Tap targets to fire · tap the left edge to move up and down · keys 1-3 pick a move', W / 2, H / 2 + 36); }
+function idle() { bgR.ground(Math.floor(Math.random() * Sim.ARENA_COUNT), Sim.makeLayout()); ctx.drawImage(bg, 0, 0); ctx.fillStyle = 'rgba(0,0,0,.45)'; ctx.fillRect(0, 0, W, H); ctx.fillStyle = '#fff'; ctx.textAlign = 'center'; ctx.font = '900 34px Inter, sans-serif'; ctx.fillText('Pick your Monstar and tap Start', W / 2, H / 2); ctx.font = '600 18px Inter, sans-serif'; ctx.fillText('Tap targets to fire · tap the left edge to move up and down · keys 1-3 pick a move', W / 2, H / 2 + 36); }
 idle();
 })();

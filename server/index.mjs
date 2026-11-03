@@ -163,7 +163,7 @@ export function createServer({ config = CONFIG, chain = new SolanaChain(config.r
       registry.setOwner(m.serial, w); players.setSoulState(c.id, 'bought', b.signature); return registry.get(m.serial).toJSON(); },
     // Immortal Guild: every open Immortal Combat waiting for a rival
     'GET /api/immortal/open': () => ({ fights: [...matches.rooms.values()].filter(r => r.immortal && r.state === 'waiting' && r.players.length === 1)
-      .map(r => { const p = r.players[0], m = registry.get(p.monstar.serial) || p.monstar; return { code: r.code, owner: p.wallet, createdAt: r.createdAt, monstar: m.toJSON(), nft: !!m.asset, power: Object.values(m.stats).reduce((a, b) => a + b, 0) }; })
+      .map(r => { const p = r.players[0], m = registry.get(p.monstar.serial) || p.monstar; return { code: r.code, owner: p.wallet, record: recordOf(p.wallet), createdAt: r.createdAt, monstar: m.toJSON(), nft: !!m.asset, power: Object.values(m.stats).reduce((a, b) => a + b, 0) }; })
       .sort((a, b) => b.createdAt - a.createdAt) }),
     // ---------- Immortal Combat: Phantom players sign before the fight ----------
     'POST /api/immortal/sign': async req => { const w = needWallet(req), b = await body(req); return matches.publicRoom(matches.signConsent(w, b.signature), w); },
@@ -232,7 +232,8 @@ export function createServer({ config = CONFIG, chain = new SolanaChain(config.r
     'POST /api/account/login': async req => { const b = await body(req); return welcome(players.login(b.username, b.password)); },
     'GET /api/referrals/me': req => { const w = need(req); return { code: w, ...players.referralStats(w), bps: 500 }; },
     // ---------- profile + avatars ----------
-    'GET /api/profile/me': req => profileOf(need(req)),
+    'GET /api/profile/me': req => { const w = need(req); return { ...profileOf(w), record: recordOf(w) }; },
+    'GET /api/record/me': req => recordOf(need(req)),
     'POST /api/profile/avatar': async req => { const w = need(req), b = await body(req), v = String(b.avatar || '');
       if (v.startsWith('a:')) { const a = AVATAR_BY_ID[v.slice(2)]; if (!a || avatarOwner(a) !== w) throw Error('You do not own that avatar.'); }
       else if (v.startsWith('m:')) { const m = registry.get(Number(v.slice(2))); if (!m || m.owner !== w) throw Error('You do not own that Monstar.'); }
@@ -354,6 +355,18 @@ export function createServer({ config = CONFIG, chain = new SolanaChain(config.r
   };
 
   let lbCache = null, lbAt = 0;
+  // Win / loss record of every player (all finished server matches: rivals, Immortal Combat and CPU practice)
+  let recCache = null, recAt = 0;
+  function records() {
+    if (recCache && Date.now() - recAt < 10_000) return recCache;
+    const rows = db.prepare("SELECT player_a a, player_b b, winner FROM matches WHERE player_b IS NOT NULL AND state IN ('done','settled','settling','settlement-needs-review')").all();
+    const by = new Map(), get = w => by.get(w) || (by.set(w, { wins: 0, losses: 0, draws: 0, pvpWins: 0, pvpLosses: 0 }), by.get(w));
+    for (const r of rows) { const pvp = r.b !== 'AI';
+      [r.a, r.b].forEach((w, i) => { if (!w || w === 'AI') return; const p = get(w);
+        if (r.winner == null) p.draws++; else if (r.winner === i) { p.wins++; if (pvp) p.pvpWins++; } else { p.losses++; if (pvp) p.pvpLosses++; } }); }
+    recAt = Date.now(); return (recCache = by);
+  }
+  const recordOf = w => records().get(w) || { wins: 0, losses: 0, draws: 0, pvpWins: 0, pvpLosses: 0 };
   function leaderboard() {
     if (lbCache && Date.now() - lbAt < 15_000) return lbCache;
     const rows = db.prepare("SELECT stake, player_a a, player_b b, winner, shares, state FROM matches WHERE player_b IS NOT NULL AND player_b != 'AI' AND state IN ('settled','done','settling','settlement-needs-review')").all();
@@ -364,7 +377,7 @@ export function createServer({ config = CONFIG, chain = new SolanaChain(config.r
         const stake = BigInt(r.stake || '0'); if (stake > 0n && sh[i] != null) { const d = BigInt(sh[i]) - stake; p.net += d; if (d > 0n) p.earned += d; p.staked++; } });
     }
     const list = [...by.values()].sort((x, y) => (y.net > x.net ? 1 : y.net < x.net ? -1 : y.wins - x.wins)).slice(0, 50)
-      .map((p, i) => ({ rank: i + 1, wallet: p.wallet, net: p.net.toString(), netSol: formatSol(p.net, 6), earnedSol: formatSol(p.earned, 6), wins: p.wins, played: p.played, staked: p.staked }));
+      .map((p, i) => ({ rank: i + 1, wallet: p.wallet, net: p.net.toString(), netSol: formatSol(p.net, 6), earnedSol: formatSol(p.earned, 6), wins: p.wins, played: p.played, staked: p.staked, losses: p.played - p.wins, record: recordOf(p.wallet) }));
     lbAt = Date.now(); return (lbCache = { updatedAt: lbAt, players: list });
   }
   function breedRow(code) { return db.prepare('SELECT * FROM breeds WHERE code=?').get(String(code || '').toUpperCase()); }

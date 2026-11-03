@@ -210,3 +210,22 @@ test('founder benders: Ice Balls freeze, Hailstorm takes 30% and freezes, Slab S
   assert.ok(new Set(slabs.map(p => Math.round(Math.hypot(p.vx, p.vy)))).size > 1, 'slabs come out at different speeds');
   const ice = shots('Tidewen'); assert.ok(ice.length >= 2 && ice.every(p => p.onHit === 'freeze'));
 });
+
+test('arena hazards: water and lava hurt (their own element is safe), cracks drop you in, barriers block shots', async () => {
+  const S = await import('../shared/sim.mjs'), { Monstar, SPECIES } = await import('../shared/monstars.mjs');
+  const id = n => SPECIES.find(s => s.name === n).id;
+  const layout = { hz: [{ k: 'water', x: 480, y: 270, rx: 90, ry: 60 }, { k: 'lava', x: 480, y: 450, rx: 90, ry: 40 }], wl: [{ k: 'pillar', x: 600, y: 120, r: 26 }] };
+  const run = (name, y) => { const m = S.createMatch(new Monstar({ speciesId: id(name), level: 5 }), new Monstar({ speciesId: 0, level: 5 }), { auto: false, layout });
+    const f = m.fighters[0]; f.x = 480; f.y = y; const hp0 = f.hp, evs = []; for (let i = 0; i < 90; i++) { f.x = 480; f.y = y; evs.push(...S.step(m)); } return { lost: hp0 - f.hp, evs }; };
+  assert.ok(run('Cindercub', 270).lost > 0, 'a fire Monstar is hurt by water'); assert.equal(run('Ripplefin', 270).lost, 0, 'a water Monstar swims safely');
+  assert.ok(run('Ripplefin', 450).lost > run('Cindercub', 270).lost, 'lava hurts more than water'); assert.equal(run('Cindercub', 450).lost, 0, 'fire is safe in lava');
+  assert.equal(run('COVO', 450).lost, 0, 'COVO commands every element');
+  assert.ok(run('Cindercub', 270).evs.some(e => e.type === 'hazard' && e.k === 'water'));
+  // a shot into the pillar stops there
+  const m = S.createMatch(new Monstar({ speciesId: 0, level: 5 }), new Monstar({ speciesId: 1, level: 5 }), { auto: false, layout });
+  m.projectiles.push({ id: 99, owner: 0, by: m.fighters[0], kind: 'basic', style: 'projectile', x: 560, y: 120, vx: 600, vy: 0, r: 10, life: 2, hitDone: false, missDone: false });
+  const ev = []; for (let i = 0; i < 10; i++) ev.push(...S.step(m)); assert.ok(ev.some(e => e.type === 'wallhit')); assert.equal(m.projectiles.length, 0);
+  // earthquakes open cracks
+  m.quakeT = 0; ev.length = 0; ev.push(...S.step(m)); assert.ok(ev.some(e => e.type === 'earthquake')); assert.equal(m.cracks.length, 1);
+  assert.ok(S.makeLayout().wl.length >= 3 && S.snapshot(m).lay.ck.length === 1);
+});

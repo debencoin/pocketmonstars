@@ -51,7 +51,7 @@ async function render() {
     return `<button class="gd-card${you ? ' you' : ''}" data-code="${esc(f.code)}" ${you ? 'disabled' : ''}>
       <img src="${PA.spriteSrc(f.monstar.speciesId, f.monstar.stageId)}" alt="${esc(sp.name)}" loading="lazy">
       <b>${esc(f.monstar.form || sp.name)}</b><small>Lv${f.monstar.level} · ${esc(sp.type)}${f.nft ? ' · NFT' : ''} · power ${f.power}</small>
-      <span class="gd-owner">${you ? 'Your fight · waiting' : esc(short(f.owner))}</span><span class="gd-code">${esc(f.code)}</span>
+      <span class="gd-owner">${you ? 'Your fight · waiting' : esc(short(f.owner))}</span><small class="gd-rec">Record ${f.record?.wins ?? 0}W – ${f.record?.losses ?? 0}L</small><span class="gd-code">${esc(f.code)}</span>
       ${you ? '' : '<span class="gd-go">⚔ Fight</span>'}</button>`; }).join('')
     : '<div class="pv-empty">No open fights right now. Put your Monstar up and wait for a challenger.</div>';
   q('gdList').querySelectorAll('[data-code]').forEach(b => b.onclick = () => join(b.dataset.code));

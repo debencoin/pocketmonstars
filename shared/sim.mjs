@@ -12,11 +12,72 @@
 //
 // Landing hits earns EXP. Monstars level up and evolve mid-match (Infant 1, Rookie 3, Champion 10,
 // Ultimate 25, Mega 50, Ascended 80) and their stats grow immediately.
-import { STAGE_PERKS, Monstar, effectiveness, statsAt, stageFor, expForLevel, expToNext, MAX_LEVEL } from './monstars.mjs';
+import { STAGE_PERKS, Monstar, effectiveness, statsAt, stageFor, expForLevel, expToNext, MAX_LEVEL, SPECIES } from './monstars.mjs';
 
 export const ARENA = Object.freeze({ w: 960, h: 540, radius: 30, roundSeconds: 90,
   rocks: [{ x: 300, y: 170, r: 24 }, { x: 660, y: 380, r: 24 }] });
 export const TICK = 1 / 30;
+// ---------- arena hazards and barriers (a new random layout every fight) ----------
+// water: slows and hurts (water and ice Monstars are fine); lava: burns hard (fire and dragon Monstars are fine);
+// crack (opened by earthquakes): you fall in, take a hit and get stuck a moment (earth and steel Monstars are fine).
+// Benders who command that element (and COVO / COVA / Kena, who command all five) are never harmed. Flying or lifted Monstars float over them.
+export const HAZARDS = Object.freeze({
+  water: { dps: 0.022, slow: 0.6, immune: ['TIDE', 'FROST'], el: 'water', label: 'SPLASH!' },
+  lava: { dps: 0.05, slow: 0.85, immune: ['EMBER', 'DRACO'], el: 'fire', label: 'LAVA!' },
+  crack: { fall: 0.07, immune: ['STONE', 'STEEL'], el: 'earth', label: 'FELL IN!' },
+});
+// Barriers block shots (and bodies): stone pillars, wooden fences and ice crystals.
+export const WALLS = Object.freeze({ pillar: { r: 26 }, crystal: { r: 20 }, fence: { w: 104, h: 18 } });
+const SPAWNS = [{ x: 240, y: 270 }, { x: 720, y: 270 }];
+export function makeLayout(rand = Math.random) {
+  const hz = [], wl = [], clear = (x, y, pad) => SPAWNS.every(s => Math.hypot(s.x - x, s.y - y) > 130 + pad) && [...hz, ...wl].every(o => Math.hypot(o.x - x, o.y - y) > (o.rx || o.r || 60) + pad + 40);
+  const place = (pad, make) => { for (let i = 0; i < 40; i++) { const x = 130 + rand() * 700, y = 110 + rand() * 360; if (clear(x, y, pad)) return make(x, y); } return null; };
+  const kinds = ['water', 'lava', rand() < 0.5 ? 'water' : 'lava'];
+  for (const k of kinds.slice(0, 2 + (rand() < 0.5 ? 1 : 0))) { const o = place(70, (x, y) => ({ k, x: Math.round(x), y: Math.round(y), rx: Math.round(60 + rand() * 30), ry: Math.round(32 + rand() * 16) })); if (o) hz.push(o); }
+  const wk = ['pillar', 'fence', 'crystal', rand() < 0.5 ? 'pillar' : 'fence'];
+  for (const k of wk.slice(0, 3 + (rand() < 0.5 ? 1 : 0))) { const o = place(40, (x, y) => k === 'fence' ? { k, x: Math.round(x), y: Math.round(y), w: rand() < 0.5 ? WALLS.fence.w : WALLS.fence.h, h: 0 } : { k, x: Math.round(x), y: Math.round(y), r: WALLS[k].r });
+    if (o) { if (k === 'fence') { o.h = o.w === WALLS.fence.w ? WALLS.fence.h : WALLS.fence.w; } wl.push(o); } }
+  return { hz, wl };
+}
+const inPatch = (o, x, y) => ((x - o.x) / o.rx) ** 2 + ((y - o.y) / o.ry) ** 2 < 1;
+/** Is (x, y) inside a barrier? `pad` widens it (bodies are bigger than shots). */
+export function wallAt(wl, x, y, pad = 0) { return (wl || []).find(w => w.r ? Math.hypot(x - w.x, y - w.y) < w.r + pad : Math.abs(x - w.x) < w.w / 2 + pad && Math.abs(y - w.y) < w.h / 2 + pad) || null; }
+function hazardImmune(f, k) {
+  const H = HAZARDS[k], el2 = SPECIES[f.speciesId]?.el2;
+  return H.immune.includes(f.type) || el2 === 'all' || el2 === H.el || (k === 'water' && el2 === 'water');
+}
+/** Water, lava and cracks hurt the Monstars standing in them (no attacker: no SOL moves, only HP). */
+function hazards(m, dt, events) {
+  if (!m.layout) return;
+  m.quakeT -= dt;
+  if (m.quakeT <= 0) { // the ground shakes and opens a crack near someone
+    m.quakeT = 16 + Math.random() * 10; const f = onField(m)[Math.floor(Math.random() * onField(m).length)], a = Math.random() * 6.283;
+    const c = { k: 'crack', x: clamp(f.x + Math.cos(a) * 50, 120, ARENA.w - 120), y: clamp(f.y + Math.sin(a) * 30, 110, ARENA.h - 60), rx: 64, ry: 22, life: 9, id: m.nextId++ };
+    m.cracks.push(c); events.push({ type: 'earthquake', x: Math.round(c.x), y: Math.round(c.y) });
+  }
+  for (const c of m.cracks) c.life -= dt;
+  m.cracks = m.cracks.filter(c => c.life > 0);
+  for (const f of onField(m)) {
+    if (f.hp <= 0) continue;
+    const air = MOTION[f.motion]?.float || f.levT > 0 || (f.status && STATUS[f.status.k].lift) || f.dashT > 0;
+    f.hzSlow = 1;
+    if (air) continue;
+    for (const o of [...m.layout.hz, ...m.cracks]) {
+      if (!inPatch(o, f.x, f.y) || hazardImmune(f, o.k)) continue;
+      const H = HAZARDS[o.k];
+      if (o.k === 'crack') {
+        f.hzCd = f.hzCd || {}; if ((f.hzCd[o.id] || 0) > m.t) continue; f.hzCd[o.id] = m.t + 2.5;
+        const dmg = Math.max(1, Math.round(f.maxHp * H.fall)); f.hp = Math.max(0, f.hp - dmg); f.recT = Math.max(f.recT, 0.7); f.hurtT = 0.35;
+        const [nx, ny] = norm(f.x - o.x, f.y - o.y || 1); f.vx += nx * 240; f.vy += ny * 240;
+        events.push({ type: 'hazard', side: f.side, k: 'crack', damage: dmg, x: Math.round(f.x), y: Math.round(f.y), label: H.label });
+      } else {
+        f.hzSlow = Math.min(f.hzSlow, H.slow); f.hzAcc = (f.hzAcc || 0) + f.maxHp * H.dps * dt;
+        if (f.hzAcc >= 3) { const dmg = Math.floor(f.hzAcc); f.hzAcc -= dmg; f.hp = Math.max(0, f.hp - dmg); f.hurtT = 0.2;
+          events.push({ type: 'hazard', side: f.side, k: o.k, damage: dmg, x: Math.round(f.x), y: Math.round(f.y), label: H.label }); }
+      }
+    }
+  }
+}
 // Overall pace: lower = slower battles. Applied to movement, dashes and projectile speed.
 export const PACE = 0.8;
 // Whole-game speed: every timer, move and animation runs at 0.7x real time (the round clock stays real).
@@ -125,7 +186,14 @@ export function createMatch(monstarA, monstarB, opts = {}) {
   return { t: 0, over: false, winner: null, reason: null, auto: opts.auto !== false, arena: opts.arena ?? 0, squad, pace: squad ? SQUAD_PACE : 1,
     teams, teamMax, roster, slot: [0, 0], swCd: [0, 0],
     limit: teams[0].length > 1 || teams[1].length > 1 ? 150 : ARENA.roundSeconds, fighters, projectiles: [], effects: [], nextId: 1, finished: false, pickups: [], nextPickup: PICKUP.every, cpu: opts.cpu || null,
-    intro: opts.intro ? INTRO_SECONDS : 0 }; // Monstars teleport in as soul orbs first: nothing moves until they land
+    intro: opts.intro ? INTRO_SECONDS : 0, ...arenaLayout(opts, fighters, roster) }; // Monstars teleport in as soul orbs first: nothing moves until they land
+}
+function arenaLayout(opts, fighters, roster) {
+  // real fights (server and app, which pass `intro`) get a random layout; bare simulations keep the two classic rocks
+  const layout = opts.layout === false ? null : opts.layout || (opts.intro ? makeLayout() : null);
+  if (!layout) return { layout: null, cracks: [], quakeT: Infinity };
+  for (const f of [...fighters, ...roster.flat().filter(Boolean)]) f.walls = layout.wl;
+  return { layout, cracks: [], quakeT: 14 + Math.random() * 8 };
 }
 const alive = (m, side, i) => { const f = m.roster[side][i]; return !f || f.hp > 0; };
 /** Everyone fighting right now: both active Monstars, or in a squad match every Monstar still standing. */
@@ -143,6 +211,7 @@ function switchIn(m, side, slot, events, reason) {
   if (m.squad) { const nf = m.roster[side][slot]; nf.input = old.input; old.input = sanitizeInput(); m.fighters[side] = nf; m.slot[side] = slot; m.swCd[side] = 0.4;
     events.push({ type: 'switch', side, slot, speciesId: nf.speciesId, reason, control: true }); return; }
   const nf = (m.roster[side][slot] ||= makeFighter(m.teams[side][slot], side, m.teamMax[side]));
+  if (m.layout) nf.walls = m.layout.wl;
   nf.x = old.x; nf.y = old.y; nf.vx = nf.vy = 0; nf.iframes = Math.max(nf.iframes, 1.0); nf.input = old.input; nf.castT = 9;
   if (reason === 'faint') nf.x = side === 0 ? 170 : ARENA.w - 170;
   m.fighters[side] = nf; m.slot[side] = slot; m.swCd[side] = 3;
@@ -154,7 +223,7 @@ function updatePickups(m, dt, events) {
     m.nextPickup = PICKUP.every;
     let x, y, tries = 0;
     do { x = BOUNDS.x0 + 80 + Math.random() * (BOUNDS.x1 - BOUNDS.x0 - 160); y = BOUNDS.y0 + 40 + Math.random() * (BOUNDS.y1 - BOUNDS.y0 - 80); }
-    while (tries++ < 20 && ARENA.rocks.some(r => Math.hypot(r.x - x, r.y - y) < r.r + 50));
+    while (tries++ < 20 && (m.layout ? wallAt(m.layout.wl, x, y, 50) || m.layout.hz.some(o => inPatch({ ...o, rx: o.rx + 40, ry: o.ry + 40 }, x, y)) : ARENA.rocks.some(r => Math.hypot(r.x - x, r.y - y) < r.r + 50)));
     m.pickups.push({ id: m.nextId++, x, y, life: PICKUP.life, k: 'heal' });
   }
   for (const p of m.pickups) {
@@ -259,9 +328,11 @@ function teamHpFrac(m, side) { return m.roster[side].reduce((n, f, i) => n + (f 
 function collide(f) {
   const R = ARENA.radius;
   f.x = clamp(f.x, BOUNDS.x0, BOUNDS.x1); f.y = clamp(f.y, BOUNDS.y0, BOUNDS.y1);
-  for (const r of ARENA.rocks) {
-    const dx = f.x - r.x, dy = f.y - r.y, d = Math.hypot(dx, dy), min = r.r + R * 0.8;
-    if (d < min && d > 0) { f.x = r.x + dx / d * min; f.y = r.y + dy / d * min; }
+  for (const r of f.walls || ARENA.rocks) {
+    if (r.r) { const dx = f.x - r.x, dy = f.y - r.y, d = Math.hypot(dx, dy), min = r.r + R * 0.8;
+      if (d < min && d > 0) { f.x = r.x + dx / d * min; f.y = r.y + dy / d * min; } continue; }
+    const pad = R * 0.6, hw = r.w / 2 + pad, hh = r.h / 2 + pad, dx = f.x - r.x, dy = f.y - r.y; // fence: push out along the shorter side
+    if (Math.abs(dx) < hw && Math.abs(dy) < hh) { if (hw - Math.abs(dx) < hh - Math.abs(dy)) f.x = r.x + Math.sign(dx || 1) * hw; else f.y = r.y + Math.sign(dy || 1) * hh; }
   }
 }
 
@@ -351,7 +422,7 @@ function cast(m, f, kind) {
       const look = f.kit?.[kind]?.look, spread = look === 'boulder' ? 0.3 : 0.22, vary = look === 'boulder' ? 0.75 + Math.random() * 0.5 : 1; // slabs come out differently
       const a = Math.atan2(f.fy, f.fx) + (shots > 1 ? (k - (shots - 1) / 2) * spread + (look === 'boulder' ? (Math.random() - 0.5) * 0.12 : 0) : 0), dx = Math.cos(a) * vary, dy = Math.sin(a) * vary;
       m.projectiles.push({ id: k ? m.nextId++ : id, owner: f.side, by: f, kind, style, type: f.type, sid: f.speciesId, x: f.x + dx * 36, y: f.y + dy * 36,
-        vx: dx * sp, vy: dy * sp, r: S.r, life: S.life, hitDone: false, missDone: false, homing: kind === 'basic' && f.kit?.basic.homing, pw: shots > 1 ? S.power * (kind === 'special' ? 0.55 : 0.62) * (kind === 'special' ? f.kit?.special.power ?? 1 : 1) * 1.6 : undefined, kb: kind === 'basic' ? f.kit?.basic.knock || 1 : look === 'boulder' ? 2 : 1, look, onHit: f.kit?.[kind]?.status });
+        vx: dx * sp, vy: dy * sp, r: S.r, life: S.life, hitDone: false, missDone: false, homing: kind === 'basic' && f.kit?.basic.homing, pw: shots > 1 ? S.power * (kind === 'special' ? 0.55 : 0.62) * (kind === 'special' ? f.kit?.special.power ?? 1 : 1) * 1.6 : undefined, kb: kind === 'basic' ? f.kit?.basic.knock || 1 : look === 'boulder' ? 2 : 1, look, onHit: f.kit?.[kind]?.status, zap: !!f.kit?.[kind]?.zap, turn: f.kit?.[kind]?.homing ? 3.4 : undefined });
     }
     return;
   }
@@ -506,7 +577,7 @@ export function step(m, realDt = TICK) {
       else { const lead = 0.18; [f.fx, f.fy] = norm(foe.x + foe.vx * lead - f.x, foe.y + foe.vy * lead - f.y); }
     }
     f.burstT = Math.max(0, f.burstT - dt);
-    const speed = (f.burstT > 0 ? 1.7 : 1) * (140 + f.stats.speed * 1.4) * PACE * (f.rootT > 0 ? 0.2 : 1) * (f.status && SS.slow || 1);
+    const speed = (f.burstT > 0 ? 1.7 : 1) * (140 + f.stats.speed * 1.4) * PACE * (f.rootT > 0 ? 0.2 : 1) * (f.status && SS.slow || 1) * (f.hzSlow || 1);
     if (wantDash && f.cd.dash === 0 && f.rootT === 0) doDash(m, f, foe, mx, my, events);
     const ox = f.x, oy = f.y;
     if (f.dashT > 0) { const ds = (f.kit?.dash.dist ?? 1) * (f.sg >= 2 ? 1.25 : 1) * (f.dashKind === 'leap' ? 2.2 : 3.0); f.x += f.dvx * speed * ds * dt * MV; f.y += f.dvy * speed * ds * dt * MV; dashTick(m, f, foe, events); }
@@ -535,7 +606,8 @@ export function step(m, realDt = TICK) {
       const [nx, ny] = norm(cx + (hx - cx) * tt, cy + (hy - cy) * tt); p.vx = nx * sp; p.vy = ny * sp; }
     p.x += p.vx * dt; p.y += p.vy * dt; p.life -= dt;
     if (p.x < 0 || p.x > ARENA.w || p.y < 0 || p.y > ARENA.h) p.life = 0;
-    for (const r of ARENA.rocks) if (Math.hypot(p.x - r.x, p.y - r.y) < r.r + p.r * 0.5) p.life = 0;
+    const wall = m.layout ? wallAt(m.layout.wl, p.x, p.y, p.r * 0.4) : ARENA.rocks.find(r => Math.hypot(p.x - r.x, p.y - r.y) < r.r + p.r * 0.5);
+    if (wall && p.life > 0) { p.life = 0; if (m.layout) events.push({ type: 'wallhit', x: Math.round(p.x), y: Math.round(p.y), k: wall.k }); } // barriers block shots
     const att = p.by || m.fighters[p.owner], vic = rivalsOf(m, p.owner).find(v => Math.hypot(p.x - v.x, p.y - v.y) < p.r + ARENA.radius * 0.9) || m.fighters[1 - p.owner];
     const near = Math.hypot(p.x - vic.x, p.y - vic.y) < p.r + ARENA.radius * 0.9;
     if (p.life > 0 && !p.hitDone && near) {
@@ -544,6 +616,7 @@ export function step(m, realDt = TICK) {
         p.owner = vic.side; p.by = vic; p.vx = -p.vx * 1.15; p.vy = -p.vy * 1.15; p.reflected = true; p.life = Math.max(p.life, 0.8); events.push({ type: 'blocked', attacker: att.side, victim: vic.side, style: p.style, guard: 'reflect' }); }
       else { const [nx, ny] = norm(p.vx, p.vy); if (land(m, att, vic, p.kind, p.style, events, nx, ny, (p.style === 'debris' ? 160 : p.lt ? 25 : 90) * (p.kb || 1), p.pw)) { p.hitDone = true; p.life = 0;
         if (p.onHit && vic.hp > 0) applyStatus(m, vic, p.onHit, att, events, 0.6); // Ice Balls freeze
+        if (p.zap && vic.hp > 0) { const z = Math.max(1, Math.round(vic.maxHp * 0.02)); vic.hp = Math.max(0, vic.hp - z); events.push({ type: 'status', side: vic.side, k: 'paralyze', label: 'ZAP! -' + z }); } // COVO's ice balls: lightning jumps out
         if (p.lt) { m.zapped ||= {}; // Storm Orbs: the first ball to hit stuns; the rest zap
           if (!m.zapped[p.grp]) { m.zapped[p.grp] = 1; applyStatus(m, vic, 'stun', att, events, 0.3); } else events.push({ type: 'status', side: vic.side, k: 'paralyze', label: 'ZAP!' }); } } }
     }
@@ -551,6 +624,7 @@ export function step(m, realDt = TICK) {
   m.projectiles = m.projectiles.filter(p => p.life > 0);
   for (const e of m.effects) runEffect(m, e, dt, events);
   m.effects = m.effects.filter(e => e.t < e.dur);
+  hazards(m, dt, events);
   const out = [false, false];
   for (const side of [0, 1]) if (m.fighters[side].hp <= 0) { // fainted: send in the next team member (squad: take control of one still standing)
     const next = m.teams[side].findIndex((_, i) => i !== m.slot[side] && alive(m, side, i));
@@ -587,7 +661,7 @@ export function snapshot(m) {
   const r = v => Math.round(v * 10) / 10;
   const tm = m.teams[0].length > 1 || m.teams[1].length > 1
     ? m.teams.map((t, side) => t.map((mo, i) => { const f = m.roster[side][i]; return { s: mo.species.id, hp: f ? Math.max(0, Math.round(f.hp)) : mo.stats.hp * BATTLE_HP, mx: f ? f.maxHp : mo.stats.hp * BATTLE_HP, lv: f ? f.level : mo.level }; })) : null;
-  return { t: r(m.t), in: r(m.intro || 0), over: m.over, winner: m.winner, reason: m.reason, ar: m.arena, tm, sl: m.slot.slice(), sc: m.swCd.map(r),
+  return { t: r(m.t), in: r(m.intro || 0), lay: m.layout ? { hz: m.layout.hz, wl: m.layout.wl, ck: m.cracks.map(c => ({ x: Math.round(c.x), y: Math.round(c.y), rx: c.rx, ry: c.ry, l: r(c.life) })) } : null, over: m.over, winner: m.winner, reason: m.reason, ar: m.arena, tm, sl: m.slot.slice(), sc: m.swCd.map(r),
     f: m.fighters.map(f => { const p = expProgress(f); return { s: f.speciesId, x: r(f.x), y: r(f.y), fx: r(f.fx), fy: r(f.fy), hp: r(f.hp), max: f.maxHp, en: Math.round(f.energy),
       cd: { b: r(f.cd.basic), s: r(f.cd.special), d: r(f.cd.dash), g: r(f.cd.guard) }, i: f.iframes > 0, g: f.guardT > 0,
       mv: f.moving, ds: f.dashT > 0, ct: r(Math.min(f.castT, 9)), ck: f.castKind, hu: r(f.hurtT),

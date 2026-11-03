@@ -332,7 +332,10 @@ const FINAL_SIG = (n, v = 0) => ({
   mega: { kind: 'omnistorm', name: `${n} Five Element Storm`, note: 'A wind grab, a fire gust, lightning strikes, hail and an ice wave: 60% of the rival\'s HP in all. Then a lightning bolt comes back to you and heals 10% of your HP.', power: 1.4 - v * 0.02, size: 1.2 },
 });
 export const FINAL_BENDERS = [
-  { ...BE('COVO', 'GALE', 'deity', 'Fire gust', 'Ice balls', 'projectile', 'projectile', '#14141a', 'Final Air Bender', true), el2: 'all', sky: true, unique: true, legendFor: 'gift', speedBoost: 1.35, sig: FINAL_SIG('COVO') },
+  { ...BE('COVO', 'GALE', 'deity', 'Fire gust', 'Ice balls', 'projectile', 'projectile', '#14141a', 'Final Air Bender', true), el2: 'all', sky: true, unique: true, legendFor: 'gift', speedBoost: 1.35, sig: { ...FINAL_SIG('COVO'),
+    // COVO's own: a fire tornado that chases the rival, and ice balls that crackle with lightning
+    basic: { name: 'Fire Tornado', look: 'firenado', homing: true, status: 'burn', knock: 3, note: 'A whirlwind of fire that follows the rival until it hits, and burns.' },
+    special: { name: 'Thunder Ice Balls', shots: 2, look: 'icezap', status: 'freeze', zap: true, note: 'Shoots 2 or 3 ice balls crackling with lightning: they freeze, and an electric zap jumps out.' } } },
   { ...BE('COVA', 'GALE', 'deity', 'Fire gust', 'Ice balls', 'projectile', 'projectile', '#14141a', 'Final Air Bender', true), el2: 'all', sky: true, unique: true, female: true, legendary: undefined, legendFor: undefined,
     drop: { priceLamports: '10000000000', shop: true }, speedBoost: 1.35, sig: FINAL_SIG('COVA', 1) },
 ];
