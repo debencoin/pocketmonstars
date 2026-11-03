@@ -222,3 +222,9 @@ Stats: HP, Attack, Defense, Sp. Atk, Sp. Def, Speed. Types: EMBER, GROVE, TIDE, 
 ## v30 — Neferion Storm Orbs
 - Signature Mega Shots can replace a species' generated one (`MEGA_SIGNATURE` in monstars.mjs). Neferion (Neferkit → Neferling → Neferion …) gets **Storm Orbs** (`kind: 'lightning'`): 7 lightning balls launched 0.16 s apart that home in on the rival. The first ball to hit stuns briefly (0.33 s); the rest zap it. A rival that keeps moving usually takes 3–6; one that stands still or stays stunned takes all 7.
 - Shield test now samples 24 wallets (one starter each) so it no longer fails by chance.
+
+## v32 — Elemental Benders, Sky Splitter, 0.75x pace
+- 11 **Elemental Benders** (ids 163–173, `BENDERS` in frontier.mjs, collection `benders`, legendary `legendFor: 'benders'`, never wild): Tidewen, Marovek (water), Granitus, Terrala (earth), Pyreska, Emberon (fire), Zephyrine, Aerokai (air), Voltessa, Thundrik (thunder) and **Tempestro**, the elite thunder bender (+35% stats). Art from `scripts/make_benders.py` at 96x112 per frame (twice the detail) with real run cycles.
+- Tempestro's Mega Shot **Sky Splitter** (`kind: 'thunderstrike'`): 6 lightning strikes from the sky that track the rival; the first stuns. A rival standing still takes all 6.
+- Gifts (`config.gifts`): q2xb… gets all 10 benders + Tempestro; the founder gets one per element (Tidewen, Granitus, Pyreska, Aerokai, Thundrik); 7psx… gets the 10 benders + 10 Anunnaki on top of its three wild specials.
+- Pace: `GAME_SPEED` 0.47 and `MOVE_SPEED` 0.675 (0.75x), squad uses the same pace (`SQUAD_PACE` 1). 1v1 rounds are 90 s, `BATTLE_HP` 1.3 (median fight ~36 s, all by KO in tests).

@@ -14,17 +14,17 @@
 // Ultimate 25, Mega 50, Ascended 80) and their stats grow immediately.
 import { STAGE_PERKS, Monstar, effectiveness, statsAt, stageFor, expForLevel, expToNext, MAX_LEVEL } from './monstars.mjs';
 
-export const ARENA = Object.freeze({ w: 960, h: 540, radius: 30, roundSeconds: 60,
+export const ARENA = Object.freeze({ w: 960, h: 540, radius: 30, roundSeconds: 90,
   rocks: [{ x: 300, y: 170, r: 24 }, { x: 660, y: 380, r: 24 }] });
 export const TICK = 1 / 30;
 // Overall pace: lower = slower battles. Applied to movement, dashes and projectile speed.
 export const PACE = 0.8;
 // Whole-game speed: every timer, move and animation runs at 0.7x real time (the round clock stays real).
-export const GAME_SPEED = 0.63; // 0.9x of the original 0.7 pace
+export const GAME_SPEED = 0.47; // 0.75x of the previous 0.63 pace (easier to follow)
 // Walking and dashing run faster than the rest of the game (0.9 vs 0.63), so players can dodge shots.
-export const MOVE_SPEED = 0.9;
+export const MOVE_SPEED = 0.675; // 0.75x as well; still faster than the rest so dodging works
 // Squad battles (six Monstars at once) run a little slower so the player can follow everything.
-export const SQUAD_PACE = 0.8;
+export const SQUAD_PACE = 1; // the whole game now runs at the slower squad pace
 const MV = MOVE_SPEED / GAME_SPEED;
 // All damage is 30% lower than the base formula, so battles last most of the minute.
 export const DAMAGE_SCALE = 0.7;
@@ -48,7 +48,7 @@ export const STATUS = Object.freeze({
 export const TYPE_STATUS = Object.freeze({ SPARK: 'paralyze', FROST: 'freeze', EMBER: 'burn', DRACO: 'burn', VENOM: 'poison', GROVE: 'root',
   STONE: 'stun', STEEL: 'stun', SHADE: 'confuse', PSYCHIC: 'lift', TIDE: 'soak', GALE: 'soak', ASTRAL: 'dazzle', ANCIENT: 'weaken', WATCHER: 'mark' });
 export const ULT_GAIN = 1.0; // ULT meter per point of damage dealt (and 0.6 per point taken); a full meter powers up the next special
-export const BATTLE_HP = 1.6; // battle HP multiplier so a fight lasts close to the full minute
+export const BATTLE_HP = 1.3; // battle HP multiplier so a fight lasts close to the full minute
 export const PICKUP = Object.freeze({ every: 14, heal: 0.2, r: 34, life: 12 });
 export const BOUNDS = Object.freeze({ x0: 60, x1: 900, y0: 150, y1: 500 });
 export const EXP_RULES = Object.freeze({ perDamage: 1.2, critBonus: 1.5, koBonus: 40, finishBonus: 15 });
@@ -207,6 +207,10 @@ function megaShot(m, f, foe, events) {
     for (let i = 0; i < 7; i++) { const a = Math.atan2(f.fy, f.fx) + (i - 3) * 0.3, sp = STYLES.projectile.speed * 0.95;
       m.projectiles.push({ id: m.nextId++, owner: f.side, by: f, kind: 'special', style: 'projectile', type: f.type, sid: f.speciesId, x: f.x + Math.cos(a) * 30, y: f.y + Math.sin(a) * 30 - 20,
         vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, r: 15, life: 1.9, hitDone: false, missDone: false, pw: P * 0.3, homing: true, turn: 4.0, lt: 1, grp, wait: i * 0.16, ox: Math.cos(a) * 30, oy: Math.sin(a) * 30 - 20 }); } }
+  else if (k === 'thunderstrike') { // Sky Splitter: 6 lightning strikes from the sky that chase the rival; the first one stuns
+    const grp = m.nextId++; m.zapped ||= {};
+    const stun = (v, ev) => { if (!m.zapped[grp]) { m.zapped[grp] = 1; applyStatus(m, v, 'stun', f, ev, 0.35); } else ev.push({ type: 'status', side: v.side, k: 'paralyze', label: 'ZAP!' }); };
+    for (let i = 0; i < 6; i++) fx(foe.x + (Math.random() - 0.5) * 60, foe.y + (Math.random() - 0.5) * 40, 'strike', { t: -i * 0.24, rad: 62, pw: P * 0.32, track: true, ls: 1, then: stun }); }
   else if (k === 'nova') fx(f.x, f.y, 'strike', { rad: 170 * sz, t: 0.25 });
   else if (k === 'meteors') for (let i = 0; i < 4; i++) { const a = i * 1.57 + 0.4; fx(foe.x + Math.cos(a) * 60 * sz * (i ? 1 : 0), foe.y + Math.sin(a) * 40 * sz * (i ? 1 : 0), 'strike', { t: -i * 0.22, pw: P * 0.45, rad: 70 }); }
   else if (k === 'vortex') { const [nx, ny] = norm(f.x - foe.x, f.y - foe.y); foe.vx += nx * 600 * Math.max(0.3, foe.mods.knockback); foe.vy += ny * 600 * Math.max(0.3, foe.mods.knockback); fx(f.x + f.fx * 90, f.y + f.fy * 60, 'strike', { rad: 130 * sz }); }
@@ -331,6 +335,7 @@ function runEffect(m, e, dt, events) {
   const att = e.by || m.fighters[e.owner], S = STYLES[e.style], vics = rivalsOf(m, e.owner), vic = m.squad ? foeOf(m, att) : vics[0];
   if (!vic) { e.t = e.dur; return; }
   const prevT = e.t; e.t += dt;
+  if (e.track && e.t < S.hitAt && !e.hit) { const k2 = Math.min(1, dt * 3.2); e.gx += (vic.x - e.gx) * k2; e.gy += (vic.y - e.gy) * k2; } // lightning chases the rival until it strikes
   if (S.root) { e.x = att.x; e.y = att.y; }
   const R = ARENA.radius * 0.9;
   if (e.style === 'cone') {
@@ -546,7 +551,7 @@ export function snapshot(m) {
     sq: m.squad ? 1 : 0, lim: m.limit, pk: m.pickups.map(q => ({ id: q.id, x: r(q.x), y: r(q.y), k: q.k, l: r(q.life) })), gs: GAME_SPEED * (m.pace || 1),
     p: m.projectiles.map(p => ({ id: p.id, o: p.owner, k: p.kind, st: p.style, ty: p.type, sid: p.sid, x: r(p.x), y: r(p.y), vx: Math.round(p.vx), vy: Math.round(p.vy), r: p.r, lt: p.lt ? 1 : 0, w: p.wait > 0 ? 1 : 0 })),
     e: m.effects.map(e => ({ id: e.id, o: e.owner, k: e.kind, st: e.style, ty: e.type, sid: e.sid, x: r(e.x), y: r(e.y), dx: r(e.dx * 100) / 100, dy: r(e.dy * 100) / 100,
-      gx: r(e.gx), gy: r(e.gy), t: Math.round(e.t * 100) / 100, d: e.dur, ra: e.rad || 0, wd: e.wid || 0, mg: e.mega ? 1 : 0 })) };
+      gx: r(e.gx), gy: r(e.gy), t: Math.round(e.t * 100) / 100, d: e.dur, ra: e.rad || 0, wd: e.wid || 0, mg: e.mega ? 1 : 0, ls: e.ls ? 1 : 0 })) };
 }
 
 /** Opponent brain for AI matches: movement is the autopilot; this decides when to attack. */

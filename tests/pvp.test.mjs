@@ -305,7 +305,7 @@ test('3v3 rooms: both players bring three, the server runs a team match and save
 
 test('powers do things: levitation lifts and carries the rival, freeze stops it, burn ticks; 0.63x speed (0.9x), movement at 0.9, 30% less damage', async () => {
   const S = await import('../shared/sim.mjs'), { Monstar } = await import('../shared/monstars.mjs');
-  assert.equal(S.GAME_SPEED, 0.63); assert.equal(S.MOVE_SPEED, 0.9); assert.equal(S.DAMAGE_SCALE, 0.7);
+  assert.equal(S.GAME_SPEED, 0.47); assert.equal(S.MOVE_SPEED, 0.675); assert.equal(S.DAMAGE_SCALE, 0.7);
   const m = S.createMatch(new Monstar({ speciesId: 10, level: 20 }), new Monstar({ speciesId: 0, level: 20 }), { auto: false });
   const v = m.fighters[1], ev = [];
   S.applyStatusForTest(m, v, 'lift', m.fighters[0], ev);

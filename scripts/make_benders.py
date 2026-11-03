@@ -1,0 +1,187 @@
+"""Elemental Benders: original martial-artist Monstars who command water, earth, fire, air and thunder.
+Drawn at 96x112 per frame (twice the detail of the other walkers): shaded skin, faces with eyes and brows,
+layered clothes, real two-segment legs and arms, and a 6-frame sheet (idle A/B, run 1-4) per stage.
+Stages: 0 young trainee, 1 apprentice, 2 bender, 3 master (element armour + aura), 4 Mega (element mantle),
+5 Ascended (gold trim, element crown).  Writes dist/art/walk/<name>_s0..5.png and dist/art/hd/<name>_s0..5.png.
+Run: python3 scripts/make_benders.py [names...]"""
+import os, sys, math, random
+from PIL import Image, ImageDraw, ImageFilter
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+WALK, HD = os.path.join(ROOT, 'dist/art/walk'), os.path.join(ROOT, 'dist/art/hd')
+W, H = 96, 112
+OUT = (22, 16, 28, 255)
+def c(h, a=255): h = h.lstrip('#'); return (int(h[0:2], 16), int(h[2:4], 16), int(h[4:6], 16), a)
+def shade(col, t): return tuple(max(0, min(255, round(v * (1 - t)))) for v in col[:3]) + (col[3] if len(col) > 3 else 255,)
+def tint(col, t): return tuple(round(v + (255 - v) * t) for v in col[:3]) + (col[3] if len(col) > 3 else 255,)
+GOLD = c('#f0c040')
+SKIN = [c('#f2c9a0'), c('#d9a074'), c('#b07a50'), c('#7a4e32'), c('#5a3824')]
+ELEM = {  # aura / effect colours per element
+  'water': (c('#5ec2ff'), c('#dff6ff')), 'earth': (c('#8f7a5a'), c('#c8b088')), 'fire': (c('#ff8a1f'), c('#fff1a0')),
+  'air': (c('#d8f4ff'), c('#ffffff')), 'thunder': (c('#ffe14a'), c('#ffffff')),
+}
+# name: element, gender, skin, hair, hair style, top, top2 (trim), pants, boots, extras
+D = {
+  'tidewen':   dict(el='water',   f=True,  skin=1, hair=c('#3a2418'), hs='braid',   top=c('#2b6fd0'), trim=c('#bfefff'), pants=c('#1e3a6e'), boots=c('#e8eef8')),
+  'marovek':   dict(el='water',   f=False, skin=3, hair=c('#1a1414'), hs='topknot', top=c('#1e5aa8'), trim=c('#e8eef8'), pants=c('#2a3a5a'), boots=c('#3a2a20')),
+  'granitus':  dict(el='earth',   f=False, skin=2, hair=c('#2a1a10'), hs='short',   top=c('#4f7a2a'), trim=c('#c8a060'), pants=c('#6a5030'), boots=c('#3a2a1a'), band=c('#c8a060')),
+  'terrala':   dict(el='earth',   f=True,  skin=4, hair=c('#1a1010'), hs='bun',     top=c('#6a8a3a'), trim=c('#e0c890'), pants=c('#5a4630'), boots=c('#2e2418')),
+  'pyreska':   dict(el='fire',    f=True,  skin=0, hair=c('#2a0e0e'), hs='pony',    top=c('#b8241c'), trim=c('#f0c040'), pants=c('#2a1414'), boots=c('#1a0e0e')),
+  'emberon':   dict(el='fire',    f=False, skin=1, hair=c('#1a1010'), hs='spiky',   top=c('#8a1a14'), trim=c('#ffb030'), pants=c('#241010'), boots=c('#3a2010')),
+  'zephyrine': dict(el='air',     f=True,  skin=2, hair=c('#e8d8c0'), hs='long',    top=c('#e8902a'), trim=c('#ffe080'), pants=c('#f4e8c8'), boots=c('#8a5a2a')),
+  'aerokai':   dict(el='air',     f=False, skin=3, hair=c('#2a2020'), hs='short',   top=c('#d0782a'), trim=c('#fff0b0'), pants=c('#e8d8a8'), boots=c('#7a4a20'), scarf=c('#ffd060')),
+  'voltessa':  dict(el='thunder', f=True,  skin=0, hair=c('#f4f4ff'), hs='long',    top=c('#3a2a7a'), trim=c('#ffe14a'), pants=c('#1e1840'), boots=c('#14102a')),
+  'thundrik':  dict(el='thunder', f=False, skin=2, hair=c('#f0f0ff'), hs='spiky',   top=c('#2a2a6a'), trim=c('#ffe14a'), pants=c('#181838'), boots=c('#101024')),
+  'tempestro': dict(el='thunder', f=False, skin=4, hair=c('#f8f8ff'), hs='mane',    top=c('#1a1a24'), trim=GOLD,           pants=c('#14141c'), boots=c('#0e0e14'), elite=True, eyes=c('#ffe14a')),
+}
+
+def limb(g, x1, y1, x2, y2, w, col, edge):
+    """A rounded limb segment with a darker edge on its lower side."""
+    a = math.atan2(y2 - y1, x2 - x1); nx, ny = -math.sin(a) * w / 2, math.cos(a) * w / 2
+    g.polygon([(x1 + nx, y1 + ny), (x2 + nx, y2 + ny), (x2 - nx, y2 - ny), (x1 - nx, y1 - ny)], fill=col)
+    g.ellipse([x1 - w / 2, y1 - w / 2, x1 + w / 2, y1 + w / 2], fill=col); g.ellipse([x2 - w / 2, y2 - w / 2, x2 + w / 2, y2 + w / 2], fill=col)
+    g.line([(x1 + nx * 0.9, y1 + ny * 0.9), (x2 + nx * 0.9, y2 + ny * 0.9)], fill=edge, width=max(1, int(w / 4)))
+
+def leg_points(hx, hy, thigh, shin, a_thigh, knee):
+    kx, ky = hx + math.sin(a_thigh) * thigh, hy + math.cos(a_thigh) * thigh
+    a2 = a_thigh - knee
+    return (kx, ky), (kx + math.sin(a2) * shin, ky + math.cos(a2) * shin)
+
+def frame(d, f, stage):
+    im = Image.new('RGBA', (W, H), (0, 0, 0, 0)); g = ImageDraw.Draw(im)
+    run = f >= 2; k = f - 2; ph = (k * math.pi / 2) if run else 0
+    sc = [0.72, 0.84, 1.0, 1.0, 1.0, 1.0][stage]                 # younger forms are smaller
+    head_r = [12, 11.5, 11, 11, 11, 11][stage]
+    skin = SKIN[d['skin']]; skin_d = shade(skin, 0.22)
+    top, trim, pants, boots = d['top'], d['trim'], d['pants'], d['boots']
+    if stage == 0: top, pants = tint(top, 0.25), tint(pants, 0.2)
+    if stage == 5: trim = GOLD
+    el_col, el_hi = ELEM[d['el']]
+    rnd = random.Random(f * 7 + stage)
+    cx = 46; ground = H - 4
+    bob = (-1.5 if f == 1 else 0) if not run else -abs(math.sin(ph)) * 3
+    leg_len = 34 * sc; thigh, shin = leg_len * 0.5, leg_len * 0.5
+    hip_y = ground - leg_len - 2 + bob
+    torso_h = 30 * sc; sh_y = hip_y - torso_h
+    head_cy = sh_y - head_r * 0.9 - 2
+    lean = 0.12 if run else 0                                      # leans into the run
+    shx = cx + lean * torso_h
+    # ----- element aura / mantle behind (master and up) -----
+    if stage >= 3:
+        aura = Image.new('RGBA', (W, H), (0, 0, 0, 0)); ag = ImageDraw.Draw(aura)
+        r = 30 + stage * 3; ag.ellipse([cx - r, head_cy - 6 - r * 0.5, cx + r, hip_y + r * 0.7], fill=el_col[:3] + (70 if stage == 3 else 100,))
+        im.alpha_composite(aura.filter(ImageFilter.GaussianBlur(5)))
+    if stage >= 4:  # element mantle: shapes rising behind the shoulders
+        for side in (-1, 1):
+            for i in range(5):
+                bx = shx + side * (10 + i * 5); by = sh_y + 4 - i * 6 + (f % 2)
+                if d['el'] == 'fire': g.polygon([(bx - 4, by + 10), (bx + 4, by + 10), (bx + side * 2, by - 10)], fill=el_col if i % 2 else el_hi)
+                elif d['el'] == 'water': g.ellipse([bx - 5, by - 5, bx + 5, by + 5], outline=el_col, width=2)
+                elif d['el'] == 'earth': g.polygon([(bx - 5, by), (bx, by - 6), (bx + 5, by - 1), (bx + 3, by + 5), (bx - 4, by + 4)], fill=el_col if i % 2 else el_hi)
+                elif d['el'] == 'air': g.arc([bx - 7, by - 7, bx + 7, by + 7], 200, 340, fill=el_col, width=2)
+                else: g.line([(bx, by - 8), (bx - 3 * side, by), (bx + 2 * side, by + 1), (bx - 1, by + 9)], fill=el_col if i % 2 else el_hi, width=2)
+    # cape / cloak behind (bender and up; elite gets a storm cloak)
+    if stage >= 2 or d.get('elite'):
+        cl = shade(top, 0.35) if not d.get('elite') else c('#2a2440')
+        flow = 6 if run else 0
+        g.polygon([(shx - 10, sh_y + 2), (shx + 8, sh_y + 2), (cx + 2 - flow, hip_y + 16 * sc), (cx - 18 - flow, hip_y + 20 * sc)], fill=cl)
+    # ----- legs (back leg first) -----
+    swing = math.sin(ph) * 0.65 if run else 0
+    for side, sgn in (('back', -1), ('front', 1)):
+        a = sgn * swing
+        knee = (0.9 * max(0, -math.cos(ph + (0 if sgn > 0 else math.pi)))) if run else 0.05
+        hx = cx + (-3 if side == 'back' else 3) * sc
+        (kx, ky), (fx_, fy_) = leg_points(hx, hip_y, thigh, shin, a, knee)
+        col = shade(pants, 0.18) if side == 'back' else pants
+        limb(g, hx, hip_y, kx, ky, 9 * sc, col, shade(col, 0.3)); limb(g, kx, ky, fx_, fy_, 8 * sc, col, shade(col, 0.3))
+        bc = shade(boots, 0.15) if side == 'back' else boots
+        g.polygon([(fx_ - 4 * sc, fy_ - 3), (fx_ + 7 * sc, fy_ - 2), (fx_ + 8 * sc, fy_ + 2), (fx_ - 4 * sc, fy_ + 2)], fill=bc)
+        if stage >= 1: g.line([(fx_ - 4 * sc, fy_ - 4), (fx_ + 4 * sc, fy_ - 4)], fill=trim, width=1)
+    # ----- back arm -----
+    arm_sw = -swing * 0.9 if run else (0.15 if f == 1 else 0.1)
+    def arm(side, a):
+        sx = shx + (-8 if side == 'back' else 9) * sc; sy = sh_y + 3
+        ex, ey = sx + math.sin(a) * 12 * sc, sy + math.cos(a) * 12 * sc
+        a2 = a + (0.9 if run else 0.5)
+        hx, hy = ex + math.sin(a2) * 11 * sc, ey + math.cos(a2) * 11 * sc
+        col = shade(top, 0.2) if side == 'back' else top
+        limb(g, sx, sy, ex, ey, 7.5 * sc, col, shade(col, 0.3))
+        sleeve_skin = d['el'] == 'earth' and stage >= 2
+        limb(g, ex, ey, hx, hy, 6.5 * sc, skin_d if side == 'back' else (skin if sleeve_skin else col), shade(skin, 0.35))
+        if not sleeve_skin: g.line([(ex, ey), (ex + (hx - ex) * 0.3, ey + (hy - ey) * 0.3)], fill=trim, width=2)
+        g.ellipse([hx - 3.5 * sc, hy - 3.5 * sc, hx + 3.5 * sc, hy + 3.5 * sc], fill=skin_d if side == 'back' else skin)
+        return hx, hy
+    arm('back', -arm_sw)
+    # ----- torso -----
+    tw = 19 * sc
+    g.polygon([(shx - tw / 2, sh_y), (shx + tw / 2, sh_y), (cx + tw / 2 - 2, hip_y + 2), (cx - tw / 2 + 2, hip_y + 2)], fill=top)
+    g.polygon([(shx - tw / 2, sh_y), (shx - tw / 2 + 4, sh_y), (cx - tw / 2 + 5, hip_y + 2), (cx - tw / 2 + 2, hip_y + 2)], fill=shade(top, 0.22))
+    g.line([(shx + 1, sh_y + 1), (cx + 3, hip_y - 4)], fill=trim, width=2)                       # wrap-tunic edge
+    g.rectangle([cx - tw / 2 + 1, hip_y - 4, cx + tw / 2 - 1, hip_y + 1], fill=trim)             # sash / belt
+    if d.get('scarf') and stage >= 1: g.polygon([(shx - 8, sh_y - 1), (shx + 8, sh_y - 1), (shx + 4, sh_y + 5), (shx - 6, sh_y + 4)], fill=d['scarf'])
+    if stage >= 3:  # master armour: shoulder guards and an element emblem
+        for s2 in (-1, 1): g.ellipse([shx + s2 * 8 - 6, sh_y - 3, shx + s2 * 8 + 6, sh_y + 6], fill=trim if stage < 5 else GOLD, outline=shade(trim, 0.35))
+        g.ellipse([shx - 4, sh_y + 8, shx + 4, sh_y + 16], fill=el_col, outline=shade(el_col, 0.4))
+    # ----- head -----
+    hx, hy = shx + 2, head_cy
+    hair = d['hair']
+    if d['hs'] in ('long', 'braid', 'mane'):  # hair behind the head and shoulders
+        g.polygon([(hx - head_r, hy - 4), (hx + head_r * 0.4, hy - 6), (hx + 2, sh_y + 14), (hx - head_r - 4, sh_y + 16)], fill=shade(hair, 0.1))
+        if d['hs'] == 'braid': [g.ellipse([hx - head_r - 2, sh_y + i * 5, hx - head_r + 5, sh_y + 6 + i * 5], fill=hair, outline=shade(hair, 0.3)) for i in range(4)]
+    g.rectangle([hx - 3, hy + head_r - 3, hx + 3, sh_y + 2], fill=skin_d)                         # neck
+    g.ellipse([hx - head_r, hy - head_r, hx + head_r, hy + head_r], fill=skin)
+    g.chord([hx - head_r, hy - head_r, hx + head_r, hy + head_r], 100, 240, fill=skin_d)          # shadow on the far side
+    g.ellipse([hx + head_r - 4, hy - 1, hx + head_r + 2, hy + 4], fill=skin)                      # nose / cheek toward the viewer
+    # face (looking right)
+    ex1, ex2, ey = hx + 1, hx + 7, hy - 1
+    eye_col = d.get('eyes') or c('#ffffff')
+    for ex in (ex1, ex2):
+        g.ellipse([ex - 2.5, ey - 2.5, ex + 2.5, ey + 2.5], fill=eye_col)
+        if not d.get('eyes'): g.ellipse([ex - 0.5, ey - 1.5, ex + 2, ey + 1.5], fill=c('#1a1a2a'))
+    if d.get('eyes'): [g.ellipse([ex - 4, ey - 4, ex + 4, ey + 4], outline=eye_col[:3] + (110,)) for ex in (ex1, ex2)]
+    brow = shade(hair, 0.2) if hair[0] > 120 else hair
+    g.line([(ex1 - 3, ey - 4), (ex1 + 2, ey - 5 + (1 if stage >= 3 else 0))], fill=brow, width=2); g.line([(ex2 - 2, ey - 5 + (1 if stage >= 3 else 0)), (ex2 + 3, ey - 4)], fill=brow, width=2)
+    g.line([(hx + 3, hy + 6), (hx + 8, hy + 5 + (0 if stage < 3 else 1))], fill=shade(skin, 0.45), width=1)   # mouth (sterner when older)
+    if d['f']: [g.line([(ex - 3, ey - 3), (ex - 4, ey - 4)], fill=c('#1a1a2a'), width=1) for ex in (ex1, ex2)]; g.line([(hx + 3, hy + 6), (hx + 7, hy + 6)], fill=c('#c0504a'), width=2)
+    # hair on top
+    hs = d['hs']
+    g.chord([hx - head_r - 1, hy - head_r - 2, hx + head_r + 1, hy + head_r * 0.6], 180, 360, fill=hair)
+    g.polygon([(hx - head_r - 1, hy - 2), (hx - head_r + 3, hy - 9), (hx - head_r + 6, hy + 3)], fill=hair)  # side lock over the ear
+    if hs == 'topknot': g.ellipse([hx - 4, hy - head_r - 9, hx + 4, hy - head_r - 1], fill=hair); g.rectangle([hx - 4, hy - head_r - 3, hx + 4, hy - head_r - 1], fill=trim)
+    if hs == 'bun': g.ellipse([hx - head_r - 4, hy - head_r - 3, hx - head_r + 6, hy - head_r + 7], fill=hair)
+    if hs == 'pony': g.polygon([(hx - head_r, hy - 6), (hx - head_r - 12, hy + 4 + (f % 2) * 2), (hx - head_r - 6, hy + 10)], fill=hair)
+    if hs in ('spiky', 'mane'):
+        for i in range(5): sx = hx - head_r + 3 + i * 4.5; g.polygon([(sx - 3, hy - head_r + 3), (sx + 3, hy - head_r + 3), (sx - 1 - (i - 2), hy - head_r - 7 - (i % 2) * 3)], fill=hair)
+    if hs == 'mane': g.polygon([(hx - head_r, hy - 4), (hx - head_r - 10, hy + 8), (hx - head_r + 2, hy + 6)], fill=hair)
+    g.line([(hx - head_r + 2, hy - head_r * 0.35), (hx + head_r - 3, hy - head_r * 0.5)], fill=tint(hair, 0.35), width=1)  # hair shine
+    if d.get('band') and stage >= 1: g.line([(hx - head_r, hy - 5), (hx + head_r, hy - 7)], fill=d['band'], width=3)
+    if stage >= 5:  # element crown
+        for i in range(5): px_ = hx - 9 + i * 4.5; g.polygon([(px_ - 2, hy - head_r - 2), (px_ + 2, hy - head_r - 2), (px_, hy - head_r - 8 - (i % 2) * 4)], fill=GOLD)
+    if d.get('elite'):  # storm crown and glowing eyes for the elite thunder bender
+        g.arc([hx - head_r - 4, hy - head_r - 8, hx + head_r + 4, hy + 2], 200, 340, fill=GOLD, width=2)
+    # ----- front arm, hand holding the element -----
+    hx2, hy2 = arm('front', arm_sw + (0.0 if run else -0.9))
+    if stage >= 1:  # element in the front hand
+        if d['el'] == 'fire': g.polygon([(hx2 - 4, hy2), (hx2 + 4, hy2), (hx2 + 1, hy2 - 10 - (f % 2) * 3)], fill=el_col); g.polygon([(hx2 - 2, hy2), (hx2 + 2, hy2), (hx2, hy2 - 6)], fill=el_hi)
+        elif d['el'] == 'water': g.arc([hx2 - 7, hy2 - 9, hx2 + 7, hy2 + 5], 200 + f * 20, 520 + f * 20, fill=el_col, width=3)
+        elif d['el'] == 'earth': g.polygon([(hx2 - 5, hy2 - 8), (hx2, hy2 - 13), (hx2 + 6, hy2 - 9), (hx2 + 4, hy2 - 3), (hx2 - 4, hy2 - 3)], fill=el_hi, outline=shade(el_col, 0.4))
+        elif d['el'] == 'air': g.arc([hx2 - 8, hy2 - 8, hx2 + 8, hy2 + 8], 30 + f * 40, 300 + f * 40, fill=el_col, width=2); g.arc([hx2 - 4, hy2 - 4, hx2 + 4, hy2 + 4], f * 40, 250 + f * 40, fill=el_hi, width=1)
+        else:
+            for j in range(2): g.line([(hx2, hy2), (hx2 + rnd.randint(-6, 6), hy2 - 5), (hx2 + rnd.randint(-8, 8), hy2 - 11)], fill=el_hi if j else el_col, width=2)
+    if stage >= 5 or d.get('elite'):
+        for i in range(8): x, y = rnd.randint(4, W - 4), rnd.randint(4, H // 2); g.point((x, y), fill=(GOLD if stage >= 5 and not d.get('elite') else el_hi))
+    # 1px outline around the silhouette
+    a = im.getchannel('A').point(lambda v: 255 if v > 90 else 0); ring = a.filter(ImageFilter.MaxFilter(3))
+    out = Image.new('RGBA', (W, H), (0, 0, 0, 0)); out.paste(OUT, (0, 0), ring); out.alpha_composite(im)
+    return out
+
+only = set(sys.argv[1:])
+for name, d in D.items():
+    if only and name not in only: continue
+    for stage in range(6):
+        frames = [frame(d, f, stage) for f in range(6)]
+        sheet = Image.new('RGBA', (W * 6, H), (0, 0, 0, 0))
+        for i, fr in enumerate(frames): sheet.paste(fr, (i * W, 0))
+        sheet.save(os.path.join(WALK, f'{name}_s{stage}.png'))
+        frames[0].save(os.path.join(HD, f'{name}_s{stage}.png'))
+        if stage == 2: frames[0].save(os.path.join(HD, name + '.png'))
+print('benders', len(D))

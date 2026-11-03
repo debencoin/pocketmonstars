@@ -148,10 +148,28 @@ test('Neferion Storm Orbs: 7 homing lightning balls; the first hit stuns; a riva
   const m = S.createMatch(new Monstar({ speciesId: nef.id, level: 20 }), new Monstar({ speciesId: 3, level: 20 }), { auto: false });
   const a = m.fighters[0], b = m.fighters[1]; a.x = 300; a.y = 300; b.x = 650; b.y = 300; a.ult = 100; a.input = S.sanitizeInput({ mega: true });
   let hits = 0, stuns = 0;
-  for (let i = 0; i < 30 * 3.5 && !m.over; i++) {
+  for (let i = 0; i < 30 * 7 && !m.over; i++) {
     for (const e of S.step(m)) { if (e.type === 'hit' && e.attacker === 0 && e.kind === 'special') hits++; if (e.type === 'status' && e.k === 'stun') stuns++; }
     a.input = S.sanitizeInput({}); b.x = 650; b.y = 300; b.vx = b.vy = 0;
     if (i === 2) assert.equal(m.projectiles.filter(p => p.lt).length, 7);
   }
   assert.equal(hits, 7); assert.equal(stuns, 1, 'only the first ball stuns');
+});
+
+test('Elemental Benders: gifted wallets get their benders (Tempestro only to q2xb…); Sky Splitter strikes all land on a still rival', async () => {
+  const { gifts } = CONFIG, reg = new Registry(openDb(':memory:'), { gifts });
+  const q = reg.claimAll('q2xb75XhmJ7HL8PYMMFUsanusoakBtMXfYqdqUkHjUW'), names = q.map(m => m.species.name);
+  assert.ok(names.includes('Tempestro') && names.filter(n => SPECIES.find(s => s.name === n).bender).length === 11);
+  const f = reg.claimAll(CONFIG.legendaryOwner).filter(m => m.species.bender).map(m => m.species.type).sort();
+  assert.deepEqual(f, ['EMBER', 'GALE', 'SPARK', 'STONE', 'TIDE'], 'founder: one bender of each element');
+  const g = reg.claimAll('7psxmCxFNHQztUP9SahuGDShSU4y1JcufEugtFgkgwTx');
+  assert.equal(g.filter(m => m.species.bender).length, 10); assert.equal(g.filter(m => m.species.collection === 'anunnaki').length, 11); // 10 + Anuvax
+  assert.ok(!g.some(m => m.species.name === 'Tempestro'));
+  assert.equal(reg.claimAll(Keypair.generate().publicKey.toBase58()).filter(m => m.species.bender).length, 0);
+  const S = await import('../shared/sim.mjs'), t = SPECIES.find(s => s.name === 'Tempestro'); assert.equal(t.kit.mega.kind, 'thunderstrike');
+  const { Monstar } = await import('../shared/monstars.mjs');
+  const m = S.createMatch(new Monstar({ speciesId: t.id, level: 20 }), new Monstar({ speciesId: 3, level: 20 }), { auto: false });
+  const a = m.fighters[0], b = m.fighters[1]; a.x = 300; a.y = 300; b.x = 650; b.y = 300; a.ult = 100; a.input = S.sanitizeInput({ mega: true });
+  let hits = 0; for (let i = 0; i < 30 * 8 && !m.over; i++) { for (const e of S.step(m)) if (e.type === 'hit' && e.attacker === 0 && e.kind === 'special') hits++; a.input = S.sanitizeInput({}); b.x = 650; b.y = 300; b.vx = b.vy = 0; }
+  assert.equal(hits, 6);
 });

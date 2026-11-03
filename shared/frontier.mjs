@@ -244,3 +244,23 @@ export const HEROES = [
   H('Runeguard', 'ANCIENT', 'sentinel', 'Rune stone', 'Glyph barrier', 'projectile', 'strike', '#c89a40'),
   H('Sentrion', 'WATCHER', 'psion', 'Watchful eye', 'All-seeing beam', 'bolt', 'beam', '#ffffff'),
 ];
+
+// Elemental Benders: original martial artists who command water, earth, fire, air and thunder.
+// Gifted to chosen wallets only (never wild). Tempestro, the elite thunder bender, calls down lightning strikes.
+const BEND_RUN = { titan: 'stomp', sentinel: 'stomp', warden: 'stomp', striker: 'dart', skirmisher: 'dart', ranger: 'skate', mystic: 'prance', arcanist: 'prance', support: 'skate', seraph: 'dart', psion: 'dart', deity: 'charge' };
+const BE = (name, type, cls, move, special, basicStyle, specialStyle, main, title, elite = false) =>
+  ({ ...F(name, type, cls, move, special, basicStyle, specialStyle, BEND_RUN[cls] || 'dart', 'walker', main, '#ffffff', main, {}), legendary: true, legendFor: 'benders', bender: true, elite,
+    forms: [`Young ${name}`, `${name} the Apprentice`, name, `Master ${name}`, `Mega ${name}`, `${title} ${name}`] });
+export const BENDERS = [
+  BE('Tidewen', 'TIDE', 'mystic', 'Water whip', 'Tidal surge', 'whip', 'beam', '#2b6fd0', 'Ocean Sage'),
+  BE('Marovek', 'TIDE', 'support', 'Ice shard', 'Healing tide', 'projectile', 'beam', '#1e5aa8', 'Ocean Sage'),
+  BE('Granitus', 'STONE', 'titan', 'Boulder throw', 'Earthquake stomp', 'projectile', 'strike', '#4f7a2a', 'Mountain Lord'),
+  BE('Terrala', 'STONE', 'sentinel', 'Stone fist', 'Rock wall', 'projectile', 'strike', '#6a8a3a', 'Mountain Lady'),
+  BE('Pyreska', 'EMBER', 'striker', 'Fire dart', 'Blaze kick', 'projectile', 'cone', '#b8241c', 'Phoenix'),
+  BE('Emberon', 'EMBER', 'warden', 'Flame jab', 'Inferno wheel', 'projectile', 'cone', '#8a1a14', 'Phoenix'),
+  BE('Zephyrine', 'GALE', 'skirmisher', 'Air blade', 'Cyclone spin', 'projectile', 'cone', '#e8902a', 'Sky Sage'),
+  BE('Aerokai', 'GALE', 'seraph', 'Gust palm', 'Tornado rise', 'projectile', 'levitate', '#d0782a', 'Sky Sage'),
+  BE('Voltessa', 'SPARK', 'ranger', 'Spark lance', 'Storm burst', 'bolt', 'beam', '#3a2a7a', 'Storm Queen'),
+  BE('Thundrik', 'SPARK', 'arcanist', 'Static jab', 'Thunderclap', 'bolt', 'strike', '#2a2a6a', 'Storm King'),
+  BE('Tempestro', 'SPARK', 'deity', 'Lightning bolt', 'Sky splitter', 'bolt', 'beam', '#1a1a24', 'Elite Stormlord', true),
+];

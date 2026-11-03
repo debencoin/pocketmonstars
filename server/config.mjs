@@ -28,7 +28,14 @@ export const CONFIG = {
   // Wallet that holds the Legendary collection (Seraphon and Psyvolt, fully evolved).
   legendaryOwner: env.PM_LEGENDARY_OWNER || 'Dc9s1YwNHE2xDBzpprDvyruzxj8j5HvBSvfbvdups5LJ',
   // Wallets granted specific top Monstars (species ids) as elite Legendary-rarity hatchlings on sign-in.
-  gifts: { '7psxmCxFNHQztUP9SahuGDShSU4y1JcufEugtFgkgwTx': [64, 65, 85] }, // Aeonox, Anuvax, Semyazar: the three strongest Monstars
+  gifts: {
+    // Aeonox, Anuvax, Semyazar (the three strongest wild Monstars) + the 10 Elemental Benders + 10 Anunnaki
+    '7psxmCxFNHQztUP9SahuGDShSU4y1JcufEugtFgkgwTx': [64, 65, 85, 163, 164, 165, 166, 167, 168, 169, 170, 171, 172, 66, 67, 68, 71, 72, 79, 69, 73, 74, 76],
+    // all 10 Elemental Benders + Tempestro, the elite thunder bender (only this wallet has him)
+    'q2xb75XhmJ7HL8PYMMFUsanusoakBtMXfYqdqUkHjUW': [163, 164, 165, 166, 167, 168, 169, 170, 171, 172, 173],
+    // founder: one bender of each element (water, earth, fire, air, thunder)
+    'Dc9s1YwNHE2xDBzpprDvyruzxj8j5HvBSvfbvdups5LJ': [163, 165, 167, 170, 172],
+  },
   royalOwner: env.PM_ROYAL_OWNER || '54y46qyavsX1hWXgx5W76WrBjghXxUfkcNftswaXNTbr', // second founder wallet: the Royal Anunnaki
   // Superhero Drop: 30 heroes sold once each (top 5 at 1 SOL, the rest 0.5 SOL), paid to the founder wallet.
   dropTreasury: env.PM_DROP_TREASURY || env.PM_LEGENDARY_OWNER || 'Dc9s1YwNHE2xDBzpprDvyruzxj8j5HvBSvfbvdups5LJ',
