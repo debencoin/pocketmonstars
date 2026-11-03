@@ -39,7 +39,7 @@ const MYTHIC_FIRST = 61;
 const HOLY = new Set([61, 62, 63, 64, 65, 66, 85, 86, 94, 108, 109, 110, 111, 112, 113, 115, 119, 120, 121, 124, 125, 130]), LEGEND = new Set([9, 10, 61, 62, 63, 64, 65, 66, 85, 86, 94, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132, 133, 134, 135, 136, 137, 138, 139, 140, 141, 142, 143, 144, 145, 146, 147, 148, 149, 150, 151, 152, 153, 154, 155, 156, 157, 158, 159, 160, 161, 162, 163, 164, 165, 166, 167, 168, 169, 170, 171, 172, 173]); // angelic powers / no evolution wings (generated)
 const vidOf = o => (o.sid < 11 ? o.sid : HOLY.has(o.sid) && o.st !== 'whip' ? 9 : TYPE_FX[o.ty] ?? 0);
 const GUARD_COL = { shield: '#48d0ff', reflect: '#e8f0ff', counter: '#ff8a5a', mend: '#9ef0c8', thorns: '#7ad04a', evade: '#c08cff', absorb: '#ffd84a', fortress: '#c8b088', barrier: '#48d0ff', mirror: '#ff9cd8' };
-const STATUS_COL = { paralyze: '#ffe14a', freeze: '#9be6ff', burn: '#ff8a1f', poison: '#c070ff', root: '#7ad04a', stun: '#ffd84a', confuse: '#ff9cd8', lift: '#c08cff', soak: '#5ec2ff', dazzle: '#fff3c4', weaken: '#d8a040', mark: '#a8c8ff' };
+const STATUS_COL = { paralyze: '#ffe14a', freeze: '#9be6ff', burn: '#ff8a1f', poison: '#c070ff', root: '#7ad04a', stun: '#ffd84a', confuse: '#ff9cd8', lift: '#c08cff', whirl: '#e8fbff', daze: '#ffd84a', soak: '#5ec2ff', dazzle: '#fff3c4', weaken: '#d8a040', mark: '#a8c8ff' };
 const STY = { projectile: { r: 12 }, bolt: { range: 420, hitAt: 0.08, dur: 0.22 }, whip: { range: 220, hitAt: 0.12, dur: 0.3 },
   cone: { range: 230, angle: 0.5, dur: 0.95 }, beam: { range: 640, width: 44, hitAt: 0.42, dur: 0.85 }, strike: { radius: 74, hitAt: 0.6, dur: 1.0 }, levitate: { dur: 1.5, throws: [0.7, 0.86, 1.02], boltAt: 1.22 } };
 
@@ -302,7 +302,9 @@ function createRenderer(canvas, arena) {
     let ox = 0, oy = 0, sx = 1, sy = 1, alpha = 1, rot = 0;
     const mo = f.mo || 'pounce', phase = now + i * 0.37;
     if (f.fl) oy -= (10 + Math.sin(phase * 3) * 3) * U; // hovering / levitating
-    if (f.st === 'lift') { oy -= (46 + Math.sin(phase * 5) * 8) * U; rot = Math.sin(phase * 6) * 0.35; } // held up and shaken by psychic force
+    if (f.st === 'lift') { oy -= (46 + Math.sin(phase * 5) * 8) * U; rot = Math.sin(phase * 6) * 0.35; }
+    if (f.st === 'whirl') { oy -= (40 + (1 - (f.stt || 0)) * 30) * U; rot = phase * 9; } // spun high in the tornado
+    if (f.st === 'daze') rot = Math.sin(phase * 4) * 0.25; // held up and shaken by psychic force
     if (f.st === 'paralyze' && Math.floor(now * 14) % 3 === 0) ox += (Math.random() - 0.5) * 6 * U;
     if (f.rc) ox += (Math.random() - 0.5) * 3 * U;
     if (walker) { if (f.mv && !f.ds) oy -= (frame % 2 === 0 ? 1.5 : 0) * U; }
@@ -367,7 +369,7 @@ function createRenderer(canvas, arena) {
     const k = f.st, cx = X, cy = Y - dh / 2, t = now / 1000;
     if (f.rc && !k) label('RECOVERING', X, Y - dh - 18 * U, '#ffd84a');
     if (!k) return;
-    label(({ paralyze: 'PARALYZED', freeze: 'FROZEN', burn: 'BURNED', poison: 'POISONED', root: 'ENTANGLED', stun: 'STUNNED', confuse: 'CONFUSED', lift: 'LEVITATED', soak: 'SWEPT AWAY', dazzle: 'DAZZLED', weaken: 'CURSED', mark: 'WATCHED' })[k], X, Y - dh - 18 * U, STATUS_COL[k]);
+    label(({ paralyze: 'PARALYZED', freeze: 'FROZEN', burn: 'BURNED', poison: 'POISONED', root: 'ENTANGLED', stun: 'STUNNED', confuse: 'CONFUSED', lift: 'LEVITATED', whirl: 'TORNADO!', daze: 'DAZED', soak: 'SWEPT AWAY', dazzle: 'DAZZLED', weaken: 'CURSED', mark: 'WATCHED' })[k], X, Y - dh - 18 * U, STATUS_COL[k]);
     ctx.save();
     if (k === 'freeze') { // encased in a block of ice
       ctx.globalAlpha = 0.55; ctx.fillStyle = '#bfefff'; ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 2 * U;
@@ -543,6 +545,13 @@ function createRenderer(canvas, arena) {
         strokeGlow(boltPath(ox, oy - 6, tx, ty, sd + 3, 6, -0.15), '#ffd23f', '#fff27a', 2.2, al);
         if (!impacts.has('b' + e.id)) { impacts.add('b' + e.id); burst(tx, ty, PAL.SPARK, 14, 60); star(tx, ty, '#ffe14a', 80, 18); wave(tx, ty + 8, '#c08cff', 80); shake = Math.max(shake, 0.25); }
       }
+    } else if (e.st === 'strike' && e.tw) { // Tornado Gust: a spinning grey-white funnel around the caught Monstar
+      const gx = e.gx * K, gy = e.gy * K + 6, fade = Math.min(1, (e.d - lt) / 0.3), t = now / 1000;
+      g.globalAlpha = 0.85 * Math.max(0, fade);
+      for (let i = 0; i < 12; i++) { const yy = gy - i * 5, w = 6 + i * 2.6, ph = t * 9 + i * 0.7;
+        ellipse(gx + Math.sin(ph * 0.5) * i * 0.6, yy, R(w), R(2 + i * 0.25), i % 3 ? '#e8fbff66' : '#ffffffaa');
+        px(R(gx + Math.cos(ph) * w), R(yy), 2, 1, '#ffffff'); }
+      g.globalAlpha = 1;
     } else if (e.st === 'strike' && e.ls) { // Sky Splitter: a crackling target ring, then lightning crashes down from the sky
       const gx = e.gx * K, gy = e.gy * K + 6, rad = R((e.ra || S.radius) * K);
       if (lt < S.hitAt) { const p = lt / S.hitAt; ring(gx, gy, rad * (1.3 - p * 0.3), rad * 0.45 * (1.3 - p * 0.3), Math.floor(now / 70) % 2 ? '#ffe14a' : '#ffffff'); }

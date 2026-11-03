@@ -163,7 +163,14 @@ export const STAGE_PERKS = [null, 'Attack upgrade: +10% attack power', 'Dash upg
 /** Name of a species in a given evolution stage (0 Infant ... 5 Ascended). */
 export function formName(species, stageId = 2) { return (species.forms ||= stageForms(species.name))[stageId] || species.name; }
 { const used = new Set(); for (const sp of SPECIES) sp.kit = kitFor(sp, used); } // every species gets its own ability kit
-// Signature Mega Shots designed for specific Monstars (replace the generated one).
+// Signature abilities designed for specific Monstars (they replace the generated ones).
+const KIT_SIGNATURE = {
+  Aerokai: { basic: { name: 'Gale Push', knock: 6, note: 'A wind blast that knocks the rival back as it hits.' },
+    special: { name: 'Gust Volley', shots: 3, note: 'Fires 3 or 4 wind-gust balls at once.' },
+    mega: { kind: 'tornado', name: 'Aerokai Tornado Gust', note: 'A tornado grabs every rival, spins them up and slams them to the ground (damage), leaving them dazed for your follow-up attacks.', power: 1.2, size: 1 } },
+  Zephyrine: { mega: { kind: 'tornado', name: 'Zephyrine Cyclone Gust', note: 'A cyclone grabs every rival, spins them up and slams them down (damage), leaving them dazed.', power: 1.15, size: 1.05 } },
+};
+for (const sp of SPECIES) for (const [part, o] of Object.entries(KIT_SIGNATURE[sp.name] || {})) sp.kit[part] = { ...sp.kit[part], ...o };
 const MEGA_SIGNATURE = {
   Tempestro: { kind: 'thunderstrike', name: 'Tempestro Sky Splitter', note: 'Lightning strikes crash down on the rival one after another. The first one stuns it so the rest land.', power: 1.25, size: 1 },
   Neferion: { kind: 'lightning', name: 'Neferion Storm Orbs', note: 'Seven lightning balls chase the rival. The first one to hit stuns it so the rest can zap it.', power: 1.1, size: 1 },
@@ -253,7 +260,7 @@ export function traitSignature(speciesId, t) {
 
 /** A specific, owned Monstar: species + class + DNA + level. */
 export class Monstar {
-  constructor({ speciesId, dna = null, serial = null, originOwner = null, owner = null, asset = null, level = null, exp = 0, collection = null, parents = null }) {
+  constructor({ speciesId, dna = null, serial = null, originOwner = null, owner = null, asset = null, level = null, exp = 0, collection = null, parents = null, fusion = null }) {
     const sp = SPECIES[speciesId];
     if (!sp) throw Error('Unknown species ' + speciesId);
     this.species = sp; this.cls = sp.cls; this.dna = dna; this.serial = serial;
@@ -262,9 +269,18 @@ export class Monstar {
     this.level = level ?? levelForExp(this.exp);
     if (level != null && this.exp < expForLevel(level)) this.exp = expForLevel(level);
     this.collection = collection || sp.collection; this.parents = parents;
+    this.fusion = fusion != null && SPECIES[fusion] && fusion !== speciesId ? fusion : null; // bred benders carry the other parent's powers
     this.traits = dna ? traitsFromDna(dna) : { rarity: 'Unclaimed', rarityBonus: 0, aura: '—', pattern: '—', nature: 'Balanced', hue: 0, markings: 2, ivs: [0, 0, 0, 0, 0, 0] };
   }
   get type() { return this.species.type; }
+  /** Ability kit. A bred bender combines both parents: its own attack, the other parent's special and (if that parent is a bender) its Mega Shot, all a bit stronger. */
+  get kit() {
+    if (!this.fusion) return this.species.kit;
+    const own = this.species.kit, o = SPECIES[this.fusion], ok = o.kit;
+    return { ...own, fused: o.name, special: { ...ok.special, power: +(ok.special.power * 1.15).toFixed(2), name: `Fused ${ok.special.name}` },
+      mega: o.bender ? { ...ok.mega, power: +(Math.max(ok.mega.power, own.mega.power) * 1.15).toFixed(2), name: `${this.species.name} × ${o.name} ${ok.mega.name.split(' ').slice(1).join(' ')}` } : own.mega };
+  }
+  get specialStyle() { return this.fusion ? SPECIES[this.fusion].specialStyle : this.species.specialStyle; }
   get className() { return this.cls.label; }
   get stage() { return stageFor(this.level); }
   get stats() { return statsAt(this, this.level); }
@@ -285,7 +301,7 @@ export class Monstar {
   }
   toJSON() {
     const p = levelProgress(this.exp);
-    return { form: formName(this.species, this.stage.id), speciesId: this.species.id, tier: this.species.tier || null, name: this.displayName, type: this.type, className: this.className, passive: this.cls.passive,
+    return { fusion: this.fusion, fusedWith: this.fusion != null ? SPECIES[this.fusion].name : null, form: formName(this.species, this.stage.id), speciesId: this.species.id, tier: this.species.tier || null, name: this.displayName, type: this.type, className: this.className, passive: this.cls.passive,
       dna: this.dna, serial: this.serial, originOwner: this.originOwner, owner: this.owner, asset: this.asset, traits: this.traits, stats: this.stats,
       level: this.level, exp: this.exp, expInto: p.into, expNeed: p.need, stage: this.stage.name, stageId: this.stage.id,
       collection: this.collection, legendary: !!this.species.legendary, parents: this.parents };
@@ -295,7 +311,7 @@ export class Monstar {
 /** Stats for a Monstar at any level: base + DNA rolls, grown by level and evolution stage, shaped by nature. */
 export function statsAt(m, level) {
   const nat = NATURES.find(n => n.name === m.traits.nature) || NATURES[7];
-  const elite = m.species.elite ? 1.35 : m.species.legendary ? 1.2 : m.species.drop ? (m.species.drop.top ? 1.25 : 1.15) : 1; // founder legendaries: elite Infants, 20% stronger at every level
+  const elite = m.species.bender ? (m.species.elite ? 1.8 : 1.55) : m.species.legendary ? 1.2 : m.species.drop ? (m.species.drop.top ? 1.25 : 1.15) : 1; // founder legendaries: elite Infants, 20% stronger at every level
   const st = stageFor(level), growth = (1 + (level - 1) * 0.03) * (TIERS[m.species.tier]?.mult || 1) * elite; // rarer wild species are stronger
   const out = {};
   STAT_KEYS.forEach((k, i) => {

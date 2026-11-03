@@ -228,3 +228,10 @@ Stats: HP, Attack, Defense, Sp. Atk, Sp. Def, Speed. Types: EMBER, GROVE, TIDE, 
 - Tempestro's Mega Shot **Sky Splitter** (`kind: 'thunderstrike'`): 6 lightning strikes from the sky that track the rival; the first stuns. A rival standing still takes all 6.
 - Gifts (`config.gifts`): q2xb… gets all 10 benders + Tempestro; the founder gets one per element (Tidewen, Granitus, Pyreska, Aerokai, Thundrik); 7psx… gets the 10 benders + 10 Anunnaki on top of its three wild specials.
 - Pace: `GAME_SPEED` 0.47 and `MOVE_SPEED` 0.675 (0.75x), squad uses the same pace (`SQUAD_PACE` 1). 1v1 rounds are 90 s, `BATTLE_HP` 1.3 (median fight ~36 s, all by KO in tests).
+
+## v33 — air benders: Tornado Gust, Gale Push, Gust Volley; fused breeding
+- `KIT_SIGNATURE` in monstars.mjs overrides parts of a kit. **Aerokai**: Gale Push (attack, knockback ×6), Gust Volley (special, 3–4 wind balls), **Tornado Gust** Mega (`kind: 'tornado'`): every rival on the field is caught (`whirl` status), spun up, slammed down for damage, then **dazed** (`daze` status) so you can follow up. **Zephyrine** also gets the tornado (Cyclone Gust), so q2xb… has one of each.
+- Benders are much stronger from level 1: stats ×1.55 (Tempestro ×1.8).
+- Breeding with a bender always gives a bender baby whose powers combine both parents (`Monstar.fusion` → its own attack, the other parent's special and, if that parent is a bender, its Mega Shot, all +15%). Cards show "Fused · <parent>".
+- Air benders look different at every stage (staff, hood + fan staff, blue fins, white robes on a whirlwind, white and gold).
+- Gifts also work for username accounts (`normOwner`).

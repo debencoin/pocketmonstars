@@ -259,7 +259,7 @@ export const BENDERS = [
   BE('Pyreska', 'EMBER', 'striker', 'Fire dart', 'Blaze kick', 'projectile', 'cone', '#b8241c', 'Phoenix'),
   BE('Emberon', 'EMBER', 'warden', 'Flame jab', 'Inferno wheel', 'projectile', 'cone', '#8a1a14', 'Phoenix'),
   BE('Zephyrine', 'GALE', 'skirmisher', 'Air blade', 'Cyclone spin', 'projectile', 'cone', '#e8902a', 'Sky Sage'),
-  BE('Aerokai', 'GALE', 'seraph', 'Gust palm', 'Tornado rise', 'projectile', 'levitate', '#d0782a', 'Sky Sage'),
+  BE('Aerokai', 'GALE', 'seraph', 'Gale push', 'Gust volley', 'projectile', 'projectile', '#d0782a', 'Sky Sage'),
   BE('Voltessa', 'SPARK', 'ranger', 'Spark lance', 'Storm burst', 'bolt', 'beam', '#3a2a7a', 'Storm Queen'),
   BE('Thundrik', 'SPARK', 'arcanist', 'Static jab', 'Thunderclap', 'bolt', 'strike', '#2a2a6a', 'Storm King'),
   BE('Tempestro', 'SPARK', 'deity', 'Lightning bolt', 'Sky splitter', 'bolt', 'beam', '#1a1a24', 'Elite Stormlord', true),

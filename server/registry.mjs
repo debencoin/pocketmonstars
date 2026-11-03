@@ -22,7 +22,7 @@ export function starterSpecies(owner) {
 
 export class Registry {
   constructor(db, { legendaryOwner = null, royalOwner = null, gifts = {} } = {}) {
-    this.gifts = Object.fromEntries(Object.entries(gifts || {}).map(([w, ids]) => [new PublicKey(w).toBase58(), ids]));
+    this.gifts = Object.fromEntries(Object.entries(gifts || {}).map(([w, ids]) => [normOwner(w), ids]));
     this.db = db;
     this.legendaryOwner = legendaryOwner ? new PublicKey(legendaryOwner).toBase58() : null;
     this.royalOwner = royalOwner ? new PublicKey(royalOwner).toBase58() : null;
@@ -62,7 +62,7 @@ export class Registry {
 
   /** The founder wallet holds the Legendary collections. They hatch as level 1 Infants with elite attributes (Legendary rarity, near-perfect rolls, +20% stats). */
   claimLegendaries(owner) {
-    owner = normOwner(owner); if (isAccount(owner)) return [];
+    owner = normOwner(owner);
     const key = owner === this.legendaryOwner ? 'founder' : owner === this.royalOwner ? 'royal' : null;
     const ids = [...(key ? legendaryIdsFor(key) : []), ...(this.gifts[owner] || [])];
     if (!ids.length) return [];
@@ -95,9 +95,12 @@ export class Registry {
     const rnd = (k) => parseInt(createHash('sha256').update(seed + ':' + k).digest('hex').slice(0, 8), 16) / 0xffffffff;
     const genesisOf = m => (m.species.legendary || m.species.hero ? null : m.species.id); // legendaries and drop heroes never breed copies
     const children = [];
+    const benders = [a, b].filter(m => m.species.bender);
     for (const [i, parent] of [a, b].entries()) {
       let sid = rnd('sp' + i) < 0.5 ? genesisOf(a) : genesisOf(b);
       if (sid == null) sid = genesisOf(a) ?? genesisOf(b) ?? 8;
+      // Benders breed true: the baby is a bender whose powers combine both parents (see Monstar.kit / fusion)
+      if (benders.length) sid = (benders.length === 2 ? (rnd('bd' + i) < 0.5 ? a : b) : benders[0]).species.id;
       const ivs = a.traits.ivs.map((v, k) => Math.max(0, Math.min(15, Math.round((v + b.traits.ivs[k]) / 2 + Math.floor(rnd(`iv${i}${k}`) * 7) - 3))));
       const avgR = (rarityIndex(a.traits.rarity) + rarityIndex(b.traits.rarity)) / 2;
       const rIdx = Math.max(0, Math.min(RARITIES.length - 1, Math.round(avgR + (rnd('r' + i) < 0.2 ? 1 : rnd('r' + i) > 0.8 ? -1 : 0))));
@@ -139,9 +142,15 @@ export class Registry {
   }
   setOwner(serial, owner) { this.db.prepare('UPDATE monstars SET owner=? WHERE serial=?').run(owner, serial); return this.get(serial); }
 
+  /** A bred bender carries the other parent's powers: the parent whose species differs from the baby's. */
+  fusionOf(row) {
+    if (!row.parents || !SPECIES[row.species].bender) return null;
+    for (const s of String(row.parents).split(',').map(Number)) { const p = this.db.prepare('SELECT species FROM monstars WHERE serial=?').get(s); if (p && p.species !== row.species) return p.species; }
+    return null;
+  }
   toMonstar(row) {
     return new Monstar({ speciesId: row.species, dna: row.dna, serial: row.serial, originOwner: row.origin_owner, owner: row.owner, asset: row.asset,
-      exp: row.exp || 0, collection: row.collection || SPECIES[row.species].collection, parents: row.parents || null });
+      exp: row.exp || 0, collection: row.collection || SPECIES[row.species].collection, parents: row.parents || null, fusion: this.fusionOf(row) });
   }
 }
 

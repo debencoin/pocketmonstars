@@ -55,10 +55,16 @@ def frame(d, f, stage):
     top, trim, pants, boots = d['top'], d['trim'], d['pants'], d['boots']
     if stage == 0: top, pants = tint(top, 0.25), tint(pants, 0.2)
     if stage == 5: trim = GOLD
+    air = d['el'] == 'air'
+    if air:  # air benders change outfit at every stage
+        if stage == 3: top, trim = shade(top, 0.12), c('#5ec2ff')                 # master: sky-blue trim
+        if stage == 4: top, trim, pants = c('#f2f4ff'), d['top'], c('#d8dcef')    # Mega: white wind robes with the old colour as trim
+        if stage == 5: top, trim, pants = c('#fffaf0'), GOLD, c('#f0e6c8')        # Ascended: white and gold
     el_col, el_hi = ELEM[d['el']]
     rnd = random.Random(f * 7 + stage)
     cx = 46; ground = H - 4
     bob = (-1.5 if f == 1 else 0) if not run else -abs(math.sin(ph)) * 3
+    if air and stage >= 4: bob -= 7 + (f % 2)  # Mega air benders ride a small whirlwind
     leg_len = 34 * sc; thigh, shin = leg_len * 0.5, leg_len * 0.5
     hip_y = ground - leg_len - 2 + bob
     torso_h = 30 * sc; sh_y = hip_y - torso_h
@@ -84,6 +90,8 @@ def frame(d, f, stage):
         cl = shade(top, 0.35) if not d.get('elite') else c('#2a2440')
         flow = 6 if run else 0
         g.polygon([(shx - 10, sh_y + 2), (shx + 8, sh_y + 2), (cx + 2 - flow, hip_y + 16 * sc), (cx - 18 - flow, hip_y + 20 * sc)], fill=cl)
+    if air and stage >= 4:
+        for i in range(4): g.arc([cx - 16 + i * 2, ground - 10 + i * 2, cx + 16 - i * 2, ground + 2 - i], 200 + f * 30 + i * 40, 520 + f * 30 + i * 40, fill=el_hi if i % 2 else c('#bfe8ff'), width=2)
     # ----- legs (back leg first) -----
     swing = math.sin(ph) * 0.65 if run else 0
     for side, sgn in (('back', -1), ('front', 1)):
@@ -110,7 +118,7 @@ def frame(d, f, stage):
         if not sleeve_skin: g.line([(ex, ey), (ex + (hx - ex) * 0.3, ey + (hy - ey) * 0.3)], fill=trim, width=2)
         g.ellipse([hx - 3.5 * sc, hy - 3.5 * sc, hx + 3.5 * sc, hy + 3.5 * sc], fill=skin_d if side == 'back' else skin)
         return hx, hy
-    arm('back', -arm_sw)
+    bhx, bhy = arm('back', -arm_sw)
     # ----- torso -----
     tw = 19 * sc
     g.polygon([(shx - tw / 2, sh_y), (shx + tw / 2, sh_y), (cx + tw / 2 - 2, hip_y + 2), (cx - tw / 2 + 2, hip_y + 2)], fill=top)
@@ -121,12 +129,18 @@ def frame(d, f, stage):
     if stage >= 3:  # master armour: shoulder guards and an element emblem
         for s2 in (-1, 1): g.ellipse([shx + s2 * 8 - 6, sh_y - 3, shx + s2 * 8 + 6, sh_y + 6], fill=trim if stage < 5 else GOLD, outline=shade(trim, 0.35))
         g.ellipse([shx - 4, sh_y + 8, shx + 4, sh_y + 16], fill=el_col, outline=shade(el_col, 0.4))
+    if air and stage >= 1:  # wooden staff held upright behind the shoulder; from bender stage it opens into a wind fan at the top
+        tx, ty = bhx - 9, bhy - 58 * sc
+        g.line([(bhx - 2, bhy + 12), (tx, ty)], fill=c('#8a5a2a') if stage < 5 else GOLD, width=3)
+        if stage >= 2:
+            for s2 in (-1, 1): g.polygon([(tx, ty), (tx + s2 * 12, ty + 4), (tx + s2 * 9, ty + 10)], fill=trim if stage < 4 else el_hi, outline=shade(trim, 0.35))
     # ----- head -----
     hx, hy = shx + 2, head_cy
     hair = d['hair']
     if d['hs'] in ('long', 'braid', 'mane'):  # hair behind the head and shoulders
         g.polygon([(hx - head_r, hy - 4), (hx + head_r * 0.4, hy - 6), (hx + 2, sh_y + 14), (hx - head_r - 4, sh_y + 16)], fill=shade(hair, 0.1))
         if d['hs'] == 'braid': [g.ellipse([hx - head_r - 2, sh_y + i * 5, hx - head_r + 5, sh_y + 6 + i * 5], fill=hair, outline=shade(hair, 0.3)) for i in range(4)]
+    if air and stage == 2: g.ellipse([hx - head_r - 4, hy - head_r - 5, hx + head_r + 2, hy + head_r + 3], fill=shade(top, 0.15))   # hood behind the head
     g.rectangle([hx - 3, hy + head_r - 3, hx + 3, sh_y + 2], fill=skin_d)                         # neck
     g.ellipse([hx - head_r, hy - head_r, hx + head_r, hy + head_r], fill=skin)
     g.chord([hx - head_r, hy - head_r, hx + head_r, hy + head_r], 100, 240, fill=skin_d)          # shadow on the far side
@@ -153,6 +167,11 @@ def frame(d, f, stage):
         for i in range(5): sx = hx - head_r + 3 + i * 4.5; g.polygon([(sx - 3, hy - head_r + 3), (sx + 3, hy - head_r + 3), (sx - 1 - (i - 2), hy - head_r - 7 - (i % 2) * 3)], fill=hair)
     if hs == 'mane': g.polygon([(hx - head_r, hy - 4), (hx - head_r - 10, hy + 8), (hx - head_r + 2, hy + 6)], fill=hair)
     g.line([(hx - head_r + 2, hy - head_r * 0.35), (hx + head_r - 3, hy - head_r * 0.5)], fill=tint(hair, 0.35), width=1)  # hair shine
+    if air and stage == 2: g.chord([hx - head_r - 4, hy - head_r - 5, hx + head_r + 2, hy + 2], 190, 350, fill=shade(top, 0.15)); g.arc([hx - head_r - 4, hy - head_r - 5, hx + head_r + 2, hy + head_r + 3], 190, 350, fill=trim, width=2)
+    if air and stage == 3:
+        for s2 in (-1, 1): g.polygon([(hx + s2 * 6, hy - head_r), (hx + s2 * 14, hy - head_r - 10), (hx + s2 * 3, hy - head_r - 2)], fill=c('#5ec2ff'))
+    if air and stage >= 4:  # rings of wind around the head
+        g.ellipse([hx - head_r - 6, hy - head_r - 12, hx + head_r + 6, hy - head_r - 4], outline=el_hi if stage == 4 else GOLD, width=2)
     if d.get('band') and stage >= 1: g.line([(hx - head_r, hy - 5), (hx + head_r, hy - 7)], fill=d['band'], width=3)
     if stage >= 5:  # element crown
         for i in range(5): px_ = hx - 9 + i * 4.5; g.polygon([(px_ - 2, hy - head_r - 2), (px_ + 2, hy - head_r - 2), (px_, hy - head_r - 8 - (i % 2) * 4)], fill=GOLD)

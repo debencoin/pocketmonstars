@@ -40,6 +40,8 @@ export const STATUS = Object.freeze({
   stun: { label: 'STUNNED', dur: 1.1, stop: true, act: true },
   confuse: { label: 'CONFUSED', dur: 2.6, confuse: true },
   lift: { label: 'LEVITATED', dur: 1.7, stop: true, act: true, lift: true },
+  whirl: { label: 'TORNADO!', dur: 1.5, stop: true, act: true, lift: true }, // spun up by a tornado, then slammed down
+  daze: { label: 'DAZED', dur: 1.7, stop: true, act: true },
   soak: { label: 'SWEPT AWAY', dur: 1.5, slow: 0.55, push: 1.8 },
   dazzle: { label: 'DAZZLED', dur: 2.0, slow: 0.7, fail: 0.25 },
   weaken: { label: 'CURSED', dur: 3.5, out: 0.65 },     // Anunnaki curse: deals 35% less damage
@@ -98,7 +100,7 @@ function makeFighter(monstar, side, teamMax = 0) {
   const s = monstar.stats, sp = monstar.species;
   return {
     sg: stageFor(monstar.level).id, shield: monstar.traits?.shield ?? 70, side, teamMax: Math.round((teamMax || s.hp) * BATTLE_HP), mon: monstar, speciesId: sp.id, type: monstar.type, mods: monstar.cls.mods, stats: s,
-    styles: { basic: sp.basicStyle || 'projectile', special: sp.specialStyle || 'beam' }, kit: sp.kit, burstT: 0, guardKind: null,
+    styles: { basic: sp.basicStyle || 'projectile', special: monstar.specialStyle || sp.specialStyle || 'beam' }, kit: monstar.kit || sp.kit, burstT: 0, guardKind: null,
     motion: MOTION[sp.motion] ? sp.motion : 'pounce',
     level: monstar.level, exp: monstar.exp, expGained: 0,
     x: side === 0 ? 170 : ARENA.w - 170, y: ARENA.h / 2 + 20, vx: 0, vy: 0,
@@ -211,6 +213,12 @@ function megaShot(m, f, foe, events) {
     const grp = m.nextId++; m.zapped ||= {};
     const stun = (v, ev) => { if (!m.zapped[grp]) { m.zapped[grp] = 1; applyStatus(m, v, 'stun', f, ev, 0.35); } else ev.push({ type: 'status', side: v.side, k: 'paralyze', label: 'ZAP!' }); };
     for (let i = 0; i < 6; i++) fx(foe.x + (Math.random() - 0.5) * 60, foe.y + (Math.random() - 0.5) * 40, 'strike', { t: -i * 0.24, rad: 62, pw: P * 0.32, track: true, ls: 1, then: stun }); }
+  else if (k === 'tornado') { // Tornado Gust: grabs every rival, spins them up, slams them down (damage) and leaves them dazed
+    for (const v of rivalsOf(m, f.side)) {
+      if (v.iframes > 0) { events.push({ type: 'miss', attacker: f.side, victim: v.side, style: 'strike' }); continue; }
+      applyStatus(m, v, 'whirl', f, events, sz); Object.assign(v.status, { noHold: true, slam: P * 0.75, by: f });
+      m.effects.push({ id: m.nextId++, owner: f.side, by: f, kind: 'special', style: 'strike', type: f.type, sid: f.speciesId, x: v.x, y: v.y, dx: 0, dy: 0, gx: v.x, gy: v.y, t: 0, dur: STATUS.whirl.dur * sz, hit: true, nextTick: 0, thrown: 0, bolted: false, tw: 1, follow: v });
+    } }
   else if (k === 'nova') fx(f.x, f.y, 'strike', { rad: 170 * sz, t: 0.25 });
   else if (k === 'meteors') for (let i = 0; i < 4; i++) { const a = i * 1.57 + 0.4; fx(foe.x + Math.cos(a) * 60 * sz * (i ? 1 : 0), foe.y + Math.sin(a) * 40 * sz * (i ? 1 : 0), 'strike', { t: -i * 0.22, pw: P * 0.45, rad: 70 }); }
   else if (k === 'vortex') { const [nx, ny] = norm(f.x - foe.x, f.y - foe.y); foe.vx += nx * 600 * Math.max(0.3, foe.mods.knockback); foe.vy += ny * 600 * Math.max(0.3, foe.mods.knockback); fx(f.x + f.fx * 90, f.y + f.fy * 60, 'strike', { rad: 130 * sz }); }
@@ -311,11 +319,12 @@ function cast(m, f, kind) {
   f.castT = 0; f.castKind = kind;
   const id = m.nextId++;
   if (style === 'projectile') {
-    const sp = S.speed * f.mods.projectileSpeed * (kind === 'basic' ? f.kit?.basic.speed ?? 1 : 1), shots = kind === 'basic' ? f.kit?.basic.shots ?? 1 : 1;
+    const sp = S.speed * f.mods.projectileSpeed * (kind === 'basic' ? f.kit?.basic.speed ?? 1 : 1);
+    const shots = kind === 'basic' ? f.kit?.basic.shots ?? 1 : f.kit?.special.shots ? f.kit.special.shots + (Math.random() < 0.5 ? 1 : 0) : 1; // Gust Volley: 3 or 4 balls
     for (let k = 0; k < shots; k++) {
       const a = Math.atan2(f.fy, f.fx) + (shots > 1 ? (k - (shots - 1) / 2) * 0.22 : 0), dx = Math.cos(a), dy = Math.sin(a);
       m.projectiles.push({ id: k ? m.nextId++ : id, owner: f.side, by: f, kind, style, type: f.type, sid: f.speciesId, x: f.x + dx * 36, y: f.y + dy * 36,
-        vx: dx * sp, vy: dy * sp, r: S.r, life: S.life, hitDone: false, missDone: false, homing: kind === 'basic' && f.kit?.basic.homing, pw: shots > 1 ? S.power * 0.62 : undefined });
+        vx: dx * sp, vy: dy * sp, r: S.r, life: S.life, hitDone: false, missDone: false, homing: kind === 'basic' && f.kit?.basic.homing, pw: shots > 1 ? S.power * (kind === 'special' ? 0.55 : 0.62) * (kind === 'special' ? f.kit?.special.power ?? 1 : 1) * 1.6 : undefined, kb: kind === 'basic' ? f.kit?.basic.knock || 1 : 1 });
     }
     return;
   }
@@ -335,6 +344,7 @@ function runEffect(m, e, dt, events) {
   const att = e.by || m.fighters[e.owner], S = STYLES[e.style], vics = rivalsOf(m, e.owner), vic = m.squad ? foeOf(m, att) : vics[0];
   if (!vic) { e.t = e.dur; return; }
   const prevT = e.t; e.t += dt;
+  if (e.follow) { e.gx = e.x = e.follow.x; e.gy = e.y = e.follow.y; if (!e.follow.status || e.follow.status.k !== 'whirl') e.t = Math.max(e.t, e.dur - 0.15); }
   if (e.track && e.t < S.hitAt && !e.hit) { const k2 = Math.min(1, dt * 3.2); e.gx += (vic.x - e.gx) * k2; e.gy += (vic.y - e.gy) * k2; } // lightning chases the rival until it strikes
   if (S.root) { e.x = att.x; e.y = att.y; }
   const R = ARENA.radius * 0.9;
@@ -437,12 +447,13 @@ export function step(m, realDt = TICK) {
       if (SS.dot) { st.acc += f.maxHp * SS.dot * dt; if (st.acc >= 2) { const dmg = Math.min(Math.floor(st.acc), Math.ceil(f.hp)); st.acc -= Math.floor(st.acc); // burn/poison can finish a Monstar off
         if (dmg > 0) { f.hp -= dmg; const src = m.fighters[st.src]; events.push({ type: 'hit', attacker: st.src, victim: f.side, damage: dmg, kind: 'status', style: st.k, eff: 1, crit: false, exp: 0, victimMaxHp: f.teamMax || f.maxHp, lvl: src?.level || 1, atk: src?.stats.spAttack || 80, pw: 6 }); if (src) src.ult = Math.min(100, src.ult + dmg * 0.5); } } }
       if (SS.lift) { // carried around in the air by psychic force, can't do anything
-        st.ph += dt * 4.2; const holder = m.fighters[st.src];
+        st.ph += dt * (st.noHold ? 9 : 4.2); const holder = st.noHold ? null : m.fighters[st.src];
         const cx = holder ? (st.ax + (holder.x + holder.fx * 160 - st.ax) * Math.min(1, (st.max - st.t) * 0.8)) : st.ax;
         f.x = cx + Math.cos(st.ph) * 70; f.y = st.ay + Math.sin(st.ph * 1.3) * 40; f.vx = f.vy = 0; collide(f);
-        if (st.t <= 0) { f.recT = 0.5; f.vy = 160; } // slammed down at the end
+        if (st.t <= 0) { f.recT = 0.5; f.vy = 160; // slammed down at the end
+          if (st.slam && st.by) { f.status = null; land(m, st.by, f, 'special', 'strike', events, 0, 1, 40, st.slam); applyStatus(m, f, 'daze', st.by, events); } }
       }
-      if (st.t <= 0) f.status = null;
+      if (st.t <= 0 && f.status === st) f.status = null;
     }
     const stopped = !!(f.status && SS.stop) || f.recT > 0, noAct = !!(f.status && SS.act) || f.recT > 0;
     f.castT += dt;
@@ -494,7 +505,7 @@ export function step(m, realDt = TICK) {
       if (vic.iframes > 0) { if (!p.missDone) { p.missDone = true; events.push({ type: 'miss', attacker: att.side, victim: vic.side, style: p.style }); } }
       else if (vic.guardT > 0 && vic.guardKind === 'reflect' && !p.reflected) { // Mirror Shell sends it back
         p.owner = vic.side; p.by = vic; p.vx = -p.vx * 1.15; p.vy = -p.vy * 1.15; p.reflected = true; p.life = Math.max(p.life, 0.8); events.push({ type: 'blocked', attacker: att.side, victim: vic.side, style: p.style, guard: 'reflect' }); }
-      else { const [nx, ny] = norm(p.vx, p.vy); if (land(m, att, vic, p.kind, p.style, events, nx, ny, p.style === 'debris' ? 160 : p.lt ? 25 : 90, p.pw)) { p.hitDone = true; p.life = 0;
+      else { const [nx, ny] = norm(p.vx, p.vy); if (land(m, att, vic, p.kind, p.style, events, nx, ny, (p.style === 'debris' ? 160 : p.lt ? 25 : 90) * (p.kb || 1), p.pw)) { p.hitDone = true; p.life = 0;
         if (p.lt) { m.zapped ||= {}; // Storm Orbs: the first ball to hit stuns; the rest zap
           if (!m.zapped[p.grp]) { m.zapped[p.grp] = 1; applyStatus(m, vic, 'stun', att, events, 0.3); } else events.push({ type: 'status', side: vic.side, k: 'paralyze', label: 'ZAP!' }); } } }
     }
@@ -551,7 +562,7 @@ export function snapshot(m) {
     sq: m.squad ? 1 : 0, lim: m.limit, pk: m.pickups.map(q => ({ id: q.id, x: r(q.x), y: r(q.y), k: q.k, l: r(q.life) })), gs: GAME_SPEED * (m.pace || 1),
     p: m.projectiles.map(p => ({ id: p.id, o: p.owner, k: p.kind, st: p.style, ty: p.type, sid: p.sid, x: r(p.x), y: r(p.y), vx: Math.round(p.vx), vy: Math.round(p.vy), r: p.r, lt: p.lt ? 1 : 0, w: p.wait > 0 ? 1 : 0 })),
     e: m.effects.map(e => ({ id: e.id, o: e.owner, k: e.kind, st: e.style, ty: e.type, sid: e.sid, x: r(e.x), y: r(e.y), dx: r(e.dx * 100) / 100, dy: r(e.dy * 100) / 100,
-      gx: r(e.gx), gy: r(e.gy), t: Math.round(e.t * 100) / 100, d: e.dur, ra: e.rad || 0, wd: e.wid || 0, mg: e.mega ? 1 : 0, ls: e.ls ? 1 : 0 })) };
+      gx: r(e.gx), gy: r(e.gy), t: Math.round(e.t * 100) / 100, d: e.dur, ra: e.rad || 0, wd: e.wid || 0, mg: e.mega ? 1 : 0, ls: e.ls ? 1 : 0, tw: e.tw ? 1 : 0 })) };
 }
 
 /** Opponent brain for AI matches: movement is the autopilot; this decides when to attack. */

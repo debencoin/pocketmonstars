@@ -183,7 +183,7 @@ function statBars(st) {
 }
 function expBar(m) { return `<div class="pv-xp" title="${m.expInto} / ${m.expNeed} EXP"><i style="width:${Math.min(100, m.expInto / Math.max(1, m.expNeed) * 100)}%"></i></div>`; }
 function cardHtml(m, extra = '') {
-  return `<span class="pv-rar ${esc(m.traits.rarity)}">${esc(m.traits.rarity)}</span>${m.tier ? `<span class="pv-tier ${esc(m.tier)}">${esc(m.tier)}</span>` : ''}<span class="pv-lv">Lv${m.level} · ${esc(m.stage)}</span>
+  return `${m.fusedWith ? `<span class="pv-chip ok" title="Bred bender: carries ${esc(m.fusedWith)}'s powers">Fused · ${esc(m.fusedWith)}</span>` : ''}<span class="pv-rar ${esc(m.traits.rarity)}">${esc(m.traits.rarity)}</span>${m.tier ? `<span class="pv-tier ${esc(m.tier)}">${esc(m.tier)}</span>` : ''}<span class="pv-lv">Lv${m.level} · ${esc(m.stage)}</span>
   <img class="px nftimg" src="art/nft/${Monstars.nftArt(Monstars.SPECIES[m.speciesId])}" alt="${esc(m.name)}" style="filter:hue-rotate(${m.traits.hue}deg)" loading="lazy">
   <span class="nm">${esc(m.form && m.form !== Monstars.SPECIES[m.speciesId].name ? m.form : m.name)}</span><span class="sub">${esc(m.className)} · ${esc(m.type)} · ${esc(m.traits.aura)} ${esc(m.traits.pattern)} · ${esc(m.traits.nature)} · 🛡 ${m.traits.shield ?? 70}% shield</span>
   ${expBar(m)}${statBars(m.stats)}${extra}`;

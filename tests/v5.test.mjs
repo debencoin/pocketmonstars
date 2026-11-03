@@ -173,3 +173,21 @@ test('Elemental Benders: gifted wallets get their benders (Tempestro only to q2x
   let hits = 0; for (let i = 0; i < 30 * 8 && !m.over; i++) { for (const e of S.step(m)) if (e.type === 'hit' && e.attacker === 0 && e.kind === 'special') hits++; a.input = S.sanitizeInput({}); b.x = 650; b.y = 300; b.vx = b.vy = 0; }
   assert.equal(hits, 6);
 });
+
+test('Aerokai: Tornado Gust grabs every rival, slams them (damage) and dazes them; Gale Push knocks back; Gust Volley fires 3-4 balls; bred benders fuse powers', async () => {
+  const S = await import('../shared/sim.mjs'), { Monstar } = await import('../shared/monstars.mjs');
+  const A = SPECIES.find(s => s.name === 'Aerokai'); assert.equal(A.kit.mega.kind, 'tornado'); assert.equal(SPECIES.find(s => s.name === 'Zephyrine').kit.mega.kind, 'tornado');
+  const m = S.createMatch([A.id, 3, 4].map(i => new Monstar({ speciesId: i, level: 1 })), [0, 1, 2].map(i => new Monstar({ speciesId: i, level: 1 })), { squad: true, auto: false });
+  m.fighters[0].ult = 100; m.fighters[0].input = S.sanitizeInput({ mega: true });
+  let whirl = 0, slams = 0, dazed = 0;
+  for (let i = 0; i < 30 * 8; i++) { for (const e of S.step(m)) { if (e.type === 'status' && e.k === 'whirl') whirl++; if (e.type === 'status' && e.k === 'daze') dazed++; if (e.type === 'hit' && e.attacker === 0 && e.style === 'strike') slams++; }
+    for (const f of m.roster[0]) f.input = S.sanitizeInput({}); }
+  assert.equal(whirl, 3, 'all three rivals caught'); assert.equal(slams, 3, 'each slam does damage'); assert.equal(dazed, 3);
+  const shots = []; for (let r = 0; r < 12; r++) { const m2 = S.createMatch(new Monstar({ speciesId: A.id, level: 1 }), new Monstar({ speciesId: 3, level: 1 }), { auto: false }); const f = m2.fighters[0]; f.cd.special = 0; f.energy = 100; f.input = S.sanitizeInput({ sp: true }); S.step(m2); shots.push(m2.projectiles.length); }
+  assert.ok(shots.every(n => n === 3 || n === 4));
+  assert.ok(new Monstar({ speciesId: A.id, level: 1 }).stats.attack > new Monstar({ speciesId: 3, level: 1 }).stats.attack * 1.5, 'benders are powerful at level 1');
+  const reg = new Registry(openDb(':memory:'), { gifts: { '@a': [A.id], '@b': [SPECIES.find(s => s.name === 'Pyreska').id] } });
+  const [pa] = reg.claimAll('@a').filter(x => x.species.bender), [pb] = reg.claimAll('@b').filter(x => x.species.bender);
+  const kids = reg.breed({ a: pa, b: pb }); assert.ok(kids.every(k => k.species.bender && k.fusion != null));
+  const pyKid = kids.find(k => k.species.name === 'Pyreska'); if (pyKid) assert.equal(reg.get(pyKid.serial).kit.mega.kind, 'tornado', 'the fire baby inherits the tornado');
+});
