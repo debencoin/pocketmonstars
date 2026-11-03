@@ -21,13 +21,3 @@ if (nav) for (const [id, label, icon] of ORDER) { const b = nav.querySelector(`[
 
 // No install banner: players can still add the app from the browser menu (Share -> Add to Home Screen).
 })();
-const show = () => { if (!standalone && !seen) bar.hidden = false; };
-addEventListener('beforeinstallprompt', e => { e.preventDefault(); deferred = e; show(); });
-if (ios && !window.phantom) setTimeout(show, 2500); // Safari on iPhone; inside Phantom's browser there is no Add to Home Screen
-q('appGo').onclick = async () => {
-  if (deferred) { deferred.prompt(); await deferred.userChoice.catch(() => {}); deferred = null; bar.hidden = true; return; }
-  q('appHow').innerHTML = 'Tap <b>Share</b> <span aria-hidden="true">⎋</span> at the bottom of Safari, then <b>Add to Home Screen</b>.'; q('appGo').hidden = true;
-};
-q('appX').onclick = () => { bar.hidden = true; try { localStorage.setItem('pm-install-x', '1'); } catch {} };
-addEventListener('appinstalled', () => { bar.hidden = true; });
-})();
