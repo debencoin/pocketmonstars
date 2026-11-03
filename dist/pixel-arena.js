@@ -393,7 +393,7 @@ function createRenderer(canvas, arena) {
     const rgb = parseInt(col.slice(1), 16), lum = ((rgb >> 16) & 255) * 0.3 + ((rgb >> 8) & 255) * 0.59 + (rgb & 255) * 0.11, dark = lum < 70;
     const rim = dark ? '#b48cff' : '#ffffff';
     ctx.save();
-    if (t < 1.5) { // the vortex beam
+    if (c.beam !== false && t < 1.5) { // the vortex beam
       const a = Math.min(1, t / 0.2) * Math.max(0, Math.min(1, (1.5 - t) / 0.35)), top = -20, H2 = Y + 40 - top;
       ctx.globalCompositeOperation = dark ? 'source-over' : 'lighter';
       const gr = ctx.createLinearGradient(X - 46 * U, 0, X + 46 * U, 0); gr.addColorStop(0, 'rgba(0,0,0,0)'); gr.addColorStop(0.5, col); gr.addColorStop(1, 'rgba(0,0,0,0)');
@@ -404,8 +404,10 @@ function createRenderer(canvas, arena) {
       ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'lighter'; glow(X, Y, 80 * U, dark ? rim : '#ffffff', col, 0.7 * a);
       if (Math.random() < 0.7) part(X / Z + (Math.random() - 0.5) * 30 / Z * U, Y / Z + 10, 0, -60 - Math.random() * 60, 0.6, Math.random() < 0.5 ? col : rim, 1);
     }
-    if (t > 1.0) { // the soul orb
-      const k = Math.min(1, (t - 1.0) / 0.35), r = (19 * k + Math.sin(ms * 0.009) * 1.6) * U, oy = Y - 16 * U - Math.min(1, (t - 1) / 2) * 16 * U + Math.sin(ms * 0.004) * 3 * U;
+    const t0 = c.beam === false ? 0.45 : 1.0; // a defeated Monstar shrinks straight into its orb (no beam)
+    if (t > t0) { // the soul orb
+      const k = Math.min(1, (t - t0) / 0.35), r = (19 * k + Math.sin(ms * 0.009) * 1.6) * U, rise = c.rise ? Math.max(0, t - c.rise) : 0;
+      const oy = Y - 16 * U - Math.min(1, (t - t0) / 2) * 16 * U + Math.sin(ms * 0.004) * 3 * U - rise * rise * 260 * U;
       ctx.globalCompositeOperation = 'lighter'; glow(X, oy, r * 3.4, dark ? rim : '#ffffff', col, 0.85);
       ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1; ctx.fillStyle = col; ctx.beginPath(); ctx.arc(X, oy, r, 0, 6.283); ctx.fill();
       ctx.strokeStyle = rim; ctx.globalAlpha = 0.7; ctx.lineWidth = 1.5 * U; ctx.beginPath(); ctx.arc(X, oy, r * 1.25, ms * 0.004, ms * 0.004 + 4); ctx.stroke();
@@ -734,7 +736,7 @@ function createRenderer(canvas, arena) {
       for (const f of cur.x || []) list.push({ f, p: prev?.x?.find(o => o.sd === f.sd && o.sl === f.sl), i: 2 + f.sd * 3 + f.sl, you: f.sd === view.you, extra: true });
       list.sort((a, b) => a.f.y - b.f.y);
       const introP = cur.in > 0 ? Math.max(0, 1 - cur.in / 1.3) : 1;
-      for (const o of list) drawFighter(o.f, o.p, t, o.i, { now, dt, you: o.you, hue: o.extra ? 0 : view.hues?.[o.i] || 0, type: o.extra ? undefined : view.types?.[o.i], faint: o.extra ? 0 : view.faint?.[o.i] || 0, vanish: introP < 1 ? Math.max(0, Math.min(1, 1 - (introP - 0.62) / 0.38)) : !o.extra && view.capture?.side === o.i ? Math.max(0, Math.min(1, (view.capture.t - 0.55) / 0.7)) : 0, extra: o.extra, ctl: !o.extra && !!cur.sq });
+      for (const o of list) drawFighter(o.f, o.p, t, o.i, { now, dt, you: o.you, hue: o.extra ? 0 : view.hues?.[o.i] || 0, type: o.extra ? undefined : view.types?.[o.i], faint: o.extra ? 0 : view.faint?.[o.i] || 0, vanish: introP < 1 ? Math.max(0, Math.min(1, 1 - (introP - 0.62) / 0.38)) : !o.extra && view.capture?.side === o.i ? Math.max(0, Math.min(1, (view.capture.t - (view.capture.beam === false ? 0.15 : 0.55)) / 0.7)) : 0, extra: o.extra, ctl: !o.extra && !!cur.sq });
       if (view.capture) captureFx(view.capture, cur, now);
       if (introP < 1) for (const o of list) introFx(o, introP, view, now);
       logical();

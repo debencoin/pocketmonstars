@@ -594,7 +594,7 @@ function showShares() {
 function renderRoom() {
   q('pvRoom').hidden = !room; q('pvLobby').hidden = !!room && !['cancelled', 'settled', 'done', 'refunded'].includes(room.state);
   const live = room?.state === 'live' || (room && ended);
-  const holdMs = ended?.capture ? 3300 : 1800; // a catch plays its vortex beam and soul orb before the result shows
+  const holdMs = ended?.capture ? 3300 : ended && ended.winner != null ? 3200 : 1800; // the soul-orb animation plays before the result shows
   const fainting = ended && performance.now() - (ended.at || 0) < holdMs;
   if (fainting) setTimeout(renderRoom, holdMs + 50 - (performance.now() - ended.at));
   const stay = !!(room?.wild && ended && !fainting); // wild runs stay full screen until you choose what's next
@@ -777,7 +777,10 @@ function drawArena() {
     const faint = [0, 0];
     let capture = null;
     if (ended?.capture) capture = { side: 1, t: (now - (ended.at || now)) / 1000, col: ended.capture.col };
-    else if (ended && ended.winner != null) faint[1 - ended.winner] = Math.min(1, (now - (ended.at || now)) / 1200);
+    else if (ended && ended.winner != null) { // the Monstar that lost turns back into its soul orb, floats, then flies away
+      const lose = 1 - ended.winner, f = snapCur.f[lose];
+      capture = { side: lose, t: (now - (ended.at || now)) / 1000, col: soulColor(Monstars.SPECIES[f?.s]), beam: false, rise: 2.4 };
+    }
     renderer.draw(snapPrev, snapCur, t, { target: target && { x: target.x, y: target.y }, rangeFor: you, you, snapAt, hues: room.players.map(p => p.monstar.traits?.hue || 0), types: room.players.map(p => p.monstar.type), faint, capture, soulCol: sid => soulColor(Monstars.SPECIES[sid]), fight: fightAt ? Math.max(0, 1.4 - (now - fightAt) / 1000) : 0 });
     const meF = snapCur.f[you], foe = snapCur.f[1 - you];
     for (const [k, f] of [[0, meF], [1, foe]]) {
