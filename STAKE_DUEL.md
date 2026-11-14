@@ -329,3 +329,8 @@ Stats: HP, Attack, Defense, Sp. Atk, Sp. Def, Speed. Types: EMBER, GROVE, TIDE, 
 ## v53 — Aura Warriors creator wallet
 - `config.creators.aurawarriors` (env `PM_AURA_CREATOR`) is the artist's wallet. The market copy of each Aura Warrior is sold from that wallet (the buyer's SOL goes straight to it) and every Aura Warrior is "born to" it, so the 5% royalty on every resale goes to the creator.
 - The founder keeps one gifted copy of each to play with (tracked in `gift_claims`, so no second copies). There is one market copy of each; a store purchase no longer returns the founder's copy.
+
+## v54 — Running legs, baby bear, tails, teleport
+- Drawn Aura Warriors run with a leg-swing cycle cut from the drawing (`make_aura_art.py`); all Monstars ease into a forward lean when they run and straighten when they stop.
+- Bunzo's Infant and Rookie stages use the creator's baby-bear drawing (waddle run). Bunzo's own special is Thunder Roar (a big stunning wall of sound); Goo Wrap moved to Kapri.
+- Aura Warriors from level 3 have a waving tail (it takes the Aura colour when powered up). Their dash is Flash Step: a longer teleport that leaves an after-image.

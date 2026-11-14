@@ -17,6 +17,7 @@ D = {
   'nyla':  dict(tol=30, crop=(0, 0, 0, 0), hair=(170, 135, 70), htol=50, gr=0.7),
   'verdo': dict(tol=14, crop=(0, 0, 0, 0.03), hair=None),
   'bunzo': dict(tol=30, crop=(0, 0, 0, 0), hair=None),
+  'bunzo_baby': dict(tol=30, crop=(0, 0, 0, 0.5), hair=None, only_for='bunzo'),   # the bear as a baby: Bunzo's Infant and Rookie stages
   'tigo':  dict(tol=30, crop=(0, 0, 0, 0.07), hair=None),
   'vikko': dict(tol=14, crop=(0, 0, 0, 0), hair=None),
   'noxx':  dict(tol=30, crop=(0, 0, 0, 0.03), hair=None),
@@ -67,7 +68,7 @@ def cutout(name, d):
     out = im.convert('RGBA'); out.putalpha(a); return out.crop(a.getbbox())
 
 def fit(im):
-    s = min((W - 28) / im.width, (H - 30) / im.height); return im.resize((max(1, round(im.width * s)), max(1, round(im.height * s))), Image.LANCZOS)
+    s = min((W - 64) / im.width, (H - 40) / im.height); return im.resize((max(1, round(im.width * s)), max(1, round(im.height * s))), Image.LANCZOS)
 
 def recolor_hair(im, d, col):
     hair, htol, gr = d['hair'], d['htol'], d['gr']; hl = max(hair)
@@ -87,30 +88,45 @@ def with_aura(im, col, t):
     g = Image.new('RGBA', base.size, col + (0,)); g.putalpha(glow.point(lambda v: min(255, int(v * 1.3))))
     return Image.alpha_composite(g, base)
 
-def frames(im):
+def frames(im, legs=True):
+    """idle A, idle B, then a 4-frame run: the legs are cut from the drawing and swung (one forward and lifted, the other back),
+    with the body leaning forward and bouncing on each step."""
+    w, h = im.size; cut = int(h * 0.76); mid = w // 2; M = 26
+    O = 8; upper = im.crop((0, 0, w, cut + 2)); legL = im.crop((0, cut - O, mid, h)); legR = im.crop((mid, cut - O, w, h))
+    def swing(leg, k, lift):   # shear the leg sideways from the hip (k px per row) and shorten it by `lift` (foot off the ground)
+        lw, lh = leg.size; big = Image.new('RGBA', (lw + M * 2, lh), (0, 0, 0, 0)); big.paste(leg, (M, 0))
+        out = big.transform(big.size, Image.AFFINE, (1, -k, 0, 0, 1, 0), resample=Image.BICUBIC)
+        return out.resize((out.width, max(1, round(lh * (1 - lift)))), Image.LANCZOS) if lift else out
+    def pose(kl, liftl, kr, liftr, bob, lean):
+        body = Image.new('RGBA', (w + M * 2, h + 8), (0, 0, 0, 0))
+        l = swing(legL, kl, liftl); r = swing(legR, kr, liftr)
+        body.paste(l, (0, cut - O), l); body.alpha_composite(r, (mid, cut - O)); body.alpha_composite(upper, (M, bob))
+        return body.rotate(lean, resample=Image.BICUBIC, expand=True) if lean else body
+    if not legs:   # no legs to swing (the baby): a waddle, rocking side to side with a hop
+        def wad(bob, lean):
+            body = Image.new('RGBA', (w + M * 2, h + 8), (0, 0, 0, 0)); body.alpha_composite(im, (M, 8 + bob)); return body.rotate(lean, resample=Image.BICUBIC, expand=True) if lean else body
+        poses = [wad(0, 0), None, wad(0, -8), wad(-8, -3), wad(0, 8), wad(-8, 3)]
+    else: poses = [pose(0, 0, 0, 0, 0, 0), None, pose(0.55, 0.3, -0.45, 0, 3, -5), pose(0.12, 0.08, -0.1, 0, -4, -4), pose(-0.45, 0, 0.55, 0.3, 3, -5), pose(-0.1, 0, 0.12, 0.08, -4, -4)]
+    idle = poses[0]; poses[1] = idle.resize((idle.width, round(idle.height * 0.985)), Image.LANCZOS)   # idle B: a small breath
     out = []
-    for f in range(6):
-        fr = Image.new('RGBA', (W, H), (0, 0, 0, 0)); s = im
-        dy, rot, sq = 0, 0, 1.0
-        if f == 1: sq = 0.985                      # idle B: a small breath
-        elif f >= 2: rot = (-4, 0, 4, 0)[f - 2]; dy = (0, -7, 0, -7)[f - 2]   # run: lean and bounce
-        if sq != 1.0: s = s.resize((s.width, round(s.height * sq)), Image.LANCZOS)
-        if rot: s = s.rotate(rot, resample=Image.BICUBIC, expand=True)
-        fr.paste(s, ((W - s.width) // 2, H - 6 - s.height + dy), s); out.append(fr)
+    for s2 in poses:
+        fr = Image.new('RGBA', (W, H), (0, 0, 0, 0)); fr.alpha_composite(s2, ((W - s2.width) // 2, H - 6 - s2.height + (8 if s2 is not poses[1] else 8))); out.append(fr)
     return out
 
-def save(name, suffix, im):
-    fs = frames(im); sheet = Image.new('RGBA', (W * 6, H), (0, 0, 0, 0))
+def save(name, suffix, im, legs=True):
+    fs = frames(im, legs); sheet = Image.new('RGBA', (W * 6, H), (0, 0, 0, 0))
     for i, fr in enumerate(fs): sheet.paste(fr, (i * W, 0))
     sheet.save(os.path.join(WALK, f'{name}{suffix}.png'), optimize=True); fs[0].save(os.path.join(HD, f'{name}{suffix}.png'), optimize=True)
     return fs[0]
 
 only = set(sys.argv[1:])
 for name, d in D.items():
-    if only and name not in only: continue
+    if d.get('only_for') or (only and name not in only): continue
     cut = cutout(name, d); base = fit(cut)
-    for st in range(6): f0 = save(name, f'_s{st}', base)
-    f0.save(os.path.join(HD, name + '.png'), optimize=True)
+    baby = fit(cutout(name + '_baby', D[name + '_baby'])) if name + '_baby' in D else None
+    if baby: baby = baby.resize((round(baby.width * 0.8), round(baby.height * 0.8)), Image.LANCZOS)
+    for st in range(6): f0 = save(name, f'_s{st}', baby if baby and st < 2 else base, not (baby and st < 2))
+    Image.open(os.path.join(HD, name + '_s2.png')).save(os.path.join(HD, name + '.png'), optimize=True)
     for t, colh in enumerate(AURA, 1):
         col = hexc(colh); im = recolor_hair(cut, d, col) if d.get('hair') else cut
         save(name, f'_a{t}', fit(with_aura(im, col, t)))

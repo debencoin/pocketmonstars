@@ -190,7 +190,7 @@ function createRenderer(canvas, arena) {
     ctx.ellipse = (x, y, rx, ry, rot, a, b, c) => ell(fin(x), fin(y), pos(rx), pos(ry), fin(rot), fin(a), fin(b), c);
     ctx.createRadialGradient = (x0, y0, r0, x1, y1, r1) => rad(fin(x0), fin(y0), pos(r0), fin(x1), fin(y1), Math.max(0.01, pos(r1)));
   }
-  let parts = [], decals = [], texts = [], trails = [[], [], [], [], [], [], [], []], shake = 0, flash = 0, impacts = new Set(), lastNow = performance.now();
+  let parts = [], decals = [], texts = [], trails = [[], [], [], [], [], [], [], []], shake = 0, flash = 0, impacts = new Set(), lastNow = performance.now(), lean = [], tpSeen = [], lastPos = [], ghosts = [];
   let banner = null, grow = [0, 0, 0, 0, 0, 0, 0, 0], theme = 0, fx = [], SX = 0, SY = 0, dashSeen = [0, 0, 0, 0, 0, 0, 0, 0];
   // ---------- smooth full-resolution effects (dust clouds, impact stars, shockwaves, flying rock, glowing bolts) ----------
   const FULL = () => ctx.setTransform(1, 0, 0, 1, SX * Z, SY * Z), LOG = () => ctx.setTransform(Z, 0, 0, Z, SX * Z, SY * Z);
@@ -325,6 +325,7 @@ function createRenderer(canvas, arena) {
     if (f.st === 'daze') rot = Math.sin(phase * 4) * 0.25; // held up and shaken by psychic force
     if (f.st === 'paralyze' && Math.floor(now * 14) % 3 === 0) ox += (Math.random() - 0.5) * 6 * U;
     if (f.rc) ox += (Math.random() - 0.5) * 3 * U;
+    lean[i] = (lean[i] || 0) + (((f.mv || f.ds) ? (f.fx < 0 ? -1 : 1) * (f.ds ? 0.16 : 0.07) : 0) - (lean[i] || 0)) * Math.min(1, opt.dt * 9); // ease into a forward lean when running, back upright when stopping
     if (walker) { if (f.mv && !f.ds) oy -= (frame % 2 === 0 ? 1.5 : 0) * U; }
     else if (f.mv && !f.ds) {
       if (mo === 'pounce' || mo === 'prance') { const s2 = Math.abs(Math.sin(phase * 10)); oy -= s2 * 7 * U; if (s2 < 0.2) { sx = 1.08; sy = 0.9; } }
@@ -340,6 +341,20 @@ function createRenderer(canvas, arena) {
     if (opt.faint) { oy += opt.faint * 20 * U; alpha *= 1 - opt.faint; sy *= 1 - opt.faint * 0.5; }
     if (opt.vanish) { oy -= opt.vanish * 26 * U; alpha *= 1 - opt.vanish; sx *= 1 - opt.vanish * 0.85; sy *= 1 - opt.vanish * 0.85; } // pulled up into the catch beam
     const flip = f.fx < 0;
+    if (!rot && !f.fl) rot = lean[i] * (hiK < 1 ? 0.4 : 1); // the drawn run frames already lean
+    if (f.au) { // Aura Warriors teleport: an after-image stays where they vanished from
+      if (f.bk > 0.2 && !tpSeen[i] && lastPos[i]) ghosts.push({ x: lastPos[i].x, y: lastPos[i].y, life: 0.45, wh, dw, dh, flip });
+      tpSeen[i] = f.bk > 0.2 ? 1 : 0; lastPos[i] = { x: X, y: Y };
+      for (const gh of ghosts) { gh.life -= opt.dt / 2; if (gh.life > 0) { ctx.globalAlpha = gh.life * 1.4; blit(gh.wh, gh.x, gh.y, gh.dw, gh.dh, gh.flip, 1 - (0.45 - gh.life), 1 + (0.45 - gh.life) * 1.5, 0);
+        ctx.fillStyle = '#ffffff'; for (let k = 0; k < 4; k++) ctx.fillRect(Math.round(gh.x + (k - 1.5) * gh.dw * 0.2), Math.round(gh.y - gh.dh * (0.2 + Math.random() * 0.8)), 2 * U, 12 * U); } }
+      while (ghosts.length && ghosts[0].life <= 0) ghosts.shift(); ctx.globalAlpha = 1;
+    }
+    if (f.au && (f.lv ?? 3) >= 3 && !opt.faint && !opt.vanish) { // monkey tail from the back, waving
+      const dir = flip ? 1 : -1, bx = X + ox + dir * dw * 0.16, by = Y + oy - dh * 0.26, L = dh * 0.5, wv = Math.sin(now * 3.2 + i) * 0.5 + (f.mv ? Math.sin(now * 11) * 0.25 : 0);
+      const c1x = bx + dir * L * 0.55, c1y = by + L * 0.15, c2x = bx + dir * L * (0.75 + wv * 0.25), c2y = by - L * (0.35 + wv * 0.2), ex = bx + dir * L * (0.55 + wv * 0.45), ey = by - L * (0.8 - Math.abs(wv) * 0.15);
+      ctx.save(); ctx.globalAlpha = alpha; ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo(bx, by); ctx.bezierCurveTo(c1x, c1y, c2x, c2y, ex, ey);
+      ctx.strokeStyle = '#1a0e06'; ctx.lineWidth = Math.max(4, dw * 0.085); ctx.stroke(); ctx.strokeStyle = f.as > 0 ? ['#ffd23f', '#b45aff', '#3aff7a', '#ff3b3b', '#f4fbff'][f.as - 1] : '#7a4a22'; ctx.lineWidth = Math.max(2, dw * 0.055); ctx.stroke(); ctx.restore();
+    }
     // shadow (smaller and lighter when airborne)
     ctx.globalAlpha = (f.fl ? 0.2 : 0.35) * alpha; ctx.fillStyle = '#10141a';
     ctx.beginPath(); ctx.ellipse(Math.round(X), Math.round(Y), Math.round(dw * (f.fl ? 0.22 : 0.3)), (f.fl ? 3 : 5) * U, 0, 0, Math.PI * 2); ctx.fill(); ctx.globalAlpha = 1;
@@ -554,6 +569,12 @@ function createRenderer(canvas, arena) {
       const t = now / 1000; FULL(); ctx.save(); ctx.globalCompositeOperation = 'lighter'; glow(x * Z, y * Z, 22 * U, '#ffffff', '#ffd23f', 0.7); ctx.restore(); LOG();
       ellipse(x, y, 14, 4, '#ffd23f'); ellipse(x, y, 10, 3, '#fff6a8'); ellipse(x, y, 5, 1, '#ffffff'); if (Math.random() < 0.6) part(x - Math.cos(a) * 10, y - Math.sin(a) * 10, 0, 0, 0.3, '#ffe98a', 1); px(R(x + Math.cos(t * 30) * 9), R(y), 2, 1, '#ffffff'); px(R(x - Math.cos(t * 30) * 9), R(y), 2, 1, '#ffffff');
       return;
+    }
+    if (p.lk === 'roar') { // Bunzo's Thunder Roar: a rolling wall of sound (three growing arcs)
+      FULL(); ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.lineCap = 'round';
+      for (let k = 0; k < 3; k++) { const rr = (14 + k * 9 + Math.sin(now / 60 + k) * 2) * Z; ctx.strokeStyle = k ? '#ffb030' : '#fff6c8'; ctx.lineWidth = (5 - k) * U; ctx.shadowColor = '#ff7a1a'; ctx.shadowBlur = 12 * U; ctx.globalAlpha = 1 - k * 0.25;
+        ctx.beginPath(); ctx.arc((x - Math.cos(a) * (12 - k * 9)) * Z, (y - Math.sin(a) * (12 - k * 9)) * Z, rr, a - 0.9, a + 0.9); ctx.stroke(); }
+      ctx.restore(); LOG(); if (Math.random() < 0.6) part(x + (Math.random() - 0.5) * 20, y + (Math.random() - 0.5) * 20, 0, 0, 0.25, '#ffd23f', 1); return;
     }
     if (p.lk === 'sting') { // Drain Sting: a green stinger with a wavy tail that drinks energy
       FULL(); ctx.save(); ctx.globalCompositeOperation = 'lighter'; glow(x * Z, y * Z, 18 * U, '#d8ffd0', '#2aff5a', 0.8); ctx.restore(); LOG();
@@ -866,7 +887,7 @@ function createRenderer(canvas, arena) {
       if (banner.sub) { ctx.font = '700 16px Inter, system-ui, sans-serif'; ctx.fillStyle = '#ffd84a'; ctx.fillText(banner.sub, CW / 2, CH / 2 + 18); }
       ctx.textBaseline = 'alphabetic'; ctx.globalAlpha = 1; if (banner.t <= 0) banner = null; }
   }
-  function reset() { fx = []; parts = []; decals = []; texts = []; trails = [[], [], [], [], [], [], [], []]; impacts.clear(); shake = 0; flash = 0; banner = null; grow = [0, 0, 0, 0, 0, 0, 0, 0]; }
+  function reset() { fx = []; parts = []; decals = []; texts = []; trails = [[], [], [], [], [], [], [], []]; impacts.clear(); shake = 0; flash = 0; banner = null; lean = []; tpSeen = []; lastPos = []; ghosts = []; grow = [0, 0, 0, 0, 0, 0, 0, 0]; }
   return { draw, hit, event, reset, ground: (th, lay) => { g = ctx; ctx.setTransform(Z, 0, 0, Z, 0, 0); ctx.drawImage(groundFor(th), 0, 0); drawLayout(lay, performance.now()); ctx.setTransform(1, 0, 0, 1, 0, 0); }, idle: (th = theme) => { g = ctx; ctx.setTransform(Z, 0, 0, Z, 0, 0); ctx.drawImage(groundFor(th), 0, 0); ctx.setTransform(1, 0, 0, 1, 0, 0); }, themes: THEMES };
 }
 

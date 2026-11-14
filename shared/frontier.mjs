@@ -370,10 +370,10 @@ const AW_SPECIALS = [ // one per warrior: every Aura Warrior has its own power, 
   { special: 'Surge Wave', style: 'beam', sig: { note: 'A huge energy wave fired from both hands.' } },
   { special: 'Halo Disc', style: 'projectile', sig: { look: 'disc', homing: true, seek: true, note: 'A spinning energy disc that follows the rival around the arena until it hits.' } },
   { special: 'Ki Volley', style: 'projectile', sig: { shots: 3, look: 'ki', note: 'Fires 3 or 4 energy blasts at once.' } },
-  { special: 'Solar Flash', style: 'cone', sig: { note: 'A blinding burst of light in front: the rival is dazzled.' } },
+  { special: 'Goo Wrap', style: 'projectile', sig: { look: 'goo', shots: 2, leech: 0.25, status: 'stun', note: 'Stretchy pink goo blobs that wrap the rival and hold it still; a little of the damage heals you.' } },
   { special: 'Spiral Beam', style: 'beam', sig: { reach: 1.3, note: 'A drilling spiral beam that reaches very far.' } },
   { special: 'Drain Sting', style: 'projectile', sig: { look: 'sting', homing: true, leech: 0.6, note: 'A green stinger that chases the rival and absorbs its energy: 60% of the damage heals you.' } },
-  { special: 'Goo Wrap', style: 'projectile', sig: { look: 'goo', shots: 2, leech: 0.25, note: 'Stretchy pink goo blobs that wrap the rival and hold it still; a little of the damage heals you.' } },
+  { special: 'Thunder Roar', style: 'projectile', sig: { look: 'roar', big: 2.2, knock: 3, status: 'stun', note: 'Only Bunzo has it: a roar so loud it becomes a wall of sound that rolls across the arena, throws the rival back and stuns it.' } },
   { special: 'Prism Shards', style: 'projectile', sig: { look: 'shard', shots: 4, note: 'A fan of 4 or 5 razor crystal shards.' } },
   { special: 'Ring Snare', style: 'projectile', sig: { look: 'ring', homing: true, note: 'Glowing energy rings that curve after the rival and lock it in place.' } },
   { special: 'Star Blaster', style: 'beam', sig: { reach: 1.15, note: 'A full-power blaster beam fired from the hip.' } },
@@ -392,8 +392,8 @@ const AW = (i, name, type, cls, main, female, status) => {
   return { ...base, aura: true, female, drop: { priceLamports: '1500000000', shop: true },
     forms: [`Young ${name}`, `${name} the Fighter`, name, `${name} Prime`, `Mega ${name}`, `Ascended ${name}`],
     sig: { basic: { name: 'Ki Blast', look: 'ki', shots: 2, note: 'Two quick energy blasts.' },
-      special: { name: S2.special, ...S2.sig, ...(status && S2.style === 'projectile' ? { status } : {}) },
-      dash: { kind: 'blink', name: `${name} Blink Step`, note: 'Vanishes and reappears a short way off (very fast).', dist: +(1.3 + i * 0.03).toFixed(2), cd: +(0.9 + i * 0.03).toFixed(2) },
+      special: { name: S2.special, ...(status && S2.style === 'projectile' ? { status } : {}), ...S2.sig },
+      dash: { kind: 'blink', name: `${name} Flash Step`, note: 'Teleports: vanishes and reappears a good way off in a blink, leaving an after-image behind.', dist: +(1.6 + i * 0.03).toFixed(2), cd: +(0.9 + i * 0.03).toFixed(2) },
       mega: M(mk, `${name} ${mn}`, note, +(1.32 + i * 0.01).toFixed(2), 1.2) } };
 };
 export const AURA_WARRIORS = [
