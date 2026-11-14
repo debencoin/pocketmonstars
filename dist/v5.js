@@ -117,7 +117,7 @@ function renderShop() {
   const card = h => { const sp = SPECIES[h.speciesId], K = sp.kit;
     if (h.aura) return `<div class="dr-card top${h.sold ? ' sold' : ''}"><span class="dr-badge">AURA WARRIOR</span>
       <img src="art/hd/${sp.art}_s2.png" alt="${esc(sp.name)}" loading="lazy"><div class="dr-evo">${[1, 3, 5].map(t => `<img src="art/hd/${sp.art}_a${t}.png" alt="" loading="lazy">`).join('')}</div>
-      <b>${esc(sp.name)}</b><small>${esc(sp.type)} · ${esc(sp.cls.label)} · Lv1 · Aura forms gold → white</small>
+      <b>${esc(sp.name)}</b><small>${esc(sp.type)} · ${esc(sp.cls.label)} · Lv1 · Aura forms gold → white</small>${h.creator ? `<small>Sold by the creator ${esc(short(h.creator))} · 5% of every resale goes to the creator</small>` : ''}
       <small class="sb-kit"><b>Special</b> ${esc(K.special.name)} · <b>Mega Shot</b> ${esc(K.mega.name)}<br><b>Dash</b> ${esc(K.dash.name)}</small>${attrHtml(sp, 1, true)}
       ${h.sold ? `<span class="pv-chip ok">Sold${h.owner ? ' · ' + esc(short(h.owner)) + (h.owner === me ? ' (you)' : '') : ''}</span>`
         : `<button class="primary" data-sbuy="${h.speciesId}" ${h.held ? 'disabled' : ''}>${h.held ? 'Being bought…' : 'Buy · ' + sol(h.priceLamports) + ' SOL'}</button>${h.held ? '' : cardBtn(h.speciesId, h.priceLamports)}`}</div>`;

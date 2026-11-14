@@ -22,7 +22,10 @@ export function starterSpecies(owner) {
 }
 
 export class Registry {
-  constructor(db, { legendaryOwner = null, royalOwner = null, gifts = {} } = {}) {
+  constructor(db, { legendaryOwner = null, royalOwner = null, gifts = {}, creators = {} } = {}) {
+    // collection -> creator wallet: the artist who drew that collection. Its Monstars are "born to" the creator, so the
+    // 5% resale royalty goes to that wallet for ever, whoever holds or sells them.
+    this.creators = Object.fromEntries(Object.entries(creators || {}).map(([c, w]) => [c, new PublicKey(w).toBase58()]));
     this.gifts = Object.fromEntries(Object.entries(gifts || {}).map(([w, ids]) => [normOwner(w), ids]));
     this.db = db;
     this.legendaryOwner = legendaryOwner ? new PublicKey(legendaryOwner).toBase58() : null;
@@ -33,6 +36,14 @@ export class Registry {
       const ids = LEGENDARY_IDS.join(',') || '-1';
       db.exec(`UPDATE monstars SET exp=0 WHERE genesis=1 AND species IN (${ids}) AND exp>=${expForLevel(80)}`);
       db.prepare("INSERT INTO meta(k,v) VALUES('legend-infants-v1','done')").run();
+    }
+    // gifts handed out (so a gift is given once, even when the Monstar is born to its creator and not to the holder)
+    db.exec('CREATE TABLE IF NOT EXISTS gift_claims(owner TEXT NOT NULL, species INTEGER NOT NULL, serial INTEGER NOT NULL, PRIMARY KEY(owner, species))');
+    for (const [coll, creator] of Object.entries(this.creators)) { // existing unminted Monstars of a creator's collection: the royalty moves to the creator
+      for (const r of db.prepare('SELECT serial, species, origin_owner, genesis FROM monstars WHERE collection=? AND origin_owner<>? AND asset IS NULL').all(coll, creator)) {
+        if (r.genesis) db.prepare('INSERT OR IGNORE INTO gift_claims(owner, species, serial) VALUES(?,?,?)').run(r.origin_owner, r.species, r.serial);
+        db.prepare('UPDATE monstars SET origin_owner=? WHERE serial=?').run(creator, r.serial);
+      }
     }
   }
 
@@ -68,10 +79,15 @@ export class Registry {
     const ids = [...(key ? legendaryIdsFor(key) : []), ...(this.gifts[owner] || [])];
     if (!ids.length) return [];
     return ids.map(sid => {
-      const existing = this.db.prepare('SELECT * FROM monstars WHERE origin_owner=? AND species=? AND genesis=1').get(owner, sid);
+      const creator = this.creators[SPECIES[sid].collection];
+      const claim = creator && this.db.prepare('SELECT serial FROM gift_claims WHERE owner=? AND species=?').get(owner, sid);
+      const existing = claim ? this.db.prepare('SELECT * FROM monstars WHERE serial=?').get(claim.serial)
+        : this.db.prepare('SELECT * FROM monstars WHERE origin_owner=? AND species=? AND genesis=1' + (creator ? ' AND owner=?' : '')).get(...(creator ? [creator, sid, owner] : [owner, sid]));
       if (existing) return this.toMonstar(existing);
-      return this.insertUnique({ speciesId: sid, originOwner: owner, owner, genesis: true, collection: SPECIES[sid].collection, exp: 0,
+      const m = this.insertUnique({ speciesId: sid, originOwner: creator || owner, owner, genesis: true, collection: SPECIES[sid].collection, exp: 0,
         dnaFor: n => composeDna(deriveDna(owner, sid, n), { rarity: 'Legendary', ivs: [15, 15, 15, 15, 15, 15].map((v, k) => v - ((n + k) % 2)) }) });
+      if (creator) this.db.prepare('INSERT OR IGNORE INTO gift_claims(owner, species, serial) VALUES(?,?,?)').run(owner, sid, m.serial);
+      return m;
     });
   }
 
@@ -82,7 +98,7 @@ export class Registry {
    */
   claimAll(owner) {
     owner = normOwner(owner);
-    const had = this.db.prepare('SELECT * FROM monstars WHERE origin_owner=? AND genesis=1').all(owner).map(r => this.toMonstar(r)).filter(m => !m.species.legendary && !(this.gifts[owner] || []).includes(m.species.id));
+    const had = this.db.prepare('SELECT * FROM monstars WHERE origin_owner=? AND genesis=1').all(owner).map(r => this.toMonstar(r)).filter(m => !m.species.legendary && !(this.gifts[owner] || []).includes(m.species.id) && !this.creators[m.species.collection]);
     const starters = (had.length ? had : starterSpecies(owner).map(id => this.claimGenesis(owner, id))).sort((x, y) => x.serial - y.serial);
     return [...starters, ...this.claimLegendaries(owner)];
   }
@@ -126,9 +142,9 @@ export class Registry {
   grantHero(owner, speciesId, signature) {
     owner = normOwner(owner);
     if (!SALE_IDS.includes(speciesId)) throw Error('That Monstar is not for sale.');
-    const had = this.db.prepare('SELECT * FROM monstars WHERE species=? ORDER BY serial LIMIT 1').get(speciesId);
+    const had = this.db.prepare('SELECT * FROM monstars WHERE species=? AND genesis=0 ORDER BY serial LIMIT 1').get(speciesId); // the one market copy (gifts are genesis)
     if (had) return this.toMonstar(had);
-    return this.insertUnique({ speciesId, originOwner: owner, owner, genesis: false, collection: SPECIES[speciesId].collection, exp: 0,
+    return this.insertUnique({ speciesId, originOwner: this.creators[SPECIES[speciesId].collection] || owner, owner, genesis: false, collection: SPECIES[speciesId].collection, exp: 0,
       dnaFor: n => composeDna(createHash('sha256').update(`pocketmonstars:hero:${speciesId}:${signature}:${n}`).digest('hex'), { rarity: 'Legendary', ivs: [15, 15, 14, 15, 14, 15] }) });
   }
 

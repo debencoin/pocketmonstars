@@ -32,7 +32,7 @@ function sessionSecret() {
 export function createServer({ config = CONFIG, chain = new SolanaChain(config.rpc), dbFile = path.join(DATA_DIR, 'pocketmonstars.db'), keys = serverKeys(),
   stripe = new StripePay({ secretKey: config.stripeSecretKey, webhookSecret: config.stripeWebhookSecret, fixedSolUsd: config.solUsd, publicUrl: config.publicUrl }) } = {}) {
   const db = openDb(dbFile);
-  const registry = new Registry(db, { legendaryOwner: config.legendaryOwner, royalOwner: config.royalOwner, gifts: config.gifts }), auth = new Auth({ secret: sessionSecret() });
+  const registry = new Registry(db, { legendaryOwner: config.legendaryOwner, royalOwner: config.royalOwner, gifts: config.gifts, creators: config.creators }), auth = new Auth({ secret: sessionSecret() });
   const players = new Players(db);
   const matches = new MatchManager({ db, registry, chain, config, players });
   const nft = new NftService({ config, keys, chain });
@@ -48,6 +48,7 @@ export function createServer({ config = CONFIG, chain = new SolanaChain(config.r
   const isNew = id => !db.prepare('SELECT 1 FROM monstars WHERE origin_owner=? LIMIT 1').get(id);
   const welcome = (id, ref) => { if (isNew(id) && ref) players.setReferrer(id, ref); registry.claimAll(id); return auth.issue(id); };
   const dropMemo = sid => `PMDROP:${sid}`;
+  const sellerOf = sid => config.creators?.[SPECIES[sid].collection] || config.dropTreasury; // who is paid for a store Monstar: its creator, else the founder wallet
   const dropPrice = sid => BigInt(SPECIES[sid].drop.priceLamports);
   let dropsReadyCard = null;
   const online = new Map(); // wallet -> open sockets
@@ -280,7 +281,7 @@ export function createServer({ config = CONFIG, chain = new SolanaChain(config.r
           sold: !!sale, owner: sale ? registry.get(sale.serial)?.owner || sale.buyer : null, held: !sale && r && r.until > Date.now() }; }),
       // Sky Bender market: one of each, sold for SOL with no time limit (COVA is 10 SOL)
       shop: SHOP_IDS.map(sid => { const sale = players.sale(sid), r = reserved.get(sid), sp = SPECIES[sid];
-        return { speciesId: sid, name: sp.name, type: sp.type, element: sp.el2, female: !!sp.female, unique: !!sp.unique, aura: !!sp.aura, priceLamports: sp.drop.priceLamports, mega: sp.kit.mega.name,
+        return { speciesId: sid, name: sp.name, type: sp.type, element: sp.el2, female: !!sp.female, unique: !!sp.unique, aura: !!sp.aura, priceLamports: sp.drop.priceLamports, mega: sp.kit.mega.name, seller: sellerOf(sid), creator: config.creators?.[sp.collection] || null,
           sold: !!sale, owner: sale ? registry.get(sale.serial)?.owner || sale.buyer : null, held: !sale && r && r.until > Date.now() }; }) }),
     'POST /api/drop/tx': async req => { const w = needWallet(req), b = await body(req), sid = Number(b.speciesId);
       if (!SALE_IDS.includes(sid)) throw Error('That Monstar is not for sale.');
@@ -290,13 +291,13 @@ export function createServer({ config = CONFIG, chain = new SolanaChain(config.r
       reserved.set(sid, { wallet: w, until: Date.now() + 120_000 });
       const { blockhash } = await chain.latestBlockhash(), payer = new PublicKey(w);
       const tx = new Transaction({ feePayer: payer, recentBlockhash: blockhash })
-        .add(SystemProgram.transfer({ fromPubkey: payer, toPubkey: new PublicKey(config.dropTreasury), lamports: dropPrice(sid) }))
+        .add(SystemProgram.transfer({ fromPubkey: payer, toPubkey: new PublicKey(sellerOf(sid)), lamports: dropPrice(sid) }))
         .add(new TransactionInstruction({ programId: new PublicKey(MEMO_PROGRAM), keys: [{ pubkey: payer, isSigner: true, isWritable: false }], data: Buffer.from(dropMemo(sid)) }));
       return { transaction: tx.serialize({ requireAllSignatures: false, verifySignatures: false }).toString('base64'), priceSol: formatSol(dropPrice(sid), 2) }; },
     'POST /api/drop/confirm': async req => { const w = needWallet(req), b = await body(req), sid = Number(b.speciesId);
       if (!SALE_IDS.includes(sid)) throw Error('That Monstar is not for sale.');
       await waitConfirmed(b.signature);
-      await chain.verifyPayment(b.signature, { from: w, to: config.dropTreasury, lamports: dropPrice(sid), memo: dropMemo(sid) });
+      await chain.verifyPayment(b.signature, { from: w, to: sellerOf(sid), lamports: dropPrice(sid), memo: dropMemo(sid) });
       const sale = players.sale(sid);
       if (sale) { if (sale.signature === b.signature) return registry.get(sale.serial).toJSON(); throw Error(SPECIES[sid].name + ' was already sold. Contact support for a refund with this signature: ' + b.signature); }
       const m = registry.grantHero(w, sid, b.signature); players.recordSale(sid, w, b.signature, m.serial); reserved.delete(sid);
@@ -469,11 +470,13 @@ export function createServer({ config = CONFIG, chain = new SolanaChain(config.r
   // The free server plan loses its database on every deploy, so rebuild drop sales from the payments on-chain.
   async function rebuildDrops() {
     if (!chain.memoPayments) return;
-    for (const { signature, tx } of await chain.memoPayments(config.dropTreasury, 'PMDROP:')) {
+    const sellers = [...new Set([config.dropTreasury, ...Object.values(config.creators || {})])], pays = [];
+    for (const to of sellers) pays.push(...await chain.memoPayments(to, 'PMDROP:').catch(() => []));
+    for (const { signature, tx } of pays) {
       try {
         const memo = tx.transaction.message.instructions.map(ix => (typeof ix.parsed === 'string' ? ix.parsed : '')).find(x => x.startsWith('PMDROP:'));
         const sid = Number(memo?.slice(7)); if (!SALE_IDS.includes(sid) || players.sale(sid)) continue;
-        const buyer = checkPayment(tx, { to: config.dropTreasury, lamports: dropPrice(sid), memo: dropMemo(sid) });
+        const buyer = checkPayment(tx, { to: sellerOf(sid), lamports: dropPrice(sid), memo: dropMemo(sid) });
         const m = registry.grantHero(buyer, sid, signature); players.recordSale(sid, buyer, signature, m.serial);
       } catch {}
     }

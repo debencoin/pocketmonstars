@@ -325,3 +325,7 @@ Stats: HP, Attack, Defense, Sp. Atk, Sp. Def, Speed. Types: EMBER, GROVE, TIDE, 
 - Two new Aura Warriors from the creator's drawings: Vikko (242) and Noxx (243), gifted to the founder and sold once each in the market.
 - Every Aura Warrior has its own power: Halo Disc now follows the rival until it hits; new Drain Sting (absorbs HP), Goo Wrap, Prism Shards, Ring Snare, Star Blaster.
 - Not added: characters copied from films, comics, anime or TV shows. Original creatures only.
+
+## v53 — Aura Warriors creator wallet
+- `config.creators.aurawarriors` (env `PM_AURA_CREATOR`) is the artist's wallet. The market copy of each Aura Warrior is sold from that wallet (the buyer's SOL goes straight to it) and every Aura Warrior is "born to" it, so the 5% royalty on every resale goes to the creator.
+- The founder keeps one gifted copy of each to play with (tracked in `gift_claims`, so no second copies). There is one market copy of each; a store purchase no longer returns the founder's copy.

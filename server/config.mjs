@@ -50,6 +50,9 @@ export const CONFIG = {
   royalOwner: env.PM_ROYAL_OWNER || '54y46qyavsX1hWXgx5W76WrBjghXxUfkcNftswaXNTbr', // second founder wallet: the Royal Anunnaki
   // Superhero Drop: 30 heroes sold once each (top 5 at 1 SOL, the rest 0.5 SOL), paid to the founder wallet.
   dropTreasury: env.PM_DROP_TREASURY || env.PM_LEGENDARY_OWNER || 'Dc9s1YwNHE2xDBzpprDvyruzxj8j5HvBSvfbvdups5LJ',
+  // The artist who drew a collection. Its market copies are sold from this wallet (the buyer pays it directly) and the
+  // 5% royalty on every later resale goes to it for ever. The founder keeps the gifted copies to play with.
+  creators: { aurawarriors: env.PM_AURA_CREATOR || '1jBWaau5EEZK7cwZVqKiEDfJBS9STp6JSYmVbAXgZnj' },
   dropEndsAt: Date.parse(env.PM_DROP_ENDS || '2026-12-03T03:30:00Z'), // 30 days from launch (2026-11-03)
   // Card payments (Stripe). Set these in Render → Environment, never in the repo. Off while STRIPE_SECRET_KEY is empty.
   stripeSecretKey: env.STRIPE_SECRET_KEY || null,

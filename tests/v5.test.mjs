@@ -260,3 +260,18 @@ test('Aura Warrior powers: the Halo Disc follows the rival until it hits; Drain 
   const v = run('Verdo', (a, b) => { a.x = 300; a.y = 300; a.fx = 1; a.fy = 0; b.x = 460; b.y = 300; a.hp = Math.round(a.maxHp / 2); });
   assert.ok(v.b.hp < v.b.maxHp && v.a.hp > Math.round(v.a.maxHp / 2), 'the sting hit and healed its user');
 });
+
+test('Aura Warrior creator: gifts and the market copy are born to the creator wallet (royalty), the founder keeps one of each, no duplicates', async () => {
+  const { createServer } = await import('../server/index.mjs'), { CONFIG } = await import('../server/config.mjs'), { SPECIES } = await import('../shared/monstars.mjs');
+  const { server, registry } = createServer({ dbFile: ':memory:', config: { ...CONFIG, rebuildDrops: false } });
+  try {
+    const creator = CONFIG.creators.aurawarriors, founder = CONFIG.legendaryOwner, aw = SPECIES.filter(s => s.aura).map(s => s.id);
+    const first = registry.claimAll(founder).filter(m => aw.includes(m.species.id));
+    assert.equal(first.length, 10); assert.ok(first.every(m => m.owner === founder && m.originOwner === creator));
+    const again = registry.claimAll(founder).filter(m => aw.includes(m.species.id));
+    assert.deepEqual(again.map(m => m.serial).sort(), first.map(m => m.serial).sort(), 'signing in again gives no second copies');
+    const bought = registry.grantHero('54y46qyavsX1hWXgx5W76WrBjghXxUfkcNftswaXNTbr', aw[0], 'sig-test');
+    assert.equal(bought.originOwner, creator); assert.equal(bought.owner, '54y46qyavsX1hWXgx5W76WrBjghXxUfkcNftswaXNTbr');
+    assert.ok(!first.some(m => m.serial === bought.serial), 'the market copy is its own Monstar, not the founder\'s');
+  } finally { server.close(); }
+});
