@@ -251,7 +251,7 @@ test('Aura Warriors: stronger than benders; power up into an Aura form by level 
 test('Aura Warrior powers: the Halo Disc follows the rival until it hits; Drain Sting heals its user', async () => {
   const S = await import('../shared/sim.mjs'), { Monstar, SPECIES } = await import('../shared/monstars.mjs');
   const mk = n => new Monstar({ speciesId: SPECIES.find(s => s.name === n).id, level: 20 });
-  const run = (name, setup) => { const m = S.createMatch(mk(name), mk('Dashi'), {}); const [a, b] = m.fighters; setup(a, b);
+  const run = (name, setup) => { const m = S.createMatch(mk(name), mk('Dashi'), { auto: false }); const [a, b] = m.fighters; setup(a, b);
     a.cd.special = 0; a.energy = 100; a.input = S.sanitizeInput({ sp: true, ax: 1, ay: 0 });
     for (let i = 0; i < 240; i++) { S.step(m); a.input = S.sanitizeInput({}); b.input = S.sanitizeInput({}); b.vx = b.vy = 0; } return { m, a, b }; };
   // the rival stands off to the side, behind the shooter's aim: only a disc that follows can reach it
