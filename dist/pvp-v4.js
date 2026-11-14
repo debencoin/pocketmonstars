@@ -85,14 +85,15 @@ pvp.innerHTML = `
    <button class="primary wide" id="pvPractice">Quick battle vs CPU</button>
    <p class="pv-note" style="margin:6px 0 16px">Free, no wallet needed.</p>
    <h3>Battle a real rival</h3>
-   <div class="pv-presets pv-cur" id="pvCur" role="group" aria-label="Which SOL"><button data-c="sim" aria-pressed="true">Simulated SOL (free)</button><button data-c="dev" aria-pressed="false">Devnet SOL</button></div>
+   <div class="pv-presets pv-cur" id="pvCur" role="group" aria-label="What to play for"><button data-c="free" aria-pressed="false">Free (no SOL)</button><button data-c="sim" aria-pressed="true">Simulated SOL</button><button data-c="dev" aria-pressed="false">Devnet SOL</button></div>
    <p class="pv-note" id="pvSimBal" style="margin:6px 0"></p>
-   <label class="fieldlabel" for="pvStake" style="display:block;margin:10px 0 6px">Stake per player (SOL)</label>
+   <div id="pvStakeRow"><label class="fieldlabel" for="pvStake" style="display:block;margin:10px 0 6px">Stake per player (SOL)</label>
    <div class="pv-presets" id="pvPresets"><button data-v="0.001" aria-pressed="true">0.001</button><button data-v="0.002">0.002</button><button data-v="0.005">0.005</button><button data-v="0.01">0.01</button></div>
    <input class="pv-input" id="pvStake" inputmode="decimal" value="0.001" style="margin-top:8px">
-   <p class="pv-note" id="pvStakeNote" style="margin:8px 0"></p>
+   <p class="pv-note" id="pvStakeNote" style="margin:8px 0"></p></div>
    <button class="primary wide" id="pvCreate">Create match</button>
    <div class="pv-row" style="margin-top:12px;flex-wrap:nowrap"><input class="pv-input" id="pvJoinCode" placeholder="Match code" maxlength="6" autocapitalize="characters" style="text-transform:uppercase"><button class="smallbtn" id="pvJoin">Join</button></div>
+   <div class="pv-friends" id="pvFriends"></div>
    <div class="pv-immortal"><h3>⚔ Immortal Combat 1v1</h3>
     <p class="pv-note">No SOL stake: your Monstar is the prize. <b>The winner takes the loser's Monstar.</b> The loser then has 24 hours to buy it back for the winner's soul fee (0.1 to 0.5 SOL, or a dollar price by card). If they can't, it's gone for good. (The winner gets 95% of the soul fee; PocketMonstars keeps 5%.) Phantom players sign before the fight (minted NFTs move into a match escrow), so the winner always gets the Monstar.</p>
     <button class="primary wide pv-imm-btn" id="pvImmortal">Create Immortal Combat</button>
@@ -159,7 +160,7 @@ async function afterSignIn() {
   me = S.session()?.wallet || null;
   q('pvSignIn').textContent = me && !isAcct(me) ? 'Signed in · switch wallet' : 'Connect Phantom & sign in';
   q('pvAcct').hidden = !!me; q('pvSignOut').hidden = !me;
-  window.PMV5?.signedIn?.(me); setTimeout(() => { renderSouls(); renderSimBal(); }, 0);
+  window.PMV5?.signedIn?.(me); setTimeout(() => { renderSouls(); renderSimBal(); renderFriends(); }, 0);
   if (!me) { q('pvWallet').textContent = 'Not signed in. Practice is free with no sign-in.'; return; }
   q('pvWallet').innerHTML = isAcct(me) ? `Signed in as <b>${esc(me.slice(1))}</b> · free account. Connect Phantom any time to play for SOL.`
     : `<span class="pv-addr">${esc(me)}</span><br><span id="pvBal">Loading balance…</span>`;
@@ -224,16 +225,19 @@ async function refreshMine() {
 
 // ---------- lobby ----------
 // Simulated SOL: Phantom players stake free play money against each other (5 SOL to start, free daily top-up when low)
-let currency = 'sim', simBal = null;
+let currency = 'sim', simBal = null, curPicked = false;
 async function renderSimBal() {
   const box = q('pvSimBal'); if (!box) return;
+  if (!curPicked) { currency = S.session() && !isAcct(S.session().wallet) ? 'sim' : 'free'; q('pvCur').querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', x.dataset.c === currency)); } // no Phantom: free live play
+  q('pvStakeRow')?.toggleAttribute('hidden', currency === 'free');
+  if (currency === 'free') { box.innerHTML = '<b>Free live match:</b> no SOL, anyone can play (no Phantom needed). Create a match and send the code, or invite a friend below.'; return; }
   if (currency !== 'sim') { box.innerHTML = 'Real devnet SOL: deposits go to a match escrow on Solana devnet (test SOL from a faucet).'; return; }
   if (!S.session() || isAcct(S.session().wallet)) { box.innerHTML = 'Simulated SOL is play money for Phantom players: <b>connect Phantom</b> to get 5 simulated SOL and stake it against other players. No real SOL moves.'; return; }
   try { simBal = await S.simMe(); } catch { return; }
   box.innerHTML = `Your simulated balance: <b>${esc(simBal.sol)} SOL</b> (play money, nothing moves on-chain) <button class="smallbtn" id="pvSimTop">Free top-up</button>`;
   q('pvSimTop').onclick = async () => { try { simBal = await S.simRefill(); toast('Topped up to ' + simBal.sol + ' simulated SOL.'); renderSimBal(); } catch (e) { fail(e); } };
 }
-q('pvCur').onclick = e => { const b = e.target.closest('button'); if (!b) return; currency = b.dataset.c; q('pvCur').querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', x === b)); renderSimBal(); stakeNote(); };
+q('pvCur').onclick = e => { const b = e.target.closest('button'); if (!b) return; currency = b.dataset.c; curPicked = true; q('pvCur').querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', x === b)); renderSimBal(); stakeNote(); };
 async function stakeNote() {
   cfg ??= await S.getConfig().catch(() => null);
   let v; try { v = Stake.toLamports(q('pvStake').value || '0'); } catch { q('pvStakeNote').textContent = 'Enter an amount like 0.01'; return; }
@@ -253,11 +257,65 @@ function teamMsg3(needOwned) {
   if (needOwned) throw Error('A staked 3v3 needs three of your own Monstars.');
   return { mode, speciesIds: teamPick.slice() };
 }
-function needSocket() { if (!S.session()) throw Error('Sign in with Phantom first.'); if (!ws || ws.readyState > 1) openSocket(); }
+function needSocket() { if (!S.session()) throw Error('Sign in, or tap Create match to play as a guest.'); if (!ws || ws.readyState > 1) openSocket(); }
 function sendWs(msg) { needSocket(); const go = () => ws.send(JSON.stringify(msg)); ws.readyState === 1 ? go() : ws.addEventListener('open', go, { once: true }); }
-q('pvCreate').onclick = () => { try { const lam = Stake.toLamports(q('pvStake').value || '0'); if (lam < 1_000_000n) throw Error('The minimum stake is 0.001 SOL.'); sendWs({ t: 'create', simSol: currency === 'sim', stakeLamports: lam.toString(), serial: lam > 0n ? picked : undefined, speciesId: mine.find(m => m.serial === picked)?.speciesId ?? 0, ...teamMsg(lam > 0n) }); } catch (e) { fail(e); } };
+// ---------- Friends and play invites ----------
+let pendingInvite = null, friendsData = null;
+const who = id => !id ? '—' : id.startsWith('@g-') ? 'Guest ' + id.slice(3, 7) : id.startsWith('@') ? id.slice(1) : short(id);
+async function renderFriends() {
+  const box = q('pvFriends'); if (!box) return;
+  const me2 = S.session()?.wallet;
+  if (!me2) { box.innerHTML = '<h3>Friends</h3><p class="pv-note">Sign in (or tap Create match to play as a guest) to add friends and send play invites.</p>'; return; }
+  try { friendsData = await S.friends(); } catch { return; }
+  box.innerHTML = `<h3>Friends</h3><p class="pv-note">Your player name: <b>${esc(who(me2))}</b> <button class="smallbtn" id="pvMyId">Copy</button> · share it so friends can add you.</p>
+    <div class="pv-row" style="flex-wrap:nowrap;margin:6px 0"><input class="pv-input" id="pvAddF" placeholder="Friend's username or wallet"><button class="smallbtn" id="pvAddFb">Add</button></div>
+    <div class="pv-flist">${friendsData.friends.map(f => `<div class="pv-friend"><i class="dot ${f.online ? 'on' : ''}"></i><b>${esc(who(f.id))}</b><small>${f.inMatch ? 'in a match' : f.online ? 'online' : 'offline'} · ${f.record.wins}W–${f.record.losses}L</small>
+      <button class="primary" data-inv="${esc(f.id)}">Invite to play</button><button class="smallbtn" data-unf="${esc(f.id)}" aria-label="Remove friend">✕</button></div>`).join('') || '<div class="pv-empty">No friends yet. Add one by username or wallet.</div>'}</div>`;
+  q('pvMyId').onclick = () => navigator.clipboard?.writeText(me2.startsWith('@') ? me2.slice(1) : me2).then(() => toast('Copied.'), () => {});
+  q('pvAddFb').onclick = async () => { try { const r = await S.friendAdd(q('pvAddF').value); toast('Added ' + who(r.id) + '.'); renderFriends(); } catch (e) { fail(e); } };
+  box.querySelectorAll('[data-inv]').forEach(b => b.onclick = () => inviteFriend(b.dataset.inv));
+  box.querySelectorAll('[data-unf]').forEach(b => b.onclick = async () => { await S.friendRemove(b.dataset.unf).catch(fail); renderFriends(); });
+  for (const inv of friendsData.invites || []) showInvite({ id: inv.id, from: inv.sender, code: inv.code, info: inv.info });
+}
+/** Invite: uses your waiting match, or creates one with the lobby settings, then sends the code to your friend. */
+async function inviteFriend(to, rematch = false) {
+  try {
+    await ensureSession();
+    if (room && !room.local && room.state === 'waiting' && room.you === 0) { const r = await S.invite(to, rematch); toast(`Invite sent to ${who(to)} · code ${r.code}${r.delivered ? '' : ' (they will see it when they open the game)'}`); return; }
+    pendingInvite = { to, rematch }; sendWs(createMsg());
+  } catch (e) { fail(e); }
+}
+async function flushInvite() {
+  if (!pendingInvite || !room || room.local || room.state !== 'waiting' || room.you !== 0) return;
+  const { to, rematch } = pendingInvite; pendingInvite = null;
+  try { const r = await S.invite(to, rematch); toast(`${rematch ? 'Rematch' : 'Invite'} sent to ${who(to)} · code ${r.code}`); } catch (e) { fail(e); }
+}
+/** An invite arrives: a banner with the code (copy) and a Tap to play button that joins straight away. */
+function showInvite(inv) {
+  if (document.getElementById('inv' + inv.id)) return;
+  const i = inv.info || {}, what = i.immortal ? 'IMMORTAL COMBAT (winner takes the Monstar)' : i.stake && i.stake !== '0' ? `${sol(i.stake, 4)} ${i.simSol ? 'simulated ' : ''}SOL each` : 'a free match';
+  const box = el('div', { className: 'pv-invite', id: 'inv' + inv.id });
+  box.innerHTML = `<b>${esc(who(inv.from))}</b> ${i.rematch ? 'wants a rematch' : 'invites you to play'}: ${esc(what)}${i.mode === '3v3' ? ' · 3v3' : ''}
+    <div class="pv-row"><input class="pv-input" readonly value="${esc(inv.code)}" aria-label="Match code"><button class="smallbtn" data-copy>Copy</button><button class="primary" data-play>Tap to play</button><button class="smallbtn" data-x aria-label="Dismiss">✕</button></div>`;
+  (q('pvInvites') || document.body.appendChild(el('div', { id: 'pvInvites' }))).append(box);
+  const close = () => { box.remove(); S.inviteDismiss(inv.id).catch(() => {}); };
+  box.querySelector('[data-copy]').onclick = () => navigator.clipboard?.writeText(inv.code).then(() => toast('Code copied.'), () => {});
+  box.querySelector('[data-x]').onclick = close;
+  box.querySelector('[data-play]').onclick = async () => { try { await ensureSession(); window.tab?.('pvp'); q('pvJoinCode').value = inv.code; close();
+      lastJoin = { t: 'join', code: inv.code, serial: picked, speciesId: mine.find(m => m.serial === picked)?.speciesId ?? 0, ...teamMsg(true), ...(i.mode ? { mode: i.mode } : {}) };
+      if (i.immortal) { confirmImmortalJoin(); return; } sendWs(lastJoin); } catch (e) { fail(e); } };
+}
+setInterval(() => { if (S.session() && !pvp.classList.contains('hidden')) renderFriends(); }, 20000);
+/** Live play without Phantom: a guest identity is made on the spot (free matches only, no SOL). */
+async function ensureSession() { if (S.session()) return; await S.guest(); await afterSignIn(); toast('Playing as a guest: free live matches, no SOL. Sign in to keep your Monstars.'); }
+function createMsg() {
+  if (currency === 'free') return { t: 'create', stakeLamports: '0', serial: picked, speciesId: mine.find(m => m.serial === picked)?.speciesId ?? 0, ...teamMsg(true) };
+  const lam = Stake.toLamports(q('pvStake').value || '0'); if (lam < 1_000_000n) throw Error('The minimum stake is 0.001 SOL.');
+  return { t: 'create', simSol: currency === 'sim', stakeLamports: lam.toString(), serial: lam > 0n ? picked : undefined, speciesId: mine.find(m => m.serial === picked)?.speciesId ?? 0, ...teamMsg(lam > 0n) };
+}
+q('pvCreate').onclick = async () => { try { await ensureSession(); sendWs(createMsg()); } catch (e) { fail(e); } };
 let lastJoin = null;
-q('pvJoin').onclick = () => { try { lastJoin = { t: 'join', code: q('pvJoinCode').value.trim().toUpperCase(), serial: picked, speciesId: mine.find(m => m.serial === picked)?.speciesId ?? 0, ...teamMsg(true) }; sendWs(lastJoin); } catch (e) { fail(e); } };
+q('pvJoin').onclick = async () => { try { await ensureSession(); lastJoin = { t: 'join', code: q('pvJoinCode').value.trim().toUpperCase(), serial: picked, speciesId: mine.find(m => m.serial === picked)?.speciesId ?? 0, ...teamMsg(true) }; sendWs(lastJoin); } catch (e) { fail(e); } };
 // ---------- Immortal Combat: winner takes the loser's Monstar; the loser can buy it back for the winner's soul fee ----------
 q('pvImmortal').onclick = () => { try {
   if (!S.session()) throw Error('Sign in first (top right).');
@@ -533,8 +591,10 @@ function onMsg(m) {
     if (m.error === 'IMMORTAL_CONFIRM') { confirmImmortalJoin(); return; }
     return toast(m.error, true);
   }
+  if (m.t === 'invite') { showInvite(m); return; }
+  if (m.t === 'friend') { toast(`${who(m.from)} added you as a friend.`); renderFriends(); return; }
   if (m.t === 'noroom') { if (room && !room.local) { serverLost('That match ended because the game server restarted. Start a new one.'); } return; }
-  if (m.t === 'room') { if (room?.local) return; if (room && room.code !== m.code && ['live', 'countdown'].includes(room.state) && !ended && ['done', 'cancelled', 'settled', 'refunded'].includes(m.state)) return; room = m; shares = practiceMoney() ? (vLedger ? vLedger.shares.map(String) : null) : m.shares; renderRoom(); return; }
+  if (m.t === 'room') { if (room?.local) return; if (room && room.code !== m.code && ['live', 'countdown'].includes(room.state) && !ended && ['done', 'cancelled', 'settled', 'refunded'].includes(m.state)) return; room = m; shares = practiceMoney() ? (vLedger ? vLedger.shares.map(String) : null) : m.shares; renderRoom(); flushInvite(); return; }
   if (m.t === 'state') {
     if (room && room.state !== 'live') { room.state = 'live'; fightAt = performance.now(); renderer.reset(); renderRoom(); }
     snapPrev = snapCur; snapCur = m.s; snapAt = performance.now(); setShares(m.shares); showCapture(); return;
@@ -673,7 +733,15 @@ function renderRoom() {
     if (ended.immortal) { const im = ended.immortal, iWon = im.winner === S.session()?.wallet;
       small.innerHTML = iWon ? `<b>You won ${esc(im.name)}!</b> It's yours now. Its old owner has ${im.hours} hours to buy it back for your soul fee (0.1 SOL until you change it in Soul claims).`
         : `<b>${esc(im.name)} now belongs to the winner.</b> Buy it back within ${im.hours} hours in Soul claims, or it's gone for good.`; }
-    if (!ended.immortal) { btns.append(backToPick(room.stake === '0' ? 6 : 0)); return; }
+    if (!ended.immortal) {
+      const rival = room.players[1 - room.you]?.wallet;
+      if (rival && rival !== 'AI') { // live match: rematch with a NEW code, sent to your rival as an invite (tap to play)
+        const rb = el('button', { className: 'primary', textContent: 'Rematch (new code)' });
+        rb.onclick = () => { const st = room.stake, simS = room.simSol, md = room.mode; room = null; ended = null; snapCur = null; renderRoom(); renderer.idle();
+          currency = st === '0' ? 'free' : simS ? 'sim' : 'dev'; curPicked = true; if (st !== '0') q('pvStake').value = Stake.formatSol(BigInt(st), 4); if (md) mode = md;
+          inviteFriend(rival, true); };
+        btns.append(rb, backToPick(0)); return; }
+      btns.append(backToPick(room.stake === '0' ? 6 : 0)); return; }
     const again = el('button', { className: 'primary', textContent: 'Soul claims' }); again.onclick = () => { room = null; ended = null; snapCur = null; renderRoom(); renderer.idle(); refreshMine(); renderSouls().then(() => q('pvSouls')?.scrollIntoView({ block: 'center' })); };
     btns.append(again);
   } else if (room.state === 'waiting') { big.textContent = room.code; small.textContent = 'Waiting for your rival to join with this code.'; }

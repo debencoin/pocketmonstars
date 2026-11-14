@@ -188,3 +188,24 @@ test('simulated SOL: two Phantom wallets stake play money; no escrow, no transac
     assert.equal(players.simBalance(A), 5_100_000_000n);
   } finally { server.close(); }
 });
+
+test('guests, friends and invites: two players without Phantom add each other, invite with a code, tap to play a free match', async () => {
+  const { server, matches, registry } = createServer({ dbFile: ':memory:', config: { ...CONFIG, rebuildDrops: false } });
+  await new Promise(r => server.listen(0, '127.0.0.1', r));
+  const base = 'http://127.0.0.1:' + server.address().port;
+  const call = async (path, token, b) => { const r = await fetch(base + path, { method: b ? 'POST' : 'GET', headers: { 'content-type': 'application/json', ...(token ? { authorization: 'Bearer ' + token } : {}) }, body: b ? JSON.stringify(b) : undefined }); const j = await r.json(); if (!r.ok) throw Error(j.error || r.status); return j; };
+  try {
+    const A = await call('/api/account/guest', null, {}), B = await call('/api/account/guest', null, {});
+    assert.match(A.wallet, /^@g-/); assert.notEqual(A.wallet, B.wallet);
+    await call('/api/friends/add', A.token, { id: B.wallet });
+    const fb = await call('/api/friends', B.token); assert.deepEqual(fb.friends.map(f => f.id), [A.wallet], 'friends are mutual');
+    await assert.rejects(call('/api/invite', A.token, { to: B.wallet }), /match|room|create/i, 'needs a waiting match first');
+    const room = matches.create(A.wallet, { stakeLamports: '0', serial: registry.claimAll(A.wallet)[0].serial });
+    const sent = await call('/api/invite', A.token, { to: B.wallet, rematch: true }); assert.equal(sent.code, room.code);
+    const inv = (await call('/api/friends', B.token)).invites; assert.equal(inv.length, 1); assert.equal(inv[0].code, room.code);
+    matches.join(B.wallet, { code: inv[0].code, serial: registry.claimAll(B.wallet)[0].serial });
+    assert.equal(room.state, 'countdown', 'free match starts with just the code');
+    await call('/api/invite/dismiss', B.token, { id: inv[0].id });
+    assert.equal((await call('/api/friends', B.token)).invites.length, 0);
+  } finally { server.close(); }
+});

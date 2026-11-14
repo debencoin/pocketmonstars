@@ -313,3 +313,9 @@ Stats: HP, Attack, Defense, Sp. Atk, Sp. Def, Speed. Types: EMBER, GROVE, TIDE, 
 ## v50: Simulated SOL for Phantom players
 - New choice when battling a real rival: **Simulated SOL (free)** (default) or **Devnet SOL**. Simulated matches use play money from each Phantom wallet's in-game balance (5 SOL to start; free top-up back to 5 once a day when below 0.5). Both stakes leave the balances when the second player joins (no deposits, no escrow, no transactions), hits move the pot exactly like real matches, and the final shares are paid back to the balances. Cancelled matches refund. Simulated matches don't count toward the SOL leaderboard (they still count in win-loss records).
 - API: GET /api/sim/me, POST /api/sim/refill; ws create { simSol: true }.
+
+## v51 — Rematch with a new code, friends, tap-to-play invites, guest live play
+- Live PvP end screen: **Rematch (new code)** makes a fresh match (same stake, currency and mode) and sends the rival an invite; **Back to pick** returns to the lobby.
+- Friends: add by username or wallet (mutual), see online / in-match / record, **Invite to play** (creates a match if you have none and sends the code).
+- Invites pop up as a banner with the code (Copy) and **Tap to play**, which joins straight away. Pending invites (15 min) are delivered when the player opens the game.
+- No Phantom needed for live play: Create/Join signs you in as a guest (`@g-…`). Guests and free accounts default to **Free (no SOL)** matches — no stake, no SOL earnings.

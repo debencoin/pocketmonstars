@@ -50,6 +50,8 @@ export function createServer({ config = CONFIG, chain = new SolanaChain(config.r
   const dropMemo = sid => `PMDROP:${sid}`;
   const dropPrice = sid => BigInt(SPECIES[sid].drop.priceLamports);
   let dropsReadyCard = null;
+  const online = new Map(); // wallet -> open sockets
+  const pushTo = (w, msg) => { for (const ws of online.get(w) || []) { try { ws.send(JSON.stringify(msg)); } catch {} } };
   const reserved = new Map(); // species -> { wallet, until }: holds a hero for 2 minutes while its buyer pays
   // ---------- profile avatars ----------
   const avatarOwner = a => (a.reservedFor === 'founder' ? config.legendaryOwner : a.reservedFor || players.avatarSale(a.id)?.buyer || null);
@@ -194,6 +196,18 @@ export function createServer({ config = CONFIG, chain = new SolanaChain(config.r
       const sess = await stripe.checkout({ name: `Buy back ${m.toJSON().form || m.species.name} · PocketMonstars`, image: `${config.publicUrl}/art/nft/${nftArt(m.species)}`, cents: c.fee_cents, ref: w,
         metadata: { pm: '1', kind: 'soul', claim: String(c.id), buyer: w, cents: String(c.fee_cents) } });
       return { url: sess.url }; },
+    // ---------- friends and invites ----------
+    'GET /api/friends': req => { const w = need(req);
+      return { me: w, friends: players.friendsOf(w).map(f => { const room = matches.roomOf(f); return { id: f, online: online.has(f), inMatch: !!room && ['live', 'countdown'].includes(room.state), record: recordOf(f) }; }), invites: players.invitesFor(w) }; },
+    'POST /api/friends/add': async req => { const w = need(req), b = await body(req), id = players.addFriend(w, b.id); pushTo(id, { t: 'friend', from: w }); return { ok: true, id }; },
+    'POST /api/friends/remove': async req => { const w = need(req), b = await body(req); players.removeFriend(w, String(b.id || '')); return { ok: true }; },
+    /** Invite someone to the match you're waiting in: they get it live (tap to play) and in their invites list. */
+    'POST /api/invite': async req => { const w = need(req), b = await body(req), room = matches.roomOf(w), to = String(b.to || '');
+      if (!room || room.state !== 'waiting' || room.players[0].wallet !== w) throw Error('Create a match first, then invite.');
+      const info = { stake: room.stake.toString(), simSol: !!room.simSol, immortal: !!room.immortal, mode: room.mode, squad: !!room.squad, rematch: !!b.rematch };
+      const id = players.invite(w, to, room.code, info); pushTo(to, { t: 'invite', id, from: w, code: room.code, info });
+      return { ok: true, delivered: online.has(to), code: room.code }; },
+    'POST /api/invite/dismiss': async req => { const w = need(req), b = await body(req); players.dismissInvite(b.id, w); return { ok: true }; },
     // ---------- simulated SOL ----------
     'GET /api/sim/me': req => { const w = needWallet(req), b = players.simBalance(w); return { lamports: b.toString(), sol: formatSol(b, 4) }; },
     'POST /api/sim/refill': req => { const w = needWallet(req), b = players.simRefill(w); return { lamports: b.toString(), sol: formatSol(b, 4) }; },
@@ -231,6 +245,8 @@ export function createServer({ config = CONFIG, chain = new SolanaChain(config.r
     'POST /api/auth/challenge': async req => ({ message: auth.challenge((await body(req)).wallet) }),
     'POST /api/auth/verify': async req => { const b = await body(req); const s = auth.verify(b.wallet, b.signature); return welcome(s.wallet, b.ref); },
     // ---------- username + password accounts (free online play; no SOL) ----------
+    // Play without Phantom or an account: a guest identity for live free matches (no SOL), lost when the browser session ends
+    'POST /api/account/guest': async req => { const b = await body(req); const id = '@g-' + randomBytes(5).toString('hex'); return welcome(id, b.ref); },
     'POST /api/account/register': async req => { const b = await body(req); return welcome(players.register(b.username, b.password), b.ref); },
     'POST /api/account/login': async req => { const b = await body(req); return welcome(players.login(b.username, b.password)); },
     'GET /api/referrals/me': req => { const w = need(req); return { code: w, ...players.referralStats(w), bps: 500 }; },
@@ -426,6 +442,9 @@ export function createServer({ config = CONFIG, chain = new SolanaChain(config.r
   wss.on('connection', (ws, req) => {
     const wallet = auth.wallet(new URL(req.url, 'http://x').searchParams.get('token'));
     if (!wallet) { ws.close(4001, 'Sign in again'); return; }
+    (online.get(wallet) || online.set(wallet, new Set()).get(wallet)).add(ws); // for live invites
+    ws.on('close', () => { const set = online.get(wallet); if (set) { set.delete(ws); if (!set.size) online.delete(wallet); } });
+    for (const inv of players.invitesFor(wallet).slice(0, 3)) try { ws.send(JSON.stringify({ t: 'invite', id: inv.id, from: inv.sender, code: inv.code, info: inv.info })); } catch {}
     matches.attach(wallet, ws);
     const reply = msg => { try { ws.send(JSON.stringify(msg)); } catch {} };
     { const room = matches.roomOf(wallet); reply(room ? matches.publicRoom(room, wallet) : { t: 'noroom' }); } // lets a reconnecting player resume or reset

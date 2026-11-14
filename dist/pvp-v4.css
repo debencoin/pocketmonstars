@@ -603,3 +603,15 @@ header{overflow:hidden}
 .gd-stats i{height:6px;border-radius:4px;background:#1c2645;overflow:hidden}.gd-stats em{display:block;height:100%;background:#c83a3a}
 .gd-pick .gd-nm{color:#e8ecf6;font-weight:700;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .v6-rec{display:block;font-size:11px;color:#ffd84a;margin-top:2px}.gd-rec{color:#ffd84a!important}
+.pv-friends{margin-top:16px;padding:12px;border:1px solid #3b5bd6;border-radius:12px;background:rgba(59,91,214,.10)}
+.pv-friends h3{margin:0 0 6px}
+.pv-flist{display:flex;flex-direction:column;gap:6px}
+.pv-friend{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:6px 8px;border-radius:10px;background:rgba(255,255,255,.05)}
+.pv-friend small{opacity:.75;flex:1;min-width:90px}
+.pv-friend .dot{width:9px;height:9px;border-radius:50%;background:#666;display:inline-block}
+.pv-friend .dot.on{background:#3ddc84;box-shadow:0 0 6px #3ddc84}
+#pvInvites{position:fixed;top:12px;left:50%;transform:translateX(-50%);z-index:9999;display:flex;flex-direction:column;gap:8px;width:min(440px,calc(100vw - 32px))}
+.pv-invite{padding:12px;border-radius:12px;background:#1d2340;border:2px solid #ffd23f;box-shadow:0 8px 30px rgba(0,0,0,.5);color:#fff;animation:pvInvIn .3s ease}
+.pv-invite .pv-row{display:flex;gap:6px;margin-top:8px;align-items:center}
+.pv-invite input{flex:1;min-width:0;font-weight:700;letter-spacing:1px}
+@keyframes pvInvIn{from{transform:translateY(-20px);opacity:0}to{transform:none;opacity:1}}

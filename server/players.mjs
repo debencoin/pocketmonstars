@@ -19,6 +19,8 @@ export class Players {
         fee_lamports TEXT NOT NULL, fee_cents INTEGER, expires_at INTEGER NOT NULL, state TEXT NOT NULL DEFAULT 'open', paid_by TEXT, created_at INTEGER NOT NULL);
       CREATE TABLE IF NOT EXISTS nft_escrows(id INTEGER PRIMARY KEY AUTOINCREMENT, room TEXT NOT NULL, serial INTEGER NOT NULL, asset TEXT NOT NULL, escrow TEXT NOT NULL, secret TEXT NOT NULL,
         owner TEXT NOT NULL, release_to TEXT, claim INTEGER, state TEXT NOT NULL DEFAULT 'pending', created_at INTEGER NOT NULL);
+      CREATE TABLE IF NOT EXISTS friends(a TEXT NOT NULL, b TEXT NOT NULL, created_at INTEGER NOT NULL, PRIMARY KEY(a, b));
+      CREATE TABLE IF NOT EXISTS invites(id INTEGER PRIMARY KEY AUTOINCREMENT, sender TEXT NOT NULL, target TEXT NOT NULL, code TEXT NOT NULL, info TEXT, created_at INTEGER NOT NULL);
       CREATE TABLE IF NOT EXISTS sim_balances(user TEXT PRIMARY KEY, lamports TEXT NOT NULL, refilled_at INTEGER NOT NULL DEFAULT 0);
       CREATE TABLE IF NOT EXISTS catch_credits(user TEXT PRIMARY KEY, credits INTEGER NOT NULL DEFAULT 0);
       CREATE TABLE IF NOT EXISTS payout_accounts(user TEXT PRIMARY KEY, account TEXT NOT NULL);
@@ -111,6 +113,23 @@ export class Players {
   escrowOfClaim(claim) { return this.db.prepare('SELECT * FROM nft_escrows WHERE claim=?').get(claim) || null; }
   /** NFTs waiting in an escrow for this player to collect. */
   collectable(user) { return this.db.prepare("SELECT * FROM nft_escrows WHERE release_to=? AND state='held'").all(user); }
+
+  // ---------- friends and play invites ----------
+  /** Friends are mutual: adding someone puts each of you on the other's list. */
+  addFriend(me, other, now = Date.now()) {
+    other = String(other || '').trim(); if (other.startsWith('@')) other = other.toLowerCase(); else if (!other.startsWith('@') && /^[A-Za-z0-9_]{3,20}$/.test(other) && !this.exists(other)) other = '@' + other.toLowerCase();
+    if (!other || other === me) throw Error('Enter a friend\'s username or wallet address.');
+    if (!this.exists(other) && !other.startsWith('@g-')) throw Error('No player called ' + other.replace(/^@/, '') + '.');
+    const ins = this.db.prepare('INSERT OR IGNORE INTO friends(a,b,created_at) VALUES(?,?,?)'); ins.run(me, other, now); ins.run(other, me, now); return other;
+  }
+  removeFriend(me, other) { this.db.prepare('DELETE FROM friends WHERE (a=? AND b=?) OR (a=? AND b=?)').run(me, other, other, me); }
+  friendsOf(me) { return this.db.prepare('SELECT b FROM friends WHERE a=? ORDER BY created_at DESC LIMIT 200').all(me).map(r => r.b); }
+  invite(sender, target, code, info, now = Date.now()) {
+    if (sender === target) throw Error('Invite a friend, not yourself.');
+    return Number(this.db.prepare('INSERT INTO invites(sender,target,code,info,created_at) VALUES(?,?,?,?,?)').run(sender, target, code, JSON.stringify(info || {}), now).lastInsertRowid);
+  }
+  invitesFor(target, now = Date.now()) { return this.db.prepare('SELECT * FROM invites WHERE target=? AND created_at > ? ORDER BY id DESC LIMIT 10').all(target, now - 15 * 60_000).map(r => ({ ...r, info: JSON.parse(r.info || '{}') })); }
+  dismissInvite(id, target) { this.db.prepare('DELETE FROM invites WHERE id=? AND target=?').run(Number(id), target); }
 
   // ---------- simulated SOL (play money for staked matches between Phantom wallets: nothing moves on-chain) ----------
   simBalance(user, now = Date.now()) {

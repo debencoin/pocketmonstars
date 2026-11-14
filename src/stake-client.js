@@ -156,6 +156,12 @@ export async function cardBuy(speciesId) { const { url } = await api('/api/card/
 export const cardConfirm = session => api('/api/card/confirm', { session });
 export const payoutsMe = () => api('/api/payouts/me');
 export const catchesMe = () => api('/api/catches/me');
+export async function guest() { let ref = null; try { ref = new URLSearchParams(location.search).get('ref'); } catch {} return keep(await api('/api/account/guest', { ref })); }
+export const friends = () => api('/api/friends');
+export const friendAdd = id => api('/api/friends/add', { id: String(id || '').trim() });
+export const friendRemove = id => api('/api/friends/remove', { id });
+export const invite = (to, rematch = false) => api('/api/invite', { to, rematch });
+export const inviteDismiss = id => api('/api/invite/dismiss', { id });
 export const simMe = () => api('/api/sim/me');
 export const simRefill = () => api('/api/sim/refill', {});
 // ---------- Immortal Combat soul claims ----------
@@ -193,4 +199,4 @@ export const qrDataUrl = text => QRCode.toDataURL(text, { margin: 1, width: 240,
 export const explorer = sig => `https://explorer.solana.com/tx/${sig}?cluster=devnet`;
 
 if (typeof window !== 'undefined') window.PMStake = { signIn, session, balance, getConfig, myMonstars, mint, syncOwner, listings, list, cancelListing, buy,
-  connectSocket, deposit, explorer, phantomBrowseLink, breedCreate, breedJoin, breedStatus, breedPay, wildPay, signOut, accountRegister, accountLogin, drop, dropBuy, cardStatus, cardBuy, cardConfirm, catchesMe, simMe, simRefill, soulMine, soulFee, soulBuy, soulCard, immortalSign, immortalLock, escrowCollect, catchPassBuy, payoutsMe, payoutsConnect, usdListings, usdList, usdCancel, usdBuy, profile, setAvatar, avatars, avatarBuy, referrals, referralLink, qrDataUrl, Monstars, Stake, ARENA, Sim };
+  connectSocket, deposit, explorer, phantomBrowseLink, breedCreate, breedJoin, breedStatus, breedPay, wildPay, signOut, accountRegister, accountLogin, drop, dropBuy, cardStatus, cardBuy, cardConfirm, catchesMe, simMe, simRefill, guest, friends, friendAdd, friendRemove, invite, inviteDismiss, soulMine, soulFee, soulBuy, soulCard, immortalSign, immortalLock, escrowCollect, catchPassBuy, payoutsMe, payoutsConnect, usdListings, usdList, usdCancel, usdBuy, profile, setAvatar, avatars, avatarBuy, referrals, referralLink, qrDataUrl, Monstars, Stake, ARENA, Sim };
