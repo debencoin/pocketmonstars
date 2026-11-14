@@ -242,10 +242,10 @@ def frame(d, f, stage):
     g.polygon([(hx - head_r - 1, hy - 2), (hx - head_r + 3, hy - 9), (hx - head_r + 6, hy + 3)], fill=hair)  # side lock over the ear
     if hs == 'topknot': g.ellipse([hx - 4, hy - head_r - 9, hx + 4, hy - head_r - 1], fill=hair); g.rectangle([hx - 4, hy - head_r - 3, hx + 4, hy - head_r - 1], fill=trim)
     if hs == 'aura':  # Aura form hair: tall golden-style spikes that grow longer with every form
-        L = 8 + at * 5
+        L = 6 + at * 3
         g.polygon([(hx - head_r - 2, hy - 2), (hx - head_r - 4 - at * 2, hy + 6 + at * 3), (hx - head_r + 4, hy + 2)], fill=hair)  # side spikes
         for i in range(6):
-            sx = hx - head_r + 1 + i * 4.4; tilt = (i - 2.5) * (1.6 + at * 0.4)
+            sx = hx - head_r + 1 + i * 4.4; tilt = (i - 2.5) * (1.8 + at * 0.7)
             g.polygon([(sx - 3, hy - head_r + 4), (sx + 3, hy - head_r + 4), (sx + tilt, hy - head_r - L - (i % 2) * 4)], fill=hair)
         if at >= 3:  # long hair down the back from form III
             g.polygon([(hx - head_r, hy - 4), (hx - head_r - 6, sh_y + 10 + at * 6), (hx - 2, sh_y + 4 + at * 4)], fill=shade(hair, 0.08))
@@ -321,6 +321,17 @@ def frame(d, f, stage):
     # 1px outline around the silhouette
     a = im.getchannel('A').point(lambda v: 255 if v > 90 else 0); ring = a.filter(ImageFilter.MaxFilter(3))
     out = Image.new('RGBA', (W, H), (0, 0, 0, 0)); out.paste(OUT, (0, 0), ring); out.alpha_composite(im)
+    if at:  # Aura forms: the hair glows like neon (a bright core and a soft halo in the form's colour)
+        hc = d['hair'][:3]; px_ = out.load(); mask = Image.new('L', (W, H), 0); mk = mask.load()
+        for yy in range(H):
+            for xx in range(W):
+                r_, g_, b_, a_ = px_[xx, yy]
+                if a_ == 255 and abs(r_ - hc[0]) < 6 and abs(g_ - hc[1]) < 6 and abs(b_ - hc[2]) < 6: mk[xx, yy] = 255
+        halo = Image.new('RGBA', (W, H), hc + (0,)); halo.putalpha(mask.filter(ImageFilter.MaxFilter(5)).filter(ImageFilter.GaussianBlur(3)).point(lambda v: min(255, int(v * 1.6))))
+        core = Image.new('RGBA', (W, H), tint(d['hair'], 0.55)[:3] + (0,)); core.putalpha(mask.filter(ImageFilter.MinFilter(3)).point(lambda v: int(v * 0.85)))
+        base = Image.new('RGBA', (W, H), (0, 0, 0, 0)); base.alpha_composite(halo); base.alpha_composite(out); base.alpha_composite(core)
+        halo2 = Image.new('RGBA', (W, H), hc + (0,)); halo2.putalpha(mask.filter(ImageFilter.GaussianBlur(2)).point(lambda v: int(v * 0.5)))
+        base.alpha_composite(halo2); out = base
     if d.get('glow') and not at:  # neon glow (the green-glow fighter)
         gl = Image.new('RGBA', (W, H), (0, 0, 0, 0)); gl.paste(d['glow'][:3] + (170,), (0, 0), a.filter(ImageFilter.MaxFilter(5)))
         gl = gl.filter(ImageFilter.GaussianBlur(3)); gl.alpha_composite(out); out = gl

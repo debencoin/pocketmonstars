@@ -308,3 +308,4 @@ Stats: HP, Attack, Defense, Sp. Atk, Sp. Def, Speed. Types: EMBER, GROVE, TIDE, 
 - Stats +75% (stronger than benders' +55%). Powers mixed between them: Ki Blast, Surge Wave, Halo Disc (homing), Ki Volley, Solar Flash, Spiral Beam, Blink Step teleport, and Mega Shots World Sphere, Final Surge, Galaxy Burst, Ki Storm, Spirit Orbs, Sky Lightning, plus element effects (burn, paralyze, stun, poison).
 - **Aura Ascend** (new 6th move, key T): power up mid-fight into an Aura form for 10-14 s, then back to normal (18 s cooldown after). Forms unlock by level: I gold Lv3, II purple Lv10, III green Lv25, IV red Lv50, V white Lv80. Each form: more damage (x1.2 to x1.8) and speed, a bigger flame aura and longer, spikier hair (art: walk/<name>_a1..a5).
 - Gifted to the founder wallet and sold once each in the market (1.5 SOL, or by card).
+- v49: Aura form hair glows like neon (bright core and a soft halo in the form's colour); spikes now fan out sideways so they stay in frame.
