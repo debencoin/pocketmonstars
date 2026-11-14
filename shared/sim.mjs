@@ -89,7 +89,7 @@ export const SQUAD_PACE = 1; // the whole game now runs at the slower squad pace
 const MV = MOVE_SPEED / GAME_SPEED;
 // All damage is 30% lower than the base formula, so battles last most of the minute.
 export const DAMAGE_SCALE = 0.7;
-export const ARENA_COUNT = 6; // 0 ruins coliseum, 1 dust bowl, 2 grass, 3 cosmic, 4 volcano, 5 ice
+export const ARENA_COUNT = 8; // 0 ruins coliseum, 1 dust bowl, 2 grass, 3 cosmic, 4 volcano, 5 ice, 6 Egyptian temple, 7 Mayan temple
 // What a power does to the Monstar it hits (special moves always, basic moves 15% of the time).
 // stop = can't move, act = can't attack, slow = speed multiplier, dot = % max HP per second, lift = carried around in the air.
 export const STATUS = Object.freeze({
@@ -183,7 +183,7 @@ export function createMatch(monstarA, monstarB, opts = {}) {
   const fighters = [makeFighter(teams[0][0], 0, teamMax[0]), makeFighter(teams[1][0], 1, teamMax[1])];
   const roster = teams.map((t, side) => t.map((mo, i) => (i === 0 ? fighters[side] : squad ? makeFighter(mo, side, teamMax[side]) : null)));
   if (squad) for (const side of [0, 1]) roster[side].forEach((f, i) => { f.y = ARENA.h / 2 + 20 + [0, -120, 120][i]; f.x += i ? (side ? 60 : -60) : 0; f.slot = i; f.mem = {}; });
-  return { t: 0, over: false, winner: null, reason: null, auto: opts.auto !== false, arena: opts.arena ?? 0, squad, pace: squad ? SQUAD_PACE : 1,
+  return { t: 0, over: false, winner: null, reason: null, auto: opts.auto !== false, arena: fighters.some(f => SPECIES[f.speciesId]?.god) ? 6 + ((fighters[0].speciesId + fighters[1].speciesId) % 2) : opts.arena ?? 0, /* the Watcher Gods fight in their temples */ squad, pace: squad ? SQUAD_PACE : 1,
     teams, teamMax, roster, slot: [0, 0], swCd: [0, 0],
     limit: teams[0].length > 1 || teams[1].length > 1 ? 150 : ARENA.roundSeconds, fighters, projectiles: [], effects: [], nextId: 1, finished: false, pickups: [], nextPickup: PICKUP.every, cpu: opts.cpu || null,
     intro: opts.intro ? INTRO_SECONDS : 0, ...arenaLayout(opts, fighters, roster) }; // Monstars teleport in as soul orbs first: nothing moves until they land

@@ -16,14 +16,14 @@ import { mplCore, create, fetchAsset, transferV1, ruleSet, createCollection } fr
 export const COMPANY_SALE_BPS = 500; // PocketMonstars takes 5% of every NFT sale
 
 /** Integer split of a sale price. Every lamport goes somewhere; rounding dust stays with the seller. */
-export function saleSplit(price, royaltyBps, creators, withCompanyFee) {
+export function saleSplit(price, royaltyBps, creators, withCompanyFee, companyBps = COMPANY_SALE_BPS) {
   if (typeof price !== 'bigint' || price <= 0n) throw Error('Price must be a positive lamport amount');
   if (!Number.isInteger(royaltyBps) || royaltyBps < 0 || royaltyBps > 10000) throw Error('Invalid royalty');
   const royalty = price * BigInt(royaltyBps) / 10000n;
   if (royaltyBps > 0 && creators.reduce((s, c) => s + c.percentage, 0) !== 100) throw Error('Creator shares must sum to 100');
   let paid = 0n;
   const payouts = royaltyBps > 0 ? creators.map(c => { const amount = royalty * BigInt(c.percentage) / 100n; paid += amount; return { address: String(c.address), amount }; }) : [];
-  const company = withCompanyFee ? price * BigInt(COMPANY_SALE_BPS) / 10000n : 0n;
+  const company = withCompanyFee ? price * BigInt(companyBps) / 10000n : 0n;
   if (paid + company >= price) throw Error('Price is too small to cover royalty and fee');
   return { seller: price - paid - company, royalty: paid, company, payouts };
 }
@@ -106,11 +106,11 @@ export class NftService {
     return b >= min;
   }
 
-  async buyTransaction({ listing, buyer }) {
+  async buyTransaction({ listing, buyer, companyBps = COMPANY_SALE_BPS }) {
     if (buyer === listing.seller) throw Error('You cannot buy your own listing.');
     const a = await this.verifyListable({ asset: listing.asset, seller: listing.seller });
     const price = BigInt(listing.price), withFee = await this.treasuryReady();
-    const split = saleSplit(price, a.royalties?.basisPoints || 0, a.royalties?.creators || [], withFee);
+    const split = saleSplit(price, a.royalties?.basisPoints || 0, a.royalties?.creators || [], withFee, companyBps);
     const { blockhash, lastValidBlockHeight } = await this.chain.latestBlockhash();
     const tx = new Transaction({ feePayer: new PublicKey(buyer), recentBlockhash: blockhash });
     const pay = (to, lamports) => { if (lamports > 0n) tx.add(SystemProgram.transfer({ fromPubkey: new PublicKey(buyer), toPubkey: new PublicKey(to), lamports })); };

@@ -408,3 +408,52 @@ export const AURA_WARRIORS = [
   AW(8, 'Vikko', 'FROST', 'titan', '#2aa84a', false, 'stun'),
   AW(9, 'Noxx', 'SHADE', 'striker', '#2a3a34', false, null),
 ];
+
+// Watcher Gods: ten Egyptian / Anunnaki machine-gods from the creator's own pictures. As strong as the Aura Warriors
+// (stats +75%). They lift rivals into the air, fire ancient technology (lasers, scarab drones, sun discs) and fight in
+// the Egyptian and Mayan temple arenas. Each is the ancestor of a line of other Monstars (see `lineage` in monstars.mjs).
+const WG_SPECIALS = [
+  { special: 'Soul Scales', style: 'levitate', sig: { note: 'Lifts the rival off the ground with an unseen force, weighs it, and throws it down.' } },
+  { special: 'Path Opener', style: 'beam', sig: { reach: 1.3, note: 'A long golden beam that opens a path across the whole arena.' } },
+  { special: 'Scarab Drones', style: 'projectile', sig: { look: 'drone', shots: 3, homing: true, note: 'Launches 3 or 4 flying scarab drones that hunt the rival.' } },
+  { special: 'Gravity Lift', style: 'levitate', sig: { note: 'Switches off gravity under the rival: it floats up helpless, then drops.' } },
+  { special: 'Circuit Web', style: 'projectile', sig: { look: 'ring', homing: true, status: 'stun', note: 'A glowing ring of circuitry that curves after the rival and locks it in place.' } },
+  { special: 'Throne Light', style: 'strike', sig: { note: 'A pillar of light comes down on the rival from the sky.' } },
+  { special: 'Forge Laser', style: 'beam', sig: { note: 'A white-hot laser from the maker\'s forge.' } },
+  { special: 'Sun Disc', style: 'projectile', sig: { look: 'disc', homing: true, seek: true, status: 'burn', note: 'A burning sun disc that follows the rival until it hits.' } },
+  { special: 'Bull Quake', style: 'strike', sig: { note: 'Stamps the ground: the earth bursts open under the rival.' } },
+  { special: 'Cobra Venom', style: 'projectile', sig: { look: 'sting', homing: true, leech: 0.4, status: 'poison', note: 'A striking venom dart that chases the rival, poisons it and feeds you 40% of the damage.' } },
+];
+const WG_MEGAS = [
+  ['judgment', 'Final Weighing', 'Lifts the rival high into the air, then a pillar of light slams it down.'],
+  ['lance', 'Gate of the West', 'An enormous beam across the whole arena.'],
+  ['barrage', 'Swarm of Khepri', 'Seven homing scarab drones.'],
+  ['nova', 'Duat Collapse', 'Gravity bursts outward in every direction.'],
+  ['lightning', 'Net of Stars', 'Seven star orbs chase the rival; the first one stuns.'],
+  ['thunderstrike', 'Wrath of the Throne', 'Bolts of light crash down; the first one stuns.'],
+  ['meteors', 'Hammer of the Maker', 'Molten metal rains down around the rival.'],
+  ['stormdrain', 'Eclipse', 'Strikes rain over a wide area and 45% of the damage heals you.'],
+  ['meteors', 'Stampede of Heaven', 'The sky bull\'s herd crashes down around the rival.'],
+  ['drain', 'Serpent Crown', 'A draining beam that feeds on the rival.'],
+];
+const WG = (i, name, type, cls, main, female) => {
+  const S2 = WG_SPECIALS[i], [mk, mn, note] = WG_MEGAS[i];
+  const base = F(name, type, cls, 'Ankh bolt', S2.special, 'bolt', S2.style, ['stomp', 'dart', 'stomp', 'glide', 'glide', 'glide', 'stomp', 'dart', 'charge', 'glide'][i], 'walker', main, '#ffffff', main, {});
+  return { ...base, god: true, female,
+    forms: [`${name} Idol`, `${name} Acolyte`, name, `${name} the Watcher`, `High ${name}`, `${name} Eternal`],
+    sig: { basic: { name: 'Ankh Bolt', note: 'A bolt of old light from the hand.' }, special: { name: S2.special, ...S2.sig },
+      dash: { kind: 'blink', name: `${name} Star Gate`, note: 'Steps through a gate and reappears a good way off.', dist: +(1.5 + i * 0.02).toFixed(2), cd: +(1.0 + i * 0.02).toFixed(2) },
+      mega: M(mk, `${name} ${mn}`, note, +(1.34 + i * 0.01).toFixed(2), 1.25) } };
+};
+export const WATCHER_GODS = [
+  WG(0, 'Anpurak', 'SHADE', 'deity', '#e0b028', false),
+  WG(1, 'Wepwarr', 'STEEL', 'striker', '#c8ccd4', false),
+  WG(2, 'Khemtek', 'ANCIENT', 'arcanist', '#2a3e58', false),
+  WG(3, 'Duatron', 'PSYCHIC', 'psion', '#8a8f98', false),
+  WG(4, 'Selqira', 'WATCHER', 'mystic', '#c8ccd4', true),
+  WG(5, 'Isetra', 'ASTRAL', 'seraph', '#1e2a4a', true),
+  WG(6, 'Ptahrex', 'STEEL', 'titan', '#b8643a', false),
+  WG(7, 'Khnumek', 'EMBER', 'ranger', '#b8643a', false),
+  WG(8, 'Apisor', 'STONE', 'warden', '#e0b028', false),
+  WG(9, 'Wadjeth', 'VENOM', 'skirmisher', '#e0d8c0', false),
+];

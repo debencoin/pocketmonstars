@@ -48,6 +48,7 @@ export function createServer({ config = CONFIG, chain = new SolanaChain(config.r
   const isNew = id => !db.prepare('SELECT 1 FROM monstars WHERE origin_owner=? LIMIT 1').get(id);
   const welcome = (id, ref) => { if (isNew(id) && ref) players.setReferrer(id, ref); registry.claimAll(id); return auth.issue(id); };
   const dropMemo = sid => `PMDROP:${sid}`;
+  const companyBpsFor = m => config.companyFeeBps?.[m?.species?.collection] ?? 500; // PocketMonstars' cut of a marketplace sale (5%; 1% for the Watcher Gods)
   const sellerOf = sid => config.creators?.[SPECIES[sid].collection] || config.dropTreasury; // who is paid for a store Monstar: its creator, else the founder wallet
   const dropPrice = sid => BigInt(SPECIES[sid].drop.priceLamports);
   let dropsReadyCard = null;
@@ -241,7 +242,7 @@ export function createServer({ config = CONFIG, chain = new SolanaChain(config.r
       const sess = await stripe.checkout({ name: `${name} · Lv${m.level} · PocketMonstars`, image: `${config.publicUrl}/art/nft/${nftArt(m.species)}`, cents: l.cents, ref: w, transferGroup: 'resale-' + m.serial,
         metadata: { pm: '1', kind: 'resale', serial: String(m.serial), seller: l.seller, buyer: w, cents: String(l.cents), dna: m.dna } });
       return { url: sess.url, usd: usd(l.cents) }; },
-    'GET /api/config': () => ({ wildFeeLamports: config.wildFeeLamports.toString(), cluster: config.cluster, treasury: config.treasury, royaltyBps: config.royaltyBps, collection: config.collection,
+    'GET /api/config': () => ({ wildFeeLamports: config.wildFeeLamports.toString(), cluster: config.cluster, treasury: config.treasury, royaltyBps: config.royaltyBps, companyFeeBps: config.companyFeeBps || {}, creators: config.creators || {}, collection: config.collection,
       marketAuthority: keys.marketAuthority.publicKey.toBase58(), policy: { minStake: STAKE_POLICY.minStake, maxStake: STAKE_POLICY.maxStake, companyFeeLamports: STAKE_POLICY.companyFeeLamports, networkFeeLamports: STAKE_POLICY.networkFeeLamports } }),
     'POST /api/auth/challenge': async req => ({ message: auth.challenge((await body(req)).wallet) }),
     'POST /api/auth/verify': async req => { const b = await body(req); const s = auth.verify(b.wallet, b.signature); return welcome(s.wallet, b.ref); },
@@ -328,7 +329,7 @@ export function createServer({ config = CONFIG, chain = new SolanaChain(config.r
       if (!l || l.seller !== w || l.state !== 'active') throw Error('No active listing of yours.');
       db.prepare("UPDATE listings SET state='cancelled', closed_at=? WHERE id=?").run(Date.now(), l.id); return { ok: true }; },
     'POST /api/market/buy': async req => { const w = needWallet(req), l = listingRow((await body(req)).id);
-      if (!l || l.state !== 'active') throw Error('Listing is no longer available.'); return nft.buyTransaction({ listing: l, buyer: w }); },
+      if (!l || l.state !== 'active') throw Error('Listing is no longer available.'); return nft.buyTransaction({ listing: l, buyer: w, companyBps: companyBpsFor(registry.get(l.serial)) }); },
     'POST /api/market/confirm': async req => { const w = needWallet(req), b = await body(req), l = listingRow(b.id);
       if (!l || l.state !== 'active') throw Error('Listing is no longer active.'); await waitConfirmed(b.signature);
       if (await nft.ownerOf(l.asset) !== w) throw Error('Ownership did not change to your wallet.');

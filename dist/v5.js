@@ -110,6 +110,18 @@ function renderDrop() {
 const shopBox = el('div', { id: 'v5Shop', className: 'panel' });
 if (mk) mk.insertBefore(shopBox, dropBox);
 const EL_NAME = { air: 'Air', water: 'Water + air', earth: 'Earth + air', fire: 'Fire + air', thunder: 'Thunder + air', all: 'All five elements' };
+/** Watcher Gods: how each one evolves (six forms) and its family tree (the Monstars descended from it). Not for sale. */
+function godsHtml() {
+  const gods = SPECIES.filter(s => s.god); if (!gods.length) return '';
+  return `<h3 class="dr-sub">Watcher Gods · Egyptian and Anunnaki machine-gods · as strong as the Aura Warriors · not for sale</h3>
+    <p class="muted">Each god grows through six forms, and each is the ancestor of a line of other Monstars. Marketplace resales pay the creator 5% for ever; PocketMonstars takes 1%.</p>
+    <div class="dr-grid">${gods.map(sp => `<div class="dr-card top"><span class="dr-badge">WATCHER GOD</span>
+      <img src="art/hd/${sp.art}_s2.png" alt="${esc(sp.name)}" loading="lazy">
+      <b>${esc(sp.name)}</b><small>${esc(sp.type)} · ${esc(sp.cls.label)}</small>
+      <small class="sb-kit"><b>Special</b> ${esc(sp.kit.special.name)} · <b>Mega Shot</b> ${esc(sp.kit.mega.name)}<br><b>Dash</b> ${esc(sp.kit.dash.name)}</small>
+      <small><b>Evolution</b></small><div class="dr-evo god-evo">${[0, 1, 2, 3, 4, 5].map(st => `<figure><img src="art/hd/${sp.art}_s${st}.png" alt="" loading="lazy"><figcaption>${esc(sp.forms?.[st] || '')}</figcaption></figure>`).join('<i>›</i>')}</div>
+      <small><b>Family tree</b> · descended from ${esc(sp.name)}</small><div class="god-tree">${(sp.lineage || []).map(id => `<figure><img src="art/hd/${SPECIES[id].art}.png" alt="" loading="lazy"><figcaption>${esc(SPECIES[id].name)}</figcaption></figure>`).join('')}</div></div>`).join('')}</div>`;
+}
 let shopEl = 'all';
 function renderShop() {
   const list = dropData?.shop; if (!list) { shopBox.hidden = true; return; } shopBox.hidden = false;
@@ -131,6 +143,7 @@ function renderShop() {
   shopBox.innerHTML = `<div class="dr-head"><div><div class="eyebrow">Market · ${dropData.cluster === 'devnet' ? 'devnet test SOL' : 'SOL'}</div><h2>Aura Warriors & Sky Benders</h2>
      <p class="pv-note">25 one-of-one air benders, boys and girls. Each also bends a second element: water, earth, fire or thunder (or pure air). Strong from level 1 and they evolve into six forms. Buying needs Phantom.</p></div>
      <div class="dr-clock"><small>Sold</small><b>${sold} / ${list.length}</b><small>no time limit</small></div></div>
+    ${godsHtml()}
     ${aura.length ? `<h3 class="dr-sub">Aura Warriors · ${sol(aura[0].priceLamports)} SOL · stronger than benders, five Aura forms in battle</h3><div class="dr-grid">${aura.map(card).join('')}</div>` : ''}
     ${star ? `<h3 class="dr-sub">The final air bender · ${sol(star.priceLamports)} SOL</h3><div class="dr-grid sb-star">${card(star)}</div>` : ''}
     <div class="dx-chips sb-chips">${[['all', 'All'], ['air', 'Air'], ['water', 'Water'], ['earth', 'Earth'], ['fire', 'Fire'], ['thunder', 'Thunder']].map(([k, n]) => `<button class="smallbtn" data-sel="${k}" aria-pressed="${k === shopEl}">${n}</button>`).join('')}</div>

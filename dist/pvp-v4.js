@@ -915,7 +915,7 @@ async function refreshMarket() {
       if (!l.monstar) continue;
       const c = el('div', { className: 'pv-card pv-listing' }), price = BigInt(l.price), roy = price * BigInt(cfg.royaltyBps) / 10000n;
       const isMine = me && l.seller === me;
-      c.innerHTML = cardHtml(l.monstar, `<span class="price">${sol(price, 6)} SOL</span><span class="pv-split">Royalty ${cfg.royaltyBps / 100}% (${sol(roy, 6)}) → ${short(l.monstar.originOwner)} · PocketMonstars fee 5% (${sol(price * 500n / 10000n, 6)})</span><div class="acts"><button class="primary">${isMine ? 'Cancel listing' : 'Buy'}</button></div>`);
+      c.innerHTML = cardHtml(l.monstar, `<span class="price">${sol(price, 6)} SOL</span><span class="pv-split">Royalty ${cfg.royaltyBps / 100}% (${sol(roy, 6)}) → ${short(l.monstar.originOwner)} · PocketMonstars fee ${(cfg.companyFeeBps?.[Monstars.SPECIES[l.monstar.speciesId]?.collection] ?? 500) / 100}% (${sol(price * BigInt(cfg.companyFeeBps?.[Monstars.SPECIES[l.monstar.speciesId]?.collection] ?? 500) / 10000n, 6)})</span><div class="acts"><button class="primary">${isMine ? 'Cancel listing' : 'Buy'}</button></div>`);
       const b = c.querySelector('button');
       b.onclick = () => busy(b, async () => {
         if (!S.session()) throw Error('Sign in on the 1v1 Stake tab first.');

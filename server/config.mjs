@@ -3,6 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { SPECIES } from '../shared/monstars.mjs';
 /** Species ids by name (throws on a typo so a gift can never silently go missing). */
+const GODS = SPECIES.filter(s => s.god).map(s => s.name); // the ten Watcher Gods
 const ids = (...names) => names.map(n => { const sp = SPECIES.find(x => x.name === n); if (!sp) throw Error('Unknown species ' + n); return sp.id; });
 
 const env = process.env;
@@ -41,8 +42,10 @@ export const CONFIG = {
     // founder: one bender of each element (water, earth, fire, air, thunder)
     // + 5 Legend Heroes and COVO, the final air bender (all five elements)
     // + the 8 Aura Warriors (from the founder's own drawings)
-    'Dc9s1YwNHE2xDBzpprDvyruzxj8j5HvBSvfbvdups5LJ': [163, 165, 167, 170, 172, ...ids('Aurorex', 'Titanor', 'Phantomir', 'Pyronyx', 'Chronar', 'COVO', 'Dashi', 'Bolo', 'Swish', 'Kapri', 'Nyla', 'Verdo', 'Bunzo', 'Tigo', 'Vikko', 'Noxx')],
+    'Dc9s1YwNHE2xDBzpprDvyruzxj8j5HvBSvfbvdups5LJ': [163, 165, 167, 170, 172, ...ids('Aurorex', 'Titanor', 'Phantomir', 'Pyronyx', 'Chronar', 'COVO', 'Dashi', 'Bolo', 'Swish', 'Kapri', 'Nyla', 'Verdo', 'Bunzo', 'Tigo', 'Vikko', 'Noxx', ...GODS)],
     // Ashley: women only. 5 heroines, 5 air bender women, 4 Anunnaki goddesses, a woman bender of water, earth, fire and thunder, KENA (all five elements), and the elite benders Aurelia (golden fire) and Amyah (moonlit ice)
+    // the Watcher Gods' creator plays with a set of his own
+    '5eKeqSopYotsxwfE2uCJoyFywzqmXFe92NQR8kbHqaGd': ids(...GODS),
     'HgPy9avE7tMVTgpehYwFQRQYGPUPbZKGzKPAuLNoeD3U': ids('Kena', 'Aurelia', 'Amyah', 'Tidewen', 'Terrala', 'Pyreska', 'Voltessa', 'Starlara', 'Lumivra', 'Frostelle', 'Blazara', 'Sylphra', 'Aerisa', 'Sylvane', 'Zephra', 'Windara', 'Skylis', 'Inannox', 'Tiamaw', 'Ninhurra', 'Ereshkyl'),
     // second founder wallet: 5 heroines and 5 air bender women
     '54y46qyavsX1hWXgx5W76WrBjghXxUfkcNftswaXNTbr': ids('Starlara', 'Lumivra', 'Frostelle', 'Blazara', 'Sylphra', 'Aerisa', 'Sylvane', 'Zephra', 'Windara', 'Skylis'),
@@ -52,7 +55,9 @@ export const CONFIG = {
   dropTreasury: env.PM_DROP_TREASURY || env.PM_LEGENDARY_OWNER || 'Dc9s1YwNHE2xDBzpprDvyruzxj8j5HvBSvfbvdups5LJ',
   // The artist who drew a collection. Its market copies are sold from this wallet (the buyer pays it directly) and the
   // 5% royalty on every later resale goes to it for ever. The founder keeps the gifted copies to play with.
-  creators: { aurawarriors: env.PM_AURA_CREATOR || '1jBWaau5EEZK7cwZVqKiEDfJBS9STp6JSYmVbAXgZnj' },
+  creators: { aurawarriors: env.PM_AURA_CREATOR || '1jBWaau5EEZK7cwZVqKiEDfJBS9STp6JSYmVbAXgZnj', watchergods: env.PM_GODS_CREATOR || '5eKeqSopYotsxwfE2uCJoyFywzqmXFe92NQR8kbHqaGd' },
+  // PocketMonstars' share of a marketplace sale, by collection, in basis points (default 5%).
+  companyFeeBps: { watchergods: 100 },
   dropEndsAt: Date.parse(env.PM_DROP_ENDS || '2026-12-03T03:30:00Z'), // 30 days from launch (2026-11-03)
   // Card payments (Stripe). Set these in Render → Environment, never in the repo. Off while STRIPE_SECRET_KEY is empty.
   stripeSecretKey: env.STRIPE_SECRET_KEY || null,

@@ -93,7 +93,8 @@ def frames(im, legs=True):
     with the body leaning forward and bouncing on each step."""
     w, h = im.size; cut = int(h * 0.76); mid = w // 2; M = 26
     O = 8; upper = im.crop((0, 0, w, cut + 2)); legL = im.crop((0, cut - O, mid, h)); legR = im.crop((mid, cut - O, w, h))
-    def swing(leg, k, lift):   # shear the leg sideways from the hip (k px per row) and shorten it by `lift` (foot off the ground)
+    def swing(leg, k, lift):
+        k *= globals().get('SWING', 1.0)   # front-view figures (the Watcher Gods) take a shorter stride   # shear the leg sideways from the hip (k px per row) and shorten it by `lift` (foot off the ground)
         lw, lh = leg.size; big = Image.new('RGBA', (lw + M * 2, lh), (0, 0, 0, 0)); big.paste(leg, (M, 0))
         out = big.transform(big.size, Image.AFFINE, (1, -k, 0, 0, 1, 0), resample=Image.BICUBIC)
         return out.resize((out.width, max(1, round(lh * (1 - lift)))), Image.LANCZOS) if lift else out
@@ -120,7 +121,7 @@ def save(name, suffix, im, legs=True):
     return fs[0]
 
 only = set(sys.argv[1:])
-for name, d in D.items():
+for name, d in (D.items() if __name__ == '__main__' else []):
     if d.get('only_for') or (only and name not in only): continue
     cut = cutout(name, d); base = fit(cut)
     baby = fit(cutout(name + '_baby', D[name + '_baby'])) if name + '_baby' in D else None

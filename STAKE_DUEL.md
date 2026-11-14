@@ -334,3 +334,8 @@ Stats: HP, Attack, Defense, Sp. Atk, Sp. Def, Speed. Types: EMBER, GROVE, TIDE, 
 - Drawn Aura Warriors run with a leg-swing cycle cut from the drawing (`make_aura_art.py`); all Monstars ease into a forward lean when they run and straighten when they stop.
 - Bunzo's Infant and Rookie stages use the creator's baby-bear drawing (waddle run). Bunzo's own special is Thunder Roar (a big stunning wall of sound); Goo Wrap moved to Kapri.
 - Aura Warriors from level 3 have a waving tail (it takes the Aura colour when powered up). Their dash is Flash Step: a longer teleport that leaves an after-image.
+
+## v55 — Watcher Gods, temple arenas
+- New collection `watchergods` (ids 244–253): ten Egyptian / Anunnaki machine-gods built from the creator's pictures (`scripts/make_god_art.py`, sources in `art-src/gods/`): the picture is the head, the body is drawn to match. Stats +75% like the Aura Warriors. Powers: levitation (Soul Scales, Gravity Lift), lasers, Scarab Drones, Sun Disc, Circuit Web, Cobra Venom and their own Mega Shots. Six forms each (sun disc from form 4, rays at form 6) and a family tree (`lineage`) shown in the Market tab.
+- Two new arenas: Temple of the Sun (6) and Jungle Pyramid (7). `ARENA_COUNT` is 8; any fight with a Watcher God uses one of them.
+- `config.creators.watchergods` (env `PM_GODS_CREATOR`): every god is born to the creator wallet (5% resale royalty for ever). The founder and the creator each hold one set (`gift_claims`). `config.companyFeeBps.watchergods = 100`: PocketMonstars takes 1% of their marketplace sales (5% for everything else).

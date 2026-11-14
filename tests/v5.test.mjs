@@ -275,3 +275,22 @@ test('Aura Warrior creator: gifts and the market copy are born to the creator wa
     assert.ok(!first.some(m => m.serial === bought.serial), 'the market copy is its own Monstar, not the founder\'s');
   } finally { server.close(); }
 });
+
+test('Watcher Gods: ten gods as strong as Aura Warriors, temple arenas, levitation, creator royalty with a 1% company fee, both wallets hold a set', async () => {
+  const S = await import('../shared/sim.mjs'), { Monstar, SPECIES } = await import('../shared/monstars.mjs'), { saleSplit } = await import('../server/nft.mjs');
+  const { createServer } = await import('../server/index.mjs'), { CONFIG } = await import('../server/config.mjs');
+  const gods = SPECIES.filter(s => s.god); assert.equal(gods.length, 10); assert.ok(gods.every(g => g.collection === 'watchergods' && g.lineage.length === 4 && g.forms.length === 6));
+  const st = sp => Object.values(new Monstar({ speciesId: sp.id, level: 1 }).stats).reduce((a, b) => a + b, 0);
+  assert.ok(st(gods[1]) > st(SPECIES.find(s => s.name === 'Pyreska')), 'stronger than a bender of the same class');
+  const m = S.createMatch(new Monstar({ speciesId: gods[3].id, level: 20 }), new Monstar({ speciesId: 3, level: 20 }), { auto: false, arena: 2 });
+  assert.ok(m.arena === 6 || m.arena === 7, 'gods fight in the temple arenas'); assert.equal(S.ARENA_COUNT, 8);
+  const [a, b] = m.fighters; a.x = 300; a.y = 300; b.x = 420; b.y = 300; a.cd.special = 0; a.energy = 100; a.input = S.sanitizeInput({ sp: true, ax: 1, ay: 0 }); let lifted = false;
+  for (let i = 0; i < 120; i++) { S.step(m); a.input = S.sanitizeInput({}); b.vx = b.vy = 0; if (b.status?.k === 'lift') lifted = true; }
+  assert.ok(lifted && b.hp < b.maxHp, 'Gravity Lift raises the rival and hurts it');
+  const sp = saleSplit(1_000_000_000n, 500, [{ address: CONFIG.creators.watchergods, percentage: 100 }], true, CONFIG.companyFeeBps.watchergods);
+  assert.equal(sp.royalty, 50_000_000n); assert.equal(sp.company, 10_000_000n); assert.equal(sp.seller, 940_000_000n);
+  const { server, registry } = createServer({ dbFile: ':memory:', config: { ...CONFIG, rebuildDrops: false } });
+  try { for (const w of [CONFIG.legendaryOwner, CONFIG.creators.watchergods]) { const mine = registry.claimAll(w).filter(x => x.species.god);
+    assert.equal(mine.length, 10); assert.ok(mine.every(x => x.owner === w && x.originOwner === CONFIG.creators.watchergods)); assert.equal(registry.claimAll(w).filter(x => x.species.god).length, 10); }
+  } finally { server.close(); }
+});

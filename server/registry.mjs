@@ -84,7 +84,7 @@ export class Registry {
       const existing = claim ? this.db.prepare('SELECT * FROM monstars WHERE serial=?').get(claim.serial)
         : this.db.prepare('SELECT * FROM monstars WHERE origin_owner=? AND species=? AND genesis=1' + (creator ? ' AND owner=?' : '')).get(...(creator ? [creator, sid, owner] : [owner, sid]));
       if (existing) return this.toMonstar(existing);
-      const m = this.insertUnique({ speciesId: sid, originOwner: creator || owner, owner, genesis: true, collection: SPECIES[sid].collection, exp: 0,
+      const m = this.insertUnique({ speciesId: sid, originOwner: creator || owner, owner, genesis: !creator || creator === owner, /* one genesis per (born-to wallet, species): other holders' gifts are tracked in gift_claims */ collection: SPECIES[sid].collection, exp: 0,
         dnaFor: n => composeDna(deriveDna(owner, sid, n), { rarity: 'Legendary', ivs: [15, 15, 15, 15, 15, 15].map((v, k) => v - ((n + k) % 2)) }) });
       if (creator) this.db.prepare('INSERT OR IGNORE INTO gift_claims(owner, species, serial) VALUES(?,?,?)').run(owner, sid, m.serial);
       return m;
@@ -142,7 +142,7 @@ export class Registry {
   grantHero(owner, speciesId, signature) {
     owner = normOwner(owner);
     if (!SALE_IDS.includes(speciesId)) throw Error('That Monstar is not for sale.');
-    const had = this.db.prepare('SELECT * FROM monstars WHERE species=? AND genesis=0 ORDER BY serial LIMIT 1').get(speciesId); // the one market copy (gifts are genesis)
+    const had = this.db.prepare('SELECT * FROM monstars WHERE species=? AND genesis=0 AND serial NOT IN (SELECT serial FROM gift_claims) ORDER BY serial LIMIT 1').get(speciesId); // the one market copy (gifts are genesis)
     if (had) return this.toMonstar(had);
     return this.insertUnique({ speciesId, originOwner: this.creators[SPECIES[speciesId].collection] || owner, owner, genesis: false, collection: SPECIES[speciesId].collection, exp: 0,
       dnaFor: n => composeDna(createHash('sha256').update(`pocketmonstars:hero:${speciesId}:${signature}:${n}`).digest('hex'), { rarity: 'Legendary', ivs: [15, 15, 14, 15, 14, 15] }) });
