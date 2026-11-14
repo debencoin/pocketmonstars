@@ -165,3 +165,26 @@ test('Immortal Combat with Phantom: both sign before the fight; the SOL buy-back
     assert.throws(() => checkPayments(tx([ix(B, 95_000_000), memo]), { from: A, pays: [{ to: B, lamports: 95_000_000n }, { to: T, lamports: 5_000_000n }], memo: 'PMSOUL:1' }), /soul fee/);
   } finally { server.close(); }
 });
+
+test('simulated SOL: two Phantom wallets stake play money; no escrow, no transactions; the pot is paid to their balances', async () => {
+  const { Keypair } = await import('@solana/web3.js');
+  const { server, matches, players, registry } = createServer({ dbFile: ':memory:', config: { ...CONFIG, rebuildDrops: false } });
+  try {
+    const A = Keypair.generate().publicKey.toBase58(), B = Keypair.generate().publicKey.toBase58(), [ma] = registry.claimAll(A), [mb] = registry.claimAll(B);
+    assert.equal(players.simBalance(A), 5_000_000_000n, '5 simulated SOL to start');
+    assert.throws(() => matches.create(A, { simSol: true, stakeLamports: '6000000000', serial: ma.serial }), /Maximum stake|Not enough/);
+    const room = matches.create(A, { simSol: true, stakeLamports: '100000000', serial: ma.serial });
+    assert.equal(room.escrow, null);
+    matches.join(B, { code: room.code, serial: mb.serial });
+    assert.equal(room.state, 'countdown', 'no deposits: straight to the fight');
+    assert.equal(players.simBalance(A), 4_900_000_000n); assert.equal(players.simBalance(B), 4_900_000_000n);
+    for (let i = 0; i < 200 && room.state !== 'live'; i++) matches.tick();
+    room.sim.fighters[1].hp = 0; for (let i = 0; i < 80 && room.state === 'live'; i++) matches.tick();
+    assert.equal(room.state, 'done');
+    assert.equal(players.simBalance(A), 5_100_000_000n, 'the winner gets the whole pot'); assert.equal(players.simBalance(B), 4_900_000_000n);
+    assert.throws(() => players.simRefill(A), /below 0.5/);
+    // a cancelled match gives the simulated stakes back
+    const r2 = matches.create(A, { simSol: true, stakeLamports: '100000000', serial: ma.serial }); matches.join(B, { code: r2.code, serial: mb.serial }); matches.cancel(r2, 'test');
+    assert.equal(players.simBalance(A), 5_100_000_000n);
+  } finally { server.close(); }
+});

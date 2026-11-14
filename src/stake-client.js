@@ -156,6 +156,8 @@ export async function cardBuy(speciesId) { const { url } = await api('/api/card/
 export const cardConfirm = session => api('/api/card/confirm', { session });
 export const payoutsMe = () => api('/api/payouts/me');
 export const catchesMe = () => api('/api/catches/me');
+export const simMe = () => api('/api/sim/me');
+export const simRefill = () => api('/api/sim/refill', {});
 // ---------- Immortal Combat soul claims ----------
 export const soulMine = () => api('/api/soul/mine');
 export const soulFee = (id, feeSol, feeUsd) => api('/api/soul/fee', { id, feeSol, feeUsd });
@@ -191,4 +193,4 @@ export const qrDataUrl = text => QRCode.toDataURL(text, { margin: 1, width: 240,
 export const explorer = sig => `https://explorer.solana.com/tx/${sig}?cluster=devnet`;
 
 if (typeof window !== 'undefined') window.PMStake = { signIn, session, balance, getConfig, myMonstars, mint, syncOwner, listings, list, cancelListing, buy,
-  connectSocket, deposit, explorer, phantomBrowseLink, breedCreate, breedJoin, breedStatus, breedPay, wildPay, signOut, accountRegister, accountLogin, drop, dropBuy, cardStatus, cardBuy, cardConfirm, catchesMe, soulMine, soulFee, soulBuy, soulCard, immortalSign, immortalLock, escrowCollect, catchPassBuy, payoutsMe, payoutsConnect, usdListings, usdList, usdCancel, usdBuy, profile, setAvatar, avatars, avatarBuy, referrals, referralLink, qrDataUrl, Monstars, Stake, ARENA, Sim };
+  connectSocket, deposit, explorer, phantomBrowseLink, breedCreate, breedJoin, breedStatus, breedPay, wildPay, signOut, accountRegister, accountLogin, drop, dropBuy, cardStatus, cardBuy, cardConfirm, catchesMe, simMe, simRefill, soulMine, soulFee, soulBuy, soulCard, immortalSign, immortalLock, escrowCollect, catchPassBuy, payoutsMe, payoutsConnect, usdListings, usdList, usdCancel, usdBuy, profile, setAvatar, avatars, avatarBuy, referrals, referralLink, qrDataUrl, Monstars, Stake, ARENA, Sim };

@@ -108,14 +108,22 @@ export class MatchManager {
     if (immortal && msg.mode === '3v3') throw Error('Immortal Combat is 1v1 only.');
     const team = this.resolveTeam(wallet, { ...msg, mode: immortal ? '1v1' : msg.mode }, stake > 0n || immortal), monstar = team[0];
     if (immortal) this.checkImmortal(monstar);
+    // Simulated SOL: Phantom players stake play money from their in-game balance (no transactions, no real SOL)
+    const simSol = !!msg.simSol && stake > 0n;
+    if (simSol) this.checkSimBalance(wallet, stake);
     let code; do code = newCode(); while (this.rooms.has(code));
-    const escrow = stake > 0n ? newEscrow() : null;
-    const room = { id: randomBytes(16).toString('hex'), code, stake, immortal, state: 'waiting', createdAt: this.now(), mode: team.length > 1 ? '3v3' : '1v1', squad: !!msg.squad && team.length > 1,
+    const escrow = stake > 0n && !simSol ? newEscrow() : null;
+    const room = { id: randomBytes(16).toString('hex'), code, stake, immortal, simSol, state: 'waiting', createdAt: this.now(), mode: team.length > 1 ? '3v3' : '1v1', squad: !!msg.squad && team.length > 1,
       players: [{ wallet, monstar, team, deposit: null, locked: wallet.startsWith('@'), sockets: new Set(), lastSeen: this.now() }], escrow, sim: null, ledger: null, seq: 0, countdown: 0 };
     this.rooms.set(code, room); this.byWallet.set(wallet, code); this.release(wallet);
     this.db.prepare('INSERT INTO matches(id,code,stake,player_a,monstar_a,escrow,escrow_secret,state,created_at) VALUES(?,?,?,?,?,?,?,?,?)')
-      .run(room.id, code, stake.toString(), wallet, String(monstar.serial ?? 'species:' + monstar.species.id), escrow?.address ?? null, escrow?.secret ?? null, 'waiting', room.createdAt);
+      .run(room.id, code, simSol ? '0' : stake.toString(), wallet, String(monstar.serial ?? 'species:' + monstar.species.id), escrow?.address ?? null, escrow?.secret ?? null, 'waiting', room.createdAt);
     return room;
+  }
+  checkSimBalance(wallet, stake) {
+    if (!this.players) throw Error('Simulated SOL is not available right now.');
+    const b = this.players.simBalance(wallet);
+    if (b < stake) throw Error(`Not enough simulated SOL: you have ${formatSol(b, 4)}. Top up free on the Arena tab (once a day when you're low).`);
   }
 
   join(wallet, msg) {
@@ -128,10 +136,12 @@ export class MatchManager {
     if (this.byWallet.has(wallet)) this.leave(wallet);
     const team = this.resolveTeam(wallet, { ...msg, mode: room.mode }, room.stake > 0n || room.immortal), monstar = team[0];
     if (room.immortal) { if (!msg.immortalOk) throw Error('IMMORTAL_CONFIRM'); this.checkImmortal(monstar); }
+    if (room.simSol) this.checkSimBalance(wallet, room.stake);
     room.players.push({ wallet, monstar, team, deposit: null, locked: wallet.startsWith('@'), sockets: new Set(), lastSeen: this.now() });
     this.byWallet.set(wallet, room.code); this.release(wallet);
+    if (room.simSol) { for (const p of room.players) this.players.simAdd(p.wallet, -room.stake); room.debited = true; } // both stakes go into the (simulated) pot
     // Immortal Combat: Phantom players sign before the fight (a consent signature, or moving a minted NFT into the match escrow)
-    room.state = room.stake > 0n ? 'deposit' : room.immortal && !room.players.every(p => p.locked) ? 'lock' : 'countdown';
+    room.state = room.stake > 0n && !room.simSol ? 'deposit' : room.immortal && !room.players.every(p => p.locked) ? 'lock' : 'countdown';
     if (room.state === 'countdown') room.countdown = 3;
     this.db.prepare('UPDATE matches SET player_b=?, monstar_b=?, state=? WHERE id=?')
       .run(wallet, String(monstar.serial ?? 'species:' + monstar.species.id), room.state, room.id);
@@ -278,7 +288,7 @@ export class MatchManager {
     const sim = room.sim;
     const shares = room.ledger.finish(sim.winner);
     room.ledger.check();
-    room.state = room.stake > 0n ? 'settling' : 'done';
+    room.state = room.stake > 0n && !room.simSol ? 'settling' : 'done';
     this.db.prepare('UPDATE matches SET state=?, winner=?, reason=?, shares=?, hits=?, ended_at=? WHERE id=?')
       .run(room.state, sim.winner, sim.reason, JSON.stringify(shares.map(String)), JSON.stringify(room.ledger.hits), this.now(), room.id);
     // Save the EXP each registered Monstar earned (levels and evolutions persist).
@@ -312,12 +322,18 @@ export class MatchManager {
       }
     }
     this.emit(room, { t: 'end', winner: sim.winner, reason: sim.reason, shares: shares.map(String), stake: room.stake.toString(), progress, caught, immortal });
-    if (room.stake > 0n) this.settle(room, shares, sim.winner).catch(e => this.emit(room, { t: 'settlement', ok: false, error: e.message }));
+    if (room.simSol) { // pay the simulated pot out by the final shares
+      room.players.forEach((p, i) => this.players.simAdd(p.wallet, shares[i]));
+      this.emit(room, { t: 'settlement', ok: true, sim: true, payouts: shares.map(String), company: '0', network: '0', balances: room.players.map(p => this.players.simBalance(p.wallet).toString()),
+        summary: room.players.map((p, i) => `${p.wallet.slice(0, 4)}… receives ${formatSol(shares[i])} simulated SOL`).join(' · ') });
+      this.close(room);
+    } else if (room.stake > 0n) this.settle(room, shares, sim.winner).catch(e => this.emit(room, { t: 'settlement', ok: false, error: e.message }));
     else this.close(room);
   }
 
   cancel(room, reason) {
     for (const e of this.players?.escrowsOfRoom(room.code) || []) if (e.state === 'held') this.players.updateEscrow(e.id, { release_to: e.owner }); // NFTs go back to their owners
+    if (room.simSol && room.debited) { room.debited = false; for (const p of room.players) this.players.simAdd(p.wallet, room.stake); } // simulated stakes go back
     const deposited = room.players.map(p => (p.deposit ? room.stake : 0n));
     room.state = 'cancelled';
     this.persistState(room, reason);
@@ -391,7 +407,7 @@ export class MatchManager {
   publicRoom(room, wallet) {
     return { t: 'room', code: room.code, state: room.state, stake: room.stake.toString(), escrow: room.escrow?.address ?? null,
       you: room.players.findIndex(p => p.wallet === wallet), countdown: Math.max(0, Math.ceil(room.countdown || 0)),
-      ai: !!room.ai, immortal: !!room.immortal, mode: room.mode || '1v1', squad: !!room.squad, wild: room.wild ? { speciesId: room.wild.speciesId, level: room.wild.level, tier: room.wild.tier } : null,
+      ai: !!room.ai, immortal: !!room.immortal, simSol: !!room.simSol, mode: room.mode || '1v1', squad: !!room.squad, wild: room.wild ? { speciesId: room.wild.speciesId, level: room.wild.level, tier: room.wild.tier } : null,
       consent: room.immortal && room.state === 'lock' && wallet && !wallet.startsWith('@') && room.players.some(p => p.wallet === wallet && !p.locked && !p.monstar.asset) ? this.consentMessage(room, wallet) : null,
       players: room.players.map(p => ({ wallet: p.wallet, ai: !!p.ai, deposited: !!p.deposit, locked: !!p.locked, nft: !!p.monstar.asset, monstar: p.monstar.toJSON(), team: (p.team || [p.monstar]).map(x => x.toJSON()) })),
       shares: room.ledger ? room.ledger.shares.map(String) : room.players.map(() => room.stake.toString()) };

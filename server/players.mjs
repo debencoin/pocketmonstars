@@ -4,6 +4,7 @@ import { PublicKey } from '@solana/web3.js';
 
 const NAME_RE = /^[A-Za-z0-9_]{3,20}$/;
 export const REFERRAL_BPS = 500; // 5%
+export const SIM_START = 5_000_000_000n; // every Phantom wallet starts with 5 simulated SOL
 
 export class Players {
   constructor(db) {
@@ -18,6 +19,7 @@ export class Players {
         fee_lamports TEXT NOT NULL, fee_cents INTEGER, expires_at INTEGER NOT NULL, state TEXT NOT NULL DEFAULT 'open', paid_by TEXT, created_at INTEGER NOT NULL);
       CREATE TABLE IF NOT EXISTS nft_escrows(id INTEGER PRIMARY KEY AUTOINCREMENT, room TEXT NOT NULL, serial INTEGER NOT NULL, asset TEXT NOT NULL, escrow TEXT NOT NULL, secret TEXT NOT NULL,
         owner TEXT NOT NULL, release_to TEXT, claim INTEGER, state TEXT NOT NULL DEFAULT 'pending', created_at INTEGER NOT NULL);
+      CREATE TABLE IF NOT EXISTS sim_balances(user TEXT PRIMARY KEY, lamports TEXT NOT NULL, refilled_at INTEGER NOT NULL DEFAULT 0);
       CREATE TABLE IF NOT EXISTS catch_credits(user TEXT PRIMARY KEY, credits INTEGER NOT NULL DEFAULT 0);
       CREATE TABLE IF NOT EXISTS payout_accounts(user TEXT PRIMARY KEY, account TEXT NOT NULL);
       CREATE TABLE IF NOT EXISTS usd_listings(serial INTEGER PRIMARY KEY, seller TEXT NOT NULL, cents INTEGER NOT NULL, created_at INTEGER NOT NULL);
@@ -109,6 +111,21 @@ export class Players {
   escrowOfClaim(claim) { return this.db.prepare('SELECT * FROM nft_escrows WHERE claim=?').get(claim) || null; }
   /** NFTs waiting in an escrow for this player to collect. */
   collectable(user) { return this.db.prepare("SELECT * FROM nft_escrows WHERE release_to=? AND state='held'").all(user); }
+
+  // ---------- simulated SOL (play money for staked matches between Phantom wallets: nothing moves on-chain) ----------
+  simBalance(user, now = Date.now()) {
+    const r = this.db.prepare('SELECT lamports FROM sim_balances WHERE user=?').get(user);
+    if (r) return BigInt(r.lamports);
+    this.db.prepare('INSERT INTO sim_balances(user,lamports,refilled_at) VALUES(?,?,?)').run(user, SIM_START.toString(), now); return SIM_START;
+  }
+  simAdd(user, delta) { const b = this.simBalance(user) + BigInt(delta); this.db.prepare('UPDATE sim_balances SET lamports=? WHERE user=?').run((b < 0n ? 0n : b).toString(), user); return b; }
+  /** Free top-up back to the starting balance, once a day, when you're below 0.5 simulated SOL. */
+  simRefill(user, now = Date.now()) {
+    const b = this.simBalance(user), r = this.db.prepare('SELECT refilled_at FROM sim_balances WHERE user=?').get(user);
+    if (b >= SIM_START / 10n) throw Error('You can top up once you are below 0.5 simulated SOL.');
+    const wait = (r.refilled_at || 0) + 24 * 3600_000 - now; if (wait > 0) throw Error(`Next free top-up in ${Math.ceil(wait / 3600_000)} h.`);
+    this.db.prepare('UPDATE sim_balances SET lamports=?, refilled_at=? WHERE user=?').run(SIM_START.toString(), now, user); return SIM_START;
+  }
 
   // ---------- catch passes (free accounts: 2 free catches, then one pass per catch, bought with a card) ----------
   catchCredits(user) { return this.db.prepare('SELECT credits FROM catch_credits WHERE user=?').get(user)?.credits || 0; }

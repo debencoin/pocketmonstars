@@ -85,6 +85,8 @@ pvp.innerHTML = `
    <button class="primary wide" id="pvPractice">Quick battle vs CPU</button>
    <p class="pv-note" style="margin:6px 0 16px">Free, no wallet needed.</p>
    <h3>Battle a real rival</h3>
+   <div class="pv-presets pv-cur" id="pvCur" role="group" aria-label="Which SOL"><button data-c="sim" aria-pressed="true">Simulated SOL (free)</button><button data-c="dev" aria-pressed="false">Devnet SOL</button></div>
+   <p class="pv-note" id="pvSimBal" style="margin:6px 0"></p>
    <label class="fieldlabel" for="pvStake" style="display:block;margin:10px 0 6px">Stake per player (SOL)</label>
    <div class="pv-presets" id="pvPresets"><button data-v="0.001" aria-pressed="true">0.001</button><button data-v="0.002">0.002</button><button data-v="0.005">0.005</button><button data-v="0.01">0.01</button></div>
    <input class="pv-input" id="pvStake" inputmode="decimal" value="0.001" style="margin-top:8px">
@@ -157,7 +159,7 @@ async function afterSignIn() {
   me = S.session()?.wallet || null;
   q('pvSignIn').textContent = me && !isAcct(me) ? 'Signed in · switch wallet' : 'Connect Phantom & sign in';
   q('pvAcct').hidden = !!me; q('pvSignOut').hidden = !me;
-  window.PMV5?.signedIn?.(me); setTimeout(() => renderSouls(), 0);
+  window.PMV5?.signedIn?.(me); setTimeout(() => { renderSouls(); renderSimBal(); }, 0);
   if (!me) { q('pvWallet').textContent = 'Not signed in. Practice is free with no sign-in.'; return; }
   q('pvWallet').innerHTML = isAcct(me) ? `Signed in as <b>${esc(me.slice(1))}</b> · free account. Connect Phantom any time to play for SOL.`
     : `<span class="pv-addr">${esc(me)}</span><br><span id="pvBal">Loading balance…</span>`;
@@ -221,13 +223,25 @@ async function refreshMine() {
 }
 
 // ---------- lobby ----------
+// Simulated SOL: Phantom players stake free play money against each other (5 SOL to start, free daily top-up when low)
+let currency = 'sim', simBal = null;
+async function renderSimBal() {
+  const box = q('pvSimBal'); if (!box) return;
+  if (currency !== 'sim') { box.innerHTML = 'Real devnet SOL: deposits go to a match escrow on Solana devnet (test SOL from a faucet).'; return; }
+  if (!S.session() || isAcct(S.session().wallet)) { box.innerHTML = 'Simulated SOL is play money for Phantom players: <b>connect Phantom</b> to get 5 simulated SOL and stake it against other players. No real SOL moves.'; return; }
+  try { simBal = await S.simMe(); } catch { return; }
+  box.innerHTML = `Your simulated balance: <b>${esc(simBal.sol)} SOL</b> (play money, nothing moves on-chain) <button class="smallbtn" id="pvSimTop">Free top-up</button>`;
+  q('pvSimTop').onclick = async () => { try { simBal = await S.simRefill(); toast('Topped up to ' + simBal.sol + ' simulated SOL.'); renderSimBal(); } catch (e) { fail(e); } };
+}
+q('pvCur').onclick = e => { const b = e.target.closest('button'); if (!b) return; currency = b.dataset.c; q('pvCur').querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', x === b)); renderSimBal(); stakeNote(); };
 async function stakeNote() {
   cfg ??= await S.getConfig().catch(() => null);
   let v; try { v = Stake.toLamports(q('pvStake').value || '0'); } catch { q('pvStakeNote').textContent = 'Enter an amount like 0.01'; return; }
-  q('pvStakeNote').innerHTML = v < 1_000_000n ? '<b>Minimum stake is 0.001 SOL.</b> For a free game, use Quick battle vs CPU.' : `Pot <b>${sol(v * 2n)} SOL</b>. A hit worth 10% of your rival's HP moves <b>${sol(v / 10n, 9)} SOL</b> to you. Minimum stake 0.001 SOL.`;
+  const unit = currency === 'sim' ? 'simulated SOL' : 'SOL';
+  q('pvStakeNote').innerHTML = v < 1_000_000n ? '<b>Minimum stake is 0.001 SOL.</b> For a free game, use Quick battle vs CPU.' : `${currency === 'sim' ? '<b>Simulated:</b> ' : ''}Pot <b>${sol(v * 2n)} ${unit}</b>. A hit worth 10% of your rival's HP moves <b>${sol(v / 10n, 9)} SOL</b> to you. Minimum stake 0.001 SOL.`;
 }
 q('pvPresets').onclick = e => { const b = e.target.closest('button'); if (!b) return; q('pvPresets').querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', x === b)); q('pvStake').value = b.dataset.v; stakeNote(); };
-q('pvStake').oninput = stakeNote; stakeNote();
+q('pvStake').oninput = stakeNote; stakeNote(); renderSimBal();
 function teamMsg(needOwned) {
   if (mode !== '3v3') return { mode };
   return { ...teamMsg3(needOwned), squad };
@@ -241,7 +255,7 @@ function teamMsg3(needOwned) {
 }
 function needSocket() { if (!S.session()) throw Error('Sign in with Phantom first.'); if (!ws || ws.readyState > 1) openSocket(); }
 function sendWs(msg) { needSocket(); const go = () => ws.send(JSON.stringify(msg)); ws.readyState === 1 ? go() : ws.addEventListener('open', go, { once: true }); }
-q('pvCreate').onclick = () => { try { const lam = Stake.toLamports(q('pvStake').value || '0'); if (lam < 1_000_000n) throw Error('The minimum stake is 0.001 SOL.'); sendWs({ t: 'create', stakeLamports: lam.toString(), serial: lam > 0n ? picked : undefined, speciesId: mine.find(m => m.serial === picked)?.speciesId ?? 0, ...teamMsg(lam > 0n) }); } catch (e) { fail(e); } };
+q('pvCreate').onclick = () => { try { const lam = Stake.toLamports(q('pvStake').value || '0'); if (lam < 1_000_000n) throw Error('The minimum stake is 0.001 SOL.'); sendWs({ t: 'create', simSol: currency === 'sim', stakeLamports: lam.toString(), serial: lam > 0n ? picked : undefined, speciesId: mine.find(m => m.serial === picked)?.speciesId ?? 0, ...teamMsg(lam > 0n) }); } catch (e) { fail(e); } };
 let lastJoin = null;
 q('pvJoin').onclick = () => { try { lastJoin = { t: 'join', code: q('pvJoinCode').value.trim().toUpperCase(), serial: picked, speciesId: mine.find(m => m.serial === picked)?.speciesId ?? 0, ...teamMsg(true) }; sendWs(lastJoin); } catch (e) { fail(e); } };
 // ---------- Immortal Combat: winner takes the loser's Monstar; the loser can buy it back for the winner's soul fee ----------
@@ -530,7 +544,7 @@ function onMsg(m) {
   if (['switch', 'status', 'ult', 'pickup', 'blocked', 'dash', 'guard', 'mega', 'quake', 'hazard', 'earthquake', 'wallhit', 'ascend', 'descend'].includes(m.t)) { battleEvent({ ...m, type: m.t }); return; }
   if (m.t === 'miss' || m.t === 'level' || m.t === 'bonus') { battleEvent({ ...m, type: m.t }); if (m.t === 'level') refreshSoon(); return; }
   if (m.t === 'end') { q('pvCapture').hidden = true; if (m.caught?.captured) toast('Captured! ' + (Monstars.SPECIES[m.caught.speciesId]?.name || 'It') + ' joined your team' + (m.caught.monstar?.level > 1 ? ' at Lv' + m.caught.monstar.level + '.' : ' as a level 1 Infant.')); if (m.code) setTimeout(() => doneCodes.add(m.code), 60000); if (practiceMoney() && vLedger) { vLedger.finish(m.winner == null ? null : m.winner); shares = vLedger.shares.map(String); showShares(); } ended = { ...m, at: performance.now(), capture: m.caught?.ok ? { col: soulColor(Monstars.SPECIES[m.caught.speciesId]) } : null }; if (m.caught?.needPass) setTimeout(offerPasses, 3500); refreshSoon(); if (room) room.state = room.stake === '0' ? 'done' : 'settling'; renderRoom(); return; }
-  if (m.t === 'settlement') { ended = { at: 0, ...(ended || {}), settlement: m }; if (room) room.state = m.ok ? (m.refund ? 'refunded' : 'settled') : 'needs review'; renderRoom(); refreshBalance(); return; }
+  if (m.t === 'settlement') { if (m.sim) setTimeout(renderSimBal, 300); ended = { at: 0, ...(ended || {}), settlement: m }; if (room) room.state = m.ok ? (m.refund ? 'refunded' : 'settled') : 'needs review'; renderRoom(); refreshBalance(); return; }
   if (m.t === 'cancelled') { toast('Match cancelled (' + m.reason + ').' + (room?.players?.some(p => p.deposited) ? ' Deposits are being refunded.' : '')); if (room) room.state = 'cancelled'; renderRoom(); }
   if (m.t === 'left') { room = null; renderRoom(); }
 }
@@ -586,12 +600,12 @@ function showShares() {
   for (const side of [0, 1]) {
     const idx = side === 0 ? you : 1 - you, span = q('pvS' + side), d = BigInt(next[idx]) - start;
     span.textContent = sol(next[idx], 6) + ' SOL';
-    q('pvSD' + side).textContent = d === 0n ? (pretend ? 'practice' : 'paid at end') : (d > 0n ? '+' : '−') + sol(d < 0n ? -d : d, 9);
+    q('pvSD' + side).textContent = d === 0n ? (pretend ? 'practice' : room.simSol ? 'simulated' : 'paid at end') : (d > 0n ? '+' : '−') + sol(d < 0n ? -d : d, 9);
     q('pvSD' + side).className = d > 0n ? 'up' : d < 0n ? 'dn' : '';
     if (prev && BigInt(prev[idx]) !== BigInt(next[idx])) { span.classList.remove('flash-up', 'flash-down'); void span.offsetWidth; span.classList.add(BigInt(next[idx]) > BigInt(prev[idx]) ? 'flash-up' : 'flash-down'); }
   }
   const pot = BigInt(next[0]) + BigInt(next[1]);
-  q('pvPotMid').textContent = `${pretend ? 'PRACTICE ' : ''}POT ${sol(pot, 4)} SOL`;
+  q('pvPotMid').textContent = `${pretend ? 'PRACTICE ' : room.simSol ? 'SIMULATED ' : ''}POT ${sol(pot, 4)} SOL`;
   if (pot > 0n) { const p = Number(BigInt(next[you]) * 1000n / pot) / 10; q('pvP0').style.width = q('pvPB0').style.width = p + '%'; q('pvP1').style.width = q('pvPB1').style.width = (100 - p) + '%'; q('pvPotTxt').textContent = `Your share ${p.toFixed(1)}% of ${sol(pot, 4)} SOL${pretend ? ' (practice, not real SOL)' : ', paid when the match ends'}`; }
 }
 function renderRoom() {
@@ -640,11 +654,11 @@ function renderRoom() {
   }
   if (!room) { q('pvOverlay').hidden = false; q('pvBig').textContent = 'Ready to battle'; q('pvSmall').textContent = 'Pick a Monstar and tap Practice vs AI, or sign in with Phantom to battle a rival for SOL.'; q('pvOvBtns').innerHTML = ''; return; }
   q('pvCode').textContent = room.code; q('pvRoomState').textContent = (room.immortal ? 'IMMORTAL COMBAT · ' : '') + room.state;
-  q('pvPlayers').innerHTML = [0, 1].map(i => { const p = room.players[i]; return p ? `<div class="pv-player"><b>${esc(p.monstar.name)}</b><small>${i === room.you ? 'You' : 'Rival'} · ${short(p.wallet)}</small><small>${esc(p.monstar.className)} · ${esc(p.monstar.type)}</small>${room.stake !== '0' ? `<span class="pv-chip ${p.deposited ? 'ok' : ''}">${p.deposited ? 'Deposited' : 'Deposit pending'}</span>` : ''}</div>` : '<div class="pv-player"><b>Waiting…</b><small>Share the code</small></div>'; }).join('');
+  q('pvPlayers').innerHTML = [0, 1].map(i => { const p = room.players[i]; return p ? `<div class="pv-player"><b>${esc(p.monstar.name)}</b><small>${i === room.you ? 'You' : 'Rival'} · ${short(p.wallet)}</small><small>${esc(p.monstar.className)} · ${esc(p.monstar.type)}</small>${room.simSol ? '<span class="pv-chip ok">Simulated stake</span>' : room.stake !== '0' ? `<span class="pv-chip ${p.deposited ? 'ok' : ''}">${p.deposited ? 'Deposited' : 'Deposit pending'}</span>` : ''}</div>` : '<div class="pv-player"><b>Waiting…</b><small>Share the code</small></div>'; }).join('');
   const myP = room.players[room.you];
   q('pvDeposit').hidden = !(room.state === 'deposit' && myP && !myP.deposited);
   q('pvDeposit').textContent = pendingDeposit?.code === room.code ? 'Check my deposit' : `Deposit ${sol(room.stake, 6)} SOL`;
-  q('pvEscrow').innerHTML = room.escrow ? `Escrow: <span class="pv-addr">${esc(room.escrow)}</span>` : 'Free match: no escrow.';
+  q('pvEscrow').innerHTML = room.simSol ? `<b>Simulated SOL match</b>: ${sol(room.stake, 4)} each from your play-money balance. No real SOL moves.` : room.escrow ? `Escrow: <span class="pv-addr">${esc(room.escrow)}</span>` : 'Free match: no escrow.';
   hudNames();
   const ov = q('pvOverlay'), big = q('pvBig'), small = q('pvSmall'), btns = q('pvOvBtns'); btns.innerHTML = '';
   ov.hidden = !!full;
@@ -654,7 +668,7 @@ function renderRoom() {
     const st = ended.settlement, pr = ended.progress?.[room.you];
     const expLine = pr ? `<br><b>+${pr.gained} EXP</b> · now Lv${pr.level} ${esc(pr.stage)}` : '';
     small.innerHTML = expLine.replace('<br>', '') + (expLine ? '<br>' : '') + (room.stake === '0' ? `${ended.reason === 'ko' ? 'KO' : ended.reason === 'time' ? 'Time up' : 'Forfeit'} · free match`
-      : st ? (st.ok ? `Paid out on-chain: you receive <b>${sol(st.payouts[room.you], 9)} SOL</b>. Company fee ${st.company} lamport. <a href="${esc(S.explorer(st.signature))}" target="_blank" rel="noopener">View transaction</a>` : `Settlement needs review: ${esc(st.error || st.signature || '')}`)
+      : st ? (st.ok && st.sim ? `Simulated payout: you receive <b>${sol(st.payouts[room.you], 6)} simulated SOL</b>. Your balance is now <b>${sol(st.balances?.[room.you] || '0', 4)}</b>.` : st.ok ? `Paid out on-chain: you receive <b>${sol(st.payouts[room.you], 9)} SOL</b>. Company fee ${st.company} lamport. <a href="${esc(S.explorer(st.signature))}" target="_blank" rel="noopener">View transaction</a>` : `Settlement needs review: ${esc(st.error || st.signature || '')}`)
       : `${draw ? 'Each keeps their share.' : won ? 'You take the pot: ' + sol(ended.shares[room.you], 6) + ' SOL.' : 'Your rival takes the pot.'} Paying out on Solana…`);
     if (ended.immortal) { const im = ended.immortal, iWon = im.winner === S.session()?.wallet;
       small.innerHTML = iWon ? `<b>You won ${esc(im.name)}!</b> It's yours now. Its old owner has ${im.hours} hours to buy it back for your soul fee (0.1 SOL until you change it in Soul claims).`

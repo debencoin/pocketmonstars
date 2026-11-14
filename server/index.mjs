@@ -194,6 +194,9 @@ export function createServer({ config = CONFIG, chain = new SolanaChain(config.r
       const sess = await stripe.checkout({ name: `Buy back ${m.toJSON().form || m.species.name} · PocketMonstars`, image: `${config.publicUrl}/art/nft/${nftArt(m.species)}`, cents: c.fee_cents, ref: w,
         metadata: { pm: '1', kind: 'soul', claim: String(c.id), buyer: w, cents: String(c.fee_cents) } });
       return { url: sess.url }; },
+    // ---------- simulated SOL ----------
+    'GET /api/sim/me': req => { const w = needWallet(req), b = players.simBalance(w); return { lamports: b.toString(), sol: formatSol(b, 4) }; },
+    'POST /api/sim/refill': req => { const w = needWallet(req), b = players.simRefill(w); return { lamports: b.toString(), sol: formatSol(b, 4) }; },
     'GET /api/catches/me': req => { const w = need(req), a = matches.catchAllowance(w);
       return { wallet: !w.startsWith('@'), free: a.free ?? null, credits: a.credits ?? null, freeTotal: 2, card: stripe.enabled, packs: Object.entries(config.catchPacks).map(([n, usd]) => ({ n: Number(n), usd })) }; },
     'POST /api/card/catches': async req => { const w = need(req), b = await body(req), n = Number(b.pack), price = config.catchPacks[n];
