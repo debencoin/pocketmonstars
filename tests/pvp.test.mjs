@@ -75,7 +75,7 @@ test('Phantom sign-in verifies Ed25519 signatures and is single-use', () => {
 });
 
 test('simulation sanitises inputs and produces hits and a result', () => {
-  assert.deepEqual(sanitizeInput({ mx: 5, my: 0, ax: NaN }), { mx: 1, my: 0, ax: 0, ay: 0, atk: false, sp: false, dash: false, guard: false, mega: false, sw: -1 });
+  assert.deepEqual(sanitizeInput({ mx: 5, my: 0, ax: NaN }), { mx: 1, my: 0, ax: 0, ay: 0, atk: false, sp: false, dash: false, guard: false, mega: false, asc: false, sw: -1 });
   const m = createMatch(new Monstar({ speciesId: 0 }), new Monstar({ speciesId: 1 }), { auto: false });
   m.fighters[0].y = 60; m.fighters[1].y = 60; // clear line of fire above the centre rock
   m.fighters[0].input = sanitizeInput({ atk: true, sp: true, ax: 1, ay: 0 }); m.fighters[1].input = sanitizeInput({ mx: -0.3 });

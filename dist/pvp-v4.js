@@ -295,9 +295,10 @@ function buildMoves(meSid, foeSid) {
     { k: 'guard', n: sp.kit.guard.name, ty: 'NORMAL', c: 'Guard', e: sp.kit.guard.note },
     { k: 'mega', n: sp.kit.mega.name, ty: sp.type, c: 'MEGA', e: 'Mega Shot · ' + sp.kit.mega.note + ' Needs a full ULT meter.' },
   ];
+  if (sp.aura) cards.push({ k: 'asc', n: 'Aura Ascend', ty: sp.type, c: 'AURA', e: 'Power up into your Aura form for a while (stronger and faster), then back to normal. Forms: I gold Lv3, II purple Lv10, III green Lv25, IV red Lv50, V white Lv80.' });
   q('pvAsk').textContent = sp.name.toUpperCase();
   q('pvMGrid').innerHTML = cards.map((c, i) => `<button class="pv-mv${c.k === 'mega' ? ' mega' : ''}" data-k="${c.k}" style="--tc:${TYPE_COL[c.ty] || '#888'}"><span class="mv-n">${esc(c.n)}</span><span class="mv-k">${i + 1}</span>
-    <span class="mv-row"><span class="mv-ty">${c.k === 'mega' ? 'MEGA SHOT' : c.ty === 'NORMAL' ? (c.k === 'dash' ? 'DASH' : 'GUARD') : esc(c.ty)}</span><span class="mv-c">${esc(c.c)}</span></span><span class="mv-e">${c.e}</span><i class="mv-cd"></i></button>`).join('');
+    <span class="mv-row"><span class="mv-ty">${c.k === 'asc' ? 'AURA FORM' : c.k === 'mega' ? 'MEGA SHOT' : c.ty === 'NORMAL' ? (c.k === 'dash' ? 'DASH' : 'GUARD') : esc(c.ty)}</span><span class="mv-c">${esc(c.c)}</span></span><span class="mv-e">${c.e}</span><i class="mv-cd"></i></button>`).join('');
   q('pvMGrid').querySelectorAll('.pv-mv').forEach(b => { const k = b.dataset.k; let at = 0;
     b.addEventListener('pointerdown', e => { e.preventDefault(); touch[k] = true; at = performance.now(); b.classList.add('on'); try { b.setPointerCapture(e.pointerId); } catch {} });
     const up = () => { b.classList.remove('on'); setTimeout(() => { touch[k] = false; }, Math.max(0, 160 - (performance.now() - at))); };
@@ -312,6 +313,8 @@ function updateMoves(f) {
   if (spc) { const u = Math.min(100, f.ul || 0); spc.classList.toggle('ult', u >= 100); let bar = spc.querySelector('.mv-ult'); if (!bar) { bar = el('span', { className: 'mv-ult' }); spc.append(bar); } bar.innerHTML = u >= 100 ? '<b>ULT READY</b>' : `ULT ${u}%<i style="width:${u}%"></i>`; }
   const sp = Monstars.SPECIES[f.s], cost = { b: Sim.STYLES[sp.basicStyle].cost, s: Sim.STYLES[sp.specialStyle].cost, d: 0, g: 0 };
   const mg = grid.children[4]; if (mg) { const u = Math.min(100, f.ul || 0); mg.classList.toggle('cool', u < 100); mg.classList.toggle('ult', u >= 100); mg.querySelector('.mv-cd').style.width = (100 - u) + '%'; }
+  const ab = grid.querySelector('[data-k=asc]'); if (ab) { const lv = f.lv || 1, tier = Sim.auraTier(lv); ab.classList.toggle('cool', !tier || (f.cd?.a || 0) > 0.05 || f.as > 0); ab.classList.toggle('ult', f.as > 0);
+    ab.querySelector('.mv-c').textContent = f.as > 0 ? 'ACTIVE' : !tier ? 'LV3' : (f.cd?.a || 0) > 0.05 ? Math.ceil(f.cd.a) + 's' : 'AURA ' + ['', 'I', 'II', 'III', 'IV', 'V'][tier]; }
   ['b', 's', 'd', 'g'].forEach((k, i) => { const b = grid.children[i]; if (!b) return; const cd = f.cd[k] || 0; cdMax[k] = Math.max(cd, cd > 0 ? cdMax[k] : 0.01);
     const cool = cd > 0.05 || f.en < cost[k]; b.classList.toggle('cool', cool); b.querySelector('.mv-cd').style.width = (cd > 0 ? cd / cdMax[k] * 100 : 0) + '%'; });
 }
@@ -524,7 +527,7 @@ function onMsg(m) {
   }
   if (m.t === 'capture') { if (!m.ok) toast(`It broke free! (${m.chance}% chance) · ${m.left} ${m.left === 1 ? 'try' : 'tries'} left`, true); return; }
   if (m.t === 'hit') { setShares(m.shares, m); return; }
-  if (['switch', 'status', 'ult', 'pickup', 'blocked', 'dash', 'guard', 'mega', 'quake', 'hazard', 'earthquake', 'wallhit'].includes(m.t)) { battleEvent({ ...m, type: m.t }); return; }
+  if (['switch', 'status', 'ult', 'pickup', 'blocked', 'dash', 'guard', 'mega', 'quake', 'hazard', 'earthquake', 'wallhit', 'ascend', 'descend'].includes(m.t)) { battleEvent({ ...m, type: m.t }); return; }
   if (m.t === 'miss' || m.t === 'level' || m.t === 'bonus') { battleEvent({ ...m, type: m.t }); if (m.t === 'level') refreshSoon(); return; }
   if (m.t === 'end') { q('pvCapture').hidden = true; if (m.caught?.captured) toast('Captured! ' + (Monstars.SPECIES[m.caught.speciesId]?.name || 'It') + ' joined your team' + (m.caught.monstar?.level > 1 ? ' at Lv' + m.caught.monstar.level + '.' : ' as a level 1 Infant.')); if (m.code) setTimeout(() => doneCodes.add(m.code), 60000); if (practiceMoney() && vLedger) { vLedger.finish(m.winner == null ? null : m.winner); shares = vLedger.shares.map(String); showShares(); } ended = { ...m, at: performance.now(), capture: m.caught?.ok ? { col: soulColor(Monstars.SPECIES[m.caught.speciesId]) } : null }; if (m.caught?.needPass) setTimeout(offerPasses, 3500); refreshSoon(); if (room) room.state = room.stake === '0' ? 'done' : 'settling'; renderRoom(); return; }
   if (m.t === 'settlement') { ended = { at: 0, ...(ended || {}), settlement: m }; if (room) room.state = m.ok ? (m.refund ? 'refunded' : 'settled') : 'needs review'; renderRoom(); refreshBalance(); return; }
@@ -678,7 +681,7 @@ function renderRoom() {
 // ---------- input ----------
 // Movement: touch the arena with a finger (or click / hold the mouse) and your Monstar runs to that spot and
 // follows your finger while it's down. Thumb (or keyboard 1-4, J K Space L) does the moves. Aim is automatic.
-const keys = {}, touch = { atk: false, sp: false, dash: false, guard: false, mega: false, sw: -1 };
+const keys = {}, touch = { atk: false, sp: false, dash: false, guard: false, mega: false, asc: false, sw: -1 };
 let target = null; // { x, y, held, until } in arena coordinates
 addEventListener('keydown', e => { if (room?.state !== 'live') return; if (e.code === 'KeyC' && room?.wild) tryCatch(); keys[e.code] = true; if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) e.preventDefault(); });
 addEventListener('keyup', e => { keys[e.code] = false; });
@@ -731,7 +734,7 @@ function currentInput() {
   if (dodgeDir && performance.now() < dodgeDir.until) { mx = dodgeDir.x; my = dodgeDir.y; } // dash the way the finger swiped
   const ax = 0, ay = 0; // aim is automatic: the Monstar faces its rival
   const swKey = keys.Digit6 ? 0 : keys.Digit7 ? 1 : keys.Digit8 ? 2 : -1;
-  const i = { sw: touch.sw >= 0 ? touch.sw : swKey, mx, my, ax, ay, atk: !!(keys.KeyJ || keys.Digit1 || keys.KeyQ || touch.atk), sp: !!(keys.KeyK || keys.Digit2 || keys.KeyE || touch.sp), dash: !!(keys.Space || keys.Digit3 || touch.dash), guard: !!(keys.KeyL || keys.Digit4 || touch.guard), mega: !!(keys.Digit5 || keys.KeyR || touch.mega) };
+  const i = { sw: touch.sw >= 0 ? touch.sw : swKey, mx, my, ax, ay, atk: !!(keys.KeyJ || keys.Digit1 || keys.KeyQ || touch.atk), sp: !!(keys.KeyK || keys.Digit2 || keys.KeyE || touch.sp), dash: !!(keys.Space || keys.Digit3 || touch.dash), guard: !!(keys.KeyL || keys.Digit4 || touch.guard), mega: !!(keys.Digit5 || keys.KeyR || touch.mega), asc: !!(keys.KeyT || keys.Digit9 || touch.asc) };
   return i;
 }
 function sendInput() {

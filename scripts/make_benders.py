@@ -17,7 +17,7 @@ GOLD = c('#f0c040')
 SKIN = [c('#f2c9a0'), c('#d9a074'), c('#b07a50'), c('#7a4e32'), c('#5a3824')]
 ELEM = {  # aura / effect colours per element
   'water': (c('#5ec2ff'), c('#dff6ff')), 'earth': (c('#8f7a5a'), c('#c8b088')), 'fire': (c('#ff8a1f'), c('#fff1a0')),
-  'air': (c('#d8f4ff'), c('#ffffff')), 'thunder': (c('#ffe14a'), c('#ffffff')),
+  'air': (c('#d8f4ff'), c('#ffffff')), 'thunder': (c('#ffe14a'), c('#ffffff')), 'ki': (c('#ffd23f'), c('#fff6c0')),
 }
 # name: element, gender, skin, hair, hair style, top, top2 (trim), pants, boots, extras
 D = {
@@ -54,6 +54,15 @@ D = {
   'blazen':   dict(el='fire',    f=False, skin=1, hair=c('#c83a1a'), hs='spiky',   top=c('#d8401a'), trim=c('#ffd060'), pants=c('#2a1414'), boots=c('#1a0e0e')),
   'gusti':    dict(el='air',     f=True,  skin=0, hair=c('#c8a060'), hs='pony',    top=c('#e8a03a'), trim=c('#fff0b0'), pants=c('#f4e8c8'), boots=c('#8a5a2a'), scarf=c('#ffd060')),
   'voltz':    dict(el='thunder', f=False, skin=4, hair=c('#ffe14a'), hs='mohawk',  top=c('#4a3ac8'), trim=c('#ffe14a'), pants=c('#1e1840'), boots=c('#14102a'), goggles=c('#ffe14a')),
+  # Aura Warriors (from the creator's own drawings): original fighters with five Aura forms
+  'dashi':  dict(el='ki', f=False, skin=2, hair=c('#c8a46a'), hs='spiky',     top=c('#f4f4f4'), trim=c('#d8dce8'), pants=c('#3aa0e0'), boots=c('#e8eef8'), weapon='sword', tail=True, aura=True),
+  'bolo':   dict(el='ki', f=False, skin=3, hair=c('#4a4a1a'), hs='afro',      top=c('#ffffff'), trim=c('#e8e8e8'), pants=c('#3a8ad8'), boots=c('#e8eef8'), tail=True, aura=True),
+  'swish':  dict(el='ki', f=False, skin=3, hair=c('#3a3a12'), hs='afro',      top=c('#9aa0aa'), trim=c('#d8f040'), pants=c('#9aa0aa'), boots=c('#2a2a2a'), band=c('#d8f040'), weapon='ball', tail=True, aura=True),
+  'kapri':  dict(el='ki', f=True,  skin=2, hair=c('#3a3a12'), hs='cap',       top=c('#e8508a'), trim=c('#ff9ac8'), pants=c('#3a3a42'), boots=c('#ff7ab0'), cap=c('#e82a2a'), aura=True),
+  'nyla':   dict(el='ki', f=True,  skin=1, hair=c('#9a7a3a'), hs='puffs2',    top=c('#f4f4f4'), trim=c('#a8e0f0'), pants=c('#2a3040'), boots=c('#2a3040'), weapon='staff', goggles2=c('#ff8a3a'), aura=True),
+  'verdo':  dict(el='ki', f=False, skin=3, hair=c('#0a0a0a'), hs='locs',      top=c('#111214'), trim=c('#3aff6a'), pants=c('#111214'), boots=c('#0a0a0a'), mask=c('#0a0a0a'), glow=c('#3aff6a'), aura=True),
+  'bunzo':  dict(el='ki', f=False, skin=3, hair=c('#1a1a1a'), hs='bunnyhood', top=c('#ff5a1a'), trim=c('#ffd23f'), pants=c('#ff5a1a'), boots=c('#9a5ad8'), aura=True),
+  'tigo':   dict(el='ki', f=False, skin=2, hair=c('#2a1a10'), hs='tigerhood', top=c('#ff8a1f'), trim=c('#ffffff'), pants=c('#ff8a1f'), boots=c('#ffffff'), tail=True, tail_col=c('#ff8a1f'), aura=True),
   # Market Sky Benders (1 SOL each): five per element, boys and girls
   'breezo': dict(el='air', el2='air', f=False, skin=0, hair=c('#1a1414'), hs='short', top=c('#4ac8e8'), trim=c('#ffffff' if 0 else '#ffe080'), pants=shade(c('#4ac8e8'), 0.55), boots=c('#2a2018')),
   'nimbra': dict(el='air', el2='air', f=True, skin=1, hair=c('#e8d8c0'), hs='pony', top=c('#c8e8ff'), trim=c('#ffffff' if 1 else '#ffe080'), pants=shade(c('#c8e8ff'), 0.55), boots=c('#2a2018'), goggles=c('#5ec2ff')),
@@ -122,8 +131,24 @@ def frame(d, f, stage):
     head_cy = sh_y - head_r * 0.9 - 2
     lean = 0.12 if run else 0                                      # leans into the run
     shx = cx + lean * torso_h
+    at = d.get('aura_t', 0)
+    if at:  # Aura form: a big flame-shaped aura in the form's colour behind the whole body
+        ac = d['aura_col']; aura = Image.new('RGBA', (W, H), (0, 0, 0, 0)); ag = ImageDraw.Draw(aura)
+        r = 30 + at * 2; ag.ellipse([cx - r, head_cy - 10 - r * 0.5, cx + r, ground + 2], fill=ac[:3] + (110,))
+        for i in range(9):  # flame tongues rising
+            fx_ = cx - r + 6 + i * (2 * r - 12) / 8; h = 22 + ((i * 7 + f * 5) % 11) + at * 3
+            ag.polygon([(fx_ - 6, hip_y + 10), (fx_ + 6, hip_y + 10), (fx_ + (f % 2) * 2 - 1, hip_y + 10 - h - 20)], fill=ac[:3] + (150,))
+        im.alpha_composite(aura.filter(ImageFilter.GaussianBlur(3)))
+        g.ellipse([cx - 22, ground - 6, cx + 22, ground + 2], outline=ac[:3] + (200,), width=2)
+    if d.get('glow'):  # a neon glow around the whole figure (drawn again as an outline at the end)
+        pass
+    if d.get('tail') and (stage >= 1 or at):  # a tail after Rookie (level 3)
+        tc = d.get('tail_col') or c('#6a4220'); tx, ty = cx - 8, hip_y - 2
+        pts = [(tx, ty), (tx - 10, ty + 2), (tx - 16, ty - 6 - (f % 2) * 2), (tx - 12, ty - 14), (tx - 6, ty - 12)]
+        for a2, b2 in zip(pts, pts[1:]): g.line([a2, b2], fill=tc, width=4)
+        g.ellipse([tx - 9, ty - 16, tx - 3, ty - 10], fill=tc)
     # ----- element aura / mantle behind (master and up) -----
-    if stage >= 3:
+    if stage >= 3 and not at:
         aura = Image.new('RGBA', (W, H), (0, 0, 0, 0)); ag = ImageDraw.Draw(aura)
         r = 30 + stage * 3; ag.ellipse([cx - r, head_cy - 6 - r * 0.5, cx + r, hip_y + r * 0.7], fill=el_col[:3] + (70 if stage == 3 else 100,))
         im.alpha_composite(aura.filter(ImageFilter.GaussianBlur(5)))
@@ -133,6 +158,8 @@ def frame(d, f, stage):
                 bx = shx + side * (10 + i * 5); by = sh_y + 4 - i * 6 + (f % 2)
                 me = he if (i % 2 and d.get('el2')) else d['el']
                 if d.get('el2') == 'all': me = ALL[(i + side + f) % 5]
+                if me == 'ki' and not at: g.polygon([(bx - 4, by + 10), (bx + 4, by + 10), (bx + side * 2, by - 12)], fill=el_col if i % 2 else el_hi); continue
+                if me == 'ki': continue
                 if me == 'fire': g.polygon([(bx - 4, by + 10), (bx + 4, by + 10), (bx + side * 2, by - 10)], fill=ELEM['fire'][0] if i % 2 else ELEM['fire'][1])
                 elif me == 'water': g.ellipse([bx - 5, by - 5, bx + 5, by + 5], outline=ELEM['water'][0], width=2)
                 elif me == 'earth': g.polygon([(bx - 5, by), (bx, by - 6), (bx + 5, by - 1), (bx + 3, by + 5), (bx - 4, by + 4)], fill=ELEM['earth'][0] if i % 2 else ELEM['earth'][1])
@@ -214,6 +241,32 @@ def frame(d, f, stage):
     g.chord([hx - head_r - 1, hy - head_r - 2, hx + head_r + 1, hy + head_r * 0.6], 180, 360, fill=hair)
     g.polygon([(hx - head_r - 1, hy - 2), (hx - head_r + 3, hy - 9), (hx - head_r + 6, hy + 3)], fill=hair)  # side lock over the ear
     if hs == 'topknot': g.ellipse([hx - 4, hy - head_r - 9, hx + 4, hy - head_r - 1], fill=hair); g.rectangle([hx - 4, hy - head_r - 3, hx + 4, hy - head_r - 1], fill=trim)
+    if hs == 'aura':  # Aura form hair: tall golden-style spikes that grow longer with every form
+        L = 8 + at * 5
+        g.polygon([(hx - head_r - 2, hy - 2), (hx - head_r - 4 - at * 2, hy + 6 + at * 3), (hx - head_r + 4, hy + 2)], fill=hair)  # side spikes
+        for i in range(6):
+            sx = hx - head_r + 1 + i * 4.4; tilt = (i - 2.5) * (1.6 + at * 0.4)
+            g.polygon([(sx - 3, hy - head_r + 4), (sx + 3, hy - head_r + 4), (sx + tilt, hy - head_r - L - (i % 2) * 4)], fill=hair)
+        if at >= 3:  # long hair down the back from form III
+            g.polygon([(hx - head_r, hy - 4), (hx - head_r - 6, sh_y + 10 + at * 6), (hx - 2, sh_y + 4 + at * 4)], fill=shade(hair, 0.08))
+    if hs == 'puffs2':  # two big puffs on top
+        for s2 in (-1, 1): g.ellipse([hx + s2 * 9 - 11, hy - head_r - 16, hx + s2 * 9 + 11, hy - head_r + 4], fill=hair, outline=shade(hair, 0.3))
+    if hs == 'cap':  # big puff behind and a cap with the brim forward
+        g.ellipse([hx - head_r - 10, hy - head_r - 4, hx + 2, hy + 8], fill=hair)
+        g.chord([hx - head_r - 1, hy - head_r - 5, hx + head_r + 1, hy + 3], 180, 360, fill=d['cap']); g.rectangle([hx, hy - 4, hx + head_r + 9, hy - 1], fill=shade(d['cap'], 0.15))
+    if hs == 'bunnyhood':  # an animal-suit hood with two long ears
+        hc = d['top']; g.chord([hx - head_r - 3, hy - head_r - 4, hx + head_r + 3, hy + head_r + 2], 150, 390, fill=hc)
+        for s2, lean2 in ((-1, -3), (1, 2)): g.polygon([(hx + s2 * 5 - 3, hy - head_r), (hx + s2 * 5 + 3, hy - head_r), (hx + s2 * 5 + lean2 + 2, hy - head_r - 26), (hx + s2 * 5 + lean2 - 2, hy - head_r - 26)], fill=hc, outline=shade(hc, 0.3))
+        g.line([(hx - 5, hy - head_r - 3), (hx - 7, hy - head_r - 22)], fill=d['trim'], width=2)
+    if hs == 'tigerhood':  # tiger hood: orange with stripes, little ears and a white muzzle rim with fangs
+        hc = d['top']; g.chord([hx - head_r - 3, hy - head_r - 5, hx + head_r + 3, hy + head_r + 2], 150, 390, fill=hc)
+        for s2 in (-1, 1): g.polygon([(hx + s2 * 7 - 4, hy - head_r - 2), (hx + s2 * 7 + 4, hy - head_r - 2), (hx + s2 * 8, hy - head_r - 9)], fill=hc)
+        for i in range(3): g.line([(hx - 6 + i * 5, hy - head_r - 3), (hx - 4 + i * 5, hy - head_r + 3)], fill=c('#1a1010'), width=2)
+        g.arc([hx - head_r - 1, hy - head_r - 3, hx + head_r + 1, hy + head_r], 200, 340, fill=c('#ffffff'), width=3)
+        for s2 in (-1, 1): g.polygon([(hx + s2 * 6 - 2, hy - head_r + 1), (hx + s2 * 6 + 2, hy - head_r + 1), (hx + s2 * 6, hy - head_r + 6)], fill=c('#ffffff'))
+    if hs == 'locs':  # big hair with locs falling around the face
+        g.ellipse([hx - head_r - 6, hy - head_r - 10, hx + head_r + 6, hy + 4], fill=hair)
+        for i in range(6): lx = hx - head_r + i * 4.6; g.line([(lx, hy - 4), (lx + (i % 2), hy + 6 + (i % 3) * 3)], fill=hair, width=2)
     if hs == 'afro':  # round hair above the face and puffed out behind the far ear
         g.ellipse([hx - head_r - 6, hy - 9, hx - head_r + 6, hy + 6], fill=hair); g.chord([hx - head_r - 5, hy - head_r - 14, hx + head_r + 5, hy + 6], 180, 360, fill=hair); g.arc([hx - head_r - 3, hy - head_r - 12, hx + head_r + 3, hy], 200, 320, fill=tint(hair, 0.25), width=1)
     if hs == 'mohawk':
@@ -239,11 +292,21 @@ def frame(d, f, stage):
         for i in range(5): px_ = hx - 9 + i * 4.5; g.polygon([(px_ - 2, hy - head_r - 2), (px_ + 2, hy - head_r - 2), (px_, hy - head_r - 8 - (i % 2) * 4)], fill=GOLD)
     if d.get('elite'):  # storm crown and glowing eyes for the elite thunder bender
         g.arc([hx - head_r - 4, hy - head_r - 8, hx + head_r + 4, hy + 2], 200, 340, fill=GOLD, width=2)
+    if d.get('mask'):  # a domino mask across the eyes, white slit eyes
+        g.polygon([(hx - head_r + 1, hy - 5), (hx + head_r + 1, hy - 6), (hx + head_r + 1, hy + 2), (hx - head_r + 1, hy + 2)], fill=d['mask'])
+        for ex in (hx + 1, hx + 7): g.polygon([(ex - 3, hy - 2), (ex + 3, hy - 3), (ex + 2, hy)], fill=c('#ffffff'))
+    if d.get('goggles2'):  # round tinted goggles
+        for ex in (hx + 1, hx + 7): g.ellipse([ex - 3.5, hy - 4.5, ex + 3.5, hy + 2], fill=d['goggles2'], outline=c('#1a1a2a'))
     # ----- front arm, hand holding the element -----
     hx2, hy2 = arm('front', arm_sw + (0.0 if run else -0.9))
-    if stage >= 1:  # element in the front hand
+    wpn = d.get('weapon')
+    if wpn == 'sword': g.line([(hx2 - 2, hy2 + 3), (hx2 + 18, hy2 - 8)], fill=c('#d8dce8'), width=4); g.line([(hx2 - 1, hy2 - 2), (hx2 + 2, hy2 + 5)], fill=c('#5a4630'), width=3)
+    elif wpn == 'staff': g.line([(hx2 - 20, hy2 - 22), (hx2 + 14, hy2 + 4)], fill=c('#2a2e3a'), width=4); g.ellipse([hx2 - 23, hy2 - 25, hx2 - 17, hy2 - 19], fill=c('#4a5060'))
+    elif wpn == 'ball': g.ellipse([hx2 - 6, hy2 - 4, hx2 + 8, hy2 + 10], fill=c('#ff7a1a'), outline=c('#3a1a08')); g.line([(hx2 + 1, hy2 - 4), (hx2 + 1, hy2 + 10)], fill=c('#3a1a08'), width=1)
+    if stage >= 1 and not wpn:  # element in the front hand
         hc, hh = ELEM[he]
         if he == 'fire': g.polygon([(hx2 - 4, hy2), (hx2 + 4, hy2), (hx2 + 1, hy2 - 10 - (f % 2) * 3)], fill=hc); g.polygon([(hx2 - 2, hy2), (hx2 + 2, hy2), (hx2, hy2 - 6)], fill=hh)
+        elif he == 'ki': g.ellipse([hx2 - 6, hy2 - 10, hx2 + 6, hy2 + 2], fill=(d.get('aura_col') or hc)[:3] + (230,)); g.ellipse([hx2 - 3, hy2 - 7, hx2 + 1, hy2 - 3], fill=c('#ffffff'))
         elif he == 'water': g.arc([hx2 - 7, hy2 - 9, hx2 + 7, hy2 + 5], 200 + f * 20, 520 + f * 20, fill=hc, width=3)
         elif he == 'earth': g.polygon([(hx2 - 5, hy2 - 8), (hx2, hy2 - 13), (hx2 + 6, hy2 - 9), (hx2 + 4, hy2 - 3), (hx2 - 4, hy2 - 3)], fill=hh, outline=shade(hc, 0.4))
         elif he == 'air': g.arc([hx2 - 8, hy2 - 8, hx2 + 8, hy2 + 8], 30 + f * 40, 300 + f * 40, fill=hc, width=2); g.arc([hx2 - 4, hy2 - 4, hx2 + 4, hy2 + 4], f * 40, 250 + f * 40, fill=hh, width=1)
@@ -258,6 +321,9 @@ def frame(d, f, stage):
     # 1px outline around the silhouette
     a = im.getchannel('A').point(lambda v: 255 if v > 90 else 0); ring = a.filter(ImageFilter.MaxFilter(3))
     out = Image.new('RGBA', (W, H), (0, 0, 0, 0)); out.paste(OUT, (0, 0), ring); out.alpha_composite(im)
+    if d.get('glow') and not at:  # neon glow (the green-glow fighter)
+        gl = Image.new('RGBA', (W, H), (0, 0, 0, 0)); gl.paste(d['glow'][:3] + (170,), (0, 0), a.filter(ImageFilter.MaxFilter(5)))
+        gl = gl.filter(ImageFilter.GaussianBlur(3)); gl.alpha_composite(out); out = gl
     return out
 
 only = set(sys.argv[1:])
@@ -270,4 +336,11 @@ for name, d in D.items():
         sheet.save(os.path.join(WALK, f'{name}_s{stage}.png'))
         frames[0].save(os.path.join(HD, f'{name}_s{stage}.png'))
         if stage == 2: frames[0].save(os.path.join(HD, name + '.png'))
+    if d.get('aura'):  # Aura Warriors: the five Aura forms (I gold, II purple, III green, IV red, V white), hood off, hair spikes growing
+        for t, col in enumerate(['#ffd23f', '#b45aff', '#3aff7a', '#ff3b3b', '#f4fbff'], 1):
+            d2 = { **d, 'hair': c(col), 'hs': 'aura', 'aura_t': t, 'aura_col': c(col), 'mask': None, 'goggles2': None, 'cap': None }
+            frames = [frame(d2, f, 3) for f in range(6)]
+            sheet = Image.new('RGBA', (W * 6, H), (0, 0, 0, 0))
+            for i, fr in enumerate(frames): sheet.paste(fr, (i * W, 0))
+            sheet.save(os.path.join(WALK, f'{name}_a{t}.png')); frames[0].save(os.path.join(HD, f'{name}_a{t}.png'))
 print('benders', len(D))

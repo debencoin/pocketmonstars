@@ -23,7 +23,7 @@ function attrHtml(sp, level = 50, compact = false) {
   const st = statsOf(sp, level), K = sp.kit, total = STAT_KEYS.reduce((t, k) => t + st[k], 0);
   const bars = STAT_KEYS.map(k => `<span>${STAT_LABELS[k]}</span><i><s style="width:${Math.min(100, st[k] / (level >= 50 ? 3.2 : 2.6))}%"></s></i><em>${st[k]}</em>`).join('');
   const abil = [['Attack', K.basic.name], ['Special', K.special.name], ['Dash', K.dash.name + ': ' + K.dash.note], ['Guard', K.guard.name + ': ' + K.guard.note], ['Mega Shot', K.mega.name + ': ' + K.mega.note]];
-  return `<div class="at-box${compact ? ' compact' : ''}"><div class="at-stats"><div class="pv-stats">${bars}</div><small>Stats at Lv${level} · total ${total}${sp.starter ? ' · +20% starter bender power' : sp.bender ? (sp.elite ? ' · +80% elite bender power' : ' · +55% bender power') : sp.giftHero ? ' · +45% legend hero power' : sp.drop ? (sp.drop.top ? ' · +25% hero bonus' : ' · +15% hero bonus') : sp.legendary ? ' · +20% legendary bonus' : ''}</small></div>
+  return `<div class="at-box${compact ? ' compact' : ''}"><div class="at-stats"><div class="pv-stats">${bars}</div><small>Stats at Lv${level} · total ${total}${sp.aura ? ' · +75% Aura Warrior power' : sp.starter ? ' · +20% starter bender power' : sp.bender ? (sp.elite ? ' · +80% elite bender power' : ' · +55% bender power') : sp.giftHero ? ' · +45% legend hero power' : sp.drop ? (sp.drop.top ? ' · +25% hero bonus' : ' · +15% hero bonus') : sp.legendary ? ' · +20% legendary bonus' : ''}</small></div>
     <details class="at-abil"${compact ? '' : ' open'}><summary>Abilities &amp; passive</summary><ul>${abil.map(([k, v]) => `<li><b>${k}</b> ${esc(v)}</li>`).join('')}<li><b>Passive</b> ${esc(sp.cls.passive)}</li></ul></details></div>`;
 }
 
@@ -43,7 +43,7 @@ const bp = q('pvBreed'); if (bp) breedSec.append(bp);
 const col = q('collection');
 if (col) {
   [...col.children].forEach(c => c.hidden = true);
-  const groups = [['skybenders', 'Sky Benders'], ['legendheroes', 'Legend Heroes'], ['benders', 'Elemental Benders'], ['heroes', 'Superhero Drop'], ['frontier', 'Frontier'], ['anunnaki', 'Anunnaki'], ['watchers', 'Watchers'], ['mythic', 'Mythic'], ['legendary', 'Legendary'], ['ascendants', 'Ascendants'], ['royals', 'Royal Anunnaki'], ['genesis', 'Original nine']];
+  const groups = [['aurawarriors', 'Aura Warriors'], ['skybenders', 'Sky Benders'], ['legendheroes', 'Legend Heroes'], ['benders', 'Elemental Benders'], ['heroes', 'Superhero Drop'], ['frontier', 'Frontier'], ['anunnaki', 'Anunnaki'], ['watchers', 'Watchers'], ['mythic', 'Mythic'], ['legendary', 'Legendary'], ['ascendants', 'Ascendants'], ['royals', 'Royal Anunnaki'], ['genesis', 'Original nine']];
   const ORDER = Object.fromEntries(groups.map(([k], i) => [k, i]));
   const dex = el('div', { id: 'v5Dex' }); col.append(dex);
   let filter = 'all', search = '';
@@ -113,8 +113,14 @@ const EL_NAME = { air: 'Air', water: 'Water + air', earth: 'Earth + air', fire: 
 let shopEl = 'all';
 function renderShop() {
   const list = dropData?.shop; if (!list) { shopBox.hidden = true; return; } shopBox.hidden = false;
-  const me = S.session()?.wallet, sold = list.filter(h => h.sold).length, star = list.find(h => h.unique), rest = list.filter(h => !h.unique);
+  const me = S.session()?.wallet, sold = list.filter(h => h.sold).length, star = list.find(h => h.unique), rest = list.filter(h => !h.unique && !h.aura), aura = list.filter(h => h.aura);
   const card = h => { const sp = SPECIES[h.speciesId], K = sp.kit;
+    if (h.aura) return `<div class="dr-card top${h.sold ? ' sold' : ''}"><span class="dr-badge">AURA WARRIOR</span>
+      <img src="art/hd/${sp.art}_s2.png" alt="${esc(sp.name)}" loading="lazy"><div class="dr-evo">${[1, 3, 5].map(t => `<img src="art/hd/${sp.art}_a${t}.png" alt="" loading="lazy">`).join('')}</div>
+      <b>${esc(sp.name)}</b><small>${esc(sp.type)} · ${esc(sp.cls.label)} · Lv1 · Aura forms gold → white</small>
+      <small class="sb-kit"><b>Special</b> ${esc(K.special.name)} · <b>Mega Shot</b> ${esc(K.mega.name)}<br><b>Dash</b> ${esc(K.dash.name)}</small>${attrHtml(sp, 1, true)}
+      ${h.sold ? `<span class="pv-chip ok">Sold${h.owner ? ' · ' + esc(short(h.owner)) + (h.owner === me ? ' (you)' : '') : ''}</span>`
+        : `<button class="primary" data-sbuy="${h.speciesId}" ${h.held ? 'disabled' : ''}>${h.held ? 'Being bought…' : 'Buy · ' + sol(h.priceLamports) + ' SOL'}</button>${h.held ? '' : cardBtn(h.speciesId, h.priceLamports)}`}</div>`;
     return `<div class="dr-card${h.unique ? ' top' : ''}${h.sold ? ' sold' : ''}">${h.unique ? '<span class="dr-badge">FINAL AIR BENDER</span>' : `<span class="dr-badge sb-el sb-${h.element}">${esc(EL_NAME[h.element])}</span>`}
       <img src="art/hd/${sp.art}_s2.png" alt="${esc(sp.name)}" loading="lazy"><div class="dr-evo">${[0, 3, 5].map(st => `<img src="${art(sp, st)}" alt="" loading="lazy">`).join('')}</div>
       <b>${esc(sp.name)}</b><small>${h.female ? 'Air bender (girl)' : 'Air bender (boy)'} · ${esc(sp.cls.label)} · Lv1</small>
@@ -122,9 +128,10 @@ function renderShop() {
       ${h.sold ? `<span class="pv-chip ok">Sold${h.owner ? ' · ' + esc(short(h.owner)) + (h.owner === me ? ' (you)' : '') : ''}</span>`
         : `<button class="primary" data-sbuy="${h.speciesId}" ${h.held ? 'disabled' : ''}>${h.held ? 'Being bought…' : 'Buy · ' + sol(h.priceLamports) + ' SOL'}</button>${h.held ? '' : cardBtn(h.speciesId, h.priceLamports)}`}</div>`; };
   const shown = rest.filter(h => shopEl === 'all' || h.element === shopEl);
-  shopBox.innerHTML = `<div class="dr-head"><div><div class="eyebrow">Market · ${dropData.cluster === 'devnet' ? 'devnet test SOL' : 'SOL'}</div><h2>Sky Bender Market</h2>
+  shopBox.innerHTML = `<div class="dr-head"><div><div class="eyebrow">Market · ${dropData.cluster === 'devnet' ? 'devnet test SOL' : 'SOL'}</div><h2>Aura Warriors & Sky Benders</h2>
      <p class="pv-note">25 one-of-one air benders, boys and girls. Each also bends a second element: water, earth, fire or thunder (or pure air). Strong from level 1 and they evolve into six forms. Buying needs Phantom.</p></div>
      <div class="dr-clock"><small>Sold</small><b>${sold} / ${list.length}</b><small>no time limit</small></div></div>
+    ${aura.length ? `<h3 class="dr-sub">Aura Warriors · ${sol(aura[0].priceLamports)} SOL · stronger than benders, five Aura forms in battle</h3><div class="dr-grid">${aura.map(card).join('')}</div>` : ''}
     ${star ? `<h3 class="dr-sub">The final air bender · ${sol(star.priceLamports)} SOL</h3><div class="dr-grid sb-star">${card(star)}</div>` : ''}
     <div class="dx-chips sb-chips">${[['all', 'All'], ['air', 'Air'], ['water', 'Water'], ['earth', 'Earth'], ['fire', 'Fire'], ['thunder', 'Thunder']].map(([k, n]) => `<button class="smallbtn" data-sel="${k}" aria-pressed="${k === shopEl}">${n}</button>`).join('')}</div>
     <div class="dr-grid">${shown.map(card).join('')}</div>`;

@@ -302,3 +302,9 @@ Stats: HP, Attack, Defense, Sp. Atk, Sp. Def, Speed. Types: EMBER, GROVE, TIDE, 
 
 ## v47: calmer arenas
 - Each fight now has just 1 or 2 barriers, and no water patches: one lava patch (sometimes two). Earthquake cracks still open during the fight.
+
+## v48: Aura Warriors
+- New collection **Aura Warriors** (ids 234-241), made from the founder's own drawings: Dashi (sword kid), Bolo (waving afro kid), Swish (basketball), Kapri (red-cap girl), Nyla (puffs and staff), Verdo (green-glow masked fighter), Bunzo (bunny suit) and Tigo (tiger hoodie). Dashi, Bolo, Swish and Tigo grow a tail from Rookie (Lv3).
+- Stats +75% (stronger than benders' +55%). Powers mixed between them: Ki Blast, Surge Wave, Halo Disc (homing), Ki Volley, Solar Flash, Spiral Beam, Blink Step teleport, and Mega Shots World Sphere, Final Surge, Galaxy Burst, Ki Storm, Spirit Orbs, Sky Lightning, plus element effects (burn, paralyze, stun, poison).
+- **Aura Ascend** (new 6th move, key T): power up mid-fight into an Aura form for 10-14 s, then back to normal (18 s cooldown after). Forms unlock by level: I gold Lv3, II purple Lv10, III green Lv25, IV red Lv50, V white Lv80. Each form: more damage (x1.2 to x1.8) and speed, a bigger flame aura and longer, spikier hair (art: walk/<name>_a1..a5).
+- Gifted to the founder wallet and sold once each in the market (1.5 SOL, or by card).

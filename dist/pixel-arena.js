@@ -2,14 +2,14 @@
 // PocketMonstars pixel arena renderer: a 320x180 native-resolution battlefield scaled up with crisp pixels.
 // Draws animated pixel Monstars and a hand-built animation for every power. Exposes window.PMArena.
 (() => {
-const NAMES = ["cindercub", "mossprout", "ripplefin", "voltwing", "duskhorn", "pebblit", "frostuft", "bloomtail", "soloryx", "seraphon", "psyvolt", "blazebuck", "cinderwyrm", "pyrofinch", "magmole", "emberjack", "coralisk", "bubblyn", "clawtide", "abyssquid", "wavewing", "thornox", "fernling", "mantiseed", "acornaut", "lilypadra", "zapurr", "ohmoth", "voltusk", "joltail", "gloomwisp", "nocturrow", "shadefang", "hexmask", "quarrox", "fossilith", "geodillo", "cragcrab", "glacielk", "snowpuff", "icicrow", "rimewyrm", "cometail", "lunaroo", "orbitron", "mindmoth", "oracub", "prismeye", "toxitoad", "mycospore", "stingrex", "viperoot", "gearhound", "rivetbot", "bladewing", "ironshell", "zephyrkit", "galeon", "whirlwisp", "drakelet", "skyrex", "aurielle", "valkyra", "nimbiel", "aeonox", "anuvax", "enlilor", "enkiryn", "inannox", "utuflare", "nannamoth", "marduzar", "tiamaw", "ninhurra", "lamassor", "shedulon", "apkalith", "anzurok", "humbaroth", "pazuzar", "mushussar", "nergalith", "ereshkyl", "nabuscribe", "ziggurok", "semyazar", "azazelith", "armarok", "baraqion", "kokabyx", "tamiren", "ramielon", "danelith", "ezeqor", "sarielle", "shamsor", "arakor", "penemyr", "nephilox", "grigoran", "ophanex", "irinyx", "eyelurk", "gazewing", "vigilon", "nyxara", "serqeth", "kaelor", "lumiyah", "thothex", "khonsar", "selenox", "amunrah", "azarath", "setekh", "horuskai", "neferion", "ptahmos", "khepron", "osirak", "isisra", "rasolar", "anuket", "anupex", "nefertek", "ninshara", "kingaru", "lahmuron", "gulani", "zababor", "shalira", "nisabel", "ninurtax", "solarch", "voltaris", "gravitas", "aegiron", "nightvale", "blazewing", "magmara", "tidebreaker", "coralon", "hailstrike", "frostbyte", "quakefist", "bouldra", "galeforce", "vortexa", "thornheart", "verdantia", "nebulor", "comettra", "mindlock", "psyra", "steelbrand", "ferronix", "shadowstep", "duskara", "joltrix", "ampere", "drakonis", "runeguard", "sentrion", "tidewen", "marovek", "granitus", "terrala", "pyreska", "emberon", "zephyrine", "aerokai", "voltessa", "thundrik", "tempestro", "aurorex", "titanor", "phantomir", "pyronyx", "chronar", "stormvane", "bulwarkus", "venomaw", "quasarion", "gorrath", "starlara", "lumivra", "frostelle", "blazara", "sylphra", "galdris", "skyvar", "windrik", "aeromar", "cyrran", "aerisa", "sylvane", "zephra", "windara", "skylis", "breezo", "nimbra", "cirrus", "aeralyn", "zephyl", "tidegale", "mistral", "rainor", "oceara", "glacia", "dustan", "rockwen", "sandor", "terrai", "quarra", "emberwind", "ashra", "blazor", "flarissa", "pyrrin", "voltair", "sparra", "thundro", "zappira", "boltan", "covo", "cova", "aquari", "rokko", "blazen", "gusti", "voltz", "kena", "aurelia", "amyah"]; // generated from shared/monstars.mjs SPECIES order
+const NAMES = ["cindercub", "mossprout", "ripplefin", "voltwing", "duskhorn", "pebblit", "frostuft", "bloomtail", "soloryx", "seraphon", "psyvolt", "blazebuck", "cinderwyrm", "pyrofinch", "magmole", "emberjack", "coralisk", "bubblyn", "clawtide", "abyssquid", "wavewing", "thornox", "fernling", "mantiseed", "acornaut", "lilypadra", "zapurr", "ohmoth", "voltusk", "joltail", "gloomwisp", "nocturrow", "shadefang", "hexmask", "quarrox", "fossilith", "geodillo", "cragcrab", "glacielk", "snowpuff", "icicrow", "rimewyrm", "cometail", "lunaroo", "orbitron", "mindmoth", "oracub", "prismeye", "toxitoad", "mycospore", "stingrex", "viperoot", "gearhound", "rivetbot", "bladewing", "ironshell", "zephyrkit", "galeon", "whirlwisp", "drakelet", "skyrex", "aurielle", "valkyra", "nimbiel", "aeonox", "anuvax", "enlilor", "enkiryn", "inannox", "utuflare", "nannamoth", "marduzar", "tiamaw", "ninhurra", "lamassor", "shedulon", "apkalith", "anzurok", "humbaroth", "pazuzar", "mushussar", "nergalith", "ereshkyl", "nabuscribe", "ziggurok", "semyazar", "azazelith", "armarok", "baraqion", "kokabyx", "tamiren", "ramielon", "danelith", "ezeqor", "sarielle", "shamsor", "arakor", "penemyr", "nephilox", "grigoran", "ophanex", "irinyx", "eyelurk", "gazewing", "vigilon", "nyxara", "serqeth", "kaelor", "lumiyah", "thothex", "khonsar", "selenox", "amunrah", "azarath", "setekh", "horuskai", "neferion", "ptahmos", "khepron", "osirak", "isisra", "rasolar", "anuket", "anupex", "nefertek", "ninshara", "kingaru", "lahmuron", "gulani", "zababor", "shalira", "nisabel", "ninurtax", "solarch", "voltaris", "gravitas", "aegiron", "nightvale", "blazewing", "magmara", "tidebreaker", "coralon", "hailstrike", "frostbyte", "quakefist", "bouldra", "galeforce", "vortexa", "thornheart", "verdantia", "nebulor", "comettra", "mindlock", "psyra", "steelbrand", "ferronix", "shadowstep", "duskara", "joltrix", "ampere", "drakonis", "runeguard", "sentrion", "tidewen", "marovek", "granitus", "terrala", "pyreska", "emberon", "zephyrine", "aerokai", "voltessa", "thundrik", "tempestro", "aurorex", "titanor", "phantomir", "pyronyx", "chronar", "stormvane", "bulwarkus", "venomaw", "quasarion", "gorrath", "starlara", "lumivra", "frostelle", "blazara", "sylphra", "galdris", "skyvar", "windrik", "aeromar", "cyrran", "aerisa", "sylvane", "zephra", "windara", "skylis", "breezo", "nimbra", "cirrus", "aeralyn", "zephyl", "tidegale", "mistral", "rainor", "oceara", "glacia", "dustan", "rockwen", "sandor", "terrai", "quarra", "emberwind", "ashra", "blazor", "flarissa", "pyrrin", "voltair", "sparra", "thundro", "zappira", "boltan", "covo", "cova", "aquari", "rokko", "blazen", "gusti", "voltz", "kena", "aurelia", "amyah", "dashi", "bolo", "swish", "kapri", "nyla", "verdo", "bunzo", "tigo"]; // generated from shared/monstars.mjs SPECIES order
 const W = 320, H = 180, K = 1 / 3; // world (960x540) -> logical pixels; the canvas is 2x (640x360) so sprites keep fine detail
 const CW = 960, CH = 540, Z = 3, U = Z / 2; // U scales hand-tuned canvas-pixel sizes from the old 640 canvas
 const SPR = 0.95; // 96px battle sprites are drawn at ~65px tall on the 960 canvas (Ultimate stage)
 const STAGE_SCALE = [0.6, 0.72, 0.85, 1.0, 1.12, 1.25];
 const imgs = NAMES.map(n => { const i = new Image(); i.src = 'art/hd/' + n + '.png'; return i; });
 // Animated characters: a 6-frame sheet (idle A, idle B, run 1-4) in art/walk/ (generated by scripts/make_walkers.py)
-const WALKERS = new Set([105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132, 133, 134, 135, 136, 137, 138, 139, 140, 141, 142, 143, 144, 145, 146, 147, 148, 149, 150, 151, 152, 153, 154, 155, 156, 157, 158, 159, 160, 161, 162, 163, 164, 165, 166, 167, 168, 169, 170, 171, 172, 173, 174, 175, 176, 177, 178, 179, 180, 181, 182, 183, 184, 185, 186, 187, 188, 189, 190, 191, 192, 193, 194, 195, 196, 197, 198, 199, 200, 201, 202, 203, 204, 205, 206, 207, 208, 209, 210, 211, 212, 213, 214, 215, 216, 217, 218, 219, 220, 221, 222, 223, 224, 225, 226, 227, 228, 229, 230, 231, 232, 233]);
+const WALKERS = new Set([105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132, 133, 134, 135, 136, 137, 138, 139, 140, 141, 142, 143, 144, 145, 146, 147, 148, 149, 150, 151, 152, 153, 154, 155, 156, 157, 158, 159, 160, 161, 162, 163, 164, 165, 166, 167, 168, 169, 170, 171, 172, 173, 174, 175, 176, 177, 178, 179, 180, 181, 182, 183, 184, 185, 186, 187, 188, 189, 190, 191, 192, 193, 194, 195, 196, 197, 198, 199, 200, 201, 202, 203, 204, 205, 206, 207, 208, 209, 210, 211, 212, 213, 214, 215, 216, 217, 218, 219, 220, 221, 222, 223, 224, 225, 226, 227, 228, 229, 230, 231, 232, 233, 234, 235, 236, 237, 238, 239, 240, 241]);
 // one sheet per evolution stage: art/walk/<name>_s0.png (Infant) ... _s5.png (Ascended)
 // Sheets load only for Monstars that are actually on screen (keeps memory low in the Phantom in-app browser).
 const sheets = {};
@@ -17,7 +17,7 @@ const sheets = {};
 // as single pictures (art/hd/<name>_s0..5.png). Loaded only when needed.
 function sheetFor(sid, stage) {
   const row = (sheets[sid] ||= []);
-  if (!row[stage]) { const i = new Image(); i.decoding = 'async'; i.src = (WALKERS.has(sid) ? 'art/walk/' : 'art/hd/') + NAMES[sid] + '_s' + stage + '.png'; row[stage] = i; }
+  if (!row[stage]) { const i = new Image(); i.decoding = 'async'; i.src = (WALKERS.has(sid) ? 'art/walk/' : 'art/hd/') + NAMES[sid] + (stage >= 6 ? '_a' + (stage - 5) : '_s' + stage) + '.png'; row[stage] = i; } // 6-10: Aura forms I-V
   return row[stage];
 }
 function preload(sids) { for (const sid of sids) for (let k = 0; k < 6; k++) sheetFor(sid, k); }
@@ -36,7 +36,7 @@ const PAL = {
 // Frontier and Mythic Monstars borrow the look of an original power by type (ids 0-10 have their own).
 const TYPE_FX = { EMBER: 0, GROVE: 7, TIDE: 2, SPARK: 3, SHADE: 4, STONE: 5, FROST: 6, ASTRAL: 8, PSYCHIC: 10, VENOM: 4, STEEL: 5, GALE: 2, DRACO: 0, ANCIENT: 8, WATCHER: 9 };
 const MYTHIC_FIRST = 61;
-const HOLY = new Set([61, 62, 63, 64, 65, 66, 85, 86, 94, 108, 109, 110, 111, 112, 113, 115, 119, 120, 121, 124, 125, 130]), LEGEND = new Set([9, 10, 61, 62, 63, 64, 65, 66, 85, 86, 94, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132, 133, 134, 135, 136, 137, 138, 139, 140, 141, 142, 143, 144, 145, 146, 147, 148, 149, 150, 151, 152, 153, 154, 155, 156, 157, 158, 159, 160, 161, 162, 163, 164, 165, 166, 167, 168, 169, 170, 171, 172, 173, 174, 175, 176, 177, 178, 179, 180, 181, 182, 183, 184, 185, 186, 187, 188, 189, 190, 191, 192, 193, 194, 195, 196, 197, 198, 199, 200, 201, 202, 203, 204, 205, 206, 207, 208, 209, 210, 211, 212, 213, 214, 215, 216, 217, 218, 219, 220, 221, 222, 223, 224, 225, 226, 227, 228, 229, 230, 231, 232, 233]); // angelic powers / no evolution wings (generated)
+const HOLY = new Set([61, 62, 63, 64, 65, 66, 85, 86, 94, 108, 109, 110, 111, 112, 113, 115, 119, 120, 121, 124, 125, 130]), LEGEND = new Set([9, 10, 61, 62, 63, 64, 65, 66, 85, 86, 94, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132, 133, 134, 135, 136, 137, 138, 139, 140, 141, 142, 143, 144, 145, 146, 147, 148, 149, 150, 151, 152, 153, 154, 155, 156, 157, 158, 159, 160, 161, 162, 163, 164, 165, 166, 167, 168, 169, 170, 171, 172, 173, 174, 175, 176, 177, 178, 179, 180, 181, 182, 183, 184, 185, 186, 187, 188, 189, 190, 191, 192, 193, 194, 195, 196, 197, 198, 199, 200, 201, 202, 203, 204, 205, 206, 207, 208, 209, 210, 211, 212, 213, 214, 215, 216, 217, 218, 219, 220, 221, 222, 223, 224, 225, 226, 227, 228, 229, 230, 231, 232, 233, 234, 235, 236, 237, 238, 239, 240, 241]); // angelic powers / no evolution wings (generated)
 const vidOf = o => (o.sid < 11 ? o.sid : HOLY.has(o.sid) && o.st !== 'whip' ? 9 : TYPE_FX[o.ty] ?? 0);
 const GUARD_COL = { shield: '#48d0ff', reflect: '#e8f0ff', counter: '#ff8a5a', mend: '#9ef0c8', thorns: '#7ad04a', evade: '#c08cff', absorb: '#ffd84a', fortress: '#c8b088', barrier: '#48d0ff', mirror: '#ff9cd8' };
 const STATUS_COL = { paralyze: '#ffe14a', freeze: '#9be6ff', burn: '#ff8a1f', poison: '#c070ff', root: '#7ad04a', stun: '#ffd84a', confuse: '#ff9cd8', lift: '#c08cff', whirl: '#e8fbff', daze: '#ffd84a', soak: '#5ec2ff', dazzle: '#fff3c4', weaken: '#d8a040', mark: '#a8c8ff' };
@@ -258,6 +258,10 @@ function createRenderer(canvas, arena) {
       wave(f.x * K, f.y * K + 6, '#ffd84a', 160); star(f.x * K, f.y * K - 10, '#ffd84a', 110, 24); return; }
     if (ev.type === 'dash') { const f = snap.f[ev.side]; if (!f) return; puffs(f.x * K, f.y * K, 6, ev.k === 'shadow' || ev.k === 'blink' ? '#b98cff' : ev.k === 'mend' ? '#9ef0c8' : '#e2d6bc', 40, 8, 0.5);
       if (ev.k === 'burst') say(f.x * K, f.y * K - 40, 'SPEED UP!', '#48d0ff', 1, 5); if (ev.k === 'mend') say(f.x * K, f.y * K - 40, 'HEAL', '#9ef0c8', 1, 5); return; }
+    if (ev.type === 'ascend') { const f = snap.f[ev.side] || (snap.x || []).find(o => o.sd === ev.side); if (!f) return; const col = AURA_COL[ev.tier];
+      banner = { txt: (ev.name || 'AURA').toUpperCase() + '!', sub: ['', 'Gold', 'Purple', 'Green', 'Red', 'White'][ev.tier] + ' aura · stronger and faster', t: 1.5, side: ev.side }; flash = Math.max(flash, 0.4); shake = Math.max(shake, 0.4);
+      wave(f.x * K, f.y * K + 6, col, 180); star(f.x * K, f.y * K - 14, col, 120, 26); burst(f.x * K, f.y * K - 14, [col, col, '#ffffff', col], 24, 90); return; }
+    if (ev.type === 'descend') { const f = snap.f[ev.side]; if (!f) return; puffs(f.x * K, f.y * K - 10, 8, '#ffffff', 40, 8, 0.6); return; }
     if (ev.type === 'hazard') { const col = { water: '#5ec2ff', lava: '#ff6a1a', crack: '#c8a070' }[ev.k] || '#fff';
       if (ev.k === 'water') puffs(ev.x * K, ev.y * K, 5, '#bfefff', 30, 6, 0.5); else if (ev.k === 'lava') { burst(ev.x * K, ev.y * K, ['#ff6a1a', '#ff6a1a', '#ffd23f', '#ff3b1f'], 8, 40); } else { chunks(ev.x * K, ev.y * K, 6, ['#6e5c44', '#8f7a5a', '#3a2e22']); shake = Math.max(shake, 0.15); }
       say(ev.x * K, ev.y * K - 40, '-' + ev.damage + (ev.k === 'crack' ? ' ' + (ev.label || '') : ''), col, 0.9, 6); return; }
@@ -299,14 +303,14 @@ function createRenderer(canvas, arena) {
   function drawFighter(f, prev, t, i, opt) {
     const now = opt.now / 1000;
     const wx = prev ? prev.x + (f.x - prev.x) * t : f.x, wy = prev ? prev.y + (f.y - prev.y) * t : f.y;
-    const pal = palFor(opt.type, f.s), stage = f.sg ?? 0;
+    const pal = palFor(opt.type, f.s), stage = f.as > 0 ? 5 + f.as : f.sg ?? 0, scaleStage = Math.min(5, f.as > 0 ? Math.max(3, f.sg ?? 0) : f.sg ?? 0);
     const walker = WALKERS.has(f.s), ph0 = now + i * 0.37;
     // walk cycle: run frames while moving (faster when dashing), breathing idle otherwise
     const frame = !walker ? 0 : f.ds ? 2 + Math.floor(ph0 * 16) % 4 : f.mv ? 2 + Math.floor(ph0 * 9) % 4 : Math.floor(ph0 * 2) % 2;
     const spr = stageSprite(f.s, opt.hue || 0, stage, pal, false, frame), wh = stageSprite(f.s, opt.hue || 0, stage, pal, true, frame);
     if (!spr) return;
     grow[i] = Math.max(0, grow[i] - opt.dt * 0.8);
-    const sc = STAGE_SCALE[stage] * (1 + Math.sin(grow[i] * 12) * 0.12 * grow[i]);
+    const sc = STAGE_SCALE[scaleStage] * (1 + Math.sin(grow[i] * 12) * 0.12 * grow[i]);
     const dw = Math.round(spr.width * sc * SPR), dh = Math.round(spr.height * sc * SPR);
     let X = wx * K * Z, Y = wy * K * Z + 22 * U; // feet in canvas pixels
     const tr = trails[i]; if (f.ds || (f.bt && Math.random() < 0.5)) tr.push({ x: X, y: Y, life: 0.3 });
@@ -401,6 +405,18 @@ function createRenderer(canvas, arena) {
       else { const hw = R(w.w * K / 2), hh = R(w.h * K / 2), horiz = w.w > w.h; ellipse(cx, cy + hh + 1, hw + 1, 2, '#00000033');
         if (horiz) { px(cx - hw, cy - 6, hw * 2, 3, '#a8743a'); px(cx - hw, cy - 1, hw * 2, 3, '#a8743a'); for (let x = -hw; x <= hw; x += 8) px(cx + x, cy - 9, 3, 12, '#7a5228'); }
         else { for (let y = -hh; y <= hh; y += 3) px(cx - 1, cy + y - 6, 3, 3, y % 6 ? '#a8743a' : '#7a5228'); px(cx - 2, cy - hh - 8, 5, 3, '#7a5228'); px(cx - 2, cy + hh - 8, 5, 3, '#7a5228'); } } }
+  }
+  // Aura form: a flickering flame aura in the form's colour (I gold, II purple, III green, IV red, V white)
+  const AURA_COL = [null, '#ffd23f', '#b45aff', '#3aff7a', '#ff3b3b', '#f4fbff'];
+  function auraFx(f, p, t, now) {
+    const col = AURA_COL[f.as] || '#ffd23f', x = (p ? p.x + (f.x - p.x) * t : f.x) * K * Z, y = (p ? p.y + (f.y - p.y) * t : f.y) * K * Z + 22 * U, ms = now;
+    ctx.save(); ctx.globalCompositeOperation = 'lighter';
+    glow(x, y - 36 * U, (46 + f.as * 4 + Math.sin(ms * 0.02) * 4) * U, '#ffffff', col, 0.75);
+    ctx.fillStyle = col; ctx.globalAlpha = 0.55;
+    for (let k = 0; k < 7; k++) { const a = (k / 7) * Math.PI + Math.PI, h = (40 + ((k * 13 + Math.floor(ms / 60)) % 17) + f.as * 4) * U, bx = x + Math.cos(a) * 26 * U;
+      ctx.beginPath(); ctx.moveTo(bx - 6 * U, y); ctx.lineTo(bx + 6 * U, y); ctx.lineTo(bx + Math.sin(ms * 0.01 + k) * 4 * U, y - h); ctx.fill(); }
+    ctx.restore(); ctx.globalAlpha = 1;
+    if (Math.random() < 0.6) part(x / Z + (Math.random() - 0.5) * 16, y / Z - Math.random() * 16, 0, -40, 0.5, col, 1, -20);
   }
   // Fight intro: every Monstar teleports in as a soul orb of its own colour, flashes, and appears
   function introFx(o, p, view, now) {
@@ -526,6 +542,16 @@ function createRenderer(canvas, arena) {
       FULL(); ctx.save(); ctx.globalCompositeOperation = 'lighter'; glow(x * Z, y * Z, 20 * U, '#ffffff', '#7ad8ff', 0.8); ctx.restore(); LOG();
       disc(x, y, 6, '#9be6ff'); disc(x - 1, y - 1, 4, '#dff8ff'); px(x - 3, y - 3, 2, 2, '#ffffff');
       if (Math.random() < 0.4) part(x - Math.cos(a) * 6, y - Math.sin(a) * 6, 0, 0, 0.3, '#dff8ff', 1);
+      return;
+    }
+    if (p.lk === 'ki') { // Ki Blast: a bright energy ball with a white core
+      FULL(); ctx.save(); ctx.globalCompositeOperation = 'lighter'; glow(x * Z, y * Z, 20 * U, '#ffffff', '#ffd23f', 0.9); ctx.restore(); LOG();
+      disc(x, y, 5, '#ffe14a'); disc(x, y, 3, '#ffffff'); if (Math.random() < 0.5) part(x - Math.cos(a) * 5, y - Math.sin(a) * 5, 0, 0, 0.25, '#fff6a8', 1);
+      return;
+    }
+    if (p.lk === 'disc') { // Halo Disc: a spinning flat energy disc
+      const t = now / 1000; FULL(); ctx.save(); ctx.globalCompositeOperation = 'lighter'; glow(x * Z, y * Z, 22 * U, '#ffffff', '#ffd23f', 0.7); ctx.restore(); LOG();
+      ellipse(x, y, 10, 3, '#ffd23f'); ellipse(x, y, 7, 2, '#fff6a8'); px(R(x + Math.cos(t * 30) * 9), R(y), 2, 1, '#ffffff'); px(R(x - Math.cos(t * 30) * 9), R(y), 2, 1, '#ffffff');
       return;
     }
     if (p.lk === 'firenado') { // COVO's Fire Tornado: a spinning funnel of flame that chases the rival
@@ -786,6 +812,7 @@ function createRenderer(canvas, arena) {
       for (const f of cur.x || []) list.push({ f, p: prev?.x?.find(o => o.sd === f.sd && o.sl === f.sl), i: 2 + f.sd * 3 + f.sl, you: f.sd === view.you, extra: true });
       list.sort((a, b) => a.f.y - b.f.y);
       const introP = cur.in > 0 ? Math.max(0, 1 - cur.in / 1.3) : 1;
+      for (const o of list) if (o.f.as > 0) auraFx(o.f, o.p, t, now);
       for (const o of list) drawFighter(o.f, o.p, t, o.i, { now, dt, you: o.you, hue: o.extra ? 0 : view.hues?.[o.i] || 0, type: o.extra ? undefined : view.types?.[o.i], faint: o.extra ? 0 : view.faint?.[o.i] || 0, vanish: introP < 1 ? Math.max(0, Math.min(1, 1 - (introP - 0.62) / 0.38)) : !o.extra && view.capture?.side === o.i ? Math.max(0, Math.min(1, (view.capture.t - (view.capture.beam === false ? 0.15 : 0.55)) / 0.7)) : 0, extra: o.extra, ctl: !o.extra && !!cur.sq });
       if (view.capture) captureFx(view.capture, cur, now);
       if (introP < 1) for (const o of list) introFx(o, introP, view, now);

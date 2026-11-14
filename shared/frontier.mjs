@@ -362,3 +362,42 @@ export const GIFT_ELITES = [
   { ...SB('Aurelia', 'fire', 'seraph', '#e8a020', true, { gift: true, top: true }), elite: true, sig: { basic: { name: 'Golden Gust', look: 'fire', status: 'burn', knock: 4, note: 'A gust of golden fire that burns.' }, special: { name: 'Sun Flares', shots: 3, look: 'fire', status: 'burn', note: 'Fans out 3 or 4 sun flares that burn.' }, mega: M('meteors', 'Aurelia Phoenix Storm', 'Golden phoenix fire rains around the rival.', 1.42, 1.25) } },
   { ...SB('Amyah', 'water', 'mystic', '#7a3ad8', true, { gift: true, top: true }), elite: true, sig: { basic: { name: 'Moon Mist', look: 'ice', knock: 3, note: 'A cold mist bolt.' }, special: { name: 'Ice Balls', shots: 2, look: 'ice', status: 'freeze', note: 'Shoots 2 or 3 ice balls that freeze.' }, mega: M('hailstorm', 'Amyah Moonlit Hailstorm', 'A moonlit ice storm over a big area: frozen and 30% HP.', 1.05, 1.3) } },
 ];
+
+// Aura Warriors: original fighters from the creator's own drawings. Stronger than benders (stats +75%). In battle they can
+// power up into Aura forms (I gold Lv3, II purple Lv10, III green Lv25, IV red Lv50, V white Lv80), then turn back to normal.
+// Each has its own mix of energy powers (and some element powers). Gifted to the founder and sold once each in the market.
+const AW_SPECIALS = [
+  { special: 'Surge Wave', style: 'beam', sig: { note: 'A huge energy wave fired from both hands.' } },
+  { special: 'Halo Disc', style: 'projectile', sig: { look: 'disc', homing: true, note: 'A spinning energy disc that curves after the rival.' } },
+  { special: 'Ki Volley', style: 'projectile', sig: { shots: 3, look: 'ki', note: 'Fires 3 or 4 energy blasts at once.' } },
+  { special: 'Solar Flash', style: 'cone', sig: { note: 'A blinding burst of light in front: the rival is dazzled.' } },
+  { special: 'Spiral Beam', style: 'beam', sig: { reach: 1.3, note: 'A drilling spiral beam that reaches very far.' } },
+];
+const AW_MEGAS = [
+  ['meteors', 'World Sphere', 'A giant sphere of gathered energy crashes down around the rival.'],
+  ['lance', 'Final Surge', 'An enormous energy beam across the whole arena.'],
+  ['nova', 'Galaxy Burst', 'Explodes with energy in every direction.'],
+  ['barrage', 'Ki Storm', 'Seven homing energy blasts.'],
+  ['lightning', 'Spirit Orbs', 'Seven energy orbs chase the rival; the first one stuns.'],
+  ['thunderstrike', 'Sky Lightning', 'Lightning strikes crash down; the first one stuns.'],
+];
+const AW = (i, name, type, cls, main, female, status) => {
+  const S2 = AW_SPECIALS[i % AW_SPECIALS.length], [mk, mn, note] = AW_MEGAS[(i * 5 + 1) % AW_MEGAS.length];
+  const base = F(name, type, cls, 'Ki blast', S2.special, 'projectile', S2.style, ['dart', 'skate', 'stomp', 'dart', 'prance', 'blink', 'stomp', 'dart'][i], 'walker', main, '#ffffff', main, {});
+  return { ...base, aura: true, female, drop: { priceLamports: '1500000000', shop: true },
+    forms: [`Young ${name}`, `${name} the Fighter`, name, `${name} Prime`, `Mega ${name}`, `Ascended ${name}`],
+    sig: { basic: { name: 'Ki Blast', look: 'ki', shots: 2, note: 'Two quick energy blasts.' },
+      special: { name: S2.special, ...S2.sig, ...(status && S2.style === 'projectile' ? { status } : {}) },
+      dash: { kind: 'blink', name: `${name} Blink Step`, note: 'Vanishes and reappears a short way off (very fast).', dist: +(1.3 + i * 0.03).toFixed(2), cd: +(0.9 + i * 0.03).toFixed(2) },
+      mega: M(mk, `${name} ${mn}`, note, +(1.32 + i * 0.01).toFixed(2), 1.2) } };
+};
+export const AURA_WARRIORS = [
+  AW(0, 'Dashi', 'GALE', 'striker', '#c8a46a', false, null),
+  AW(1, 'Bolo', 'SPARK', 'ranger', '#3a8ad8', false, 'paralyze'),
+  AW(2, 'Swish', 'STONE', 'titan', '#9aa0aa', false, 'stun'),
+  AW(3, 'Kapri', 'EMBER', 'skirmisher', '#e8508a', true, 'burn'),
+  AW(4, 'Nyla', 'SPARK', 'mystic', '#a8e0f0', true, 'paralyze'),
+  AW(5, 'Verdo', 'VENOM', 'arcanist', '#3aff6a', false, 'poison'),
+  AW(6, 'Bunzo', 'STONE', 'warden', '#ff5a1a', false, 'stun'),
+  AW(7, 'Tigo', 'DRACO', 'seraph', '#ff8a1f', false, 'burn'),
+];

@@ -230,3 +230,20 @@ test('arena hazards: water and lava hurt (their own element is safe), cracks dro
   for (let i = 0; i < 50; i++) { const L = S.makeLayout(); assert.ok(L.wl.length >= 1 && L.wl.length <= 2, 'only 1 or 2 barriers'); assert.ok(L.hz.every(o => o.k === 'lava'), 'no water'); }
   assert.equal(S.snapshot(m).lay.ck.length, 1);
 });
+
+test('Aura Warriors: stronger than benders; power up into an Aura form by level (gold Lv3 ... white Lv80) and turn back to normal', async () => {
+  const S = await import('../shared/sim.mjs'), { Monstar, SPECIES, SHOP_IDS } = await import('../shared/monstars.mjs');
+  const aw = SPECIES.filter(s => s.aura); assert.equal(aw.length, 8); assert.ok(aw.every(s => SHOP_IDS.includes(s.id) && s.collection === 'aurawarriors'));
+  const bender = SPECIES.find(s => s.name === 'Pyreska'), d = SPECIES.find(s => s.name === 'Dashi'); // both strikers
+  const st = sp => Object.values(new Monstar({ speciesId: sp.id, level: 1 }).stats).reduce((a, b) => a + b, 0);
+  assert.ok(st(d) > st(bender), 'stronger than a bender of the same class');
+  assert.deepEqual([1, 3, 10, 25, 50, 80].map(S.auraTier), [0, 1, 2, 3, 4, 5]);
+  assert.equal(new Set(aw.map(s => s.kit.mega.kind)).size >= 5, true, 'different powers');
+  const m = S.createMatch(new Monstar({ speciesId: d.id, level: 12 }), new Monstar({ speciesId: 0, level: 12 }), { auto: false });
+  const f = m.fighters[0]; f.cd.asc = 0; f.input = S.sanitizeInput({ asc: true });
+  const ev = S.step(m); assert.ok(ev.some(e => e.type === 'ascend' && e.tier === 2)); assert.equal(S.snapshot(m).f[0].as, 2);
+  f.input = S.sanitizeInput({}); let back = false; for (let i = 0; i < 30 * 40 && !back; i++) back = S.step(m).some(e => e.type === 'descend');
+  assert.ok(back, 'turns back to normal'); assert.equal(S.snapshot(m).f[0].as, 0);
+  const low = S.createMatch(new Monstar({ speciesId: d.id, level: 1 }), new Monstar({ speciesId: 0, level: 1 }), { auto: false });
+  low.fighters[0].cd.asc = 0; low.fighters[0].input = S.sanitizeInput({ asc: true }); S.step(low); assert.equal(low.fighters[0].asc, 0, 'needs level 3');
+});
