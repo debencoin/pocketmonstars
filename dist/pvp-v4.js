@@ -959,7 +959,7 @@ try {
   mon = function (c, id, x, y, scale = 3, t = 0, flip = false) {
     let hue = 0; try { hue = identity(id).hue * 0.4; } catch {}
     const spr = PA.sprite(id, Math.round(hue)); if (!spr) return baseMon(c, id, x, y, scale, t, flip);
-    const k = Math.max(1, Math.round(scale * 0.9)), w = spr.width * k, h = spr.height * k, bottom = y + scale * 12, bob = (Math.floor(t * 2.6) % 2) ? -k : 0;
+    const hk = spr.width > 150 ? 140 / spr.width : 1, k = Math.max(1, Math.round(scale * 0.9)), w = spr.width * k * hk, h = spr.height * k * hk, bottom = y + scale * 12, bob = (Math.floor(t * 2.6) % 2) ? -k : 0;
     c.save(); c.imageSmoothingEnabled = false; c.globalAlpha *= 0.25; c.fillStyle = '#081b16'; c.beginPath(); c.ellipse(x, bottom, w * 0.3, Math.max(3, scale * 2), 0, 0, Math.PI * 2); c.fill(); c.globalAlpha /= 0.25;
     c.translate(Math.round(x), Math.round(bottom + bob)); if (flip) c.scale(-1, 1); c.drawImage(spr, -Math.round(w / 2), -h, w, h); c.restore();
   };

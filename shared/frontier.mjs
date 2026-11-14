@@ -366,12 +366,17 @@ export const GIFT_ELITES = [
 // Aura Warriors: original fighters from the creator's own drawings. Stronger than benders (stats +75%). In battle they can
 // power up into Aura forms (I gold Lv3, II purple Lv10, III green Lv25, IV red Lv50, V white Lv80), then turn back to normal.
 // Each has its own mix of energy powers (and some element powers). Gifted to the founder and sold once each in the market.
-const AW_SPECIALS = [
+const AW_SPECIALS = [ // one per warrior: every Aura Warrior has its own power, with its own look
   { special: 'Surge Wave', style: 'beam', sig: { note: 'A huge energy wave fired from both hands.' } },
-  { special: 'Halo Disc', style: 'projectile', sig: { look: 'disc', homing: true, note: 'A spinning energy disc that curves after the rival.' } },
+  { special: 'Halo Disc', style: 'projectile', sig: { look: 'disc', homing: true, seek: true, note: 'A spinning energy disc that follows the rival around the arena until it hits.' } },
   { special: 'Ki Volley', style: 'projectile', sig: { shots: 3, look: 'ki', note: 'Fires 3 or 4 energy blasts at once.' } },
   { special: 'Solar Flash', style: 'cone', sig: { note: 'A blinding burst of light in front: the rival is dazzled.' } },
   { special: 'Spiral Beam', style: 'beam', sig: { reach: 1.3, note: 'A drilling spiral beam that reaches very far.' } },
+  { special: 'Drain Sting', style: 'projectile', sig: { look: 'sting', homing: true, leech: 0.6, note: 'A green stinger that chases the rival and absorbs its energy: 60% of the damage heals you.' } },
+  { special: 'Goo Wrap', style: 'projectile', sig: { look: 'goo', shots: 2, leech: 0.25, note: 'Stretchy pink goo blobs that wrap the rival and hold it still; a little of the damage heals you.' } },
+  { special: 'Prism Shards', style: 'projectile', sig: { look: 'shard', shots: 4, note: 'A fan of 4 or 5 razor crystal shards.' } },
+  { special: 'Ring Snare', style: 'projectile', sig: { look: 'ring', homing: true, note: 'Glowing energy rings that curve after the rival and lock it in place.' } },
+  { special: 'Star Blaster', style: 'beam', sig: { reach: 1.15, note: 'A full-power blaster beam fired from the hip.' } },
 ];
 const AW_MEGAS = [
   ['meteors', 'World Sphere', 'A giant sphere of gathered energy crashes down around the rival.'],
@@ -383,7 +388,7 @@ const AW_MEGAS = [
 ];
 const AW = (i, name, type, cls, main, female, status) => {
   const S2 = AW_SPECIALS[i % AW_SPECIALS.length], [mk, mn, note] = AW_MEGAS[(i * 5 + 1) % AW_MEGAS.length];
-  const base = F(name, type, cls, 'Ki blast', S2.special, 'projectile', S2.style, ['dart', 'skate', 'stomp', 'dart', 'prance', 'blink', 'stomp', 'dart'][i], 'walker', main, '#ffffff', main, {});
+  const base = F(name, type, cls, 'Ki blast', S2.special, 'projectile', S2.style, ['dart', 'skate', 'stomp', 'dart', 'prance', 'blink', 'stomp', 'dart', 'stomp', 'dart'][i], 'walker', main, '#ffffff', main, {});
   return { ...base, aura: true, female, drop: { priceLamports: '1500000000', shop: true },
     forms: [`Young ${name}`, `${name} the Fighter`, name, `${name} Prime`, `Mega ${name}`, `Ascended ${name}`],
     sig: { basic: { name: 'Ki Blast', look: 'ki', shots: 2, note: 'Two quick energy blasts.' },
@@ -400,4 +405,6 @@ export const AURA_WARRIORS = [
   AW(5, 'Verdo', 'VENOM', 'arcanist', '#3aff6a', false, 'poison'),
   AW(6, 'Bunzo', 'STONE', 'warden', '#ff5a1a', false, 'stun'),
   AW(7, 'Tigo', 'DRACO', 'seraph', '#ff8a1f', false, 'burn'),
+  AW(8, 'Vikko', 'FROST', 'titan', '#2aa84a', false, 'stun'),
+  AW(9, 'Noxx', 'SHADE', 'striker', '#2a3a34', false, null),
 ];

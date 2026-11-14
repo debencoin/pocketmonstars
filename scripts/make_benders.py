@@ -54,15 +54,7 @@ D = {
   'blazen':   dict(el='fire',    f=False, skin=1, hair=c('#c83a1a'), hs='spiky',   top=c('#d8401a'), trim=c('#ffd060'), pants=c('#2a1414'), boots=c('#1a0e0e')),
   'gusti':    dict(el='air',     f=True,  skin=0, hair=c('#c8a060'), hs='pony',    top=c('#e8a03a'), trim=c('#fff0b0'), pants=c('#f4e8c8'), boots=c('#8a5a2a'), scarf=c('#ffd060')),
   'voltz':    dict(el='thunder', f=False, skin=4, hair=c('#ffe14a'), hs='mohawk',  top=c('#4a3ac8'), trim=c('#ffe14a'), pants=c('#1e1840'), boots=c('#14102a'), goggles=c('#ffe14a')),
-  # Aura Warriors (from the creator's own drawings): original fighters with five Aura forms
-  'dashi':  dict(el='ki', f=False, skin=2, hair=c('#c8a46a'), hs='spiky',     top=c('#f4f4f4'), trim=c('#d8dce8'), pants=c('#3aa0e0'), boots=c('#e8eef8'), weapon='sword', tail=True, aura=True),
-  'bolo':   dict(el='ki', f=False, skin=3, hair=c('#4a4a1a'), hs='afro',      top=c('#ffffff'), trim=c('#e8e8e8'), pants=c('#3a8ad8'), boots=c('#e8eef8'), tail=True, aura=True),
-  'swish':  dict(el='ki', f=False, skin=3, hair=c('#3a3a12'), hs='afro',      top=c('#9aa0aa'), trim=c('#d8f040'), pants=c('#9aa0aa'), boots=c('#2a2a2a'), band=c('#d8f040'), weapon='ball', tail=True, aura=True),
-  'kapri':  dict(el='ki', f=True,  skin=2, hair=c('#3a3a12'), hs='cap',       top=c('#e8508a'), trim=c('#ff9ac8'), pants=c('#3a3a42'), boots=c('#ff7ab0'), cap=c('#e82a2a'), aura=True),
-  'nyla':   dict(el='ki', f=True,  skin=1, hair=c('#9a7a3a'), hs='puffs2',    top=c('#f4f4f4'), trim=c('#a8e0f0'), pants=c('#2a3040'), boots=c('#2a3040'), weapon='staff', goggles2=c('#ff8a3a'), aura=True),
-  'verdo':  dict(el='ki', f=False, skin=3, hair=c('#0a0a0a'), hs='locs',      top=c('#111214'), trim=c('#3aff6a'), pants=c('#111214'), boots=c('#0a0a0a'), mask=c('#0a0a0a'), glow=c('#3aff6a'), aura=True),
-  'bunzo':  dict(el='ki', f=False, skin=3, hair=c('#1a1a1a'), hs='bunnyhood', top=c('#ff5a1a'), trim=c('#ffd23f'), pants=c('#ff5a1a'), boots=c('#9a5ad8'), aura=True),
-  'tigo':   dict(el='ki', f=False, skin=2, hair=c('#2a1a10'), hs='tigerhood', top=c('#ff8a1f'), trim=c('#ffffff'), pants=c('#ff8a1f'), boots=c('#ffffff'), tail=True, tail_col=c('#ff8a1f'), aura=True),
+  # Aura Warriors are made straight from the creator's drawings by scripts/make_aura_art.py
   # Market Sky Benders (1 SOL each): five per element, boys and girls
   'breezo': dict(el='air', el2='air', f=False, skin=0, hair=c('#1a1414'), hs='short', top=c('#4ac8e8'), trim=c('#ffffff' if 0 else '#ffe080'), pants=shade(c('#4ac8e8'), 0.55), boots=c('#2a2018')),
   'nimbra': dict(el='air', el2='air', f=True, skin=1, hair=c('#e8d8c0'), hs='pony', top=c('#c8e8ff'), trim=c('#ffffff' if 1 else '#ffe080'), pants=shade(c('#c8e8ff'), 0.55), boots=c('#2a2018'), goggles=c('#5ec2ff')),

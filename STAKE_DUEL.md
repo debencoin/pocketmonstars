@@ -319,3 +319,9 @@ Stats: HP, Attack, Defense, Sp. Atk, Sp. Def, Speed. Types: EMBER, GROVE, TIDE, 
 - Friends: add by username or wallet (mutual), see online / in-match / record, **Invite to play** (creates a match if you have none and sends the code).
 - Invites pop up as a banner with the code (Copy) and **Tap to play**, which joins straight away. Pending invites (15 min) are delivered when the player opens the game.
 - No Phantom needed for live play: Create/Join signs you in as a guest (`@g-…`). Guests and free accounts default to **Free (no SOL)** matches — no stake, no SOL earnings.
+
+## v52 — Aura Warriors drawn from the creator's own drawings, new powers
+- The Aura Warriors now use the creator's actual drawings in battle, the market and on cards (`scripts/make_aura_art.py`, sources in `art-src/aura/`; 288x336 frames, shown scaled). Aura forms add a glow in the Aura colour and recolour the hair.
+- Two new Aura Warriors from the creator's drawings: Vikko (242) and Noxx (243), gifted to the founder and sold once each in the market.
+- Every Aura Warrior has its own power: Halo Disc now follows the rival until it hits; new Drain Sting (absorbs HP), Goo Wrap, Prism Shards, Ring Snare, Star Blaster.
+- Not added: characters copied from films, comics, anime or TV shows. Original creatures only.

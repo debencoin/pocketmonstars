@@ -423,7 +423,7 @@ function cast(m, f, kind) {
       const look = f.kit?.[kind]?.look, spread = look === 'boulder' ? 0.3 : 0.22, vary = look === 'boulder' ? 0.75 + Math.random() * 0.5 : 1; // slabs come out differently
       const a = Math.atan2(f.fy, f.fx) + (shots > 1 ? (k - (shots - 1) / 2) * spread + (look === 'boulder' ? (Math.random() - 0.5) * 0.12 : 0) : 0), dx = Math.cos(a) * vary, dy = Math.sin(a) * vary;
       m.projectiles.push({ id: k ? m.nextId++ : id, owner: f.side, by: f, kind, style, type: f.type, sid: f.speciesId, x: f.x + dx * 36, y: f.y + dy * 36,
-        vx: dx * sp, vy: dy * sp, r: S.r, life: S.life, hitDone: false, missDone: false, homing: !!f.kit?.[kind]?.homing, pw: shots > 1 ? S.power * (kind === 'special' ? 0.55 : 0.62) * (kind === 'special' ? f.kit?.special.power ?? 1 : 1) * 1.6 : undefined, kb: kind === 'basic' ? f.kit?.basic.knock || 1 : look === 'boulder' ? 2 : 1, look, onHit: f.kit?.[kind]?.status, zap: !!f.kit?.[kind]?.zap, turn: f.kit?.[kind]?.homing ? 3.4 : undefined });
+        vx: dx * sp, vy: dy * sp, r: S.r, life: S.life * (f.kit?.[kind]?.seek ? 3 : 1), hitDone: false, missDone: false, homing: !!f.kit?.[kind]?.homing, leech: f.kit?.[kind]?.leech, pw: shots > 1 ? S.power * (kind === 'special' ? 0.55 : 0.62) * (kind === 'special' ? f.kit?.special.power ?? 1 : 1) * 1.6 : undefined, kb: kind === 'basic' ? f.kit?.basic.knock || 1 : look === 'boulder' ? 2 : 1, look, onHit: f.kit?.[kind]?.status, zap: !!f.kit?.[kind]?.zap, turn: f.kit?.[kind]?.seek ? 9 : f.kit?.[kind]?.homing ? 3.4 : undefined });
     }
     return;
   }
@@ -632,7 +632,8 @@ export function step(m, realDt = TICK) {
       if (vic.iframes > 0) { if (!p.missDone) { p.missDone = true; events.push({ type: 'miss', attacker: att.side, victim: vic.side, style: p.style }); } }
       else if (vic.guardT > 0 && vic.guardKind === 'reflect' && !p.reflected) { // Mirror Shell sends it back
         p.owner = vic.side; p.by = vic; p.vx = -p.vx * 1.15; p.vy = -p.vy * 1.15; p.reflected = true; p.life = Math.max(p.life, 0.8); events.push({ type: 'blocked', attacker: att.side, victim: vic.side, style: p.style, guard: 'reflect' }); }
-      else { const [nx, ny] = norm(p.vx, p.vy); if (land(m, att, vic, p.kind, p.style, events, nx, ny, (p.style === 'debris' ? 160 : p.lt ? 25 : 90) * (p.kb || 1), p.pw)) { p.hitDone = true; p.life = 0;
+      else { const [nx, ny] = norm(p.vx, p.vy), hp0 = vic.hp; if (land(m, att, vic, p.kind, p.style, events, nx, ny, (p.style === 'debris' ? 160 : p.lt ? 25 : 90) * (p.kb || 1), p.pw)) { p.hitDone = true; p.life = 0;
+        if (p.leech && hp0 > vic.hp && att.hp > 0) { const h = Math.round((hp0 - vic.hp) * p.leech); if (h > 0) { att.hp = Math.min(att.maxHp, att.hp + h); events.push({ type: 'status', side: att.side, k: 'mark', label: '+' + h + ' HP' }); } } // Drain Sting / Goo Wrap absorb energy
         if (p.onHit && vic.hp > 0) applyStatus(m, vic, p.onHit, att, events, 0.6); // Ice Balls freeze
         if (p.zap && vic.hp > 0) { const z = Math.max(1, Math.round(vic.maxHp * 0.02)); vic.hp = Math.max(0, vic.hp - z); events.push({ type: 'status', side: vic.side, k: 'paralyze', label: 'ZAP! -' + z }); } // COVO's ice balls: lightning jumps out
         if (p.lt) { m.zapped ||= {}; // Storm Orbs: the first ball to hit stuns; the rest zap

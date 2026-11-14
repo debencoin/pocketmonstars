@@ -233,7 +233,7 @@ test('arena hazards: water and lava hurt (their own element is safe), cracks dro
 
 test('Aura Warriors: stronger than benders; power up into an Aura form by level (gold Lv3 ... white Lv80) and turn back to normal', async () => {
   const S = await import('../shared/sim.mjs'), { Monstar, SPECIES, SHOP_IDS } = await import('../shared/monstars.mjs');
-  const aw = SPECIES.filter(s => s.aura); assert.equal(aw.length, 8); assert.ok(aw.every(s => SHOP_IDS.includes(s.id) && s.collection === 'aurawarriors'));
+  const aw = SPECIES.filter(s => s.aura); assert.equal(aw.length, 10); assert.ok(aw.every(s => SHOP_IDS.includes(s.id) && s.collection === 'aurawarriors'));
   const bender = SPECIES.find(s => s.name === 'Pyreska'), d = SPECIES.find(s => s.name === 'Dashi'); // both strikers
   const st = sp => Object.values(new Monstar({ speciesId: sp.id, level: 1 }).stats).reduce((a, b) => a + b, 0);
   assert.ok(st(d) > st(bender), 'stronger than a bender of the same class');
@@ -246,4 +246,17 @@ test('Aura Warriors: stronger than benders; power up into an Aura form by level 
   assert.ok(back, 'turns back to normal'); assert.equal(S.snapshot(m).f[0].as, 0);
   const low = S.createMatch(new Monstar({ speciesId: d.id, level: 1 }), new Monstar({ speciesId: 0, level: 1 }), { auto: false });
   low.fighters[0].cd.asc = 0; low.fighters[0].input = S.sanitizeInput({ asc: true }); S.step(low); assert.equal(low.fighters[0].asc, 0, 'needs level 3');
+});
+
+test('Aura Warrior powers: the Halo Disc follows the rival until it hits; Drain Sting heals its user', async () => {
+  const S = await import('../shared/sim.mjs'), { Monstar, SPECIES } = await import('../shared/monstars.mjs');
+  const mk = n => new Monstar({ speciesId: SPECIES.find(s => s.name === n).id, level: 20 });
+  const run = (name, setup) => { const m = S.createMatch(mk(name), mk('Dashi'), {}); const [a, b] = m.fighters; setup(a, b);
+    a.cd.special = 0; a.energy = 100; a.input = S.sanitizeInput({ sp: true, ax: 1, ay: 0 });
+    for (let i = 0; i < 240; i++) { S.step(m); a.input = S.sanitizeInput({}); b.input = S.sanitizeInput({}); b.vx = b.vy = 0; } return { m, a, b }; };
+  // the rival stands off to the side, behind the shooter's aim: only a disc that follows can reach it
+  const d = run('Bolo', (a, b) => { a.x = 300; a.y = 300; a.fx = 1; a.fy = 0; b.x = 300; b.y = 520; });
+  assert.ok(d.b.hp < d.b.maxHp, 'the disc curved round and hit');
+  const v = run('Verdo', (a, b) => { a.x = 300; a.y = 300; a.fx = 1; a.fy = 0; b.x = 460; b.y = 300; a.hp = Math.round(a.maxHp / 2); });
+  assert.ok(v.b.hp < v.b.maxHp && v.a.hp > Math.round(v.a.maxHp / 2), 'the sting hit and healed its user');
 });
