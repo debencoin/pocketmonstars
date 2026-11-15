@@ -346,3 +346,7 @@ Stats: HP, Attack, Defense, Sp. Atk, Sp. Def, Speed. Types: EMBER, GROVE, TIDE, 
 - `tiers` + `kitAt(species, level)`: the four buttons stay the same and a stronger power takes over a button at levels 10, 25 and 50 (for example Water Whip → Water Wave → Water Whirlpool → Water Dragon).
 - Powers are released with martial-arts moves: sheets for these benders have 8 frames (a straight punch for the basic attack, a side kick for specials).
 - New players choose their element once: `GET /api/starter`, `POST /api/starter/choose`, with a chooser shown at first sign-in.
+
+## v57 — Zephar, the air bender from the creator's sheet
+- The air Element Master is now Zephar (same species id; art `zephar`), cut straight from the creator's character sheet by `scripts/make_master_art.py` (source `art-src/masters/zephar_sheet.png`). Sheets have 14 frames: idle (the form for each stage: Base, Enhanced Flow, Wind Master, Sky Ascendant, Cloud Sage), run (side view), then one frame per power pose from the sheet: Air Push, Air Slash, Air Cyclone, Air Burst, Air Shield, Air Dash, Glider Flight, Air Jump / Levitation.
+- `POSES` in pixel-arena.js picks the pose for the power in use (attack, special by level tier, guard, dash), so each power plays its pose from the sheet.
