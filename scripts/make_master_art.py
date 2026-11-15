@@ -109,9 +109,56 @@ def build_azaelion():
         if st_i == 2: fs[0].save(os.path.join(HD, 'azaelion.png'), optimize=True)
     print('azaelion', len(fs), 'frames (design art + sheet moves)')
 
+
+# ---- Maelira: the water fighter from the creator's big animation sheet (art-src/masters/bear_sheet.png, 1224x8000) ----
+# Each section of that sheet has one large hero picture (blue-framed box); the hero pictures are cut out and used as frames.
+BEAR = {  # name: hero box (x0, y0, x1, y1) found on the sheet
+  'idle': (28, 103, 119, 247), 'ready': (630, 103, 721, 247), 'walk': (28, 326, 119, 470), 'dash': (28, 550, 186, 694), 'guard': (630, 1087, 721, 1230),
+  'basic': (28, 1920, 165, 2064), 'volley': (28, 2143, 209, 2287), 'aerial': (28, 2366, 131, 2510), 'bubble': (28, 4139, 246, 4283),
+  'mirror': (28, 4467, 189, 4611), 'power': (28, 5741, 119, 5885), 'aura': (28, 5964, 119, 6108)}
+
+def cut_blue(sheet, box):
+    """The hero boxes have a pale blue gradient behind the character: flood it away from the edges."""
+    x0, y0, x1, y1 = box; im = sheet.crop((x0 + 4, y0 + 4, x1 - 3, y1 - 3)).convert('RGB'); a = np.asarray(im).astype(int); h, w = a.shape[:2]
+    near = (a.min(-1) >= 178) & (a[..., 2] >= a[..., 0] - 4)
+    bg = np.zeros((h, w), bool); q = deque([(x, y) for x in range(w) for y in (0, h - 1)] + [(x, y) for y in range(h) for x in (0, w - 1)])
+    while q:
+        x, y = q.popleft()
+        if bg[y, x] or not near[y, x]: continue
+        bg[y, x] = True
+        for nx, ny in ((x + 1, y), (x - 1, y), (x, y + 1), (x, y - 1)):
+            if 0 <= nx < w and 0 <= ny < h and not bg[ny, nx]: q.append((nx, ny))
+    from scipy import ndimage
+    lab, n = ndimage.label(~bg); sizes = ndimage.sum(np.ones_like(lab), lab, range(1, n + 1)); big = max(sizes) if n else 0
+    keep = np.isin(lab, [i + 1 for i, s in enumerate(sizes) if s > big * 0.04])
+    al = Image.fromarray((keep * 255).astype(np.uint8), 'L').filter(ImageFilter.GaussianBlur(0.6))
+    out = im.convert('RGBA'); out.putalpha(al); return out.crop(al.getbbox())
+
+def build_maelira():
+    sheet = Image.open(os.path.join(SRC, 'bear_sheet.png')).convert('RGB'); P = {k: cut_blue(sheet, b) for k, b in BEAR.items()}
+    k = (H - 40) / P['idle'].height      # one scale for every pose so she stays the same size
+    fit = lambda im: place(im, min(k, (W - 8) / im.width, (H - 12) / im.height))
+    idle, ready = fit(P['idle']), fit(P['ready'])
+    wk = fit(P['walk']).crop(fit(P['walk']).getbbox())    # her sheet has no clean run picture: a leaning, bouncing walk pose
+    run = []
+    for dy, rot, sh in ((0, 5, 6), (-12, 2, 0), (0, -2, -6), (-12, 3, 0)):
+        im = wk.rotate(rot, resample=Image.BICUBIC, expand=True); fr = Image.new('RGBA', (W, H), (0, 0, 0, 0))
+        fr.alpha_composite(im, ((W - im.width) // 2 + sh, H - 6 - im.height + dy)); run.append(fr)
+    poses = [fit(P[n]) for n in ('basic', 'volley', 'bubble', 'aerial', 'power', 'guard', 'dash', 'mirror')]   # 6..13
+    for st in range(6):
+        base = [idle, ready, *run, *poses]
+        if st >= 3: base = [fit(P['aura']) if i in (0, 1) else f for i, f in enumerate(base)]
+        t = max(0, st - 1); fs = [glow(f, (60, 150, 255), t) for f in base]
+        sh = Image.new('RGBA', (W * len(fs), H), (0, 0, 0, 0))
+        for i, f in enumerate(fs): sh.paste(f, (i * W, 0))
+        sh.save(os.path.join(WALK, f'maelira_s{st}.png'), optimize=True); fs[0].save(os.path.join(HD, f'maelira_s{st}.png'), optimize=True)
+        if st == 2: fs[0].save(os.path.join(HD, 'maelira.png'), optimize=True)
+    print('maelira', len(fs), 'frames')
+
 if __name__ == '__main__':
     only = set(sys.argv[1:])
     if not only or 'azaelion' in only: build_azaelion()
+    if not only or 'maelira' in only: build_maelira()
     for name, d in D.items():
         if only and name not in only: continue
         sheet = Image.open(os.path.join(SRC, d.get('file', name + '_sheet.png')))

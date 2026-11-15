@@ -206,6 +206,7 @@ const MEGA_SIGNATURE = {
 for (const sp of SPECIES) if (MEGA_SIGNATURE[sp.name]) sp.kit.mega = { ...sp.kit.mega, ...MEGA_SIGNATURE[sp.name] };
 for (const sp of SPECIES) for (const [part, o] of Object.entries(sp.sig || {})) sp.kit[part] = { ...sp.kit[part], ...o };
 for (const n of ['COVO', 'Azaelion']) { const c = SPECIES.find(s => s.name === n); if (c) c.kit.mega = { ...c.kit.mega, name: n + ' Origin Burst', note: 'A blast of all five elements and the fifth element at once.' }; }
+{ const m = SPECIES.find(s => s.name === 'Maelira'); if (m) m.kit.mega = { ...m.kit.mega, name: 'Maelstrom Crown Cannon', note: 'A water spiral opens above her like a crown, then a braided beam of water crashes down the whole floor.' }; }
 // Legend Heroes, Sky Benders, COVO, COVA and Azaelion
 { // keep every Mega Shot tuning and every dash/guard/Mega combination one of a kind (signature kits can share a kind)
   const megaKey = k => [k.mega.kind, k.mega.power, k.mega.size].join(), combo = k => k.dash.kind + k.guard.kind + k.mega.kind;
