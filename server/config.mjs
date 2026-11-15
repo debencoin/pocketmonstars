@@ -42,7 +42,7 @@ export const CONFIG = {
     // founder: one bender of each element (water, earth, fire, air, thunder)
     // + 5 Legend Heroes and COVO, the final air bender (all five elements)
     // + the 8 Aura Warriors (from the founder's own drawings)
-    'Dc9s1YwNHE2xDBzpprDvyruzxj8j5HvBSvfbvdups5LJ': [163, 165, 167, 170, 172, ...ids('Aurorex', 'Titanor', 'Phantomir', 'Pyronyx', 'Chronar', 'COVO', 'Dashi', 'Bolo', 'Swish', 'Kapri', 'Nyla', 'Verdo', 'Bunzo', 'Tigo', 'Vikko', 'Noxx', 'Terrok', 'Zephar', 'Tydal', 'Ignar', ...GODS)],
+    'Dc9s1YwNHE2xDBzpprDvyruzxj8j5HvBSvfbvdups5LJ': [163, 165, 167, 170, 172, ...ids('Aurorex', 'Titanor', 'Phantomir', 'Pyronyx', 'Chronar', 'COVO', 'Dashi', 'Bolo', 'Swish', 'Kapri', 'Nyla', 'Verdo', 'Bunzo', 'Tigo', 'Vikko', 'Noxx', 'Terrok', 'Zephar', 'Tydal', 'Ignar', 'Azaelion', ...GODS)],
     // Ashley: women only. 5 heroines, 5 air bender women, 4 Anunnaki goddesses, a woman bender of water, earth, fire and thunder, KENA (all five elements), and the elite benders Aurelia (golden fire) and Amyah (moonlit ice)
     // the Watcher Gods' creator plays with a set of his own
     '5eKeqSopYotsxwfE2uCJoyFywzqmXFe92NQR8kbHqaGd': ids(...GODS),

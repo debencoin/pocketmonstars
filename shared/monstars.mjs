@@ -152,7 +152,7 @@ export const SPECIES = [
 ];
 for (const [list, coll] of [[FRONTIER, 'frontier'], [MYTHIC, 'mythic'], [ANUNNAKI, 'anunnaki'], [WATCHERS, 'watchers'], [ASCENDANTS, 'ascendants'], [ROYALS, 'royals'], [HEROES, 'heroes'], [BENDERS, 'benders'], [LEGEND_HEROES, 'legendheroes'], [SKY_BENDERS, 'skybenders'], [FINAL_BENDERS, 'skybenders'], [STARTER_BENDERS, 'starters'], [GIFT_FINALS, 'skybenders'], [GIFT_ELITES, 'skybenders'], [AURA_WARRIORS, 'aurawarriors'], [WATCHER_GODS, 'watchergods'], [ELEMENT_MASTERS, 'masters']]) for (const f of list) {
   SPECIES.push({ id: SPECIES.length, name: f.name, type: f.type, art: f.name.toLowerCase(), cls: CLASS_BY_ID[f.cls], move: f.move, special: f.special,
-    basicStyle: f.basicStyle, specialStyle: f.specialStyle, motion: f.motion, collection: coll, tier: f.tier, mythic: ['Mythic', 'Divine'].includes(f.tier) || undefined, legendary: f.legendary || undefined, legendFor: f.legendFor, portrait: f.look.plan === 'portrait' || undefined, walker: f.look.plan === 'walker' || undefined, forms: f.forms || (f.look.plan === 'walker' ? walkerForms(f.name) : undefined), hero: f.hero, drop: f.drop, bender: f.bender, elite: f.elite, giftHero: f.giftHero, sky: f.sky, el2: f.el2, female: f.female, unique: f.unique, starter: f.starter, aura: f.aura, god: f.god, master: f.master, tiers: f.tiers, speedBoost: f.speedBoost, sig: f.sig, color: f.look.main });
+    basicStyle: f.basicStyle, specialStyle: f.specialStyle, motion: f.motion, collection: coll, tier: f.tier, mythic: ['Mythic', 'Divine'].includes(f.tier) || undefined, legendary: f.legendary || undefined, legendFor: f.legendFor, portrait: f.look.plan === 'portrait' || undefined, walker: f.look.plan === 'walker' || undefined, forms: f.forms || (f.look.plan === 'walker' ? walkerForms(f.name) : undefined), hero: f.hero, drop: f.drop, bender: f.bender, elite: f.elite, giftHero: f.giftHero, sky: f.sky, el2: f.el2, female: f.female, unique: f.unique, starter: f.starter, aura: f.aura, god: f.god, master: f.master, tiers: f.tiers, speedBoost: f.speedBoost, sig: f.sig, lore: f.lore, color: f.look.main });
 }
 // Every earlier bender is retired: the Element Masters replace them. Retired species keep their id (old records still
 // read correctly) but are never given, sold, met in the wild or chosen as a starter.
@@ -205,7 +205,8 @@ const MEGA_SIGNATURE = {
 };
 for (const sp of SPECIES) if (MEGA_SIGNATURE[sp.name]) sp.kit.mega = { ...sp.kit.mega, ...MEGA_SIGNATURE[sp.name] };
 for (const sp of SPECIES) for (const [part, o] of Object.entries(sp.sig || {})) sp.kit[part] = { ...sp.kit[part], ...o };
-{ const covo = SPECIES.find(s => s.name === 'COVO'); if (covo) covo.kit.mega = { ...covo.kit.mega, name: 'COVO Origin Burst', note: 'A blast of all five elements and the fifth element at once.' }; } // Legend Heroes, Sky Benders, COVO and COVA
+for (const n of ['COVO', 'Azaelion']) { const c = SPECIES.find(s => s.name === n); if (c) c.kit.mega = { ...c.kit.mega, name: n + ' Origin Burst', note: 'A blast of all five elements and the fifth element at once.' }; }
+// Legend Heroes, Sky Benders, COVO, COVA and Azaelion
 { // keep every Mega Shot tuning and every dash/guard/Mega combination one of a kind (signature kits can share a kind)
   const megaKey = k => [k.mega.kind, k.mega.power, k.mega.size].join(), combo = k => k.dash.kind + k.guard.kind + k.mega.kind;
   const megas = new Set(), combos = new Set(), GK = Object.keys(GUARD_KINDS);
