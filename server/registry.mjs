@@ -61,7 +61,7 @@ export class Registry {
     // gifts handed out (so a gift is given once, even when the Monstar is born to its creator and not to the holder)
     db.exec('CREATE TABLE IF NOT EXISTS gift_claims(owner TEXT NOT NULL, species INTEGER NOT NULL, serial INTEGER NOT NULL, PRIMARY KEY(owner, species))');
     for (const [coll, creator] of Object.entries(this.creators)) { // existing unminted Monstars of a creator's collection: the royalty moves to the creator
-      for (const r of db.prepare('SELECT serial, species, origin_owner, genesis FROM monstars WHERE collection=? AND origin_owner<>? AND asset IS NULL').all(coll, creator)) {
+      for (const r of db.prepare('SELECT serial, species, origin_owner, genesis FROM monstars WHERE collection=? AND origin_owner<>? AND asset IS NULL AND serial NOT IN (SELECT serial FROM wild_ones)').all(coll, creator)) { // a caught one-of-a-kind keeps its catcher's royalty
         if (r.genesis) db.prepare('INSERT OR IGNORE INTO gift_claims(owner, species, serial) VALUES(?,?,?)').run(r.origin_owner, r.species, r.serial);
         db.prepare('UPDATE monstars SET origin_owner=? WHERE serial=?').run(creator, r.serial);
       }
@@ -180,7 +180,7 @@ export class Registry {
     this.db.prepare('INSERT INTO wild_ones(species, serial, owner, caught_at) VALUES(?,?,?,?)').run(speciesId, m.serial, owner, Date.now());
     return m;
   }
-  /** True once the one wild copy of a one-of-a-kind Monstar has been caught. */
+  /** True once the one wild copy of a one-of-a-kind Monstar has been caught. Its catcher is its origin owner: they earn the 5% royalty on every later resale. */
   wildOneTaken(speciesId) { return !!this.db.prepare('SELECT 1 FROM wild_ones WHERE species=?').get(speciesId); }
   catchAny(owner, speciesId, level) {
     const seed = randomBytes(8).toString('hex'), sp = SPECIES[speciesId], keep = !owner.startsWith('@') && level > 1;

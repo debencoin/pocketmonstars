@@ -34,3 +34,17 @@ test('a released Monstar leaves the founder wallet; only the first catch gets th
   for (let i = 0; i < 6000; i++) assert.notEqual(rollWild(Math.random(), id => SPECIES[id].wildOne && reg.wildOneTaken(id)), sp.id, 'caught: never spawns again');
   new Registry(db, { legendaryOwner: a }); assert.equal(reg.get(mine.serial).owner, a, 'a restart never takes the caught copy away, even from the founder wallet');
 });
+
+test('the catcher earns the 5% royalty on every resale of a one-of-a-kind, even a Watcher God, and keeps it after a restart', async () => {
+  const { saleSplit } = await import('../server/nft.mjs'), { metadataJson } = await import('../server/registry.mjs');
+  const catcher = Keypair.generate().publicKey.toBase58(), db = openDb(':memory:'), creators = CONFIG.creators;
+  const god = SPECIES.find(s => s.name === 'Anpurak'), reg = new Registry(db, { creators });
+  const m = reg.catchWild(catcher, god.id, 5);
+  assert.equal(m.originOwner, catcher);
+  const again = new Registry(db, { creators }).get(m.serial); // server restart: creator collections move royalties, but not a caught one
+  assert.equal(again.originOwner, catcher);
+  const meta = metadataJson(again, 'https://x', CONFIG.royaltyBps);
+  assert.equal(meta.seller_fee_basis_points, 500); assert.equal(CONFIG.royaltyBps, 500);
+  const split = saleSplit(1_000_000_000n, CONFIG.royaltyBps, [{ address: again.originOwner, percentage: 100 }], true);
+  assert.equal(split.royalty, 50_000_000n); assert.equal(split.payouts[0].address, catcher, '5% of a 1 SOL resale goes to the catcher');
+});

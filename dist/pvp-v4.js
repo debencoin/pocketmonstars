@@ -712,7 +712,7 @@ function renderRoom() {
       if (room.wild) { const w = window.PMWild, c = ended.caught, wsp = Monstars.SPECIES[room.wild.speciesId ?? room.wild.foeId];
         q('pvBig').textContent = c?.ok ? 'Caught!' : won ? 'Victory!' : 'Defeated';
         const keepLv = !String(me || '').startsWith('@') && c?.monstar?.level > 1;
-        const line = c ? (c.ok ? `<b>You caught ${esc(wsp.name)}!</b> ${wsp.wildOne ? '<b>It is one of a kind: you own the only one in the wild.</b> ' : ''}${keepLv ? `It kept its level (Lv${c.monstar.level}) because you play with Phantom.` : 'It joined your team as a level 1 Infant (Phantom players keep the level they beat).'}`
+        const line = c ? (c.ok ? `<b>You caught ${esc(wsp.name)}!</b> ${wsp.wildOne ? '<b>It is one of a kind: you own the only one in the wild.</b> Sell it on the market any time, and you earn a 5% royalty every time it is resold after that. ' : ''}${keepLv ? `It kept its level (Lv${c.monstar.level}) because you play with Phantom.` : 'It joined your team as a level 1 Infant (Phantom players keep the level they beat).'}`
             : c.taken ? `<b>${esc(wsp.name)} is one of a kind</b> and another player caught it first.` : won ? `${esc(wsp.name)} got away (${Math.round(c.chance * 100)}% catch chance for ${esc(c.tier)}).` : `${esc(wsp.name)} was too strong this time.`)
           : `Practice run. <b>Sign in and pay ${esc(w.feeSol())} SOL</b> to enter the wild for real and catch what you beat.`;
         q('pvSmall').innerHTML += '<br>' + line;
