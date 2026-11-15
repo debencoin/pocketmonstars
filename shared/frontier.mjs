@@ -529,5 +529,15 @@ export const ELEMENT_MASTERS = [
     { lv: 10, special: { name: 'Blade Wave', style: 'beam', power: 1.1, note: 'Swings the blade: a wave of green energy cuts across the arena.' } },
     { lv: 25, basic: { name: 'Twin Emerald Orbs', look: 'ki', shots: 2, status: 'paralyze', note: 'Two balls of green energy.' }, special: { name: 'Lightning Cleave', style: 'strike', power: 1.25, note: 'Drives the blade into the ground: green lightning bursts up under the rival.' } },
     { lv: 50, special: { name: 'Emerald Overdrive', style: 'beam', power: 1.4, note: 'His hair blazes: a huge green energy beam across the arena.' } } ]),
+  // VORRAK, the crimson saber master (from the creator's sheet): an original character. Melee saber combos and crimson
+  // powers: lifts rivals with an unseen grip, throws red lightning, crushes them under stone. Shadow type.
+  { ...EM('Vorrak', 'thunder', 'striker', '#c81e1e', ['Vorrak the Acolyte', 'Vorrak the Disciple', 'Crimson Knight Vorrak', 'Crimson Lord Vorrak', 'Vorrak, Crimson Ascendant', 'Vorrak of the Crimson Eclipse'], [
+    { lv: 1, basic: { name: 'Crimson Saber', knock: 2, note: 'Ignites his crimson energy saber and cuts in a fast three-hit combo.' },
+      special: { name: 'Crimson Grip', style: 'levitate', note: 'Raises a hand: an unseen grip lifts the rival off the ground and throws it down.' },
+      guard: { name: 'Saber Deflect', note: 'Spins the saber in front of him to turn hits aside.' }, dash: { name: 'Shadow Step', note: 'Slips forward through the shadows.' },
+      mega: { kind: 'drain', name: 'Vorrak Life Siphon', note: 'Drains the rival\'s life force across the arena and feeds on it.', power: 1.3, size: 1 } },
+    { lv: 10, special: { name: 'Crimson Lightning', style: 'beam', status: 'paralyze', power: 1.1, note: 'Red lightning pours from his fingers across the arena and paralyzes.' } },
+    { lv: 25, basic: { name: 'Saber Fury', knock: 3, power: 1.15, note: 'A heavier saber flurry that ends in a rising cut.' }, special: { name: 'Stone Crush', style: 'strike', power: 1.25, note: 'Lifts the broken floor around him and slams the stones onto the rival.' } },
+    { lv: 50, special: { name: 'Dominion Burst', style: 'strike', power: 1.4, note: 'A crimson shockwave bursts out of him and flattens everything near.' } } ]), type: 'SHADE', basicStyle: 'whip', saber: true },
   ].map(m => ({ ...m, starter: undefined })),
 ];

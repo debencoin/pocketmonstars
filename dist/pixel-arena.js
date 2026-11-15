@@ -2,14 +2,14 @@
 // PocketMonstars pixel arena renderer: a 320x180 native-resolution battlefield scaled up with crisp pixels.
 // Draws animated pixel Monstars and a hand-built animation for every power. Exposes window.PMArena.
 (() => {
-const NAMES = ["cindercub","mossprout","ripplefin","voltwing","duskhorn","pebblit","frostuft","bloomtail","soloryx","seraphon","psyvolt","blazebuck","cinderwyrm","pyrofinch","magmole","emberjack","coralisk","bubblyn","clawtide","abyssquid","wavewing","thornox","fernling","mantiseed","acornaut","lilypadra","zapurr","ohmoth","voltusk","joltail","gloomwisp","nocturrow","shadefang","hexmask","quarrox","fossilith","geodillo","cragcrab","glacielk","snowpuff","icicrow","rimewyrm","cometail","lunaroo","orbitron","mindmoth","oracub","prismeye","toxitoad","mycospore","stingrex","viperoot","gearhound","rivetbot","bladewing","ironshell","zephyrkit","galeon","whirlwisp","drakelet","skyrex","aurielle","valkyra","nimbiel","aeonox","anuvax","enlilor","enkiryn","inannox","utuflare","nannamoth","marduzar","tiamaw","ninhurra","lamassor","shedulon","apkalith","anzurok","humbaroth","pazuzar","mushussar","nergalith","ereshkyl","nabuscribe","ziggurok","semyazar","azazelith","armarok","baraqion","kokabyx","tamiren","ramielon","danelith","ezeqor","sarielle","shamsor","arakor","penemyr","nephilox","grigoran","ophanex","irinyx","eyelurk","gazewing","vigilon","nyxara","serqeth","kaelor","lumiyah","thothex","khonsar","selenox","amunrah","azarath","setekh","horuskai","neferion","ptahmos","khepron","osirak","isisra","rasolar","anuket","anupex","nefertek","ninshara","kingaru","lahmuron","gulani","zababor","shalira","nisabel","ninurtax","solarch","voltaris","gravitas","aegiron","nightvale","blazewing","magmara","tidebreaker","coralon","hailstrike","frostbyte","quakefist","bouldra","galeforce","vortexa","thornheart","verdantia","nebulor","comettra","mindlock","psyra","steelbrand","ferronix","shadowstep","duskara","joltrix","ampere","drakonis","runeguard","sentrion","tidewen","marovek","granitus","terrala","pyreska","emberon","zephyrine","aerokai","voltessa","thundrik","tempestro","aurorex","titanor","phantomir","pyronyx","chronar","stormvane","bulwarkus","venomaw","quasarion","gorrath","starlara","lumivra","frostelle","blazara","sylphra","galdris","skyvar","windrik","aeromar","cyrran","aerisa","sylvane","zephra","windara","skylis","breezo","nimbra","cirrus","aeralyn","zephyl","tidegale","mistral","rainor","oceara","glacia","dustan","rockwen","sandor","terrai","quarra","emberwind","ashra","blazor","flarissa","pyrrin","voltair","sparra","thundro","zappira","boltan","covo","cova","aquari","rokko","blazen","gusti","voltz","kena","aurelia","amyah","dashi","bolo","swish","kapri","nyla","verdo","bunzo","tigo","vikko","noxx","anpurak","wepwarr","khemtek","duatron","selqira","isetra","ptahrex","khnumek","apisor","wadjeth","terrok","zephar","tydal","ignar","azaelion","spira","aerix","bouldar","nerin","zuri","verdex"]; // generated from shared/monstars.mjs SPECIES order
+const NAMES = ["cindercub","mossprout","ripplefin","voltwing","duskhorn","pebblit","frostuft","bloomtail","soloryx","seraphon","psyvolt","blazebuck","cinderwyrm","pyrofinch","magmole","emberjack","coralisk","bubblyn","clawtide","abyssquid","wavewing","thornox","fernling","mantiseed","acornaut","lilypadra","zapurr","ohmoth","voltusk","joltail","gloomwisp","nocturrow","shadefang","hexmask","quarrox","fossilith","geodillo","cragcrab","glacielk","snowpuff","icicrow","rimewyrm","cometail","lunaroo","orbitron","mindmoth","oracub","prismeye","toxitoad","mycospore","stingrex","viperoot","gearhound","rivetbot","bladewing","ironshell","zephyrkit","galeon","whirlwisp","drakelet","skyrex","aurielle","valkyra","nimbiel","aeonox","anuvax","enlilor","enkiryn","inannox","utuflare","nannamoth","marduzar","tiamaw","ninhurra","lamassor","shedulon","apkalith","anzurok","humbaroth","pazuzar","mushussar","nergalith","ereshkyl","nabuscribe","ziggurok","semyazar","azazelith","armarok","baraqion","kokabyx","tamiren","ramielon","danelith","ezeqor","sarielle","shamsor","arakor","penemyr","nephilox","grigoran","ophanex","irinyx","eyelurk","gazewing","vigilon","nyxara","serqeth","kaelor","lumiyah","thothex","khonsar","selenox","amunrah","azarath","setekh","horuskai","neferion","ptahmos","khepron","osirak","isisra","rasolar","anuket","anupex","nefertek","ninshara","kingaru","lahmuron","gulani","zababor","shalira","nisabel","ninurtax","solarch","voltaris","gravitas","aegiron","nightvale","blazewing","magmara","tidebreaker","coralon","hailstrike","frostbyte","quakefist","bouldra","galeforce","vortexa","thornheart","verdantia","nebulor","comettra","mindlock","psyra","steelbrand","ferronix","shadowstep","duskara","joltrix","ampere","drakonis","runeguard","sentrion","tidewen","marovek","granitus","terrala","pyreska","emberon","zephyrine","aerokai","voltessa","thundrik","tempestro","aurorex","titanor","phantomir","pyronyx","chronar","stormvane","bulwarkus","venomaw","quasarion","gorrath","starlara","lumivra","frostelle","blazara","sylphra","galdris","skyvar","windrik","aeromar","cyrran","aerisa","sylvane","zephra","windara","skylis","breezo","nimbra","cirrus","aeralyn","zephyl","tidegale","mistral","rainor","oceara","glacia","dustan","rockwen","sandor","terrai","quarra","emberwind","ashra","blazor","flarissa","pyrrin","voltair","sparra","thundro","zappira","boltan","covo","cova","aquari","rokko","blazen","gusti","voltz","kena","aurelia","amyah","dashi","bolo","swish","kapri","nyla","verdo","bunzo","tigo","vikko","noxx","anpurak","wepwarr","khemtek","duatron","selqira","isetra","ptahrex","khnumek","apisor","wadjeth","terrok","zephar","tydal","ignar","azaelion","spira","aerix","bouldar","nerin","zuri","verdex","vorrak"]; // generated from shared/monstars.mjs SPECIES order
 const W = 320, H = 180, K = 1 / 3; // world (960x540) -> logical pixels; the canvas is 2x (640x360) so sprites keep fine detail
 const CW = 960, CH = 540, Z = 3, U = Z / 2; // U scales hand-tuned canvas-pixel sizes from the old 640 canvas
 const SPR = 0.95; // 96px battle sprites are drawn at ~65px tall on the 960 canvas (Ultimate stage)
 const STAGE_SCALE = [0.6, 0.72, 0.85, 1.0, 1.12, 1.25];
 const imgs = NAMES.map(n => { const i = new Image(); i.src = 'art/hd/' + n + '.png'; return i; });
 // Animated characters: a 6-frame sheet (idle A, idle B, run 1-4) in art/walk/ (generated by scripts/make_walkers.py)
-const WALKERS = new Set([105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132, 133, 134, 135, 136, 137, 138, 139, 140, 141, 142, 143, 144, 145, 146, 147, 148, 149, 150, 151, 152, 153, 154, 155, 156, 157, 158, 159, 160, 161, 162, 163, 164, 165, 166, 167, 168, 169, 170, 171, 172, 173, 174, 175, 176, 177, 178, 179, 180, 181, 182, 183, 184, 185, 186, 187, 188, 189, 190, 191, 192, 193, 194, 195, 196, 197, 198, 199, 200, 201, 202, 203, 204, 205, 206, 207, 208, 209, 210, 211, 212, 213, 214, 215, 216, 217, 218, 219, 220, 221, 222, 223, 224, 225, 226, 227, 228, 229, 230, 231, 232, 233, 234, 235, 236, 237, 238, 239, 240, 241, 242, 243, 244, 245, 246, 247, 248, 249, 250, 251, 252, 253, 254, 255, 256, 257, 258, 259, 260, 261, 262, 263, 264]);
+const WALKERS = new Set([105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132, 133, 134, 135, 136, 137, 138, 139, 140, 141, 142, 143, 144, 145, 146, 147, 148, 149, 150, 151, 152, 153, 154, 155, 156, 157, 158, 159, 160, 161, 162, 163, 164, 165, 166, 167, 168, 169, 170, 171, 172, 173, 174, 175, 176, 177, 178, 179, 180, 181, 182, 183, 184, 185, 186, 187, 188, 189, 190, 191, 192, 193, 194, 195, 196, 197, 198, 199, 200, 201, 202, 203, 204, 205, 206, 207, 208, 209, 210, 211, 212, 213, 214, 215, 216, 217, 218, 219, 220, 221, 222, 223, 224, 225, 226, 227, 228, 229, 230, 231, 232, 233, 234, 235, 236, 237, 238, 239, 240, 241, 242, 243, 244, 245, 246, 247, 248, 249, 250, 251, 252, 253, 254, 255, 256, 257, 258, 259, 260, 261, 262, 263, 264, 265]);
 // one sheet per evolution stage: art/walk/<name>_s0.png (Infant) ... _s5.png (Ascended)
 // Sheets load only for Monstars that are actually on screen (keeps memory low in the Phantom in-app browser).
 const sheets = {};
@@ -57,6 +57,7 @@ const POSES = {
   nerin: { col: '#5ec2ff', basic: [[1, 6], [25, 10]], special: [[1, 7], [10, 9], [25, 12], [50, 13]], guard: 8, dash: 11 },
   zuri: { col: '#7ad0ff', basic: 6, special: [[1, 8], [10, 7], [25, 8], [50, 6]], guard: 7 },
   verdex: { col: '#7aff4a', basic: 6, special: 7, dash: 8 },
+  vorrak: { col: '#ff2a3a', basic: 6, special: [[1, 7], [10, 7], [25, 8], [50, 8]], guard: 6, mega: 8, saber: 1 },
   // Spira's sheet is rendered from her animated rig (art-src/masters/spira): every power plays a short cast sequence ({ seq, t: seconds })
   spira: { col: '#5ec2ff', basic: [[1, { seq: [6, 7, 8] }], [25, { seq: [19, 20, 21], t: 0.6 }]],
     special: [[1, { seq: [9, 10, 11] }], [10, { seq: [16, 17, 18], t: 0.7 }], [25, { seq: [22, 23, 24], t: 0.7 }], [50, { seq: [25, 26, 27, 28], t: 0.9 }]],
@@ -507,11 +508,18 @@ function createRenderer(canvas, arena) {
     if (cast >= 0.04 && SP.col) { const d = f.fx < 0 ? -1 : 1, hx = X + ox + d * dw * 0.34, hy = Y + oy - dh * 0.5, fade = cast < 0.24 ? 1 : Math.max(0, 1 - (cast - 0.24) / (hold - 0.24));
       ctx.save(); ctx.globalCompositeOperation = 'lighter'; glowAt(hx, hy, dw * (0.28 + 0.12 * Math.sin(now * 30)) * (0.6 + 0.4 * fade), SP.col, 0.75 * fade); ctx.restore();
       if (Math.random() < 0.8 * fade) part((hx + (Math.random() - 0.5) * 10 * U) / Z, (hy + (Math.random() - 0.5) * 14 * U) / Z, d * (30 + Math.random() * 40), (Math.random() - 0.5) * 20, 0.35, SP.col, 1); }
+    const SB = !AN && POSES[NAMES[f.s]]?.saber ? POSES[NAMES[f.s]] : null;
+    if (SB && !opt.faint) { // lit by his own blade: a red light pool on the floor and a rim of red light behind him
+      const lit = f.ck && f.ct < castHold(f) ? 1 : 0.45 + 0.1 * Math.sin(now * 3);
+      ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = 0.35 * lit; ctx.fillStyle = '#ff1a2a';
+      ctx.beginPath(); ctx.ellipse(Math.round(X + ox), Math.round(Y), Math.round(dw * 0.55), 9 * U, 0, 0, 6.283); ctx.fill(); ctx.restore();
+      ctx.save(); ctx.globalCompositeOperation = 'lighter'; glowAt(X + ox, Y + oy - dh * 0.45, dw * 0.7, '#ff1a2a', 0.22 * lit); ctx.restore(); }
     if (AN && (f.sg > 0 || f.tr > 0)) { ctx.save(); ctx.globalCompositeOperation = 'lighter'; // the higher his form, the stronger his violet aura
       const k = Math.min(1, (f.sg || 0) / 5 + (f.tr > 0 ? 0.5 : 0)); glowAt(X + ox, Y + oy - dh * 0.45, dw * (0.9 + 0.5 * k), '#b45aff', (0.25 + 0.45 * k) * (0.85 + 0.15 * Math.sin(now * 14)));
       if (Math.random() < 0.3 + 0.5 * k) part((X + ox + (Math.random() - 0.5) * dw) / Z, (Y + oy - Math.random() * dh * 0.9) / Z, 0, -30 - Math.random() * 30, 0.5, Math.random() < 0.5 ? '#d8a8ff' : '#ffd84a', 1);
       ctx.restore(); }
     blit(blinkW || grow[i] > 0.9 ? wh : spr, X + ox, Y + oy, dw, dh, flip, sx, sy, rot);
+    if (SB && f.ck && f.ct < castHold(f) && !opt.faint) saberFx(f, i, X + ox, Y + oy, dw, dh, now);
     if (strikeK > 0.4 && wh) { ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = (strikeK - 0.4) * 0.9; blit(wh, X + ox, Y + oy, dw, dh, flip, sx, sy, rot); ctx.restore(); } // flash as the blow lands
     ctx.filter = 'none'; ctx.globalAlpha = 1;
     statusFx(f, X + ox, Y + oy, dw, dh, now);
@@ -621,6 +629,31 @@ function createRenderer(canvas, arena) {
       if (Math.random() < 0.5) part(X / Z + (Math.random() - 0.5) * r / Z * 2, oy / Z, (Math.random() - 0.5) * 10, -14, 0.5, Math.random() < 0.5 ? col : rim, 1);
     }
     ctx.restore(); ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';
+  }
+  // Energy-saber swings: each basic hit sweeps a glowing blade arc (down-slash, up-slash, then a level cut), drawn from
+  // wind-up to follow-through with a fading trail; powers crackle with red lightning at the hand.
+  const saberSt = [];
+  function saberFx(f, i, x, y, dw, dh, now) {
+    const st = saberSt[i] || (saberSt[i] = { n: 0, last: 9 }); if (f.ct < st.last - 0.05 && f.ct < 0.2) st.n++; st.last = f.ct;
+    const d = f.fx < 0 ? -1 : 1, cx = x + d * dw * 0.08, cy = y - dh * 0.52, R = dh * 0.62;
+    if (f.ck === 'basic') {
+      const u = Math.min(1, f.ct / 0.2); if (f.ct > 0.42) return;
+      const [a0, a1] = [[-2.1, 0.7], [0.9, -1.9], [-0.25, 0.25]][st.n % 3], ease = 1 - (1 - u) ** 3, a = a0 + (a1 - a0) * ease, fade = f.ct < 0.2 ? 1 : 1 - (f.ct - 0.2) / 0.22;
+      const P = ang => [cx + d * Math.cos(ang) * R, cy + Math.sin(ang) * R];
+      ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.lineCap = 'round';
+      for (let k = 7; k >= 0; k--) { const b = a0 + (a1 - a0) * Math.max(0, ease - k * 0.06), e = a0 + (a1 - a0) * Math.max(0, ease - (k - 1) * 0.06);
+        ctx.globalAlpha = fade * (1 - k / 8) * 0.8; ctx.strokeStyle = '#ff1a2a'; ctx.lineWidth = (14 - k) * U; ctx.beginPath();
+        ctx.arc(cx, cy, R * (0.98 - k * 0.012), d > 0 ? b : Math.PI - b, d > 0 ? e : Math.PI - e, d < 0 ? a1 > a0 : a1 < a0); ctx.stroke(); }
+      const [tx, ty] = P(a), [hx, hy] = [cx + d * Math.cos(a) * R * 0.25, cy + Math.sin(a) * R * 0.25];
+      ctx.globalAlpha = fade; ctx.strokeStyle = '#ff3a48'; ctx.lineWidth = 9 * U; ctx.beginPath(); ctx.moveTo(hx, hy); ctx.lineTo(tx, ty); ctx.stroke();
+      ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 3 * U; ctx.beginPath(); ctx.moveTo(hx, hy); ctx.lineTo(tx, ty); ctx.stroke();
+      glowAt(tx, ty, 18 * U, '#ff1a2a', 0.8 * fade); ctx.restore();
+      if (u > 0.6 && u < 0.95 && Math.random() < 0.7) part(tx / Z, ty / Z, d * (40 + Math.random() * 50), (Math.random() - 0.5) * 50, 0.3, Math.random() < 0.5 ? '#ff4a5a' : '#ffd0d4', 1);
+    } else { // powers: red lightning crackles around the casting hand
+      const hx = x + d * dw * 0.36, hy = y - dh * 0.55; ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.strokeStyle = '#ff2a3a'; ctx.lineWidth = 2 * U;
+      for (let k = 0; k < 3; k++) { let px2 = hx, py2 = hy; ctx.globalAlpha = 0.6 + Math.random() * 0.4; ctx.beginPath(); ctx.moveTo(px2, py2);
+        for (let j = 0; j < 5; j++) { px2 += d * (6 + Math.random() * 10) * U; py2 += (Math.random() - 0.5) * 14 * U; ctx.lineTo(px2, py2); } ctx.stroke(); }
+      glowAt(hx, hy, 22 * U, '#ff1a2a', 0.7); ctx.restore(); }
   }
   function glowAt(x, y, r, col, a) { const gr = ctx.createRadialGradient(x, y, 0, x, y, r); gr.addColorStop(0, col); gr.addColorStop(1, 'rgba(0,0,0,0)'); ctx.globalAlpha = a; ctx.fillStyle = gr; ctx.beginPath(); ctx.arc(x, y, r, 0, 6.283); ctx.fill(); ctx.globalAlpha = 1; }
   // What each status does to the Monstar, drawn on top of it

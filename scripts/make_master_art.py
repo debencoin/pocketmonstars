@@ -59,25 +59,35 @@ D = {
     side=(800, 5, 1030, 520),
     poses=[('push', (0, 560, 410, 1048)), ('rise', (410, 560, 832, 1050)), ('orb', (830, 575, 1254, 1050))],
     forms=[(0, 5, 290, 520)] * 6),
+  # VORRAK, the crimson saber master (art-src/masters/vorrak_sheet.png): painted dark background, cut with the matting model
+  'vorrak': dict(matte='ai', model='birefnet-general-lite', saber=(255, 30, 40), glow=(255, 40, 40),
+    side=(700, 0, 885, 338),
+    poses=[('saber', (228, 382, 402, 562)), ('grip', (383, 382, 563, 562)), ('crush', (588, 376, 762, 568)), ('cape', (748, 382, 918, 562))],
+    forms=[(38, 0, 282, 338)] * 6),
   'verdex': dict(matte='ai', glow=(90, 255, 60),
     side=(950, 0, 1225, 550),
     poses=[('orb', (415, 605, 672, 1000)), ('blade', (668, 605, 945, 1000)), ('turn', (940, 600, 1195, 1000))],
     forms=[(0, 0, 385, 550)] * 6),
 }
 
-_SESSION = None
-def matte(sheet, box, boost=False):
+_SESSIONS = {}
+def matte(sheet, box, boost=False, model='isnet-anime', saber=None):
     """Cut a drawing off a painted background with the anime matting model, keeping only the main figure."""
-    global _SESSION
     from rembg import remove, new_session
-    if _SESSION is None: _SESSION = new_session('isnet-anime')
-    out = remove(sheet.crop(box).convert('RGB'), session=_SESSION)
+    if model not in _SESSIONS: _SESSIONS[model] = new_session(model)
+    out = remove(sheet.crop(box).convert('RGB'), session=_SESSIONS[model])
     if boost: out.putalpha(out.split()[3].point(lambda v: max(0, min(255, (v - 20) * 3))))   # glowing drawings come out faint: firm them up
     a = np.asarray(out.split()[3]) > 40
     from scipy import ndimage
     lab, n = ndimage.label(a); sizes = ndimage.sum(np.ones_like(lab), lab, range(1, n + 1)) if n else []
     keep = np.isin(lab, [i + 1 for i, s in enumerate(sizes) if s > max(sizes) * 0.04]) if n else a
-    al = np.asarray(out.split()[3]) * keep; out.putalpha(Image.fromarray(al.astype(np.uint8), 'L')); return out.crop(out.getbbox())
+    al = np.asarray(out.split()[3]) * keep; out.putalpha(Image.fromarray(al.astype(np.uint8), 'L'))
+    if saber:  # the matting model keeps an energy blade's white core but drops its glow: paint the glow back around bright pixels
+        rgb = np.asarray(out.convert('RGB')).astype(int); hot = ((rgb.min(-1) > 200) & (al > 120)).astype(np.uint8) * 255
+        g = Image.fromarray(hot, 'L').filter(ImageFilter.MaxFilter(5)).filter(ImageFilter.GaussianBlur(6))
+        halo = Image.new('RGBA', out.size, saber + (0,)); halo.putalpha(g.point(lambda v: min(255, v * 2)))
+        out = Image.alpha_composite(halo, out)
+    return out.crop(out.getbbox())
 
 def cut(sheet, box, tol=20, dark=None):
     """White-paper sheets: flood the paper from the crop edge. Dark sheets: flood everything darker than `dark`."""
@@ -167,7 +177,7 @@ if __name__ == '__main__':
         ai = d.get('ai', set())
         def cutf(sh, box, *a, _c={}, _ai=ai, _all=d.get('matte') == 'ai'):
             if not (_all or box in _ai): return cut(sh, box, *a)
-            if box not in _c: _c[box] = matte(sh, box, d.get('boost', False))
+            if box not in _c: _c[box] = matte(sh, box, d.get('boost', False), d.get('model', 'isnet-anime'), d.get('saber'))
             return _c[box]
         side = cutf(sheet, d['side'], d.get('tol', 20), d.get('dark')); k = (H - 40) / side.height          # one scale for the big drawings
         if d.get('run'):
