@@ -161,7 +161,7 @@ test('Elemental Benders: gifted wallets get their benders (Tempestro only to q2x
   // every earlier bender is retired: no wallet is given one any more; the founder holds the four Element Masters and COVO
   for (const w of Object.keys(gifts)) assert.ok(!reg.claimAll(w).some(m => m.species.retired), 'no retired benders are given');
   const f = reg.claimAll(CONFIG.legendaryOwner).filter(m => m.species.master).map(m => m.species.name).sort();
-  assert.deepEqual(f, ['Aerix', 'Azaelion', 'Bouldar', 'Ignar', 'Nerin', 'Spira', 'Terrok', 'Tydal', 'Verdex', 'Zephar', 'Zuri']); // COVO was released to the wild
+  assert.deepEqual(f, ['Aerix', 'Azaelion', 'Bouldar', 'COVO', 'Ignar', 'Nerin', 'Spira', 'Terrok', 'Tydal', 'Verdex', 'Zephar', 'Zuri']);
   assert.ok(reg.claimAll('HgPy9avE7tMVTgpehYwFQRQYGPUPbZKGzKPAuLNoeD3U').length > 5, 'Ashley keeps her wallet and her other Monstars');
   const S = await import('../shared/sim.mjs'), t = SPECIES.find(s => s.name === 'Tempestro'); assert.equal(t.kit.mega.kind, 'thunderstrike');
   const { Monstar } = await import('../shared/monstars.mjs');

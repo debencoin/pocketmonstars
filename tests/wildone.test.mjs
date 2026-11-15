@@ -7,8 +7,8 @@ import { Registry } from '../server/registry.mjs';
 import { CONFIG } from '../server/config.mjs';
 import { SPECIES, WILD_IDS, WILD_ONE_IDS, WILD_ONE_NAMES, rollWild, markWildOne } from '../shared/monstars.mjs';
 
-test('the founder released 38 Monstars: Seraphon, Psyvolt, the Ascendants, the Legend Heroes, COVO and the Watcher Gods', () => {
-  assert.equal(WILD_ONE_NAMES.length, 38); assert.equal(WILD_ONE_IDS.length, 38);
+test('the founder released 37 Monstars: Seraphon, Psyvolt, the Ascendants, the Legend Heroes and the Watcher Gods (COVO stays)', () => {
+  assert.equal(WILD_ONE_NAMES.length, 37); assert.equal(WILD_ONE_IDS.length, 37); assert.ok(!WILD_ONE_NAMES.includes('COVO'), 'COVO is not released');
   for (const id of WILD_ONE_IDS) { const sp = SPECIES[id]; assert.ok(sp.wildOne && sp.tier === 'Rare' && WILD_IDS.includes(id) && !sp.drop, sp.name); }
   assert.ok(!CONFIG.gifts[CONFIG.legendaryOwner].some(id => SPECIES[id].wildOne), 'no longer gifted to the founder');
   assert.ok(CONFIG.gifts['5eKeqSopYotsxwfE2uCJoyFywzqmXFe92NQR8kbHqaGd'].length === 10, 'the gods\' creator keeps their own set');

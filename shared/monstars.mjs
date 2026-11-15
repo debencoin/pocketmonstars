@@ -265,11 +265,11 @@ let _tc = {}; function tierCount(t) { return (_tc[t] ??= WILD_IDS.filter(id => S
  * Copies other wallets already hold are not touched; the wild copy is the single one that can be caught.
  */
 export const WILD_ONE_NAMES = [
-  // released by the founder (Nov 15, 2026): Seraphon and Psyvolt, the 20 Ascendants, the 5 Legend Heroes, COVO and the 10 Watcher Gods
+  // released by the founder (Nov 15, 2026): Seraphon and Psyvolt, the 20 Ascendants, the 5 Legend Heroes and the 10 Watcher Gods; COVO stays in the founder's wallet
   'Seraphon', 'Psyvolt',
   'Nyxara', 'Serqeth', 'Kaelor', 'Lumiyah', 'Thothex', 'Khonsar', 'Selenox', 'Amunrah', 'Azarath', 'Setekh',
   'Horuskai', 'Neferion', 'Ptahmos', 'Khepron', 'Osirak', 'Isisra', 'Rasolar', 'Anuket', 'Anupex', 'Nefertek',
-  'Aurorex', 'Titanor', 'Phantomir', 'Pyronyx', 'Chronar', 'COVO',
+  'Aurorex', 'Titanor', 'Phantomir', 'Pyronyx', 'Chronar',
   'Anpurak', 'Wepwarr', 'Khemtek', 'Duatron', 'Selqira', 'Isetra', 'Ptahrex', 'Khnumek', 'Apisor', 'Wadjeth',
 ];
 export const WILD_ONE_IDS = [];
