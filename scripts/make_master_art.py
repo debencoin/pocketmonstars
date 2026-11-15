@@ -33,7 +33,51 @@ D = {
     poses=[('staff', (165, 368, 288, 505)), ('waterspin', (292, 368, 428, 505)), ('ring', (428, 368, 568, 505)), ('fire', (570, 368, 708, 505)),
            ('waterslash', (710, 368, 858, 505)), ('origin', (952, 692, 1178, 898))],
     forms=[(916, 503, 987, 598), (916, 503, 987, 598), (1010, 500, 1085, 598), (1105, 500, 1185, 598), (1295, 500, 1375, 598), (1414, 494, 1498, 594)]),
+  # the creator's second set of element benders (and the fire sheet for Ignar). Sheets are full-colour on white paper.
+  'ignar': dict(tol=20, glow=(255, 120, 30), blank=[(928, 840, 1254, 1254)],   # paint out the detail panel beside the jumping pose
+    side=(745, 5, 975, 495),
+    poses=[('fireball', (5, 555, 362, 862)), ('stomp', (340, 580, 690, 858)), ('spiral', (675, 555, 985, 880))],
+    forms=[(5, 885, 170, 1185), (5, 885, 170, 1185), (170, 855, 350, 1185), (350, 855, 520, 1185), (520, 855, 735, 1185), (735, 855, 925, 1185)]),
+  'aerix': dict(tol=20, glow=(150, 200, 255),
+    side=(700, 5, 945, 375),
+    poses=[('push', (5, 450, 275, 670)), ('slash', (275, 440, 488, 670)), ('cyclone', (715, 430, 955, 670)), ('burst', (695, 725, 955, 895)),
+           ('shield', (5, 705, 225, 895)), ('dash', (460, 725, 690, 895)), ('glider', (220, 705, 465, 895)), ('levitate', (488, 430, 715, 670))],
+    forms=[(5, 975, 125, 1160), (5, 975, 125, 1160), (125, 970, 250, 1160), (248, 960, 380, 1160), (380, 960, 515, 1160), (515, 955, 655, 1160)]),
+  'bouldar': dict(tol=20, glow=(150, 210, 60),
+    side=(715, 5, 950, 378),
+    poses=[('push', (10, 435, 255, 602)), ('spike', (250, 435, 455, 602)), ('shield', (452, 428, 700, 602)), ('wave', (697, 435, 957, 602)),
+           ('boulder', (15, 640, 205, 812)), ('pillar', (195, 640, 420, 812)), ('quake', (420, 640, 715, 812)), ('wall', (715, 640, 955, 812))],
+    forms=[(15, 870, 140, 1040), (140, 855, 290, 1040), (290, 870, 425, 1040), (425, 855, 585, 1040), (585, 855, 760, 1040), (760, 850, 955, 1040)]),
+  'nerin': dict(tol=20, glow=(60, 160, 255),
+    side=(720, 5, 935, 378),
+    poses=[('push', (5, 440, 245, 612)), ('whip', (245, 428, 470, 612)), ('shield', (470, 428, 715, 612)), ('wave', (715, 428, 955, 612)),
+           ('spear', (5, 650, 240, 818)), ('surge', (240, 650, 480, 818)), ('whirlpool', (480, 650, 705, 818)), ('dragon', (705, 650, 955, 818))],
+    forms=[(10, 870, 125, 1042), (125, 865, 265, 1042), (265, 860, 405, 1042), (405, 860, 540, 1042), (540, 855, 675, 1042), (815, 855, 960, 1042)]),
+  # one-form sheets (no evolution row): every stage is the front view, the glow grows with the stage.
+  # Painted backgrounds behind these drawings are cut away with an anime matting model (rembg, isnet-anime).
+  'zuri': dict(tol=24, ai={(0, 560, 410, 1048), (410, 560, 832, 1050), (830, 575, 1254, 1050)}, boost=True, glow=(80, 170, 255),   # the action poses sit in a glow that only the matting model can cut
+    side=(800, 5, 1030, 520),
+    poses=[('push', (0, 560, 410, 1048)), ('rise', (410, 560, 832, 1050)), ('orb', (830, 575, 1254, 1050))],
+    forms=[(0, 5, 290, 520)] * 6),
+  'verdex': dict(matte='ai', glow=(90, 255, 60),
+    side=(950, 0, 1225, 550),
+    poses=[('orb', (415, 605, 672, 1000)), ('blade', (668, 605, 945, 1000)), ('turn', (940, 600, 1195, 1000))],
+    forms=[(0, 0, 385, 550)] * 6),
 }
+
+_SESSION = None
+def matte(sheet, box, boost=False):
+    """Cut a drawing off a painted background with the anime matting model, keeping only the main figure."""
+    global _SESSION
+    from rembg import remove, new_session
+    if _SESSION is None: _SESSION = new_session('isnet-anime')
+    out = remove(sheet.crop(box).convert('RGB'), session=_SESSION)
+    if boost: out.putalpha(out.split()[3].point(lambda v: max(0, min(255, (v - 20) * 3))))   # glowing drawings come out faint: firm them up
+    a = np.asarray(out.split()[3]) > 40
+    from scipy import ndimage
+    lab, n = ndimage.label(a); sizes = ndimage.sum(np.ones_like(lab), lab, range(1, n + 1)) if n else []
+    keep = np.isin(lab, [i + 1 for i, s in enumerate(sizes) if s > max(sizes) * 0.04]) if n else a
+    al = np.asarray(out.split()[3]) * keep; out.putalpha(Image.fromarray(al.astype(np.uint8), 'L')); return out.crop(out.getbbox())
 
 def cut(sheet, box, tol=20, dark=None):
     """White-paper sheets: flood the paper from the crop edge. Dark sheets: flood everything darker than `dark`."""
@@ -162,15 +206,24 @@ if __name__ == '__main__':
     for name, d in D.items():
         if only and name not in only: continue
         sheet = Image.open(os.path.join(SRC, d.get('file', name + '_sheet.png')))
-        side = cut(sheet, d['side'], d.get('tol', 20), d.get('dark')); k = (H - 40) / side.height          # one scale for the big drawings
+        if d.get('blank'):
+            from PIL import ImageDraw
+            sheet = sheet.convert('RGB'); dr = ImageDraw.Draw(sheet)
+            for r in d['blank']: dr.rectangle(r, fill=(255, 255, 255))
+        ai = d.get('ai', set())
+        def cutf(sh, box, *a, _c={}, _ai=ai, _all=d.get('matte') == 'ai'):
+            if not (_all or box in _ai): return cut(sh, box, *a)
+            if box not in _c: _c[box] = matte(sh, box, d.get('boost', False))
+            return _c[box]
+        side = cutf(sheet, d['side'], d.get('tol', 20), d.get('dark')); k = (H - 40) / side.height          # one scale for the big drawings
         if d.get('run'):
-            rk = (H - 40) / max(cut(sheet, b, d.get('tol', 20)).height for b in d['run'])
-            run = [place(cut(sheet, b, d.get('tol', 20)), rk) for b in d['run']]
+            rk = (H - 40) / max(cutf(sheet, b, d.get('tol', 20)).height for b in d['run'])
+            run = [place(cutf(sheet, b, d.get('tol', 20)), rk) for b in d['run']]
         else: run = A['frames'](place(side, k).crop(place(side, k).getbbox()))[2:6]
         fit = lambda im: place(im, min((W - 8) / im.width, (H - 24) / im.height))   # each power pose fills the frame like the idle and run drawings
-        poses = [fit(cut(sheet, b, d.get('tol', 20), d.get('dark'))) for _, b in d['poses']]
+        poses = [fit(cutf(sheet, b, d.get('tol', 20), d.get('dark'))) for _, b in d['poses']]
         for st in range(6):
-            form = cut(sheet, d['forms'][st], d.get('tol', 20), d.get('dark')); idle = place(form, (H - 40) * [0.86, 0.92, 1, 1, 1, 1][st] / form.height)
+            form = cutf(sheet, d['forms'][st], d.get('tol', 20), d.get('dark')); idle = place(form, (H - 40) * [0.86, 0.92, 1, 1, 1, 1][st] / form.height)
             idle2 = Image.new('RGBA', (W, H), (0, 0, 0, 0)); sq = idle.resize((W, round(H * 0.985)), Image.LANCZOS); idle2.alpha_composite(sq, (0, H - sq.height))
             t = max(0, st - 1); fs = [glow(f, d['glow'], t) for f in [idle, idle2, *run, *poses]]
             sh = Image.new('RGBA', (W * len(fs), H), (0, 0, 0, 0))

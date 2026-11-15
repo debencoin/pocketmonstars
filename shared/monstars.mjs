@@ -152,7 +152,7 @@ export const SPECIES = [
 ];
 for (const [list, coll] of [[FRONTIER, 'frontier'], [MYTHIC, 'mythic'], [ANUNNAKI, 'anunnaki'], [WATCHERS, 'watchers'], [ASCENDANTS, 'ascendants'], [ROYALS, 'royals'], [HEROES, 'heroes'], [BENDERS, 'benders'], [LEGEND_HEROES, 'legendheroes'], [SKY_BENDERS, 'skybenders'], [FINAL_BENDERS, 'skybenders'], [STARTER_BENDERS, 'starters'], [GIFT_FINALS, 'skybenders'], [GIFT_ELITES, 'skybenders'], [AURA_WARRIORS, 'aurawarriors'], [WATCHER_GODS, 'watchergods'], [ELEMENT_MASTERS, 'masters']]) for (const f of list) {
   SPECIES.push({ id: SPECIES.length, name: f.name, type: f.type, art: f.name.toLowerCase(), cls: CLASS_BY_ID[f.cls], move: f.move, special: f.special,
-    basicStyle: f.basicStyle, specialStyle: f.specialStyle, motion: f.motion, collection: coll, tier: f.tier, mythic: ['Mythic', 'Divine'].includes(f.tier) || undefined, legendary: f.legendary || undefined, legendFor: f.legendFor, portrait: f.look.plan === 'portrait' || undefined, walker: f.look.plan === 'walker' || undefined, forms: f.forms || (f.look.plan === 'walker' ? walkerForms(f.name) : undefined), hero: f.hero, drop: f.drop, bender: f.bender, elite: f.elite, giftHero: f.giftHero, sky: f.sky, el2: f.el2, female: f.female, unique: f.unique, starter: f.starter, aura: f.aura, god: f.god, master: f.master, tiers: f.tiers, speedBoost: f.speedBoost, sig: f.sig, lore: f.lore, color: f.look.main });
+    basicStyle: f.basicStyle, specialStyle: f.specialStyle, motion: f.motion, collection: coll, tier: f.tier, mythic: ['Mythic', 'Divine'].includes(f.tier) || undefined, legendary: f.legendary || undefined, legendFor: f.legendFor, portrait: f.look.plan === 'portrait' || undefined, walker: f.look.plan === 'walker' || undefined, forms: f.forms || (f.look.plan === 'walker' ? walkerForms(f.name) : undefined), hero: f.hero, drop: f.drop, bender: f.bender, elite: f.elite, giftHero: f.giftHero, sky: f.sky, el2: f.el2, female: f.female, unique: f.unique, starter: f.starter, aura: f.aura, god: f.god, master: f.master, battleForms: f.battleForms, tiers: f.tiers, speedBoost: f.speedBoost, sig: f.sig, lore: f.lore, color: f.look.main });
 }
 // Every earlier bender is retired: the Element Masters replace them. Retired species keep their id (old records still
 // read correctly) but are never given, sold, met in the wild or chosen as a starter.
@@ -249,21 +249,51 @@ export function wildLevel(sp, myLevel = 1, rand = Math.random, floor = 1) {
   return Math.max(floor, myLevel + 1 + extra);
 }
 /** Weighted random wild species (rarer tiers show up less often). `rand` is 0..1. */
-export function rollWild(rand = Math.random()) {
-  const total = WILD_IDS.reduce((t, id) => t + TIERS[SPECIES[id].tier].weight / tierCount(SPECIES[id].tier), 0);
+/** `skip(id)` leaves species out of the roll: the server skips one-of-a-kind wild Monstars that have already been caught. */
+export function rollWild(rand = Math.random(), skip = null) {
+  const ids = skip ? WILD_IDS.filter(id => !skip(id)) : WILD_IDS;
+  const total = ids.reduce((t, id) => t + TIERS[SPECIES[id].tier].weight / tierCount(SPECIES[id].tier), 0);
   let r = rand * total;
-  for (const id of WILD_IDS) { r -= TIERS[SPECIES[id].tier].weight / tierCount(SPECIES[id].tier); if (r <= 0) return id; }
-  return WILD_IDS[0];
+  for (const id of ids) { r -= TIERS[SPECIES[id].tier].weight / tierCount(SPECIES[id].tier); if (r <= 0) return id; }
+  return ids[0] ?? WILD_IDS[0];
 }
-const _tc = {}; function tierCount(t) { return (_tc[t] ??= WILD_IDS.filter(id => SPECIES[id].tier === t).length); }
+let _tc = {}; function tierCount(t) { return (_tc[t] ??= WILD_IDS.filter(id => SPECIES[id].tier === t).length); }
+/**
+ * One-of-a-kind wild Monstars: special characters the founder released from their wallet into the wild. Rare tier.
+ * Each exists ONCE: it rolls in the wild until a player catches it, then it belongs to that player (and whoever they
+ * trade or sell it to) and never spawns again. It is never gifted, sold in the shop or bred.
+ * Add a character here by name to release it: on the next server start the founder wallet's unminted, unlisted copy leaves it.
+ * Copies other wallets already hold are not touched; the wild copy is the single one that can be caught.
+ */
+export const WILD_ONE_NAMES = [
+  // released by the founder (Nov 15, 2026): Seraphon and Psyvolt, the 20 Ascendants, the 5 Legend Heroes, COVO and the 10 Watcher Gods
+  'Seraphon', 'Psyvolt',
+  'Nyxara', 'Serqeth', 'Kaelor', 'Lumiyah', 'Thothex', 'Khonsar', 'Selenox', 'Amunrah', 'Azarath', 'Setekh',
+  'Horuskai', 'Neferion', 'Ptahmos', 'Khepron', 'Osirak', 'Isisra', 'Rasolar', 'Anuket', 'Anupex', 'Nefertek',
+  'Aurorex', 'Titanor', 'Phantomir', 'Pyronyx', 'Chronar', 'COVO',
+  'Anpurak', 'Wepwarr', 'Khemtek', 'Duatron', 'Selqira', 'Isetra', 'Ptahrex', 'Khnumek', 'Apisor', 'Wadjeth',
+];
+export const WILD_ONE_IDS = [];
+export function markWildOne(names) {
+  for (const n of names) {
+    const sp = SPECIES.find(s => s.name.toLowerCase() === String(n).toLowerCase()); if (!sp) throw Error('No Monstar named ' + n);
+    if (sp.wildOne) continue;
+    if (sp.starter) throw Error(sp.name + ' is a starter every new player can pick, so it cannot be one of a kind');
+    Object.assign(sp, { wildOne: true, tier: 'Rare', drop: undefined }); // keeps its own power (legendary bonus included); Rare is how often it shows up and how hard it is to catch
+    WILD_ONE_IDS.push(sp.id); if (!WILD_IDS.includes(sp.id)) WILD_IDS.push(sp.id);
+    for (const L of [SALE_IDS, SHOP_IDS]) { const k = L.indexOf(sp.id); if (k >= 0) L.splice(k, 1); }
+  }
+  _tc = {};
+}
 for (const s of SPECIES) if (s.legendary) s.legendFor ||= 'founder';
 export const LEGENDARY_IDS = SPECIES.filter(s => s.legendary).map(s => s.id);
 export const HERO_IDS = SPECIES.filter(s => s.hero).map(s => s.id);
 /** Species sold once each for SOL: the drop heroes (time-limited) and the market Sky Benders (no time limit). */
 export const SALE_IDS = SPECIES.filter(s => s.drop).map(s => s.id);
 export const SHOP_IDS = SPECIES.filter(s => s.drop?.shop).map(s => s.id);
+markWildOne(WILD_ONE_NAMES);
 /** Legendary species held by each founder wallet ('founder' = first wallet, 'royal' = second). */
-export const legendaryIdsFor = key => SPECIES.filter(s => s.legendary && s.legendFor === key).map(s => s.id);
+export const legendaryIdsFor = key => SPECIES.filter(s => s.legendary && s.legendFor === key && !s.wildOne).map(s => s.id); // released ones are only caught
 /** File name of a species' NFT / market picture in dist/art/nft (portraits are .jpg). */
 export const nftArt = sp => sp.art + (sp.portrait ? '.jpg' : '.png');
 

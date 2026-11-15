@@ -2,14 +2,14 @@
 // PocketMonstars pixel arena renderer: a 320x180 native-resolution battlefield scaled up with crisp pixels.
 // Draws animated pixel Monstars and a hand-built animation for every power. Exposes window.PMArena.
 (() => {
-const NAMES = ["cindercub","mossprout","ripplefin","voltwing","duskhorn","pebblit","frostuft","bloomtail","soloryx","seraphon","psyvolt","blazebuck","cinderwyrm","pyrofinch","magmole","emberjack","coralisk","bubblyn","clawtide","abyssquid","wavewing","thornox","fernling","mantiseed","acornaut","lilypadra","zapurr","ohmoth","voltusk","joltail","gloomwisp","nocturrow","shadefang","hexmask","quarrox","fossilith","geodillo","cragcrab","glacielk","snowpuff","icicrow","rimewyrm","cometail","lunaroo","orbitron","mindmoth","oracub","prismeye","toxitoad","mycospore","stingrex","viperoot","gearhound","rivetbot","bladewing","ironshell","zephyrkit","galeon","whirlwisp","drakelet","skyrex","aurielle","valkyra","nimbiel","aeonox","anuvax","enlilor","enkiryn","inannox","utuflare","nannamoth","marduzar","tiamaw","ninhurra","lamassor","shedulon","apkalith","anzurok","humbaroth","pazuzar","mushussar","nergalith","ereshkyl","nabuscribe","ziggurok","semyazar","azazelith","armarok","baraqion","kokabyx","tamiren","ramielon","danelith","ezeqor","sarielle","shamsor","arakor","penemyr","nephilox","grigoran","ophanex","irinyx","eyelurk","gazewing","vigilon","nyxara","serqeth","kaelor","lumiyah","thothex","khonsar","selenox","amunrah","azarath","setekh","horuskai","neferion","ptahmos","khepron","osirak","isisra","rasolar","anuket","anupex","nefertek","ninshara","kingaru","lahmuron","gulani","zababor","shalira","nisabel","ninurtax","solarch","voltaris","gravitas","aegiron","nightvale","blazewing","magmara","tidebreaker","coralon","hailstrike","frostbyte","quakefist","bouldra","galeforce","vortexa","thornheart","verdantia","nebulor","comettra","mindlock","psyra","steelbrand","ferronix","shadowstep","duskara","joltrix","ampere","drakonis","runeguard","sentrion","tidewen","marovek","granitus","terrala","pyreska","emberon","zephyrine","aerokai","voltessa","thundrik","tempestro","aurorex","titanor","phantomir","pyronyx","chronar","stormvane","bulwarkus","venomaw","quasarion","gorrath","starlara","lumivra","frostelle","blazara","sylphra","galdris","skyvar","windrik","aeromar","cyrran","aerisa","sylvane","zephra","windara","skylis","breezo","nimbra","cirrus","aeralyn","zephyl","tidegale","mistral","rainor","oceara","glacia","dustan","rockwen","sandor","terrai","quarra","emberwind","ashra","blazor","flarissa","pyrrin","voltair","sparra","thundro","zappira","boltan","covo","cova","aquari","rokko","blazen","gusti","voltz","kena","aurelia","amyah","dashi","bolo","swish","kapri","nyla","verdo","bunzo","tigo","vikko","noxx","anpurak","wepwarr","khemtek","duatron","selqira","isetra","ptahrex","khnumek","apisor","wadjeth","terrok","zephar","tydal","ignar","azaelion","maelira"]; // generated from shared/monstars.mjs SPECIES order
+const NAMES = ["cindercub","mossprout","ripplefin","voltwing","duskhorn","pebblit","frostuft","bloomtail","soloryx","seraphon","psyvolt","blazebuck","cinderwyrm","pyrofinch","magmole","emberjack","coralisk","bubblyn","clawtide","abyssquid","wavewing","thornox","fernling","mantiseed","acornaut","lilypadra","zapurr","ohmoth","voltusk","joltail","gloomwisp","nocturrow","shadefang","hexmask","quarrox","fossilith","geodillo","cragcrab","glacielk","snowpuff","icicrow","rimewyrm","cometail","lunaroo","orbitron","mindmoth","oracub","prismeye","toxitoad","mycospore","stingrex","viperoot","gearhound","rivetbot","bladewing","ironshell","zephyrkit","galeon","whirlwisp","drakelet","skyrex","aurielle","valkyra","nimbiel","aeonox","anuvax","enlilor","enkiryn","inannox","utuflare","nannamoth","marduzar","tiamaw","ninhurra","lamassor","shedulon","apkalith","anzurok","humbaroth","pazuzar","mushussar","nergalith","ereshkyl","nabuscribe","ziggurok","semyazar","azazelith","armarok","baraqion","kokabyx","tamiren","ramielon","danelith","ezeqor","sarielle","shamsor","arakor","penemyr","nephilox","grigoran","ophanex","irinyx","eyelurk","gazewing","vigilon","nyxara","serqeth","kaelor","lumiyah","thothex","khonsar","selenox","amunrah","azarath","setekh","horuskai","neferion","ptahmos","khepron","osirak","isisra","rasolar","anuket","anupex","nefertek","ninshara","kingaru","lahmuron","gulani","zababor","shalira","nisabel","ninurtax","solarch","voltaris","gravitas","aegiron","nightvale","blazewing","magmara","tidebreaker","coralon","hailstrike","frostbyte","quakefist","bouldra","galeforce","vortexa","thornheart","verdantia","nebulor","comettra","mindlock","psyra","steelbrand","ferronix","shadowstep","duskara","joltrix","ampere","drakonis","runeguard","sentrion","tidewen","marovek","granitus","terrala","pyreska","emberon","zephyrine","aerokai","voltessa","thundrik","tempestro","aurorex","titanor","phantomir","pyronyx","chronar","stormvane","bulwarkus","venomaw","quasarion","gorrath","starlara","lumivra","frostelle","blazara","sylphra","galdris","skyvar","windrik","aeromar","cyrran","aerisa","sylvane","zephra","windara","skylis","breezo","nimbra","cirrus","aeralyn","zephyl","tidegale","mistral","rainor","oceara","glacia","dustan","rockwen","sandor","terrai","quarra","emberwind","ashra","blazor","flarissa","pyrrin","voltair","sparra","thundro","zappira","boltan","covo","cova","aquari","rokko","blazen","gusti","voltz","kena","aurelia","amyah","dashi","bolo","swish","kapri","nyla","verdo","bunzo","tigo","vikko","noxx","anpurak","wepwarr","khemtek","duatron","selqira","isetra","ptahrex","khnumek","apisor","wadjeth","terrok","zephar","tydal","ignar","azaelion","maelira","aerix","bouldar","nerin","zuri","verdex"]; // generated from shared/monstars.mjs SPECIES order
 const W = 320, H = 180, K = 1 / 3; // world (960x540) -> logical pixels; the canvas is 2x (640x360) so sprites keep fine detail
 const CW = 960, CH = 540, Z = 3, U = Z / 2; // U scales hand-tuned canvas-pixel sizes from the old 640 canvas
 const SPR = 0.95; // 96px battle sprites are drawn at ~65px tall on the 960 canvas (Ultimate stage)
 const STAGE_SCALE = [0.6, 0.72, 0.85, 1.0, 1.12, 1.25];
 const imgs = NAMES.map(n => { const i = new Image(); i.src = 'art/hd/' + n + '.png'; return i; });
 // Animated characters: a 6-frame sheet (idle A, idle B, run 1-4) in art/walk/ (generated by scripts/make_walkers.py)
-const WALKERS = new Set([105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132, 133, 134, 135, 136, 137, 138, 139, 140, 141, 142, 143, 144, 145, 146, 147, 148, 149, 150, 151, 152, 153, 154, 155, 156, 157, 158, 159, 160, 161, 162, 163, 164, 165, 166, 167, 168, 169, 170, 171, 172, 173, 174, 175, 176, 177, 178, 179, 180, 181, 182, 183, 184, 185, 186, 187, 188, 189, 190, 191, 192, 193, 194, 195, 196, 197, 198, 199, 200, 201, 202, 203, 204, 205, 206, 207, 208, 209, 210, 211, 212, 213, 214, 215, 216, 217, 218, 219, 220, 221, 222, 223, 224, 225, 226, 227, 228, 229, 230, 231, 232, 233, 234, 235, 236, 237, 238, 239, 240, 241, 242, 243, 244, 245, 246, 247, 248, 249, 250, 251, 252, 253, 254, 255, 256, 257, 258, 259]);
+const WALKERS = new Set([105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132, 133, 134, 135, 136, 137, 138, 139, 140, 141, 142, 143, 144, 145, 146, 147, 148, 149, 150, 151, 152, 153, 154, 155, 156, 157, 158, 159, 160, 161, 162, 163, 164, 165, 166, 167, 168, 169, 170, 171, 172, 173, 174, 175, 176, 177, 178, 179, 180, 181, 182, 183, 184, 185, 186, 187, 188, 189, 190, 191, 192, 193, 194, 195, 196, 197, 198, 199, 200, 201, 202, 203, 204, 205, 206, 207, 208, 209, 210, 211, 212, 213, 214, 215, 216, 217, 218, 219, 220, 221, 222, 223, 224, 225, 226, 227, 228, 229, 230, 231, 232, 233, 234, 235, 236, 237, 238, 239, 240, 241, 242, 243, 244, 245, 246, 247, 248, 249, 250, 251, 252, 253, 254, 255, 256, 257, 258, 259, 260, 261, 262, 263, 264]);
 // one sheet per evolution stage: art/walk/<name>_s0.png (Infant) ... _s5.png (Ascended)
 // Sheets load only for Monstars that are actually on screen (keeps memory low in the Phantom in-app browser).
 const sheets = {};
@@ -46,17 +46,74 @@ const STY = { projectile: { r: 12 }, bolt: { range: 420, hitAt: 0.08, dur: 0.22 
 // Monstars drawn from the creator's character sheets play the sheet's own pose for each power (frame numbers in the sheet).
 // special / dash: [from level, frame] pairs, because a stronger power takes over the button as the Monstar levels up.
 const POSES = {
-  zephar: { basic: 6, special: [[1, 7], [10, 8], [25, 9], [50, 13]], guard: 10, dash: [[1, 11], [25, 12]] },
-  terrok: { basic: [[1, 6], [25, 10]], special: [[1, 7], [10, 9], [25, 11], [50, 12]], guard: [[1, 8], [25, 13]] },
-  tydal: { basic: [[1, 6], [25, 10]], special: [[1, 7], [10, 9], [25, 12], [50, 13]], guard: 8, dash: 11 },
-  covo: { basic: 6, special: [[1, 10], [10, 7], [25, 9]], guard: 8, mega: 11 },
-  maelira: { basic: [[1, 7], [25, 6]], special: [[1, 6], [10, 9], [25, 8], [50, 10]], guard: 13, dash: 12, mega: 10 },
-  azaelion: { basic: 6, special: [[1, 9], [10, 7], [25, 8], [50, 12]], guard: 13, dash: 14, mega: 11 },
+  zephar: { col: '#c8b0ff', basic: 6, special: [[1, 7], [10, 8], [25, 9], [50, 13]], guard: 10, dash: [[1, 11], [25, 12]] },
+  terrok: { col: '#e0b060', basic: [[1, 6], [25, 10]], special: [[1, 7], [10, 9], [25, 11], [50, 12]], guard: [[1, 8], [25, 13]] },
+  tydal: { col: '#5ec2ff', basic: [[1, 6], [25, 10]], special: [[1, 7], [10, 9], [25, 12], [50, 13]], guard: 8, dash: 11 },
+  covo: { col: '#c080ff', basic: 6, special: [[1, 10], [10, 7], [25, 9]], guard: 8, mega: 11 },
+  maelira: { col: '#5ec2ff', basic: [[1, 7], [25, 6]], special: [[1, 6], [10, 9], [25, 8], [50, 10]], guard: 13, dash: 12, mega: 10 },
+  azaelion: { col: '#c080ff', basic: 6, special: [[1, 9], [10, 7], [25, 8], [50, 12]], guard: 13, dash: 14, mega: 11 },
+  ignar: { col: '#ff8a1f', basic: 6, special: [[1, 7], [10, 8], [25, 8], [50, 6]] },
+  aerix: { col: '#d8ecff', basic: 6, special: [[1, 7], [10, 8], [25, 9], [50, 13]], guard: 10, dash: [[1, 11], [25, 12]] },
+  bouldar: { col: '#d8a850', basic: [[1, 6], [25, 10]], special: [[1, 7], [10, 9], [25, 11], [50, 12]], guard: [[1, 8], [25, 13]] },
+  nerin: { col: '#5ec2ff', basic: [[1, 6], [25, 10]], special: [[1, 7], [10, 9], [25, 12], [50, 13]], guard: 8, dash: 11 },
+  zuri: { col: '#7ad0ff', basic: 6, special: [[1, 8], [10, 7], [25, 8], [50, 6]], guard: 7 },
+  verdex: { col: '#7aff4a', basic: 6, special: 7, dash: 8 },
 };
+// Full frame-by-frame animation drawn straight from a character's complete sprite sheet (scripts/make_chosen_anim.py):
+// an atlas of frames, each with its foot anchor, so the character always stands on the same spot at the same size.
+const ANIM = { azaelion: 'art/anim/azaelion' };
+const animData = {};
+function animFor(sid) {
+  const n = NAMES[sid], src = ANIM[n]; if (!src) return null;
+  let d = animData[n];
+  if (!d) {
+    d = animData[n] = { img: new Image(), J: null, white: new Map(), st: [] };
+    d.img.onerror = () => { d.img.onerror = null; d.img.src = src + '.png'; }; // older browsers without WebP
+    d.img.src = src + '.webp';
+    fetch(src + '.json').then(r => r.json()).then(J => { d.J = J; d.ks = ANIM_STAND / J.stand; }).catch(() => {});
+  }
+  return d.J && d.img.complete && d.img.naturalWidth ? d : null;
+}
+const ANIM_STAND = 132; // standing height on the 960 canvas: the same at every form, stage and move
+// Every character is drawn the same size: its body (opaque pixels of its standing frame, glow ignored) is scaled so its
+// tallest side is BODY canvas pixels, whatever its art, evolution stage or form.
+const BODY = ANIM_STAND, bodyK = new Map();
+function bodyFit(key, c) {
+  let k = bodyK.get(key); if (k !== undefined) return k;
+  try {
+    const d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data; let x0 = c.width, y0 = c.height, x1 = -1, y1 = -1;
+    for (let y = 0; y < c.height; y++) for (let x = 0; x < c.width; x++) if (d[(y * c.width + x) * 4 + 3] > 170) { if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
+    k = x1 < 0 ? 0 : BODY / Math.max(x1 - x0 + 1, y1 - y0 + 1);
+  } catch { k = 0; }
+  bodyK.set(key, k); return k;
+}
+const ELEMS = ['earth', 'wind', 'fire', 'water', 'lightning', 'fifth'];
+/** Which frame of which sequence the character shows right now. */
+function animPick(d, f, i, opt, now) {
+  const S = d.J.seqs, st = d.st[i] || (d.st[i] = { el: 0, combo: 0, lastCt: 9, g: 0, gOn: false, faint: 0 });
+  const at = (seq, u, loop) => { const q = S[seq]; const k = Math.floor(u * q.length); return q[loop ? ((k % q.length) + q.length) % q.length : Math.max(0, Math.min(q.length - 1, k))]; };
+  if (f.ck && f.ct < st.lastCt - 0.05 && f.ct < 0.2) { if (f.ck === 'special') st.el = (st.el + 1) % ELEMS.length; if (f.ck === 'basic') st.combo++; } // a new cast began
+  st.lastCt = f.ck ? f.ct : 9;
+  if (f.g && !st.gOn) st.g = now; st.gOn = !!f.g;
+  if (opt.faint) return at('knock', opt.faint * 1.3);
+  if (f.tr > 0) { const u = 1 - f.tr / 0.9; return u < 0.34 ? at('powerup', 0) : u < 0.67 ? at('auraon', 0) : at('transform', 0); }
+  if ((f.uo || f.ck === 'mega') && f.ct < 1.3) return at('mega', f.ct / 1.3);
+  if (f.ck === 'special' && f.ct < 0.85) return at(ELEMS[st.el], f.ct / 0.75);
+  if (f.ck === 'basic' && f.ct < 0.45) return at(st.combo % 2 ? 'heavy' : 'light', f.ct / 0.42);
+  if (f.bk > 0) return at('teleport', 0);
+  if (f.g) return at('guard', (now - st.g) / 0.28);
+  if (f.hu > 0) return at('hit', 1 - f.hu / 0.35);
+  if (f.ds) return at('dash', 0.3 + ((now * 12) % 5) / 7, false);
+  if (f.mv) return at('run', now * 1.6, true);
+  const form = Math.max(0, Math.min(5, f.sg || 0));
+  return form ? S.forms[Math.min(form, S.forms.length - 1)] : at('idle', now * 0.8, true);
+}
+// How long a cast pose is held: a special is a bigger move, so the character stays in it longer (wind-up, strike, hold, recover).
+const castHold = f => (f.ck === 'special' ? 0.85 : f.ck === 'mega' ? 1.2 : 0.5);
 const atLv = (v, lv) => Array.isArray(v) ? v.reduce((f, [l, fr]) => (lv >= l ? fr : f), v[0][1]) : v;
 function poseFrame(f) {
   const P = POSES[NAMES[f.s]]; if (!P) return -1;
-  if (f.ck && f.ct < 0.5 && P[f.ck] != null) return atLv(P[f.ck], f.lv || 1);
+  if (f.ck && f.ct < castHold(f) && P[f.ck] != null) return atLv(P[f.ck], f.lv || 1);
   if ((f.uo || f.ck === 'mega') && P.mega != null && f.ct < 1.2) return P.mega;
   if (f.g && P.guard != null) return atLv(P.guard, f.lv || 1);
   if (f.ds && P.dash != null) return atLv(P.dash, f.lv || 1);
@@ -232,7 +289,7 @@ function createRenderer(canvas, arena) {
     ctx.ellipse = (x, y, rx, ry, rot, a, b, c) => ell(fin(x), fin(y), pos(rx), pos(ry), fin(rot), fin(a), fin(b), c);
     ctx.createRadialGradient = (x0, y0, r0, x1, y1, r1) => rad(fin(x0), fin(y0), pos(r0), fin(x1), fin(y1), Math.max(0.01, pos(r1)));
   }
-  let parts = [], decals = [], texts = [], trails = [[], [], [], [], [], [], [], []], shake = 0, flash = 0, impacts = new Set(), lastNow = performance.now(), lean = [], tpSeen = [], lastPos = [], ghosts = [];
+  let parts = [], decals = [], texts = [], trails = [[], [], [], [], [], [], [], []], shake = 0, flash = 0, impacts = new Set(), lastNow = performance.now(), lean = [], tpSeen = [], lastPos = [], ghosts = [], seqF = [];
   let banner = null, grow = [0, 0, 0, 0, 0, 0, 0, 0], theme = 0, fx = [], SX = 0, SY = 0, dashSeen = [0, 0, 0, 0, 0, 0, 0, 0];
   // ---------- smooth full-resolution effects (dust clouds, impact stars, shockwaves, flying rock, glowing bolts) ----------
   const FULL = () => ctx.setTransform(1, 0, 0, 1, SX * Z, SY * Z), LOG = () => ctx.setTransform(Z, 0, 0, Z, SX * Z, SY * Z);
@@ -300,6 +357,9 @@ function createRenderer(canvas, arena) {
       wave(f.x * K, f.y * K + 6, '#ffd84a', 160); star(f.x * K, f.y * K - 10, '#ffd84a', 110, 24); return; }
     if (ev.type === 'dash') { const f = snap.f[ev.side]; if (!f) return; puffs(f.x * K, f.y * K, 6, ev.k === 'shadow' || ev.k === 'blink' ? '#b98cff' : ev.k === 'mend' ? '#9ef0c8' : '#e2d6bc', 40, 8, 0.5);
       if (ev.k === 'burst') say(f.x * K, f.y * K - 40, 'SPEED UP!', '#48d0ff', 1, 5); if (ev.k === 'mend') say(f.x * K, f.y * K - 40, 'HEAL', '#9ef0c8', 1, 5); return; }
+    if (ev.type === 'transform') { const f = snap.f[ev.side] || (snap.x || []).find(o => o.sd === ev.side); if (!f) return; const col = '#b45aff';
+      banner = { txt: String(ev.name || 'TRANSFORM').toUpperCase() + '!', sub: 'Form ' + ev.form + ' · stronger and faster this fight', t: 1.5, side: ev.side }; flash = Math.max(flash, 0.45); shake = Math.max(shake, 0.45);
+      wave(f.x * K, f.y * K + 6, col, 200); star(f.x * K, f.y * K - 14, '#ffd84a', 120, 26); burst(f.x * K, f.y * K - 14, [col, '#d8a8ff', '#ffffff', '#ffd84a'], 28, 100); return; }
     if (ev.type === 'ascend') { const f = snap.f[ev.side] || (snap.x || []).find(o => o.sd === ev.side); if (!f) return; const col = AURA_COL[ev.tier];
       banner = { txt: (ev.name || 'AURA').toUpperCase() + '!', sub: ['', 'Gold', 'Purple', 'Green', 'Red', 'White'][ev.tier] + ' aura · stronger and faster', t: 1.5, side: ev.side }; flash = Math.max(flash, 0.4); shake = Math.max(shake, 0.4);
       wave(f.x * K, f.y * K + 6, col, 180); star(f.x * K, f.y * K - 14, col, 120, 26); burst(f.x * K, f.y * K - 14, [col, col, '#ffffff', col], 24, 90); return; }
@@ -349,12 +409,16 @@ function createRenderer(canvas, arena) {
     const walker = WALKERS.has(f.s), ph0 = now + i * 0.37;
     // walk cycle: run frames while moving (faster when dashing), breathing idle otherwise
     const pf = poseFrame(f), frame = !walker ? 0 : pf >= 0 ? pf : f.ct < 0.3 && f.ck ? (f.ck === 'basic' ? 6 : 7) : f.ds ? 2 + Math.floor(ph0 * 16) % 4 : f.mv ? 2 + Math.floor(ph0 * 9) % 4 : Math.floor(ph0 * 2) % 2;
-    const spr = stageSprite(f.s, opt.hue || 0, stage, pal, false, frame), wh = stageSprite(f.s, opt.hue || 0, stage, pal, true, frame);
+    const AN = walker ? animFor(f.s) : null;
+    let spr = stageSprite(f.s, opt.hue || 0, stage, pal, false, frame), wh = stageSprite(f.s, opt.hue || 0, stage, pal, true, frame);
+    if (AN) { const ai = animPick(AN, f, i, opt, now); spr = { anim: AN, i: ai }; wh = { anim: AN, i: ai, white: true }; }
     if (!spr) return;
     grow[i] = Math.max(0, grow[i] - opt.dt * 0.8);
-    const sc = STAGE_SCALE[scaleStage] * (1 + Math.sin(grow[i] * 12) * 0.12 * grow[i]);
-    const hiK = spr.width > 150 ? 140 / spr.width : 1; // drawn-art sheets (Aura Warriors) are 3x size: shown a little bigger than pixel sprites
-    const dw = Math.round(spr.width * sc * SPR * hiK), dh = Math.round(spr.height * sc * SPR * hiK);
+    const sc = (AN ? 1 : STAGE_SCALE[scaleStage]) * (1 + Math.sin(grow[i] * 12) * 0.12 * grow[i]); // a frame-animated character keeps one size
+    const hiK = AN ? 1 : spr.width > 150 ? 140 / spr.width : 1; // drawn-art sheets (Aura Warriors) are 3x size: shown a little bigger than pixel sprites
+    const idle0 = AN ? null : stageSprite(f.s, 0, stage, pal, false, 0), bk = idle0 ? bodyFit(f.s + '|' + stage, idle0) : 0; // same body size for everyone
+    const grow1 = 1 + Math.sin(grow[i] * 12) * 0.12 * grow[i];
+    const dw = AN ? Math.round(ANIM_STAND * 0.62 * sc) : bk ? Math.round(spr.width * bk * grow1) : Math.round(spr.width * sc * SPR * hiK), dh = AN ? Math.round(ANIM_STAND * 1.06 * sc) : bk ? Math.round(spr.height * bk * grow1) : Math.round(spr.height * sc * SPR * hiK);
     let X = wx * K * Z, Y = wy * K * Z + 22 * U; // feet in canvas pixels
     const tr = trails[i]; if (f.ds || (f.bt && Math.random() < 0.5)) tr.push({ x: X, y: Y, life: 0.3 });
     if (f.ds && !dashSeen[i]) { puffs(X / Z, Y / Z, 6, '#e2d6bc', 34, 8, 0.6); } dashSeen[i] = f.ds ? 1 : 0;
@@ -376,7 +440,17 @@ function createRenderer(canvas, arena) {
       else if (mo === 'glide' || mo === 'skate') { rot = (f.fx < 0 ? -1 : 1) * 0.06; if (Math.random() < 0.3) part(X / Z, Y / Z, 0, 0, 0.35, mo === 'skate' ? '#dff8ff' : '#bfefff', 1); }
       else if (mo === 'blink') oy -= Math.abs(Math.sin(phase * 8)) * 3;
     } else if (!f.fl) oy -= (Math.floor(phase * 2.4) % 2) ? 2 : 0;
-    if (f.ct < 0.16) { ox += f.fx * 10 * U * (1 - f.ct / 0.16); oy += f.fy * 6 * U * (1 - f.ct / 0.16); }
+    // Sheet-drawn characters play each move as a sequence: wind-up (squash and pull back), strike (lunge with a flash and
+    // after-images), hold (energy pours from the hands) and recovery (the pose melts back into the stance).
+    const SP = walker && pf >= 0 && !AN ? POSES[NAMES[f.s]] : null, cast = SP && f.ck && f.ct < castHold(f) ? f.ct : -1, hold = castHold(f);
+    let strikeK = 0;
+    if (cast >= 0) {
+      const d = f.fx < 0 ? -1 : 1, ease = u => 1 - (1 - u) * (1 - u);
+      if (cast < 0.07) { const u = cast / 0.07; ox -= d * 6 * U * u; sx *= 1 + 0.06 * u; sy *= 1 - 0.08 * u; }                       // wind-up
+      else if (cast < 0.24) { const u = (cast - 0.07) / 0.17; strikeK = 1 - u; ox += d * (16 * ease(u) - 6 * (1 - u)) * U;            // strike
+        sx *= 1 + 0.07 * (1 - u); sy *= 1 + 0.04 * (1 - u); }
+      else { const u = Math.min(1, (cast - 0.24) / Math.max(0.1, hold - 0.24)); ox += d * 16 * (1 - ease(u)) * U; }                   // hold, settling back
+    } else if (f.ct < 0.16) { ox += f.fx * 10 * U * (1 - f.ct / 0.16); oy += f.fy * 6 * U * (1 - f.ct / 0.16); }
     if (f.hu > 0) ox += (Math.random() - 0.5) * 4 * U;
     if (f.i && Math.floor(now * 20) % 2) alpha = 0.5;
     if (f.bk > 0) alpha *= 0.3 + (1 - f.bk / 0.35) * 0.7;
@@ -411,7 +485,24 @@ function createRenderer(canvas, arena) {
     const blinkW = f.hu > 0 && Math.floor(now * 30) % 2 === 0;
     if (f.st === 'poison' && !blinkW) { ctx.filter = 'hue-rotate(250deg) saturate(1.4)'; }
     if (f.st === 'burn' && !blinkW) { ctx.filter = 'sepia(.5) saturate(1.6) hue-rotate(-20deg)'; }
+    // smooth pose changes: the old frame fades out under the new one (into and out of every move, guard and dash)
+    const sq = seqF[i] || (seqF[i] = { cur: frame, prev: frame, t: 1 });
+    if (frame !== sq.cur) { const big = frame >= 6 || sq.cur >= 6; sq.prev = sq.cur; sq.cur = frame; sq.t = big && walker && !AN ? 0 : 1; }
+    sq.t = Math.min(1, sq.t + opt.dt / 0.11);
+    if (sq.t < 1 && !blinkW) { const old = stageSprite(f.s, opt.hue || 0, stage, pal, false, sq.prev);
+      if (old) { ctx.globalAlpha = alpha * (1 - sq.t); blit(old, X + ox, Y + oy, dw, dh, flip, sx, sy, rot); ctx.globalAlpha = alpha * (0.35 + 0.65 * sq.t); } }
+    if (strikeK > 0) { const d = f.fx < 0 ? -1 : 1; // after-images trailing the lunge
+      for (let k = 3; k >= 1; k--) { ctx.globalAlpha = alpha * strikeK * 0.16 * (4 - k); blit(spr, X + ox - d * k * 9 * U, Y + oy, dw, dh, flip, sx, sy, rot); }
+      ctx.globalAlpha = alpha; }
+    if (cast >= 0.04 && SP.col) { const d = f.fx < 0 ? -1 : 1, hx = X + ox + d * dw * 0.34, hy = Y + oy - dh * 0.5, fade = cast < 0.24 ? 1 : Math.max(0, 1 - (cast - 0.24) / (hold - 0.24));
+      ctx.save(); ctx.globalCompositeOperation = 'lighter'; glowAt(hx, hy, dw * (0.28 + 0.12 * Math.sin(now * 30)) * (0.6 + 0.4 * fade), SP.col, 0.75 * fade); ctx.restore();
+      if (Math.random() < 0.8 * fade) part((hx + (Math.random() - 0.5) * 10 * U) / Z, (hy + (Math.random() - 0.5) * 14 * U) / Z, d * (30 + Math.random() * 40), (Math.random() - 0.5) * 20, 0.35, SP.col, 1); }
+    if (AN && (f.sg > 0 || f.tr > 0)) { ctx.save(); ctx.globalCompositeOperation = 'lighter'; // the higher his form, the stronger his violet aura
+      const k = Math.min(1, (f.sg || 0) / 5 + (f.tr > 0 ? 0.5 : 0)); glowAt(X + ox, Y + oy - dh * 0.45, dw * (0.9 + 0.5 * k), '#b45aff', (0.25 + 0.45 * k) * (0.85 + 0.15 * Math.sin(now * 14)));
+      if (Math.random() < 0.3 + 0.5 * k) part((X + ox + (Math.random() - 0.5) * dw) / Z, (Y + oy - Math.random() * dh * 0.9) / Z, 0, -30 - Math.random() * 30, 0.5, Math.random() < 0.5 ? '#d8a8ff' : '#ffd84a', 1);
+      ctx.restore(); }
     blit(blinkW || grow[i] > 0.9 ? wh : spr, X + ox, Y + oy, dw, dh, flip, sx, sy, rot);
+    if (strikeK > 0.4 && wh) { ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = (strikeK - 0.4) * 0.9; blit(wh, X + ox, Y + oy, dw, dh, flip, sx, sy, rot); ctx.restore(); } // flash as the blow lands
     ctx.filter = 'none'; ctx.globalAlpha = 1;
     statusFx(f, X + ox, Y + oy, dw, dh, now);
     if (f.g) { // shield bubble: stronger shields glow brighter
@@ -589,6 +680,11 @@ function createRenderer(canvas, arena) {
     LOG();
   }
   function blit(img, fx, fy, w, h, flip, sx, sy, rot) {
+    if (img?.anim) { const A = img.anim, [x, y, fw, fh, ax, ay] = A.J.frames[img.i], k = A.ks * (w / Math.round(ANIM_STAND * 0.62)) || A.ks;
+      let src = A.img, sxo = x, syo = y;
+      if (img.white) { let c = A.white.get(img.i); if (!c) { c = document.createElement('canvas'); c.width = fw; c.height = fh; const g2 = c.getContext('2d'); g2.drawImage(A.img, x, y, fw, fh, 0, 0, fw, fh); g2.globalCompositeOperation = 'source-in'; g2.fillStyle = '#ffffff'; g2.fillRect(0, 0, fw, fh); if (A.white.size > 60) A.white.clear(); A.white.set(img.i, c); } src = c; sxo = 0; syo = 0; }
+      ctx.save(); ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high'; ctx.translate(Math.round(fx), Math.round(fy)); if (rot) ctx.rotate(rot); if (flip) ctx.scale(-1, 1); ctx.scale(sx, sy);
+      ctx.drawImage(src, sxo, syo, fw, fh, -ax * k, -ay * k, fw * k, fh * k); ctx.restore(); return; }
     const dw = Math.round(w * sx), dh = Math.round(h * sy);
     ctx.save(); ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high'; ctx.translate(Math.round(fx), Math.round(fy)); if (rot) ctx.rotate(rot); if (flip) ctx.scale(-1, 1); ctx.drawImage(img, -Math.round(dw / 2), -dh, dw, dh); ctx.restore();
   }
@@ -941,7 +1037,7 @@ function createRenderer(canvas, arena) {
       if (banner.sub) { ctx.font = '700 16px Inter, system-ui, sans-serif'; ctx.fillStyle = '#ffd84a'; ctx.fillText(banner.sub, CW / 2, CH / 2 + 18); }
       ctx.textBaseline = 'alphabetic'; ctx.globalAlpha = 1; if (banner.t <= 0) banner = null; }
   }
-  function reset() { fx = []; parts = []; decals = []; texts = []; trails = [[], [], [], [], [], [], [], []]; impacts.clear(); shake = 0; flash = 0; banner = null; lean = []; tpSeen = []; lastPos = []; ghosts = []; grow = [0, 0, 0, 0, 0, 0, 0, 0]; }
+  function reset() { fx = []; parts = []; decals = []; texts = []; trails = [[], [], [], [], [], [], [], []]; impacts.clear(); shake = 0; flash = 0; banner = null; lean = []; tpSeen = []; lastPos = []; ghosts = []; seqF = []; grow = [0, 0, 0, 0, 0, 0, 0, 0]; }
   return { draw, hit, event, reset, ground: (th, lay) => { g = ctx; ctx.setTransform(Z, 0, 0, Z, 0, 0); ctx.drawImage(groundFor(th), 0, 0); drawLayout(lay, performance.now()); ctx.setTransform(1, 0, 0, 1, 0, 0); }, idle: (th = theme) => { g = ctx; ctx.setTransform(Z, 0, 0, Z, 0, 0); ctx.drawImage(groundFor(th), 0, 0); ctx.setTransform(1, 0, 0, 1, 0, 0); }, themes: THEMES };
 }
 

@@ -157,6 +157,19 @@ export function sanitizeInput(i = {}) {
   return { mx, my, ax, ay, atk: !!i.atk, sp: !!i.sp, dash: !!i.dash, guard: !!i.guard, mega: !!i.mega, asc: !!i.asc, sw };
 }
 
+/**
+ * Battle forms (the Chosen One): every match starts in his natural (base) form. Each time he deals damage worth
+ * BATTLE_FORM_STEP of the rival's max HP he transforms into his next form, up to the form his level has unlocked
+ * (stageFor(level)). Each form adds BATTLE_FORM_DMG damage and BATTLE_FORM_SPD speed. The next match starts over in base form.
+ */
+export const BATTLE_FORM_STEP = 0.15, BATTLE_FORM_DMG = 0.06, BATTLE_FORM_SPD = 0.03;
+function powerUp(f, foe, damage, events) {
+  if (f.bf >= stageFor(f.level).id) return; // his level sets the highest form he can reach (a level-up mid-fight raises it)
+  f.bfDmg += damage;
+  if (f.bfDmg < foe.maxHp * BATTLE_FORM_STEP) return;
+  f.bfDmg = 0; f.bf++; f.iframes = Math.max(f.iframes, 0.7); f.energy = 100; f.trT = 0.9;
+  events.push({ type: 'transform', side: f.side, form: f.bf, name: f.mon?.species?.forms?.[f.bf] || 'Form ' + f.bf });
+}
 function makeFighter(monstar, side, teamMax = 0) {
   const s = monstar.stats, sp = monstar.species;
   return {
@@ -166,7 +179,7 @@ function makeFighter(monstar, side, teamMax = 0) {
     level: monstar.level, exp: monstar.exp, expGained: 0,
     x: side === 0 ? 170 : ARENA.w - 170, y: ARENA.h / 2 + 20, vx: 0, vy: 0,
     fx: side === 0 ? 1 : -1, fy: 0, hp: Math.round(s.hp * BATTLE_HP), maxHp: Math.round(s.hp * BATTLE_HP), energy: 100,
-    cd: { basic: 0, special: 1.5, dash: 0, guard: 0, asc: 4 }, aura: !!sp.aura, asc: 0, ascT: 0, iframes: 0, dashT: 0, dvx: 0, dvy: 0, guardT: 0,
+    cd: { basic: 0, special: 1.5, dash: 0, guard: 0, asc: 4 }, aura: !!sp.aura, asc: 0, ascT: 0, bf: 0, bfDmg: 0, bfOn: !!sp.battleForms, iframes: 0, dashT: 0, dvx: 0, dvy: 0, guardT: 0,
     rootT: 0, castT: 9, castKind: null, hurtT: 0, moving: false, blinkT: 0, levT: 0, recT: 0, status: null, ult: 0, ultOn: false,
     auto: { t: 0, strafe: side ? -1 : 1, pause: 0, slide: [0, 0], phase: side * 1.7 },
     input: sanitizeInput(), hits: 0, actions: 0,
@@ -363,6 +376,7 @@ function damageFor(att, vic, kind, style, powerOverride) {
   let d = (powerOverride ?? STYLES[style].power) * kp * (1 + (att.level - 1) * 0.03) * Math.sqrt(A / D) * eff * att.mods.damage * vic.mods.taken * DAMAGE_SCALE;
   if (kind === 'special' && att.ultOn) d *= 1.7;
   if (att.ascT > 0) d *= AURA_FORMS[att.asc].dmg; // Aura form
+  if (att.bf) d *= 1 + BATTLE_FORM_DMG * att.bf; // battle form (the Chosen One)
   if (att.status) d *= STATUS[att.status.k].out || 1;
   if (vic.status) d *= STATUS[vic.status.k].in || 1;
   if (crit) d *= 1.5;
@@ -396,6 +410,7 @@ function land(m, att, vic, kind, style, events, dirx, diry, knock = 90, power, f
   let { damage, eff, crit } = damageFor(att, vic, kind, style, power);
   if (frac) { damage = Math.max(1, Math.round(vic.maxHp * frac)); crit = false; } // Hailstorm: a fixed share of the rival's HP
   vic.hp = Math.max(0, vic.hp - damage); att.hits++; vic.hurtT = 0.35;
+  if (att.bfOn) powerUp(att, vic, damage, events); // the Chosen One rises through his forms as he fights
   const heavy = style === 'beam' || style === 'strike' || style === 'levitate' || crit;
   if (heavy) vic.recT = Math.max(vic.recT, 0.35); // "recovering": a short stagger after a big hit
   att.ult = Math.min(100, att.ult + damage * ULT_GAIN * (att.sg >= 5 ? 1.25 : 1)); vic.ult = Math.min(100, vic.ult + damage * 0.6);
@@ -566,7 +581,7 @@ export function step(m, realDt = TICK) {
     const inp = f.input, mods = f.mods;
     for (const k in f.cd) f.cd[k] = Math.max(0, f.cd[k] - dt);
     if (f.ascT > 0) { f.ascT = Math.max(0, f.ascT - dt); if (f.ascT === 0) { events.push({ type: 'descend', side: f.side }); f.asc = 0; } } // back to normal
-    for (const k of ['iframes', 'guardT', 'dashT', 'rootT', 'hurtT', 'blinkT', 'levT', 'recT']) f[k] = Math.max(0, f[k] - dt);
+    for (const k of ['iframes', 'guardT', 'dashT', 'rootT', 'hurtT', 'blinkT', 'levT', 'recT', 'trT']) f[k] = Math.max(0, (f[k] || 0) - dt);
     const st = f.status, SS = st ? STATUS[st.k] : null;
     if (st) {
       st.t -= dt;
@@ -595,7 +610,7 @@ export function step(m, realDt = TICK) {
       else { const lead = 0.18; [f.fx, f.fy] = norm(foe.x + foe.vx * lead - f.x, foe.y + foe.vy * lead - f.y); }
     }
     f.burstT = Math.max(0, f.burstT - dt);
-    const speed = (f.burstT > 0 ? 1.7 : 1) * (140 + f.stats.speed * 1.4) * PACE * (f.rootT > 0 ? 0.2 : 1) * (f.status && SS.slow || 1) * (f.hzSlow || 1) * (f.ascT > 0 ? AURA_FORMS[f.asc].spd : 1);
+    const speed = (f.burstT > 0 ? 1.7 : 1) * (140 + f.stats.speed * 1.4) * PACE * (f.rootT > 0 ? 0.2 : 1) * (f.status && SS.slow || 1) * (f.hzSlow || 1) * (f.ascT > 0 ? AURA_FORMS[f.asc].spd : 1) * (1 + BATTLE_FORM_SPD * (f.bf || 0));
     if (wantDash && f.cd.dash === 0 && f.rootT === 0) doDash(m, f, foe, mx, my, events);
     const ox = f.x, oy = f.y;
     if (f.dashT > 0) { const ds = (f.kit?.dash.dist ?? 1) * (f.sg >= 2 ? 1.25 : 1) * (f.dashKind === 'leap' ? 2.2 : 3.0); f.x += f.dvx * speed * ds * dt * MV; f.y += f.dvy * speed * ds * dt * MV; dashTick(m, f, foe, events); }
@@ -685,11 +700,11 @@ export function snapshot(m) {
     f: m.fighters.map(f => { const p = expProgress(f); return { s: f.speciesId, x: r(f.x), y: r(f.y), fx: r(f.fx), fy: r(f.fy), hp: r(f.hp), max: f.maxHp, en: Math.round(f.energy),
       cd: { b: r(f.cd.basic), s: r(f.cd.special), d: r(f.cd.dash), g: r(f.cd.guard), a: r(f.cd.asc || 0) }, as: f.ascT > 0 ? f.asc : 0, au: f.aura ? 1 : 0, i: f.iframes > 0, g: f.guardT > 0,
       mv: f.moving, ds: f.dashT > 0, ct: r(Math.min(f.castT, 9)), ck: f.castKind, hu: r(f.hurtT),
-      lv: f.level, sg: stageFor(f.level).id, xi: p.into, xn: p.need, xg: f.expGained, fl: MOTION[f.motion].float || f.levT > 0, lt: r(f.levT), bk: r(f.blinkT), mo: f.motion,
+      lv: f.level, sg: f.bfOn ? f.bf : stageFor(f.level).id, tr: f.trT > 0 ? r(f.trT) : 0, xi: p.into, xn: p.need, xg: f.expGained, fl: MOTION[f.motion].float || f.levT > 0, lt: r(f.levT), bk: r(f.blinkT), mo: f.motion,
       bs: f.styles.basic, ss: f.styles.special, sh: f.shield ?? 0, gk: f.guardT > 0 ? f.guardKind : null, bt: f.burstT > 0,
       st: f.status?.k || null, stt: f.status ? r(f.status.t / f.status.max) : 0, rc: f.recT > 0, ul: Math.round(f.ult), uo: f.ultOn && f.castT < 1.2 }; }),
     x: m.squad ? m.roster.flat().filter(f => f.hp > 0 && m.fighters[f.side] !== f).map(f => ({ sd: f.side, sl: f.slot, s: f.speciesId, as: f.ascT > 0 ? f.asc : 0, x: r(f.x), y: r(f.y), fx: r(f.fx), fy: r(f.fy), hp: r(f.hp), max: f.maxHp,
-      mv: f.moving, ds: f.dashT > 0, ct: r(Math.min(f.castT, 9)), ck: f.castKind, hu: r(f.hurtT), lv: f.level, sg: stageFor(f.level).id, fl: MOTION[f.motion].float || f.levT > 0, lt: r(f.levT), bk: r(f.blinkT), mo: f.motion,
+      mv: f.moving, ds: f.dashT > 0, ct: r(Math.min(f.castT, 9)), ck: f.castKind, hu: r(f.hurtT), lv: f.level, sg: f.bfOn ? f.bf : stageFor(f.level).id, tr: f.trT > 0 ? r(f.trT) : 0, fl: MOTION[f.motion].float || f.levT > 0, lt: r(f.levT), bk: r(f.blinkT), mo: f.motion,
       bs: f.styles.basic, ss: f.styles.special, i: f.iframes > 0, g: f.guardT > 0, gk: f.guardT > 0 ? f.guardKind : null, st: f.status?.k || null, stt: f.status ? r(f.status.t / f.status.max) : 0, rc: f.recT > 0, ul: Math.round(f.ult), en: Math.round(f.energy) })) : null,
     sq: m.squad ? 1 : 0, lim: m.limit, pk: m.pickups.map(q => ({ id: q.id, x: r(q.x), y: r(q.y), k: q.k, l: r(q.life) })), gs: GAME_SPEED * (m.pace || 1),
     p: m.projectiles.map(p => ({ id: p.id, o: p.owner, k: p.kind, st: p.style, ty: p.type, sid: p.sid, x: r(p.x), y: r(p.y), vx: Math.round(p.vx), vy: Math.round(p.vy), r: p.r, lt: p.lt ? 1 : 0, w: p.wait > 0 ? 1 : 0, lk: p.look || null })),
