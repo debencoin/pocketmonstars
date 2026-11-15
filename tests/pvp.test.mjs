@@ -213,7 +213,7 @@ test('legendaries go only to the founder wallet, fully evolved; breeding gives e
   const founder = 'Dc9s1YwNHE2xDBzpprDvyruzxj8j5HvBSvfbvdups5LJ';
   const reg = new Registry(openDb(':memory:'), { legendaryOwner: founder });
   const mine = reg.claimAll(founder), legends = mine.filter(m => m.species.legendary);
-  assert.equal(legends.length, LEGENDARY_IDS.filter(id => SPECIES[id].legendFor === 'founder').length);
+  assert.equal(legends.length, LEGENDARY_IDS.filter(id => SPECIES[id].legendFor === 'founder' && !SPECIES[id].wildOne).length); // released one-of-a-kinds are only caught
   for (const l of legends) { assert.equal(l.level, 1); assert.equal(l.stage.name, 'Infant'); assert.equal(l.traits.rarity, 'Legendary'); assert.equal(l.collection, l.species.collection); }
   const other = wallet(); assert.equal(reg.claimAll(other).filter(m => m.species.legendary).length, 0);
   const pa = reg.claimGenesis(founder, 0), pb = reg.claimGenesis(other, 6);
@@ -282,7 +282,7 @@ test('wild: paid entry is checked once, the server runs the battle, a win can ca
   }
   assert.ok(caught, 'caught something within 40 wins');
   const m = registry.get(caught.monstar.serial);
-  assert.equal(m.owner, a); assert.ok(m.level > ma.level || m.level === 1, 'a Phantom wallet keeps the level it beat'); assert.ok(['genesis', 'frontier', 'mythic', 'anunnaki', 'watchers', 'starters', 'benders'].includes(m.collection));
+  assert.equal(m.owner, a); assert.ok(m.level > ma.level || m.level === 1, 'a Phantom wallet keeps the level it beat'); assert.ok(['genesis', 'frontier', 'mythic', 'anunnaki', 'watchers', 'starters', 'benders'].includes(m.collection) || m.species.wildOne);
 });
 
 test('3v3 rooms: both players bring three, the server runs a team match and saves EXP for every member used', async () => {
@@ -346,13 +346,13 @@ test('shields differ per Monstar (from wallet DNA) and a raised shield can block
   for (let i = 0; i < 90; i++) { m.fighters[0].input = S.sanitizeInput({ atk: true }); m.fighters[1].guardT = 99; m.fighters[1].x = m.fighters[0].x + 150; m.fighters[1].y = m.fighters[0].y; blocked += S.step(m).filter(e => e.type === 'blocked').length; }
   assert.ok(blocked > 0); assert.equal(m.fighters[1].hp, hp);
 });
-test('founder wallet holds the 20 Ascendants as elite level 1 Infants', async () => {
+test('the founder released the 20 Ascendants to the wild: no wallet is gifted one, each is caught once', async () => {
   const { SPECIES, nftArt } = await import('../shared/monstars.mjs');
   const founder = wallet(), reg = new Registry(openDb(':memory:'), { legendaryOwner: founder });
-  const asc = reg.claimAll(founder).filter(m => m.collection === 'ascendants');
-  assert.equal(asc.length, 20); assert.ok(asc.every(m => m.level === 1));
-  const normal = reg.claimGenesis(wallet(), asc[0].species.id === 0 ? 1 : 0); assert.ok(asc.some(a => a.stats.hp > normal.stats.hp), 'elite Infants beat a normal Infant');
-  assert.ok(SPECIES[asc[0].species.id].walker && nftArt(SPECIES[asc[0].species.id]).endsWith('.png'));
+  assert.equal(reg.claimAll(founder).filter(m => m.collection === 'ascendants').length, 0);
+  const asc = SPECIES.filter(s => s.collection === 'ascendants'); assert.equal(asc.length, 20); assert.ok(asc.every(s => s.wildOne && s.tier === 'Rare'));
+  const got = reg.catchWild(wallet(), asc[0].id, 1), normal = reg.claimGenesis(wallet(), 0); assert.ok(got.stats.hp >= normal.stats.hp, 'still a strong Monstar');
+  assert.ok(SPECIES[asc[0].id].walker && nftArt(SPECIES[asc[0].id]).endsWith('.png'));
   assert.equal(reg.claimAll(wallet()).some(m => m.collection === 'ascendants'), false);
 });
 
@@ -443,8 +443,8 @@ test('the second founder wallet holds the Royal Anunnaki (led by Queen Ninshara)
   const a = wallet(), b = wallet(), reg = new Registry(openDb(':memory:'), { legendaryOwner: a, royalOwner: b });
   const ra = reg.claimAll(a).filter(m => m.species.legendary), rb = reg.claimAll(b).filter(m => m.species.legendary);
   assert.equal(rb.length, 8); assert.ok(rb.every(m => m.collection === 'royals' && m.level === 1 && m.traits.rarity === 'Legendary'));
-  assert.ok(rb.some(m => m.species.name === 'Ninshara')); assert.equal(ra.length, 22);
-  assert.equal(new Set([...ra, ...rb].map(m => m.species.id)).size, 30, 'the two wallets get different legendaries');
+  assert.ok(rb.some(m => m.species.name === 'Ninshara')); assert.equal(ra.length, 0, 'the first wallet released its legendaries to the wild');
+  assert.equal(new Set([...ra, ...rb].map(m => m.species.id)).size, 8, 'the two wallets get different legendaries');
   assert.equal(reg.claimAll(wallet()).filter(m => m.species.legendary).length, 0);
 });
 
@@ -471,7 +471,7 @@ test('wild levels: always above your Monstar; special ones at least 2 up with a 
   let ones = 0;
   for (let i = 0; i < 4000; i++) { assert.ok(M.wildLevel(plain, 10) >= 11); const l = M.wildLevel(anu, 10); if (l === 1) ones++; else assert.ok(l >= 12); }
   assert.ok(ones > 10 && ones < 90, 'about 1% special level 1: ' + ones);
-  assert.ok(!M.WILD_IDS.some(id => M.SPECIES[id].retired || M.SPECIES[id].elite || M.SPECIES[id].drop), 'retired benders are not met in the wild');
+  assert.ok(!M.WILD_IDS.some(id => M.SPECIES[id].retired || (M.SPECIES[id].elite && !M.SPECIES[id].wildOne) || M.SPECIES[id].drop), 'retired benders are not met in the wild (COVO only as a one-of-a-kind)');
   const reg = new Registry(openDb(':memory:')), sid = M.WILD_IDS.find(id => M.SPECIES[id].collection === 'anunnaki');
   assert.equal(reg.catchWild(wallet(), sid, 17).level, 17);
   assert.equal(reg.catchWild('@freeplayer', sid, 17).level, 1);

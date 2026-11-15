@@ -21,6 +21,7 @@ export function starterSpecies(owner) {
   return [STARTER_POOL[h.readUInt32BE(0) % STARTER_POOL.length]];
 }
 
+const hasTable = (db, t) => !!db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name=?").get(t);
 export class Registry {
   constructor(db, { legendaryOwner = null, royalOwner = null, gifts = {}, creators = {} } = {}) {
     // collection -> creator wallet: the artist who drew that collection. Its Monstars are "born to" the creator, so the
@@ -43,14 +44,19 @@ export class Registry {
       try { db.exec(`DELETE FROM monstars WHERE species IN (${gone}) AND asset IS NULL`); } catch (e) { console.error('retire benders:', e.message); }
       db.prepare("INSERT INTO meta(k,v) VALUES('retire-benders-v1','done')").run();
     }
-    // one-of-a-kind wild Monstars the founder released: an unminted gifted copy (genesis) leaves the wallet so the one copy can be
-    // caught in the wild. A copy that was already minted is a real NFT: it stays, and the species does not spawn.
-    if (WILD_ONE_IDS.length) {
-      const ids = WILD_ONE_IDS.join(',');
-      try { const r = db.prepare(`DELETE FROM monstars WHERE species IN (${ids}) AND genesis=1 AND asset IS NULL`).run(); if (r.changes) console.log(`released ${r.changes} one-of-a-kind Monstar(s) to the wild`); }
-      catch (e) { console.error('release to wild:', e.message); }
-      for (const r of db.prepare(`SELECT serial, species FROM monstars WHERE species IN (${ids}) AND genesis=1 AND asset IS NOT NULL`).all())
-        console.warn(`#${r.serial} (${SPECIES[r.species].name}) is minted, so it stays with its holder and is not in the wild`);
+    // one-of-a-kind wild Monstars the founder released: the one wild copy of each species, recorded when it is caught (the
+    // primary key makes a second catch impossible). The founder wallet's unminted, unlisted copies leave it so the wild one is the
+    // copy players chase. A minted copy is a real NFT: it stays.
+    db.exec('CREATE TABLE IF NOT EXISTS wild_ones(species INTEGER PRIMARY KEY, serial INTEGER NOT NULL, owner TEXT NOT NULL, caught_at INTEGER NOT NULL)');
+    if (WILD_ONE_IDS.length && this.legendaryOwner) {
+      const ids = WILD_ONE_IDS.join(','), f = this.legendaryOwner, keep = 'serial NOT IN (SELECT serial FROM wild_ones)' + (hasTable(db, 'usd_listings') ? ' AND serial NOT IN (SELECT serial FROM usd_listings)' : '');
+      try {
+        const r = db.prepare(`DELETE FROM monstars WHERE species IN (${ids}) AND owner=? AND asset IS NULL AND ${keep}`).run(f);
+        db.prepare(`DELETE FROM gift_claims WHERE owner=? AND species IN (${ids})`).run(f);
+        if (r.changes) console.log(`released ${r.changes} one-of-a-kind Monstar(s) from the founder wallet to the wild`);
+        for (const x of db.prepare(`SELECT serial, species FROM monstars WHERE species IN (${ids}) AND owner=? AND (asset IS NOT NULL OR NOT (${keep}))`).all(f))
+          console.warn(`#${x.serial} (${SPECIES[x.species].name}) is minted or listed, so it stays in the founder wallet`);
+      } catch (e) { console.error('release to wild:', e.message); }
     }
     // gifts handed out (so a gift is given once, even when the Monstar is born to its creator and not to the holder)
     db.exec('CREATE TABLE IF NOT EXISTS gift_claims(owner TEXT NOT NULL, species INTEGER NOT NULL, serial INTEGER NOT NULL, PRIMARY KEY(owner, species))');
@@ -109,7 +115,7 @@ export class Registry {
   claimLegendaries(owner) {
     owner = normOwner(owner);
     const key = owner === this.legendaryOwner ? 'founder' : owner === this.royalOwner ? 'royal' : null;
-    const ids = [...(key ? legendaryIdsFor(key) : []), ...(this.gifts[owner] || [])].filter(sid => !SPECIES[sid].wildOne); // one-of-a-kind wild Monstars are only caught
+    const ids = [...(key ? legendaryIdsFor(key) : []), ...(this.gifts[owner] || [])].filter(sid => !(SPECIES[sid].wildOne && owner === this.legendaryOwner)); // the founder's released one-of-a-kinds are only caught now
     if (!ids.length) return [];
     return ids.map(sid => {
       const creator = this.creators[SPECIES[sid].collection];
@@ -144,7 +150,7 @@ export class Registry {
   breed({ a, b, seed = randomBytes(16).toString('hex') }) {
     if (a.owner === b.owner) throw Error('Breeding needs Monstars from two different players.');
     const rnd = (k) => parseInt(createHash('sha256').update(seed + ':' + k).digest('hex').slice(0, 8), 16) / 0xffffffff;
-    const genesisOf = m => (m.species.legendary || m.species.hero || m.species.drop || m.species.unique ? null : m.species.id); // legendaries and drop heroes never breed copies
+    const genesisOf = m => (m.species.legendary || m.species.hero || m.species.drop || m.species.unique || m.species.wildOne ? null : m.species.id); // one-of-a-kind wild ones never breed copies // legendaries and drop heroes never breed copies
     const children = [];
     const benders = [a, b].filter(m => m.species.bender && !m.species.unique); // COVO and COVA stay one of a kind
     for (const [i, parent] of [a, b].entries()) {
@@ -168,11 +174,14 @@ export class Registry {
     owner = normOwner(owner);
     if (!WILD_IDS.includes(speciesId)) throw Error('That is not a wild species.');
     // one of a kind: the first catch wins it, for good (the check and the insert run in one synchronous step, so two catches can't both pass)
-    if (SPECIES[speciesId].wildOne && this.wildOneTaken(speciesId)) throw Error(`${SPECIES[speciesId].name} is one of a kind and was already caught by another player.`);
-    return this.catchAny(owner, speciesId, level);
+    if (!SPECIES[speciesId].wildOne) return this.catchAny(owner, speciesId, level);
+    if (this.wildOneTaken(speciesId)) throw Error(`${SPECIES[speciesId].name} is one of a kind and was already caught by another player.`);
+    const m = this.catchAny(owner, speciesId, level);
+    this.db.prepare('INSERT INTO wild_ones(species, serial, owner, caught_at) VALUES(?,?,?,?)').run(speciesId, m.serial, owner, Date.now());
+    return m;
   }
-  /** True once a one-of-a-kind wild Monstar exists in any wallet (caught, or a minted copy the founder kept). */
-  wildOneTaken(speciesId) { return !!this.db.prepare('SELECT 1 FROM monstars WHERE species=? LIMIT 1').get(speciesId); }
+  /** True once the one wild copy of a one-of-a-kind Monstar has been caught. */
+  wildOneTaken(speciesId) { return !!this.db.prepare('SELECT 1 FROM wild_ones WHERE species=?').get(speciesId); }
   catchAny(owner, speciesId, level) {
     const seed = randomBytes(8).toString('hex'), sp = SPECIES[speciesId], keep = !owner.startsWith('@') && level > 1;
     return this.insertUnique({ speciesId, originOwner: owner, owner, genesis: false, collection: sp.collection, exp: keep ? expAt(Math.min(100, Math.floor(level))) : 0,

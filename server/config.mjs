@@ -49,7 +49,7 @@ export const CONFIG = {
     'HgPy9avE7tMVTgpehYwFQRQYGPUPbZKGzKPAuLNoeD3U': ids('Kena', 'Aurelia', 'Amyah', 'Tidewen', 'Terrala', 'Pyreska', 'Voltessa', 'Starlara', 'Lumivra', 'Frostelle', 'Blazara', 'Sylphra', 'Aerisa', 'Sylvane', 'Zephra', 'Windara', 'Skylis', 'Inannox', 'Tiamaw', 'Ninhurra', 'Ereshkyl'),
     // second founder wallet: 5 heroines and 5 air bender women
     '54y46qyavsX1hWXgx5W76WrBjghXxUfkcNftswaXNTbr': ids('Starlara', 'Lumivra', 'Frostelle', 'Blazara', 'Sylphra', 'Aerisa', 'Sylvane', 'Zephra', 'Windara', 'Skylis'),
-  }).map(([w, list]) => [w, list.filter(sid => !SPECIES[sid].retired && !SPECIES[sid].wildOne)])), // retired benders and one-of-a-kind wild Monstars are never given
+  }).map(([w, list]) => [w, list.filter(sid => !SPECIES[sid].retired && !(SPECIES[sid].wildOne && w === (env.PM_LEGENDARY_OWNER || 'Dc9s1YwNHE2xDBzpprDvyruzxj8j5HvBSvfbvdups5LJ')))])), // retired benders are never given; the founder's released one-of-a-kinds are only caught now
   royalOwner: env.PM_ROYAL_OWNER || '54y46qyavsX1hWXgx5W76WrBjghXxUfkcNftswaXNTbr', // second founder wallet: the Royal Anunnaki
   // Superhero Drop: 30 heroes sold once each (top 5 at 1 SOL, the rest 0.5 SOL), paid to the founder wallet.
   dropTreasury: env.PM_DROP_TREASURY || env.PM_LEGENDARY_OWNER || 'Dc9s1YwNHE2xDBzpprDvyruzxj8j5HvBSvfbvdups5LJ',

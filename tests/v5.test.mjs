@@ -161,7 +161,7 @@ test('Elemental Benders: gifted wallets get their benders (Tempestro only to q2x
   // every earlier bender is retired: no wallet is given one any more; the founder holds the four Element Masters and COVO
   for (const w of Object.keys(gifts)) assert.ok(!reg.claimAll(w).some(m => m.species.retired), 'no retired benders are given');
   const f = reg.claimAll(CONFIG.legendaryOwner).filter(m => m.species.master).map(m => m.species.name).sort();
-  assert.deepEqual(f, ['Aerix', 'Azaelion', 'Bouldar', 'COVO', 'Ignar', 'Nerin', 'Terrok', 'Tydal', 'Verdex', 'Zephar', 'Zuri']);
+  assert.deepEqual(f, ['Aerix', 'Azaelion', 'Bouldar', 'Ignar', 'Nerin', 'Terrok', 'Tydal', 'Verdex', 'Zephar', 'Zuri']); // COVO was released to the wild
   assert.ok(reg.claimAll('HgPy9avE7tMVTgpehYwFQRQYGPUPbZKGzKPAuLNoeD3U').length > 5, 'Ashley keeps her wallet and her other Monstars');
   const S = await import('../shared/sim.mjs'), t = SPECIES.find(s => s.name === 'Tempestro'); assert.equal(t.kit.mega.kind, 'thunderstrike');
   const { Monstar } = await import('../shared/monstars.mjs');
@@ -273,7 +273,7 @@ test('Aura Warrior creator: gifts and the market copy are born to the creator wa
   } finally { server.close(); }
 });
 
-test('Watcher Gods: ten gods as strong as Aura Warriors, temple arenas, levitation, creator royalty with a 1% company fee, both wallets hold a set', async () => {
+test('Watcher Gods: ten gods as strong as Aura Warriors, temple arenas, levitation, creator royalty with a 1% company fee, the creator holds a set', async () => {
   const S = await import('../shared/sim.mjs'), { Monstar, SPECIES } = await import('../shared/monstars.mjs'), { saleSplit } = await import('../server/nft.mjs');
   const { createServer } = await import('../server/index.mjs'), { CONFIG } = await import('../server/config.mjs');
   const gods = SPECIES.filter(s => s.god); assert.equal(gods.length, 10); assert.ok(gods.every(g => g.collection === 'watchergods' && g.lineage.length === 4 && g.forms.length === 6));
@@ -287,8 +287,9 @@ test('Watcher Gods: ten gods as strong as Aura Warriors, temple arenas, levitati
   const sp = saleSplit(1_000_000_000n, 500, [{ address: CONFIG.creators.watchergods, percentage: 100 }], true, CONFIG.companyFeeBps.watchergods);
   assert.equal(sp.royalty, 50_000_000n); assert.equal(sp.company, 10_000_000n); assert.equal(sp.seller, 940_000_000n);
   const { server, registry } = createServer({ dbFile: ':memory:', config: { ...CONFIG, rebuildDrops: false } });
-  try { for (const w of [CONFIG.legendaryOwner, CONFIG.creators.watchergods]) { const mine = registry.claimAll(w).filter(x => x.species.god);
-    assert.equal(mine.length, 10); assert.ok(mine.every(x => x.owner === w && x.originOwner === CONFIG.creators.watchergods)); assert.equal(registry.claimAll(w).filter(x => x.species.god).length, 10); }
+  try { const w = CONFIG.creators.watchergods, mine = registry.claimAll(w).filter(x => x.species.god); // the creator keeps a set; the founder released theirs to the wild
+    assert.equal(mine.length, 10); assert.ok(mine.every(x => x.owner === w && x.originOwner === CONFIG.creators.watchergods)); assert.equal(registry.claimAll(w).filter(x => x.species.god).length, 10);
+    assert.equal(registry.claimAll(CONFIG.legendaryOwner).filter(x => x.species.god).length, 0);
   } finally { server.close(); }
 });
 

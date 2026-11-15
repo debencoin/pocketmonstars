@@ -261,17 +261,26 @@ let _tc = {}; function tierCount(t) { return (_tc[t] ??= WILD_IDS.filter(id => S
  * One-of-a-kind wild Monstars: special characters the founder released from their wallet into the wild. Rare tier.
  * Each exists ONCE: it rolls in the wild until a player catches it, then it belongs to that player (and whoever they
  * trade or sell it to) and never spawns again. It is never gifted, sold in the shop or bred.
- * Add a character here by name to release it (the founder's unminted copy leaves their wallet on the next server start).
+ * Add a character here by name to release it: on the next server start the founder wallet's unminted, unlisted copy leaves it.
+ * Copies other wallets already hold are not touched; the wild copy is the single one that can be caught.
  */
-export const WILD_ONE_NAMES = [];
+export const WILD_ONE_NAMES = [
+  // released by the founder (Nov 15, 2026): Seraphon and Psyvolt, the 20 Ascendants, the 5 Legend Heroes, COVO and the 10 Watcher Gods
+  'Seraphon', 'Psyvolt',
+  'Nyxara', 'Serqeth', 'Kaelor', 'Lumiyah', 'Thothex', 'Khonsar', 'Selenox', 'Amunrah', 'Azarath', 'Setekh',
+  'Horuskai', 'Neferion', 'Ptahmos', 'Khepron', 'Osirak', 'Isisra', 'Rasolar', 'Anuket', 'Anupex', 'Nefertek',
+  'Aurorex', 'Titanor', 'Phantomir', 'Pyronyx', 'Chronar', 'COVO',
+  'Anpurak', 'Wepwarr', 'Khemtek', 'Duatron', 'Selqira', 'Isetra', 'Ptahrex', 'Khnumek', 'Apisor', 'Wadjeth',
+];
 export const WILD_ONE_IDS = [];
 export function markWildOne(names) {
   for (const n of names) {
     const sp = SPECIES.find(s => s.name.toLowerCase() === String(n).toLowerCase()); if (!sp) throw Error('No Monstar named ' + n);
     if (sp.wildOne) continue;
-    Object.assign(sp, { wildOne: true, unique: true, tier: 'Rare', legendary: undefined, legendFor: undefined, drop: undefined, starter: undefined });
+    if (sp.starter) throw Error(sp.name + ' is a starter every new player can pick, so it cannot be one of a kind');
+    Object.assign(sp, { wildOne: true, tier: 'Rare', drop: undefined }); // keeps its own power (legendary bonus included); Rare is how often it shows up and how hard it is to catch
     WILD_ONE_IDS.push(sp.id); if (!WILD_IDS.includes(sp.id)) WILD_IDS.push(sp.id);
-    for (const L of [LEGENDARY_IDS, SALE_IDS, SHOP_IDS]) { const k = L.indexOf(sp.id); if (k >= 0) L.splice(k, 1); }
+    for (const L of [SALE_IDS, SHOP_IDS]) { const k = L.indexOf(sp.id); if (k >= 0) L.splice(k, 1); }
   }
   _tc = {};
 }
@@ -283,7 +292,7 @@ export const SALE_IDS = SPECIES.filter(s => s.drop).map(s => s.id);
 export const SHOP_IDS = SPECIES.filter(s => s.drop?.shop).map(s => s.id);
 markWildOne(WILD_ONE_NAMES);
 /** Legendary species held by each founder wallet ('founder' = first wallet, 'royal' = second). */
-export const legendaryIdsFor = key => SPECIES.filter(s => s.legendary && s.legendFor === key).map(s => s.id);
+export const legendaryIdsFor = key => SPECIES.filter(s => s.legendary && s.legendFor === key && !s.wildOne).map(s => s.id); // released ones are only caught
 /** File name of a species' NFT / market picture in dist/art/nft (portraits are .jpg). */
 export const nftArt = sp => sp.art + (sp.portrait ? '.jpg' : '.png');
 
