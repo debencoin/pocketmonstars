@@ -158,14 +158,11 @@ test('Neferion Storm Orbs: 7 homing lightning balls; the first hit stuns; a riva
 
 test('Elemental Benders: gifted wallets get their benders (Tempestro only to q2xb…); Sky Splitter strikes all land on a still rival', async () => {
   const { gifts } = CONFIG, reg = new Registry(openDb(':memory:'), { gifts });
-  const q = reg.claimAll('q2xb75XhmJ7HL8PYMMFUsanusoakBtMXfYqdqUkHjUW'), names = q.map(m => m.species.name);
-  assert.ok(names.includes('Tempestro') && names.filter(n => SPECIES.find(s => s.name === n).collection === 'benders').length === 11);
-  const f = reg.claimAll(CONFIG.legendaryOwner).filter(m => m.species.collection === 'benders').map(m => m.species.type).sort();
-  assert.deepEqual(f, ['EMBER', 'GALE', 'SPARK', 'STONE', 'TIDE'], 'founder: one bender of each element');
-  const g = reg.claimAll('7psxmCxFNHQztUP9SahuGDShSU4y1JcufEugtFgkgwTx');
-  assert.equal(g.filter(m => m.species.collection === 'benders').length, 10); assert.equal(g.filter(m => m.species.collection === 'anunnaki').length, 11); // 10 + Anuvax
-  assert.ok(!g.some(m => m.species.name === 'Tempestro'));
-  assert.equal(reg.claimAll(Keypair.generate().publicKey.toBase58()).filter(m => m.species.collection === 'benders').length, 0);
+  // every earlier bender is retired: no wallet is given one any more; the founder holds the four Element Masters and COVO
+  for (const w of Object.keys(gifts)) assert.ok(!reg.claimAll(w).some(m => m.species.retired), 'no retired benders are given');
+  const f = reg.claimAll(CONFIG.legendaryOwner).filter(m => m.species.master).map(m => m.species.name).sort();
+  assert.deepEqual(f, ['COVO', 'Ignar', 'Terrok', 'Tydal', 'Zephro']);
+  assert.ok(reg.claimAll('HgPy9avE7tMVTgpehYwFQRQYGPUPbZKGzKPAuLNoeD3U').length > 5, 'Ashley keeps her wallet and her other Monstars');
   const S = await import('../shared/sim.mjs'), t = SPECIES.find(s => s.name === 'Tempestro'); assert.equal(t.kit.mega.kind, 'thunderstrike');
   const { Monstar } = await import('../shared/monstars.mjs');
   const m = S.createMatch(new Monstar({ speciesId: t.id, level: 20 }), new Monstar({ speciesId: 3, level: 20 }), { auto: false });
@@ -293,4 +290,20 @@ test('Watcher Gods: ten gods as strong as Aura Warriors, temple arenas, levitati
   try { for (const w of [CONFIG.legendaryOwner, CONFIG.creators.watchergods]) { const mine = registry.claimAll(w).filter(x => x.species.god);
     assert.equal(mine.length, 10); assert.ok(mine.every(x => x.owner === w && x.originOwner === CONFIG.creators.watchergods)); assert.equal(registry.claimAll(w).filter(x => x.species.god).length, 10); }
   } finally { server.close(); }
+});
+
+test('Element Masters: a new player chooses an element once; stronger powers take over the same buttons with level', async () => {
+  const { Registry, STARTER_POOL } = await import('../server/registry.mjs'), { openDb } = await import('../server/db.mjs'), { Monstar, SPECIES, kitAt } = await import('../shared/monstars.mjs'), S = await import('../shared/sim.mjs');
+  const reg = new Registry(openDb(':memory:')), [first] = reg.claimAll('@newbie'), want = STARTER_POOL.find(id => id !== first.species.id);
+  assert.equal(reg.starterState('@newbie').canChoose, true);
+  const got = reg.chooseStarter('@newbie', want); assert.equal(got.species.id, want);
+  const mine = reg.claimAll('@newbie'); assert.equal(mine.length, 1); assert.equal(mine[0].species.id, want, 'the starter was swapped, not added');
+  assert.throws(() => reg.chooseStarter('@newbie', first.species.id), /already chosen/);
+  const t = SPECIES.find(s => s.name === 'Tydal');
+  assert.deepEqual([1, 10, 25, 50].map(l => kitAt(t, l).special.name), ['Water Whip', 'Water Wave', 'Water Whirlpool', 'Water Dragon']);
+  assert.equal(new Monstar({ speciesId: t.id, level: 50 }).kit.special.look, 'dragon');
+  const m = S.createMatch(new Monstar({ speciesId: t.id, level: 50 }), new Monstar({ speciesId: 3, level: 50 }), { auto: false }), [a, b] = m.fighters;
+  assert.equal(a.styles.special, 'projectile'); a.x = 300; a.y = 300; b.x = 300; b.y = 500; a.cd.special = 0; a.energy = 100; a.input = S.sanitizeInput({ sp: true, ax: 1, ay: 0 });
+  for (let i = 0; i < 240; i++) { S.step(m); a.input = S.sanitizeInput({}); b.vx = b.vy = 0; }
+  assert.ok(b.hp < b.maxHp, 'the Water Dragon hunted the rival down');
 });

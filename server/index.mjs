@@ -211,6 +211,8 @@ export function createServer({ config = CONFIG, chain = new SolanaChain(config.r
       return { ok: true, delivered: online.has(to), code: room.code }; },
     'POST /api/invite/dismiss': async req => { const w = need(req), b = await body(req); players.dismissInvite(b.id, w); return { ok: true }; },
     // ---------- simulated SOL ----------
+    'GET /api/starter': req => registry.starterState(need(req)),
+    'POST /api/starter/choose': async req => { const w = need(req), b = await body(req); return registry.chooseStarter(w, b.speciesId).toJSON(); },
     'GET /api/sim/me': req => { const w = needWallet(req), b = players.simBalance(w); return { lamports: b.toString(), sol: formatSol(b, 4) }; },
     'POST /api/sim/refill': req => { const w = needWallet(req), b = players.simRefill(w); return { lamports: b.toString(), sol: formatSol(b, 4) }; },
     'GET /api/catches/me': req => { const w = need(req), a = matches.catchAllowance(w);

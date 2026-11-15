@@ -160,7 +160,7 @@ async function afterSignIn() {
   me = S.session()?.wallet || null;
   q('pvSignIn').textContent = me && !isAcct(me) ? 'Signed in · switch wallet' : 'Connect Phantom & sign in';
   q('pvAcct').hidden = !!me; q('pvSignOut').hidden = !me;
-  window.PMV5?.signedIn?.(me); setTimeout(() => { renderSouls(); renderSimBal(); renderFriends(); }, 0);
+  window.PMV5?.signedIn?.(me); setTimeout(() => { renderSouls(); renderSimBal(); renderFriends(); offerStarter(); }, 0);
   if (!me) { q('pvWallet').textContent = 'Not signed in. Practice is free with no sign-in.'; return; }
   q('pvWallet').innerHTML = isAcct(me) ? `Signed in as <b>${esc(me.slice(1))}</b> · free account. Connect Phantom any time to play for SOL.`
     : `<span class="pv-addr">${esc(me)}</span><br><span id="pvBal">Loading balance…</span>`;
@@ -259,6 +259,15 @@ function teamMsg3(needOwned) {
 }
 function needSocket() { if (!S.session()) throw Error('Sign in, or tap Create match to play as a guest.'); if (!ws || ws.readyState > 1) openSocket(); }
 function sendWs(msg) { needSocket(); const go = () => ws.send(JSON.stringify(msg)); ws.readyState === 1 ? go() : ws.addEventListener('open', go, { once: true }); }
+/** New players choose their element: earth, air, water or fire (once). */
+async function offerStarter() {
+  if (!S.session() || document.getElementById('pvStarter')) return;
+  let st; try { st = await S.starter(); } catch { return; } if (!st.canChoose) return;
+  const el = { earth: 'Earth', air: 'Air', water: 'Water', fire: 'Fire' }, box = document.body.appendChild(Object.assign(document.createElement('div'), { id: 'pvStarter', className: 'pv-starter' }));
+  box.innerHTML = `<div class="pv-starter-in"><h2>Choose your element</h2><p>Pick the bender you start with. You choose once. Stronger powers take over the same buttons as it levels up.</p>
+    <div class="pv-starter-grid">${st.options.map(id => { const sp = Monstars.SPECIES[id]; return `<button data-s="${id}"><img src="art/hd/${sp.art}_s2.png" alt=""><b>${esc(sp.name)}</b><small>${el[sp.el2] || sp.type} bender</small><small>${esc(Monstars.kitAt(sp, 1).special.name)} → ${esc(Monstars.kitAt(sp, 50).special.name)}</small></button>`; }).join('')}</div></div>`;
+  box.querySelectorAll('[data-s]').forEach(b => b.onclick = async () => { try { await S.starterChoose(Number(b.dataset.s)); box.remove(); toast('Your bender is ready.'); await refreshMine(); } catch (e) { fail(e); } });
+}
 // ---------- Friends and play invites ----------
 let pendingInvite = null, friendsData = null;
 const who = id => !id ? '—' : id.startsWith('@g-') ? 'Guest ' + id.slice(3, 7) : id.startsWith('@') ? id.slice(1) : short(id);
@@ -356,8 +365,11 @@ let moveFor = null;
 function buildMoves(meSid, foeSid) {
   if (!room?.players || room.players.length < 2) return;
   const me2 = { speciesId: meSid ?? room.players[room.local || room.ai ? 0 : room.you].monstar.speciesId }, foe = { speciesId: foeSid ?? room.players[room.local || room.ai ? 1 : 1 - room.you].monstar.speciesId };
-  const key = me2.speciesId + ':' + foe.speciesId; if (moveFor === key) return; moveFor = key;
-  const sp = Monstars.SPECIES[me2.speciesId], eff = Monstars.effectiveness(sp.type, Monstars.SPECIES[foe.speciesId].type);
+  const tierN = (Monstars.SPECIES[me2.speciesId].tiers || []).filter(t => (snapCur?.f?.[room.local || room.ai ? 0 : room.you]?.lv || 1) >= t.lv).length;
+  const key = me2.speciesId + ':' + foe.speciesId + ':' + tierN; if (moveFor === key) return; moveFor = key;
+  const sp0 = Monstars.SPECIES[me2.speciesId], lvl = snapCur?.f?.[room.local || room.ai ? 0 : room.you]?.lv || room.players[room.local || room.ai ? 0 : room.you].monstar?.level || 1;
+  const K = Monstars.kitAt(sp0, lvl), sp = sp0.tiers ? { ...sp0, kit: K, move: K.basic?.name || sp0.move, special: K.special?.name || sp0.special, specialStyle: K.special?.style || sp0.specialStyle } : sp0; // Element Masters: the power on a button changes with level
+  const eff = Monstars.effectiveness(sp.type, Monstars.SPECIES[foe.speciesId].type);
   const effTxt = eff > 1 ? '<i class="up">▲</i> Super effective' : eff < 1 ? '<i class="dn">▼</i> Not very effective' : '<i>●</i> Normal damage';
   const ST = Sim.STYLES, bs = ST[sp.basicStyle], ss = ST[sp.specialStyle];
   const cards = [

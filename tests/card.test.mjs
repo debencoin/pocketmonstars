@@ -39,7 +39,7 @@ test('card: store purchase at the same price in dollars, one of one, a second ca
     assert.equal((await call('/api/card/status')).enabled, true);
     const a = auth.issue('@cardfan').token, b = auth.issue('@late').token, sid = SHOP_IDS[0]; registry.claimAll('@cardfan');
     const co = await call('/api/card/checkout', a, { speciesId: sid });
-    assert.equal(co.cents, 150 * 100, '1 SOL at $150 = $150.00'); assert.match(co.url, /checkout\.stripe\.test/);
+    assert.equal(co.cents, Math.round(Number(SPECIES[sid].drop.priceLamports) / 1e9 * 150 * 100), 'the SOL price at $150 per SOL'); assert.match(co.url, /checkout\.stripe\.test/);
     assert.match((await call('/api/card/checkout', b, { speciesId: sid })).error, /right now/, 'held for the first buyer');
     assert.ok((await call('/api/card/confirm', a, { session: 'cs_test_1' })).pending);
     fs.pay('cs_test_1');
@@ -47,7 +47,7 @@ test('card: store purchase at the same price in dollars, one of one, a second ca
     assert.equal((await call('/api/card/confirm', a, { session: 'cs_test_1' })).monstar.serial, got.monstar.serial, 'confirming twice is safe');
     assert.match((await call('/api/card/checkout', b, { speciesId: sid })).error, /already sold/);
     // COVA is 10 SOL -> $1,500
-    const cova = SPECIES.find(s => s.name === 'COVA').id; assert.equal((await call('/api/card/checkout', b, { speciesId: cova })).cents, 150000);
+    const cova = SPECIES.find(s => s.name === 'COVA').id; assert.match((await call('/api/card/checkout', b, { speciesId: cova })).error, /not for sale/i, 'retired benders are no longer sold');
     // a race: a second paid session for the same Monstar is refunded
     fs.sessions.set('cs_race', { ...fs.sessions.get('cs_test_1'), id: 'cs_race', metadata: { ...fs.sessions.get('cs_test_1').metadata, buyer: '@late' } });
     const race = await call('/api/card/confirm', b, { session: 'cs_race' }); assert.ok(race.refunded); assert.ok(fs.calls.some(c => c.path === '/v1/refunds'));

@@ -339,3 +339,10 @@ Stats: HP, Attack, Defense, Sp. Atk, Sp. Def, Speed. Types: EMBER, GROVE, TIDE, 
 - New collection `watchergods` (ids 244–253): ten Egyptian / Anunnaki machine-gods built from the creator's pictures (`scripts/make_god_art.py`, sources in `art-src/gods/`): the picture is the head, the body is drawn to match. Stats +75% like the Aura Warriors. Powers: levitation (Soul Scales, Gravity Lift), lasers, Scarab Drones, Sun Disc, Circuit Web, Cobra Venom and their own Mega Shots. Six forms each (sun disc from form 4, rays at form 6) and a family tree (`lineage`) shown in the Market tab.
 - Two new arenas: Temple of the Sun (6) and Jungle Pyramid (7). `ARENA_COUNT` is 8; any fight with a Watcher God uses one of them.
 - `config.creators.watchergods` (env `PM_GODS_CREATOR`): every god is born to the creator wallet (5% resale royalty for ever). The founder and the creator each hold one set (`gift_claims`). `config.companyFeeBps.watchergods = 100`: PocketMonstars takes 1% of their marketplace sales (5% for everything else).
+
+## v56 — Element Masters replace every earlier bender
+- New collection `masters` (ids 254–257): Terrok (earth), Zephro (air), Tydal (water), Ignar (fire). COVO (same id) is the fifth: new purple and gold look, forms Initiate → the Chosen One. Original character designs in the creator's outfits and colours.
+- Every earlier bender (collections `benders`, `skybenders`, `starters`, except COVO) is `retired`: not given, sold, met in the wild or offered as a starter; unminted ones are removed from wallets once (`retire-benders-v1`). Species ids are kept.
+- `tiers` + `kitAt(species, level)`: the four buttons stay the same and a stronger power takes over a button at levels 10, 25 and 50 (for example Water Whip → Water Wave → Water Whirlpool → Water Dragon).
+- Powers are released with martial-arts moves: sheets for these benders have 8 frames (a straight punch for the basic attack, a side kick for specials).
+- New players choose their element once: `GET /api/starter`, `POST /api/starter/choose`, with a chooser shown at first sign-in.

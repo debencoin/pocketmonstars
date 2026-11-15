@@ -37,6 +37,12 @@ export class Registry {
       db.exec(`UPDATE monstars SET exp=0 WHERE genesis=1 AND species IN (${ids}) AND exp>=${expForLevel(80)}`);
       db.prepare("INSERT INTO meta(k,v) VALUES('legend-infants-v1','done')").run();
     }
+    // the old benders were retired (the Element Masters replace them): unminted ones leave every wallet
+    if (!db.prepare("SELECT 1 FROM meta WHERE k='retire-benders-v1'").get()) {
+      const gone = SPECIES.filter(s => s.retired).map(s => s.id).join(',') || '-1';
+      try { db.exec(`DELETE FROM monstars WHERE species IN (${gone}) AND asset IS NULL`); } catch (e) { console.error('retire benders:', e.message); }
+      db.prepare("INSERT INTO meta(k,v) VALUES('retire-benders-v1','done')").run();
+    }
     // gifts handed out (so a gift is given once, even when the Monstar is born to its creator and not to the holder)
     db.exec('CREATE TABLE IF NOT EXISTS gift_claims(owner TEXT NOT NULL, species INTEGER NOT NULL, serial INTEGER NOT NULL, PRIMARY KEY(owner, species))');
     for (const [coll, creator] of Object.entries(this.creators)) { // existing unminted Monstars of a creator's collection: the royalty moves to the creator
@@ -61,6 +67,24 @@ export class Registry {
       }
       throw Error('Could not find a unique DNA');
     } catch (e) { try { this.db.exec('ROLLBACK'); } catch {} throw e; }
+  }
+
+  /** The starter a player may still swap: their own unminted starter, until they have chosen once. */
+  starterState(owner) {
+    owner = normOwner(owner);
+    const row = this.db.prepare(`SELECT * FROM monstars WHERE origin_owner=? AND owner=? AND genesis=1 AND asset IS NULL AND species IN (${STARTER_POOL.join(',') || '-1'}) ORDER BY serial LIMIT 1`).get(owner, owner);
+    const chosen = !!this.db.prepare('SELECT 1 FROM meta WHERE k=?').get('starter-chosen:' + owner);
+    return { canChoose: !!row && !chosen, current: row ? row.species : null, options: STARTER_POOL.slice() };
+  }
+  /** New players pick their element: once, their random starter is swapped for the Element Master they choose. */
+  chooseStarter(owner, speciesId) {
+    owner = normOwner(owner); speciesId = Number(speciesId);
+    if (!STARTER_POOL.includes(speciesId)) throw Error('Choose earth, air, water or fire.');
+    const st = this.starterState(owner); if (!st.canChoose) throw Error('You have already chosen your element.');
+    if (st.current !== speciesId) { this.db.prepare('DELETE FROM monstars WHERE origin_owner=? AND owner=? AND genesis=1 AND asset IS NULL AND species=?').run(owner, owner, st.current); }
+    const m = this.claimGenesis(owner, speciesId);
+    this.db.prepare('INSERT OR REPLACE INTO meta(k,v) VALUES(?,?)').run('starter-chosen:' + owner, String(speciesId));
+    return m;
   }
 
   /** Give a wallet its own one-of-a-kind version of a Genesis species (one per species per wallet). Starts as an Infant. */
@@ -100,7 +124,8 @@ export class Registry {
     owner = normOwner(owner);
     const had = this.db.prepare('SELECT * FROM monstars WHERE origin_owner=? AND genesis=1').all(owner).map(r => this.toMonstar(r)).filter(m => !m.species.legendary && !(this.gifts[owner] || []).includes(m.species.id) && !this.creators[m.species.collection]);
     const starters = (had.length ? had : starterSpecies(owner).map(id => this.claimGenesis(owner, id))).sort((x, y) => x.serial - y.serial);
-    return [...starters, ...this.claimLegendaries(owner)];
+    const all = [...starters, ...this.claimLegendaries(owner)], seen = new Set();
+    return all.filter(m => !seen.has(m.serial) && seen.add(m.serial)); // a gifted starter is the same Monstar, listed once
   }
 
   /**

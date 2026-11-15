@@ -32,7 +32,7 @@ export const CONFIG = {
   // Wallet that holds the Legendary collection (Seraphon and Psyvolt, fully evolved).
   legendaryOwner: env.PM_LEGENDARY_OWNER || 'Dc9s1YwNHE2xDBzpprDvyruzxj8j5HvBSvfbvdups5LJ',
   // Wallets granted specific top Monstars (species ids) as elite Legendary-rarity hatchlings on sign-in.
-  gifts: {
+  gifts: Object.fromEntries(Object.entries({
     // Aeonox, Anuvax, Semyazar (the three strongest wild Monstars) + the 10 Elemental Benders + 10 Anunnaki
     // + 5 Legend Heroes and 5 Sky Benders of his own
     '7psxmCxFNHQztUP9SahuGDShSU4y1JcufEugtFgkgwTx': [64, 65, 85, 163, 164, 165, 166, 167, 168, 169, 170, 171, 172, 66, 67, 68, 71, 72, 79, 69, 73, 74, 76,
@@ -42,14 +42,14 @@ export const CONFIG = {
     // founder: one bender of each element (water, earth, fire, air, thunder)
     // + 5 Legend Heroes and COVO, the final air bender (all five elements)
     // + the 8 Aura Warriors (from the founder's own drawings)
-    'Dc9s1YwNHE2xDBzpprDvyruzxj8j5HvBSvfbvdups5LJ': [163, 165, 167, 170, 172, ...ids('Aurorex', 'Titanor', 'Phantomir', 'Pyronyx', 'Chronar', 'COVO', 'Dashi', 'Bolo', 'Swish', 'Kapri', 'Nyla', 'Verdo', 'Bunzo', 'Tigo', 'Vikko', 'Noxx', ...GODS)],
+    'Dc9s1YwNHE2xDBzpprDvyruzxj8j5HvBSvfbvdups5LJ': [163, 165, 167, 170, 172, ...ids('Aurorex', 'Titanor', 'Phantomir', 'Pyronyx', 'Chronar', 'COVO', 'Dashi', 'Bolo', 'Swish', 'Kapri', 'Nyla', 'Verdo', 'Bunzo', 'Tigo', 'Vikko', 'Noxx', 'Terrok', 'Zephro', 'Tydal', 'Ignar', ...GODS)],
     // Ashley: women only. 5 heroines, 5 air bender women, 4 Anunnaki goddesses, a woman bender of water, earth, fire and thunder, KENA (all five elements), and the elite benders Aurelia (golden fire) and Amyah (moonlit ice)
     // the Watcher Gods' creator plays with a set of his own
     '5eKeqSopYotsxwfE2uCJoyFywzqmXFe92NQR8kbHqaGd': ids(...GODS),
     'HgPy9avE7tMVTgpehYwFQRQYGPUPbZKGzKPAuLNoeD3U': ids('Kena', 'Aurelia', 'Amyah', 'Tidewen', 'Terrala', 'Pyreska', 'Voltessa', 'Starlara', 'Lumivra', 'Frostelle', 'Blazara', 'Sylphra', 'Aerisa', 'Sylvane', 'Zephra', 'Windara', 'Skylis', 'Inannox', 'Tiamaw', 'Ninhurra', 'Ereshkyl'),
     // second founder wallet: 5 heroines and 5 air bender women
     '54y46qyavsX1hWXgx5W76WrBjghXxUfkcNftswaXNTbr': ids('Starlara', 'Lumivra', 'Frostelle', 'Blazara', 'Sylphra', 'Aerisa', 'Sylvane', 'Zephra', 'Windara', 'Skylis'),
-  },
+  }).map(([w, list]) => [w, list.filter(sid => !SPECIES[sid].retired)])), // retired benders are never given
   royalOwner: env.PM_ROYAL_OWNER || '54y46qyavsX1hWXgx5W76WrBjghXxUfkcNftswaXNTbr', // second founder wallet: the Royal Anunnaki
   // Superhero Drop: 30 heroes sold once each (top 5 at 1 SOL, the rest 0.5 SOL), paid to the founder wallet.
   dropTreasury: env.PM_DROP_TREASURY || env.PM_LEGENDARY_OWNER || 'Dc9s1YwNHE2xDBzpprDvyruzxj8j5HvBSvfbvdups5LJ',

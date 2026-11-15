@@ -325,7 +325,7 @@ test('starters: every new player (wallet or username) gets one random Starter Be
   const reg = new Registry(openDb(':memory:'));
   const sets = new Set();
   for (let i = 0; i < 24; i++) { const ms = reg.claimAll(i % 2 ? wallet() : '@player' + i); assert.equal(ms.length, 1); assert.ok(STARTER_POOL.includes(ms[0].species.id)); sets.add(ms[0].species.id); }
-  assert.ok(sets.size >= 3, 'starters vary between players'); assert.equal(STARTER_POOL.length, 5); assert.ok(STARTER_POOL.every(id => SPECIES[id].bender && SPECIES[id].collection === 'starters'));
+  assert.ok(sets.size >= 3, 'starters vary between players'); assert.equal(STARTER_POOL.length, 4); assert.ok(STARTER_POOL.every(id => SPECIES[id].master && SPECIES[id].collection === 'masters'));
   assert.ok(!STARTER_POOL.some(id => SPECIES[id].hero || SPECIES[id].legendary || ['Mythic', 'Divine', 'Epic'].includes(SPECIES[id].tier)));
 });
 test('hit fees: tiny, grow with level, stats and move power, never above 0.00001 SOL', async () => {
@@ -471,8 +471,8 @@ test('wild levels: always above your Monstar; special ones at least 2 up with a 
   let ones = 0;
   for (let i = 0; i < 4000; i++) { assert.ok(M.wildLevel(plain, 10) >= 11); const l = M.wildLevel(anu, 10); if (l === 1) ones++; else assert.ok(l >= 12); }
   assert.ok(ones > 10 && ones < 90, 'about 1% special level 1: ' + ones);
-  assert.ok(M.WILD_IDS.some(id => M.SPECIES[id].bender) && !M.WILD_IDS.some(id => M.SPECIES[id].elite || M.SPECIES[id].drop));
-  const reg = new Registry(openDb(':memory:')), sid = M.WILD_IDS.find(id => M.SPECIES[id].collection === 'benders');
+  assert.ok(!M.WILD_IDS.some(id => M.SPECIES[id].retired || M.SPECIES[id].elite || M.SPECIES[id].drop), 'retired benders are not met in the wild');
+  const reg = new Registry(openDb(':memory:')), sid = M.WILD_IDS.find(id => M.SPECIES[id].collection === 'anunnaki');
   assert.equal(reg.catchWild(wallet(), sid, 17).level, 17);
   assert.equal(reg.catchWild('@freeplayer', sid, 17).level, 1);
 });

@@ -12,7 +12,7 @@
 //
 // Landing hits earns EXP. Monstars level up and evolve mid-match (Infant 1, Rookie 3, Champion 10,
 // Ultimate 25, Mega 50, Ascended 80) and their stats grow immediately.
-import { STAGE_PERKS, Monstar, effectiveness, statsAt, stageFor, expForLevel, expToNext, MAX_LEVEL, SPECIES } from './monstars.mjs';
+import { STAGE_PERKS, Monstar, effectiveness, statsAt, stageFor, expForLevel, expToNext, MAX_LEVEL, SPECIES, kitAt } from './monstars.mjs';
 
 export const ARENA = Object.freeze({ w: 960, h: 540, radius: 30, roundSeconds: 90,
   rocks: [{ x: 300, y: 170, r: 24 }, { x: 660, y: 380, r: 24 }] });
@@ -161,7 +161,7 @@ function makeFighter(monstar, side, teamMax = 0) {
   const s = monstar.stats, sp = monstar.species;
   return {
     sg: stageFor(monstar.level).id, shield: monstar.traits?.shield ?? 70, side, teamMax: Math.round((teamMax || s.hp) * BATTLE_HP), mon: monstar, speciesId: sp.id, type: monstar.type, mods: monstar.cls.mods, stats: s,
-    styles: { basic: sp.basicStyle || 'projectile', special: monstar.specialStyle || sp.specialStyle || 'beam' }, kit: monstar.kit || sp.kit, burstT: 0, guardKind: null,
+    styles: { basic: sp.basicStyle || 'projectile', special: (monstar.kit || sp.kit)?.special?.style || monstar.specialStyle || sp.specialStyle || 'beam' }, kit: monstar.kit || sp.kit, burstT: 0, guardKind: null,
     motion: MOTION[sp.motion] ? sp.motion : 'pounce',
     level: monstar.level, exp: monstar.exp, expGained: 0,
     x: side === 0 ? 170 : ARENA.w - 170, y: ARENA.h / 2 + 20, vx: 0, vy: 0,
@@ -346,6 +346,7 @@ function gainExp(m, f, amount, events) {
     f.stats = statsAt(f.mon, f.level);
     f.maxHp = Math.round(f.stats.hp * BATTLE_HP); f.hp = Math.min(f.maxHp, f.maxHp * ratio); // no free heal on level-up: keeps the same share of HP
     const after = stageFor(f.level), evolved = after.id !== before.id; f.sg = after.id;
+    if (SPECIES[f.speciesId]?.tiers && !f.mon.fusion) { f.kit = kitAt(SPECIES[f.speciesId], f.level); if (f.kit.special?.style) f.styles.special = f.kit.special.style; } // a stronger power takes over the same button
     if (evolved) { f.iframes = Math.max(f.iframes, 0.8); f.energy = 100; }
     events.push({ type: 'level', side: f.side, level: f.level, stage: after.name, stageId: after.id, evolved, perk: evolved ? STAGE_PERKS[after.id] : null });
   }

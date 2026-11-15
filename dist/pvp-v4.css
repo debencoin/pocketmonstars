@@ -619,3 +619,9 @@ header{overflow:hidden}
 .god-evo figure,.god-tree figure{margin:0;text-align:center;width:52px}.god-evo img,.god-tree img{width:48px;height:56px;object-fit:contain}
 .god-evo figcaption,.god-tree figcaption{font-size:9px;line-height:1.1;opacity:.8}
 .god-tree{display:flex;gap:6px;justify-content:center;flex-wrap:wrap;border-top:2px solid rgba(255,210,63,.5);padding-top:6px;margin-top:2px}
+
+.pv-starter{position:fixed;inset:0;z-index:10000;background:rgba(6,8,18,.86);display:flex;align-items:center;justify-content:center;padding:16px}
+.pv-starter-in{background:#161b33;border:2px solid #ffd23f;border-radius:16px;padding:18px;max-width:560px;width:100%;color:#fff;text-align:center}
+.pv-starter-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(112px,1fr));gap:10px;margin-top:12px}
+.pv-starter-grid button{background:#222a4d;border:2px solid #3b4680;border-radius:12px;padding:10px 6px;color:#fff;display:flex;flex-direction:column;align-items:center;gap:2px;cursor:pointer}
+.pv-starter-grid button:hover{border-color:#ffd23f}.pv-starter-grid img{width:80px;height:92px;object-fit:contain;image-rendering:pixelated}.pv-starter-grid small{opacity:.8;font-size:11px}

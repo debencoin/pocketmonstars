@@ -43,7 +43,12 @@ D = {
   'zephra':   dict(el='air', el2='fire',    f=True,  skin=1, hair=c('#ff8a3a'), hs='pony',    top=c('#e8702a'), trim=c('#fff0b0'), pants=c('#3a1a10'), boots=c('#2a1410')),
   'windara':  dict(el='air', el2='thunder', f=True,  skin=4, hair=c('#f4f4ff'), hs='afro',    top=c('#7a3ac8'), trim=c('#ffe14a'), pants=c('#241840'), boots=c('#14102a')),
   'skylis':   dict(el='air', el2='earth',   f=True,  skin=2, hair=c('#3a2418'), hs='braid',   top=c('#5a9a5a'), trim=c('#f0e0b0'), pants=c('#4a3a24'), boots=c('#2e2418')),
-  'covo':     dict(el='air', el2='all',     f=False, skin=4, hair=c('#ffd23f'), hs='spiky',   top=c('#14141a'), trim=c('#ffd23f'), pants=c('#0e0e14'), boots=c('#0a0a0e'), elite=True, eyes=c('#ffe14a'), keep=True),
+  'covo':     dict(el='air', el2='all',     f=False, skin=4, hair=c('#3a1466'), hs='mohawk',  top=c('#4a1a8a'), trim=c('#ffd23f'), pants=c('#2a0e52'), boots=c('#e8b828'), elite=True, eyes=c('#e8c8ff'), keep=True, casts=True),
+  # Element Masters (the creator's five benders: earth, air, water, fire and COVO above): gi, sash, wrist bands, boots
+  'terrok':   dict(el='earth', f=False, skin=4, hair=c('#2a1a10'), hs='locs',    top=c('#4a7a1e'), trim=c('#f0e0b0'), pants=c('#3a6418'), boots=c('#3a2a1a'), band=c('#7ab02a'), casts=True, keepfit=True),
+  'zephro':   dict(el='air',   f=False, skin=4, hair=c('#14141a'), hs='topknot', top=c('#f4f6ff'), trim=c('#f0b820'), pants=c('#e8ecfa'), boots=c('#ffffff'), band=c('#ffffff'), keep=True, casts=True),
+  'tydal':    dict(el='water', f=False, skin=4, hair=c('#10142a'), hs='afro',    top=c('#2a4ac8'), trim=c('#ffffff'), pants=c('#2238a8'), boots=c('#3a5ae0'), band=c('#8ad0ff'), casts=True),
+  'ignar':    dict(el='fire',  f=False, skin=4, hair=c('#3a0e0a'), hs='spiky',   top=c('#c81e1e'), trim=c('#f0b820'), pants=c('#a81616'), boots=c('#2a1410'), band=c('#f0b820'), casts=True),
   'cova':     dict(el='air', el2='all',     f=True,  skin=4, hair=c('#ffd23f'), hs='long',    top=c('#14141a'), trim=c('#ffd23f'), pants=c('#0e0e14'), boots=c('#0a0a0e'), elite=True, eyes=c('#ffe14a'), keep=True),
   'kena':     dict(el='air', el2='all',     f=True,  skin=3, hair=c('#f4f4ff'), hs='braid',   top=c('#2a1440'), trim=c('#5ef0e0'), pants=c('#14081f'), boots=c('#0e0618'), elite=True, eyes=c('#5ef0e0'), keep=True),
   'aurelia':  dict(el='air', el2='fire',    f=True,  skin=1, hair=c('#ffd86a'), hs='long',    top=c('#e8a020'), trim=c('#fff4c0'), pants=c('#5a3a10'), boots=c('#3a2408'), elite=True, eyes=c('#ffcf3a'), keep=True),
@@ -97,7 +102,8 @@ def leg_points(hx, hy, thigh, shin, a_thigh, knee):
 
 def frame(d, f, stage):
     im = Image.new('RGBA', (W, H), (0, 0, 0, 0)); g = ImageDraw.Draw(im)
-    run = f >= 2; k = f - 2; ph = (k * math.pi / 2) if run else 0
+    cast = f - 5 if f >= 6 else 0            # 1 = straight punch (lunge), 2 = side kick: the martial-arts moves that release a power
+    run = 2 <= f < 6; k = f - 2; ph = (k * math.pi / 2) if run else 0
     sc = [0.72, 0.84, 1.0, 1.0, 1.0, 1.0][stage]                 # younger forms are smaller
     head_r = [12, 11.5, 11, 11, 11, 11][stage]
     skin = SKIN[d['skin']]; skin_d = shade(skin, 0.22)
@@ -169,6 +175,8 @@ def frame(d, f, stage):
     for side, sgn in (('back', -1), ('front', 1)):
         a = sgn * swing
         knee = (0.9 * max(0, -math.cos(ph + (0 if sgn > 0 else math.pi)))) if run else 0.05
+        if cast == 1: a, knee = (0.75, -0.5) if sgn > 0 else (-0.6, 0.15)     # deep front stance
+        if cast == 2: a, knee = (1.5, 0.05) if sgn > 0 else (-0.12, 0.2)      # front leg kicks out level
         hx = cx + (-3 if side == 'back' else 3) * sc
         (kx, ky), (fx_, fy_) = leg_points(hx, hip_y, thigh, shin, a, knee)
         col = shade(pants, 0.18) if side == 'back' else pants
@@ -182,6 +190,8 @@ def frame(d, f, stage):
         sx = shx + (-8 if side == 'back' else 9) * sc; sy = sh_y + 3
         ex, ey = sx + math.sin(a) * 12 * sc, sy + math.cos(a) * 12 * sc
         a2 = a + (0.9 if run else 0.5)
+        if cast == 1 and side == 'front': a2 = a                       # arm locked straight
+        if cast and side == 'back': a2 = a + 2.2                       # rear fist chambered at the hip / guard
         hx, hy = ex + math.sin(a2) * 11 * sc, ey + math.cos(a2) * 11 * sc
         col = shade(top, 0.2) if side == 'back' else top
         limb(g, sx, sy, ex, ey, 7.5 * sc, col, shade(col, 0.3))
@@ -190,7 +200,7 @@ def frame(d, f, stage):
         if not sleeve_skin: g.line([(ex, ey), (ex + (hx - ex) * 0.3, ey + (hy - ey) * 0.3)], fill=trim, width=2)
         g.ellipse([hx - 3.5 * sc, hy - 3.5 * sc, hx + 3.5 * sc, hy + 3.5 * sc], fill=skin_d if side == 'back' else skin)
         return hx, hy
-    bhx, bhy = arm('back', -arm_sw)
+    bhx, bhy = arm('back', -arm_sw if not cast else -0.5)
     # ----- torso -----
     tw = 19 * sc
     g.polygon([(shx - tw / 2, sh_y), (shx + tw / 2, sh_y), (cx + tw / 2 - 2, hip_y + 2), (cx - tw / 2 + 2, hip_y + 2)], fill=top)
@@ -290,7 +300,7 @@ def frame(d, f, stage):
     if d.get('goggles2'):  # round tinted goggles
         for ex in (hx + 1, hx + 7): g.ellipse([ex - 3.5, hy - 4.5, ex + 3.5, hy + 2], fill=d['goggles2'], outline=c('#1a1a2a'))
     # ----- front arm, hand holding the element -----
-    hx2, hy2 = arm('front', arm_sw + (0.0 if run else -0.9))
+    hx2, hy2 = arm('front', (1.52 if cast == 1 else 0.7) if cast else arm_sw + (0.0 if run else -0.9))
     wpn = d.get('weapon')
     if wpn == 'sword': g.line([(hx2 - 2, hy2 + 3), (hx2 + 18, hy2 - 8)], fill=c('#d8dce8'), width=4); g.line([(hx2 - 1, hy2 - 2), (hx2 + 2, hy2 + 5)], fill=c('#5a4630'), width=3)
     elif wpn == 'staff': g.line([(hx2 - 20, hy2 - 22), (hx2 + 14, hy2 + 4)], fill=c('#2a2e3a'), width=4); g.ellipse([hx2 - 23, hy2 - 25, hx2 - 17, hy2 - 19], fill=c('#4a5060'))
@@ -333,8 +343,9 @@ only = set(sys.argv[1:])
 for name, d in D.items():
     if only and name not in only: continue
     for stage in range(6):
-        frames = [frame(d, f, stage) for f in range(6)]
-        sheet = Image.new('RGBA', (W * 6, H), (0, 0, 0, 0))
+        nf = 8 if d.get('casts') else 6
+        frames = [frame(d, f, stage) for f in range(nf)]
+        sheet = Image.new('RGBA', (W * nf, H), (0, 0, 0, 0))
         for i, fr in enumerate(frames): sheet.paste(fr, (i * W, 0))
         sheet.save(os.path.join(WALK, f'{name}_s{stage}.png'))
         frames[0].save(os.path.join(HD, f'{name}_s{stage}.png'))
