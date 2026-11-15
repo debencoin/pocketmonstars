@@ -2,7 +2,7 @@
 // PocketMonstars pixel arena renderer: a 320x180 native-resolution battlefield scaled up with crisp pixels.
 // Draws animated pixel Monstars and a hand-built animation for every power. Exposes window.PMArena.
 (() => {
-const NAMES = ["cindercub","mossprout","ripplefin","voltwing","duskhorn","pebblit","frostuft","bloomtail","soloryx","seraphon","psyvolt","blazebuck","cinderwyrm","pyrofinch","magmole","emberjack","coralisk","bubblyn","clawtide","abyssquid","wavewing","thornox","fernling","mantiseed","acornaut","lilypadra","zapurr","ohmoth","voltusk","joltail","gloomwisp","nocturrow","shadefang","hexmask","quarrox","fossilith","geodillo","cragcrab","glacielk","snowpuff","icicrow","rimewyrm","cometail","lunaroo","orbitron","mindmoth","oracub","prismeye","toxitoad","mycospore","stingrex","viperoot","gearhound","rivetbot","bladewing","ironshell","zephyrkit","galeon","whirlwisp","drakelet","skyrex","aurielle","valkyra","nimbiel","aeonox","anuvax","enlilor","enkiryn","inannox","utuflare","nannamoth","marduzar","tiamaw","ninhurra","lamassor","shedulon","apkalith","anzurok","humbaroth","pazuzar","mushussar","nergalith","ereshkyl","nabuscribe","ziggurok","semyazar","azazelith","armarok","baraqion","kokabyx","tamiren","ramielon","danelith","ezeqor","sarielle","shamsor","arakor","penemyr","nephilox","grigoran","ophanex","irinyx","eyelurk","gazewing","vigilon","nyxara","serqeth","kaelor","lumiyah","thothex","khonsar","selenox","amunrah","azarath","setekh","horuskai","neferion","ptahmos","khepron","osirak","isisra","rasolar","anuket","anupex","nefertek","ninshara","kingaru","lahmuron","gulani","zababor","shalira","nisabel","ninurtax","solarch","voltaris","gravitas","aegiron","nightvale","blazewing","magmara","tidebreaker","coralon","hailstrike","frostbyte","quakefist","bouldra","galeforce","vortexa","thornheart","verdantia","nebulor","comettra","mindlock","psyra","steelbrand","ferronix","shadowstep","duskara","joltrix","ampere","drakonis","runeguard","sentrion","tidewen","marovek","granitus","terrala","pyreska","emberon","zephyrine","aerokai","voltessa","thundrik","tempestro","aurorex","titanor","phantomir","pyronyx","chronar","stormvane","bulwarkus","venomaw","quasarion","gorrath","starlara","lumivra","frostelle","blazara","sylphra","galdris","skyvar","windrik","aeromar","cyrran","aerisa","sylvane","zephra","windara","skylis","breezo","nimbra","cirrus","aeralyn","zephyl","tidegale","mistral","rainor","oceara","glacia","dustan","rockwen","sandor","terrai","quarra","emberwind","ashra","blazor","flarissa","pyrrin","voltair","sparra","thundro","zappira","boltan","covo","cova","aquari","rokko","blazen","gusti","voltz","kena","aurelia","amyah","dashi","bolo","swish","kapri","nyla","verdo","bunzo","tigo","vikko","noxx","anpurak","wepwarr","khemtek","duatron","selqira","isetra","ptahrex","khnumek","apisor","wadjeth","terrok","zephar","tydal","ignar","azaelion","maelira","aerix","bouldar","nerin","zuri","verdex"]; // generated from shared/monstars.mjs SPECIES order
+const NAMES = ["cindercub","mossprout","ripplefin","voltwing","duskhorn","pebblit","frostuft","bloomtail","soloryx","seraphon","psyvolt","blazebuck","cinderwyrm","pyrofinch","magmole","emberjack","coralisk","bubblyn","clawtide","abyssquid","wavewing","thornox","fernling","mantiseed","acornaut","lilypadra","zapurr","ohmoth","voltusk","joltail","gloomwisp","nocturrow","shadefang","hexmask","quarrox","fossilith","geodillo","cragcrab","glacielk","snowpuff","icicrow","rimewyrm","cometail","lunaroo","orbitron","mindmoth","oracub","prismeye","toxitoad","mycospore","stingrex","viperoot","gearhound","rivetbot","bladewing","ironshell","zephyrkit","galeon","whirlwisp","drakelet","skyrex","aurielle","valkyra","nimbiel","aeonox","anuvax","enlilor","enkiryn","inannox","utuflare","nannamoth","marduzar","tiamaw","ninhurra","lamassor","shedulon","apkalith","anzurok","humbaroth","pazuzar","mushussar","nergalith","ereshkyl","nabuscribe","ziggurok","semyazar","azazelith","armarok","baraqion","kokabyx","tamiren","ramielon","danelith","ezeqor","sarielle","shamsor","arakor","penemyr","nephilox","grigoran","ophanex","irinyx","eyelurk","gazewing","vigilon","nyxara","serqeth","kaelor","lumiyah","thothex","khonsar","selenox","amunrah","azarath","setekh","horuskai","neferion","ptahmos","khepron","osirak","isisra","rasolar","anuket","anupex","nefertek","ninshara","kingaru","lahmuron","gulani","zababor","shalira","nisabel","ninurtax","solarch","voltaris","gravitas","aegiron","nightvale","blazewing","magmara","tidebreaker","coralon","hailstrike","frostbyte","quakefist","bouldra","galeforce","vortexa","thornheart","verdantia","nebulor","comettra","mindlock","psyra","steelbrand","ferronix","shadowstep","duskara","joltrix","ampere","drakonis","runeguard","sentrion","tidewen","marovek","granitus","terrala","pyreska","emberon","zephyrine","aerokai","voltessa","thundrik","tempestro","aurorex","titanor","phantomir","pyronyx","chronar","stormvane","bulwarkus","venomaw","quasarion","gorrath","starlara","lumivra","frostelle","blazara","sylphra","galdris","skyvar","windrik","aeromar","cyrran","aerisa","sylvane","zephra","windara","skylis","breezo","nimbra","cirrus","aeralyn","zephyl","tidegale","mistral","rainor","oceara","glacia","dustan","rockwen","sandor","terrai","quarra","emberwind","ashra","blazor","flarissa","pyrrin","voltair","sparra","thundro","zappira","boltan","covo","cova","aquari","rokko","blazen","gusti","voltz","kena","aurelia","amyah","dashi","bolo","swish","kapri","nyla","verdo","bunzo","tigo","vikko","noxx","anpurak","wepwarr","khemtek","duatron","selqira","isetra","ptahrex","khnumek","apisor","wadjeth","terrok","zephar","tydal","ignar","azaelion","spira","aerix","bouldar","nerin","zuri","verdex"]; // generated from shared/monstars.mjs SPECIES order
 const W = 320, H = 180, K = 1 / 3; // world (960x540) -> logical pixels; the canvas is 2x (640x360) so sprites keep fine detail
 const CW = 960, CH = 540, Z = 3, U = Z / 2; // U scales hand-tuned canvas-pixel sizes from the old 640 canvas
 const SPR = 0.95; // 96px battle sprites are drawn at ~65px tall on the 960 canvas (Ultimate stage)
@@ -50,7 +50,6 @@ const POSES = {
   terrok: { col: '#e0b060', basic: [[1, 6], [25, 10]], special: [[1, 7], [10, 9], [25, 11], [50, 12]], guard: [[1, 8], [25, 13]] },
   tydal: { col: '#5ec2ff', basic: [[1, 6], [25, 10]], special: [[1, 7], [10, 9], [25, 12], [50, 13]], guard: 8, dash: 11 },
   covo: { col: '#c080ff', basic: 6, special: [[1, 10], [10, 7], [25, 9]], guard: 8, mega: 11 },
-  maelira: { col: '#5ec2ff', basic: [[1, 7], [25, 6]], special: [[1, 6], [10, 9], [25, 8], [50, 10]], guard: 13, dash: 12, mega: 10 },
   azaelion: { col: '#c080ff', basic: 6, special: [[1, 9], [10, 7], [25, 8], [50, 12]], guard: 13, dash: 14, mega: 11 },
   ignar: { col: '#ff8a1f', basic: 6, special: [[1, 7], [10, 8], [25, 8], [50, 6]] },
   aerix: { col: '#d8ecff', basic: 6, special: [[1, 7], [10, 8], [25, 9], [50, 13]], guard: 10, dash: [[1, 11], [25, 12]] },
@@ -58,6 +57,10 @@ const POSES = {
   nerin: { col: '#5ec2ff', basic: [[1, 6], [25, 10]], special: [[1, 7], [10, 9], [25, 12], [50, 13]], guard: 8, dash: 11 },
   zuri: { col: '#7ad0ff', basic: 6, special: [[1, 8], [10, 7], [25, 8], [50, 6]], guard: 7 },
   verdex: { col: '#7aff4a', basic: 6, special: 7, dash: 8 },
+  // Spira's sheet is rendered from her animated rig (art-src/masters/spira): every power plays a short cast sequence ({ seq, t: seconds })
+  spira: { col: '#5ec2ff', basic: [[1, { seq: [6, 7, 8] }], [25, { seq: [19, 20, 21], t: 0.6 }]],
+    special: [[1, { seq: [9, 10, 11] }], [10, { seq: [16, 17, 18], t: 0.7 }], [25, { seq: [22, 23, 24], t: 0.7 }], [50, { seq: [25, 26, 27, 28], t: 0.9 }]],
+    guard: { seq: [12, 13], hold: true }, dash: { seq: [14, 15], loop: true }, mega: { seq: [25, 26, 27, 28], t: 1.1 } },
 };
 // Full frame-by-frame animation drawn straight from a character's complete sprite sheet (scripts/make_chosen_anim.py):
 // an atlas of frames, each with its foot anchor, so the character always stands on the same spot at the same size.
@@ -111,12 +114,19 @@ function animPick(d, f, i, opt, now) {
 // How long a cast pose is held: a special is a bigger move, so the character stays in it longer (wind-up, strike, hold, recover).
 const castHold = f => (f.ck === 'special' ? 0.85 : f.ck === 'mega' ? 1.2 : 0.5);
 const atLv = (v, lv) => Array.isArray(v) ? v.reduce((f, [l, fr]) => (lv >= l ? fr : f), v[0][1]) : v;
-function poseFrame(f) {
-  const P = POSES[NAMES[f.s]]; if (!P) return -1;
-  if (f.ck && f.ct < castHold(f) && P[f.ck] != null) return atLv(P[f.ck], f.lv || 1);
-  if ((f.uo || f.ck === 'mega') && P.mega != null && f.ct < 1.2) return P.mega;
-  if (f.g && P.guard != null) return atLv(P.guard, f.lv || 1);
-  if (f.ds && P.dash != null) return atLv(P.dash, f.lv || 1);
+// a pose is a frame number, or a cast sequence { seq: [frames], t: seconds } played over the cast (hold: stay on the last frame, loop: cycle)
+const castLen = v => (typeof v === 'object' ? v.t || 0.5 : 0.5);
+function seqFrame(v, ct, ph) {
+  if (typeof v !== 'object') return v; const n = v.seq.length;
+  if (v.loop) return v.seq[Math.floor((ph || 0) * 14) % n];
+  return v.seq[Math.min(n - 1, Math.floor(Math.max(0, ct) / castLen(v) * n))];
+}
+function poseFrame(f, ph) {
+  const P = POSES[NAMES[f.s]]; if (!P) return -1; const lv = f.lv || 1;
+  if (f.ck && P[f.ck] != null) { const v = atLv(P[f.ck], lv); if (f.ct < (typeof v === 'object' ? castLen(v) : castHold(f))) return seqFrame(v, f.ct, ph); }
+  if ((f.uo || f.ck === 'mega') && P.mega != null && f.ct < Math.max(1.2, castLen(P.mega))) return seqFrame(P.mega, f.ct, ph);
+  if (f.g && P.guard != null) { const v = atLv(P.guard, lv); return typeof v === 'object' ? v.seq[v.seq.length - 1] : v; }
+  if (f.ds && P.dash != null) return seqFrame(atLv(P.dash, lv), 0, ph);
   return -1;
 }
 function sprite(sid, hue = 0, white = false, frame = 0, stage = 2) {
@@ -408,7 +418,7 @@ function createRenderer(canvas, arena) {
     const pal = palFor(opt.type, f.s), stage = f.as > 0 ? 5 + f.as : f.sg ?? 0, scaleStage = Math.min(5, f.as > 0 ? Math.max(3, f.sg ?? 0) : f.sg ?? 0);
     const walker = WALKERS.has(f.s), ph0 = now + i * 0.37;
     // walk cycle: run frames while moving (faster when dashing), breathing idle otherwise
-    const pf = poseFrame(f), frame = !walker ? 0 : pf >= 0 ? pf : f.ct < 0.3 && f.ck ? (f.ck === 'basic' ? 6 : 7) : f.ds ? 2 + Math.floor(ph0 * 16) % 4 : f.mv ? 2 + Math.floor(ph0 * 9) % 4 : Math.floor(ph0 * 2) % 2;
+    const pf = poseFrame(f, ph0), frame = !walker ? 0 : pf >= 0 ? pf : f.ct < 0.3 && f.ck ? (f.ck === 'basic' ? 6 : 7) : f.ds ? 2 + Math.floor(ph0 * 16) % 4 : f.mv ? 2 + Math.floor(ph0 * 9) % 4 : Math.floor(ph0 * 2) % 2;
     const AN = walker ? animFor(f.s) : null;
     let spr = stageSprite(f.s, opt.hue || 0, stage, pal, false, frame), wh = stageSprite(f.s, opt.hue || 0, stage, pal, true, frame);
     if (AN) { const ai = animPick(AN, f, i, opt, now); spr = { anim: AN, i: ai }; wh = { anim: AN, i: ai, white: true }; }

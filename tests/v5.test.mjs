@@ -161,7 +161,7 @@ test('Elemental Benders: gifted wallets get their benders (Tempestro only to q2x
   // every earlier bender is retired: no wallet is given one any more; the founder holds the four Element Masters and COVO
   for (const w of Object.keys(gifts)) assert.ok(!reg.claimAll(w).some(m => m.species.retired), 'no retired benders are given');
   const f = reg.claimAll(CONFIG.legendaryOwner).filter(m => m.species.master).map(m => m.species.name).sort();
-  assert.deepEqual(f, ['Aerix', 'Azaelion', 'Bouldar', 'Ignar', 'Maelira', 'Nerin', 'Terrok', 'Tydal', 'Verdex', 'Zephar', 'Zuri']); // COVO was released to the wild
+  assert.deepEqual(f, ['Aerix', 'Azaelion', 'Bouldar', 'Ignar', 'Nerin', 'Spira', 'Terrok', 'Tydal', 'Verdex', 'Zephar', 'Zuri']); // COVO was released to the wild
   assert.ok(reg.claimAll('HgPy9avE7tMVTgpehYwFQRQYGPUPbZKGzKPAuLNoeD3U').length > 5, 'Ashley keeps her wallet and her other Monstars');
   const S = await import('../shared/sim.mjs'), t = SPECIES.find(s => s.name === 'Tempestro'); assert.equal(t.kit.mega.kind, 'thunderstrike');
   const { Monstar } = await import('../shared/monstars.mjs');
@@ -307,4 +307,22 @@ test('Element Masters: a new player chooses an element once; stronger powers tak
   assert.equal(a.styles.special, 'projectile'); a.x = 300; a.y = 300; b.x = 300; b.y = 500; a.cd.special = 0; a.energy = 100; a.input = S.sanitizeInput({ sp: true, ax: 1, ay: 0 });
   for (let i = 0; i < 240; i++) { S.step(m); a.input = S.sanitizeInput({}); b.vx = b.vy = 0; }
   assert.ok(b.hp < b.maxHp, 'the Water Dragon hunted the rival down');
+});
+
+test('Spira joins the Element Masters: a gifted water bender whose powers change with level, never a starter or wild', async () => {
+  const { SPECIES, STARTER_IDS, WILD_IDS, kitAt, Monstar } = await import('../shared/monstars.mjs'), S = await import('../shared/sim.mjs');
+  const sp = SPECIES.find(s => s.name === 'Spira');
+  assert.equal(sp.id, 259, 'keeps the id she went live with (the first build of her was id 259)'); assert.equal(sp.collection, 'masters'); assert.ok(sp.master && sp.walker && sp.female);
+  assert.ok(!STARTER_IDS.includes(sp.id) && !WILD_IDS.includes(sp.id));
+  assert.deepEqual([1, 10, 25, 50].map(l => kitAt(sp, l).special.name), ['Spiral Lash', 'Coral Geyser', 'Rain Needles', 'Maelstrom Crown Cannon']);
+  assert.deepEqual([1, 25].map(l => kitAt(sp, l).basic.name), ['Droplet Volley', 'Bubble Lock']);
+  assert.equal(kitAt(sp, 1).guard.kind, 'reflect'); assert.equal(kitAt(sp, 1).dash.name, 'Undertow Rush'); assert.equal(kitAt(sp, 1).mega.name, 'Grand Maelstrom');
+  const m = S.createMatch(new Monstar({ speciesId: sp.id, level: 50 }), new Monstar({ speciesId: 3, level: 50 }), { auto: false }), [a, b] = m.fighters;
+  assert.equal(a.styles.special, 'beam'); a.x = 300; a.y = 300; b.x = 600; b.y = 300; a.cd.special = 0; a.energy = 100; a.input = S.sanitizeInput({ sp: true, ax: 1, ay: 0 });
+  for (let i = 0; i < 90; i++) { S.step(m); a.input = S.sanitizeInput({}); b.x = 600; b.y = 300; b.vx = b.vy = 0; }
+  assert.ok(b.hp < b.maxHp, 'the Maelstrom Crown Cannon hit the rival');
+  const { readFileSync, existsSync } = await import('node:fs');
+  for (let st = 0; st < 6; st++) assert.ok(existsSync(new URL(`../dist/art/walk/spira_s${st}.png`, import.meta.url)) && existsSync(new URL(`../dist/art/hd/spira_s${st}.png`, import.meta.url)));
+  const js = readFileSync(new URL('../dist/pixel-arena.js', import.meta.url), 'utf8'), names = JSON.parse(js.match(/const NAMES = (\[.*?\]);/)[1]);
+  assert.equal(names[sp.id], 'spira'); assert.match(js, new RegExp(`WALKERS = new Set\\(\\[[^\\]]*\\b${sp.id}\\b`));
 });
