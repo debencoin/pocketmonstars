@@ -46,22 +46,24 @@ const STY = { projectile: { r: 12 }, bolt: { range: 420, hitAt: 0.08, dur: 0.22 
 // Monstars drawn from the creator's character sheets play the sheet's own pose for each power (frame numbers in the sheet).
 // special / dash: [from level, frame] pairs, because a stronger power takes over the button as the Monstar levels up.
 const POSES = {
-  zephar: { basic: 6, special: [[1, 7], [10, 8], [25, 9], [50, 13]], guard: 10, dash: [[1, 11], [25, 12]] },
-  terrok: { basic: [[1, 6], [25, 10]], special: [[1, 7], [10, 9], [25, 11], [50, 12]], guard: [[1, 8], [25, 13]] },
-  tydal: { basic: [[1, 6], [25, 10]], special: [[1, 7], [10, 9], [25, 12], [50, 13]], guard: 8, dash: 11 },
-  covo: { basic: 6, special: [[1, 10], [10, 7], [25, 9]], guard: 8, mega: 11 },
-  azaelion: { basic: 6, special: [[1, 9], [10, 7], [25, 8], [50, 12]], guard: 13, dash: 14, mega: 11 },
-  ignar: { basic: 6, special: [[1, 7], [10, 8], [25, 8], [50, 6]] },
-  aerix: { basic: 6, special: [[1, 7], [10, 8], [25, 9], [50, 13]], guard: 10, dash: [[1, 11], [25, 12]] },
-  bouldar: { basic: [[1, 6], [25, 10]], special: [[1, 7], [10, 9], [25, 11], [50, 12]], guard: [[1, 8], [25, 13]] },
-  nerin: { basic: [[1, 6], [25, 10]], special: [[1, 7], [10, 9], [25, 12], [50, 13]], guard: 8, dash: 11 },
-  zuri: { basic: 6, special: [[1, 8], [10, 7], [25, 8], [50, 6]], guard: 7 },
-  verdex: { basic: 6, special: [[1, 7], [10, 7], [25, 8], [50, 7]], dash: 8 },
+  zephar: { col: '#c8b0ff', basic: 6, special: [[1, 7], [10, 8], [25, 9], [50, 13]], guard: 10, dash: [[1, 11], [25, 12]] },
+  terrok: { col: '#e0b060', basic: [[1, 6], [25, 10]], special: [[1, 7], [10, 9], [25, 11], [50, 12]], guard: [[1, 8], [25, 13]] },
+  tydal: { col: '#5ec2ff', basic: [[1, 6], [25, 10]], special: [[1, 7], [10, 9], [25, 12], [50, 13]], guard: 8, dash: 11 },
+  covo: { col: '#c080ff', basic: 6, special: [[1, 10], [10, 7], [25, 9]], guard: 8, mega: 11 },
+  azaelion: { col: '#c080ff', basic: 6, special: [[1, 9], [10, 7], [25, 8], [50, 12]], guard: 13, dash: 14, mega: 11 },
+  ignar: { col: '#ff8a1f', basic: 6, special: [[1, 7], [10, 8], [25, 8], [50, 6]] },
+  aerix: { col: '#d8ecff', basic: 6, special: [[1, 7], [10, 8], [25, 9], [50, 13]], guard: 10, dash: [[1, 11], [25, 12]] },
+  bouldar: { col: '#d8a850', basic: [[1, 6], [25, 10]], special: [[1, 7], [10, 9], [25, 11], [50, 12]], guard: [[1, 8], [25, 13]] },
+  nerin: { col: '#5ec2ff', basic: [[1, 6], [25, 10]], special: [[1, 7], [10, 9], [25, 12], [50, 13]], guard: 8, dash: 11 },
+  zuri: { col: '#7ad0ff', basic: 6, special: [[1, 8], [10, 7], [25, 8], [50, 6]], guard: 7 },
+  verdex: { col: '#7aff4a', basic: 6, special: 7, dash: 8 },
 };
+// How long a cast pose is held: a special is a bigger move, so the character stays in it longer (wind-up, strike, hold, recover).
+const castHold = f => (f.ck === 'special' ? 0.85 : f.ck === 'mega' ? 1.2 : 0.5);
 const atLv = (v, lv) => Array.isArray(v) ? v.reduce((f, [l, fr]) => (lv >= l ? fr : f), v[0][1]) : v;
 function poseFrame(f) {
   const P = POSES[NAMES[f.s]]; if (!P) return -1;
-  if (f.ck && f.ct < 0.5 && P[f.ck] != null) return atLv(P[f.ck], f.lv || 1);
+  if (f.ck && f.ct < castHold(f) && P[f.ck] != null) return atLv(P[f.ck], f.lv || 1);
   if ((f.uo || f.ck === 'mega') && P.mega != null && f.ct < 1.2) return P.mega;
   if (f.g && P.guard != null) return atLv(P.guard, f.lv || 1);
   if (f.ds && P.dash != null) return atLv(P.dash, f.lv || 1);
@@ -237,7 +239,7 @@ function createRenderer(canvas, arena) {
     ctx.ellipse = (x, y, rx, ry, rot, a, b, c) => ell(fin(x), fin(y), pos(rx), pos(ry), fin(rot), fin(a), fin(b), c);
     ctx.createRadialGradient = (x0, y0, r0, x1, y1, r1) => rad(fin(x0), fin(y0), pos(r0), fin(x1), fin(y1), Math.max(0.01, pos(r1)));
   }
-  let parts = [], decals = [], texts = [], trails = [[], [], [], [], [], [], [], []], shake = 0, flash = 0, impacts = new Set(), lastNow = performance.now(), lean = [], tpSeen = [], lastPos = [], ghosts = [];
+  let parts = [], decals = [], texts = [], trails = [[], [], [], [], [], [], [], []], shake = 0, flash = 0, impacts = new Set(), lastNow = performance.now(), lean = [], tpSeen = [], lastPos = [], ghosts = [], seqF = [];
   let banner = null, grow = [0, 0, 0, 0, 0, 0, 0, 0], theme = 0, fx = [], SX = 0, SY = 0, dashSeen = [0, 0, 0, 0, 0, 0, 0, 0];
   // ---------- smooth full-resolution effects (dust clouds, impact stars, shockwaves, flying rock, glowing bolts) ----------
   const FULL = () => ctx.setTransform(1, 0, 0, 1, SX * Z, SY * Z), LOG = () => ctx.setTransform(Z, 0, 0, Z, SX * Z, SY * Z);
@@ -381,7 +383,17 @@ function createRenderer(canvas, arena) {
       else if (mo === 'glide' || mo === 'skate') { rot = (f.fx < 0 ? -1 : 1) * 0.06; if (Math.random() < 0.3) part(X / Z, Y / Z, 0, 0, 0.35, mo === 'skate' ? '#dff8ff' : '#bfefff', 1); }
       else if (mo === 'blink') oy -= Math.abs(Math.sin(phase * 8)) * 3;
     } else if (!f.fl) oy -= (Math.floor(phase * 2.4) % 2) ? 2 : 0;
-    if (f.ct < 0.16) { ox += f.fx * 10 * U * (1 - f.ct / 0.16); oy += f.fy * 6 * U * (1 - f.ct / 0.16); }
+    // Sheet-drawn characters play each move as a sequence: wind-up (squash and pull back), strike (lunge with a flash and
+    // after-images), hold (energy pours from the hands) and recovery (the pose melts back into the stance).
+    const SP = walker && pf >= 0 ? POSES[NAMES[f.s]] : null, cast = SP && f.ck && f.ct < castHold(f) ? f.ct : -1, hold = castHold(f);
+    let strikeK = 0;
+    if (cast >= 0) {
+      const d = f.fx < 0 ? -1 : 1, ease = u => 1 - (1 - u) * (1 - u);
+      if (cast < 0.07) { const u = cast / 0.07; ox -= d * 6 * U * u; sx *= 1 + 0.06 * u; sy *= 1 - 0.08 * u; }                       // wind-up
+      else if (cast < 0.24) { const u = (cast - 0.07) / 0.17; strikeK = 1 - u; ox += d * (16 * ease(u) - 6 * (1 - u)) * U;            // strike
+        sx *= 1 + 0.07 * (1 - u); sy *= 1 + 0.04 * (1 - u); }
+      else { const u = Math.min(1, (cast - 0.24) / Math.max(0.1, hold - 0.24)); ox += d * 16 * (1 - ease(u)) * U; }                   // hold, settling back
+    } else if (f.ct < 0.16) { ox += f.fx * 10 * U * (1 - f.ct / 0.16); oy += f.fy * 6 * U * (1 - f.ct / 0.16); }
     if (f.hu > 0) ox += (Math.random() - 0.5) * 4 * U;
     if (f.i && Math.floor(now * 20) % 2) alpha = 0.5;
     if (f.bk > 0) alpha *= 0.3 + (1 - f.bk / 0.35) * 0.7;
@@ -416,7 +428,20 @@ function createRenderer(canvas, arena) {
     const blinkW = f.hu > 0 && Math.floor(now * 30) % 2 === 0;
     if (f.st === 'poison' && !blinkW) { ctx.filter = 'hue-rotate(250deg) saturate(1.4)'; }
     if (f.st === 'burn' && !blinkW) { ctx.filter = 'sepia(.5) saturate(1.6) hue-rotate(-20deg)'; }
+    // smooth pose changes: the old frame fades out under the new one (into and out of every move, guard and dash)
+    const sq = seqF[i] || (seqF[i] = { cur: frame, prev: frame, t: 1 });
+    if (frame !== sq.cur) { const big = frame >= 6 || sq.cur >= 6; sq.prev = sq.cur; sq.cur = frame; sq.t = big && walker ? 0 : 1; }
+    sq.t = Math.min(1, sq.t + opt.dt / 0.11);
+    if (sq.t < 1 && !blinkW) { const old = stageSprite(f.s, opt.hue || 0, stage, pal, false, sq.prev);
+      if (old) { ctx.globalAlpha = alpha * (1 - sq.t); blit(old, X + ox, Y + oy, dw, dh, flip, sx, sy, rot); ctx.globalAlpha = alpha * (0.35 + 0.65 * sq.t); } }
+    if (strikeK > 0) { const d = f.fx < 0 ? -1 : 1; // after-images trailing the lunge
+      for (let k = 3; k >= 1; k--) { ctx.globalAlpha = alpha * strikeK * 0.16 * (4 - k); blit(spr, X + ox - d * k * 9 * U, Y + oy, dw, dh, flip, sx, sy, rot); }
+      ctx.globalAlpha = alpha; }
+    if (cast >= 0.04 && SP.col) { const d = f.fx < 0 ? -1 : 1, hx = X + ox + d * dw * 0.34, hy = Y + oy - dh * 0.5, fade = cast < 0.24 ? 1 : Math.max(0, 1 - (cast - 0.24) / (hold - 0.24));
+      ctx.save(); ctx.globalCompositeOperation = 'lighter'; glowAt(hx, hy, dw * (0.28 + 0.12 * Math.sin(now * 30)) * (0.6 + 0.4 * fade), SP.col, 0.75 * fade); ctx.restore();
+      if (Math.random() < 0.8 * fade) part((hx + (Math.random() - 0.5) * 10 * U) / Z, (hy + (Math.random() - 0.5) * 14 * U) / Z, d * (30 + Math.random() * 40), (Math.random() - 0.5) * 20, 0.35, SP.col, 1); }
     blit(blinkW || grow[i] > 0.9 ? wh : spr, X + ox, Y + oy, dw, dh, flip, sx, sy, rot);
+    if (strikeK > 0.4 && wh) { ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = (strikeK - 0.4) * 0.9; blit(wh, X + ox, Y + oy, dw, dh, flip, sx, sy, rot); ctx.restore(); } // flash as the blow lands
     ctx.filter = 'none'; ctx.globalAlpha = 1;
     statusFx(f, X + ox, Y + oy, dw, dh, now);
     if (f.g) { // shield bubble: stronger shields glow brighter
@@ -946,7 +971,7 @@ function createRenderer(canvas, arena) {
       if (banner.sub) { ctx.font = '700 16px Inter, system-ui, sans-serif'; ctx.fillStyle = '#ffd84a'; ctx.fillText(banner.sub, CW / 2, CH / 2 + 18); }
       ctx.textBaseline = 'alphabetic'; ctx.globalAlpha = 1; if (banner.t <= 0) banner = null; }
   }
-  function reset() { fx = []; parts = []; decals = []; texts = []; trails = [[], [], [], [], [], [], [], []]; impacts.clear(); shake = 0; flash = 0; banner = null; lean = []; tpSeen = []; lastPos = []; ghosts = []; grow = [0, 0, 0, 0, 0, 0, 0, 0]; }
+  function reset() { fx = []; parts = []; decals = []; texts = []; trails = [[], [], [], [], [], [], [], []]; impacts.clear(); shake = 0; flash = 0; banner = null; lean = []; tpSeen = []; lastPos = []; ghosts = []; seqF = []; grow = [0, 0, 0, 0, 0, 0, 0, 0]; }
   return { draw, hit, event, reset, ground: (th, lay) => { g = ctx; ctx.setTransform(Z, 0, 0, Z, 0, 0); ctx.drawImage(groundFor(th), 0, 0); drawLayout(lay, performance.now()); ctx.setTransform(1, 0, 0, 1, 0, 0); }, idle: (th = theme) => { g = ctx; ctx.setTransform(Z, 0, 0, Z, 0, 0); ctx.drawImage(groundFor(th), 0, 0); ctx.setTransform(1, 0, 0, 1, 0, 0); }, themes: THEMES };
 }
 

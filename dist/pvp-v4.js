@@ -611,7 +611,7 @@ function onMsg(m) {
     if (room && room.state !== 'live') { room.state = 'live'; fightAt = performance.now(); renderer.reset(); renderRoom(); }
     snapPrev = snapCur; snapCur = m.s; snapAt = performance.now(); setShares(m.shares); showCapture(); return;
   }
-  if (m.t === 'capture') { if (!m.ok) toast(`It broke free! (${m.chance}% chance) · ${m.left} ${m.left === 1 ? 'try' : 'tries'} left`, true); return; }
+  if (m.t === 'capture') { if (m.taken) { toast((Monstars.SPECIES[m.speciesId]?.name || 'It') + ' is one of a kind and another player already caught it.', true); return; } if (!m.ok) toast(`It broke free! (${m.chance}% chance) · ${m.left} ${m.left === 1 ? 'try' : 'tries'} left`, true); return; }
   if (m.t === 'hit') { setShares(m.shares, m); return; }
   if (['switch', 'status', 'ult', 'pickup', 'blocked', 'dash', 'guard', 'mega', 'quake', 'hazard', 'earthquake', 'wallhit', 'ascend', 'descend'].includes(m.t)) { battleEvent({ ...m, type: m.t }); return; }
   if (m.t === 'miss' || m.t === 'level' || m.t === 'bonus') { battleEvent({ ...m, type: m.t }); if (m.t === 'level') refreshSoon(); return; }
@@ -713,7 +713,7 @@ function renderRoom() {
         q('pvBig').textContent = c?.ok ? 'Caught!' : won ? 'Victory!' : 'Defeated';
         const keepLv = !String(me || '').startsWith('@') && c?.monstar?.level > 1;
         const line = c ? (c.ok ? `<b>You caught ${esc(wsp.name)}!</b> ${keepLv ? `It kept its level (Lv${c.monstar.level}) because you play with Phantom.` : 'It joined your team as a level 1 Infant (Phantom players keep the level they beat).'}`
-            : won ? `${esc(wsp.name)} got away (${Math.round(c.chance * 100)}% catch chance for ${esc(c.tier)}).` : `${esc(wsp.name)} was too strong this time.`)
+            : c.taken ? `<b>${esc(wsp.name)} is one of a kind</b> and another player caught it first.` : won ? `${esc(wsp.name)} got away (${Math.round(c.chance * 100)}% catch chance for ${esc(c.tier)}).` : `${esc(wsp.name)} was too strong this time.`)
           : `Practice run. <b>Sign in and pay ${esc(w.feeSol())} SOL</b> to enter the wild for real and catch what you beat.`;
         q('pvSmall').innerHTML += '<br>' + line;
         const nx = el('button', { className: 'primary', textContent: 'Next wild encounter' }); nx.onclick = () => { room = null; local = null; ended = null; snapCur = null; renderRoom(); w.next(); };

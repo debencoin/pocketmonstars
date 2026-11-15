@@ -80,12 +80,15 @@ export class MatchManager {
       if (this.db.prepare('SELECT 1 FROM wild_runs WHERE signature=?').get(sig)) throw Error('That entry fee was already used.');
       await this.chain.verifyDeposit(sig, { from: wallet, to: this.config.treasury, lamports: this.config.wildFeeLamports });
     }
-    const z = Math.max(0, Math.min(WILD_ZONE_MIN.length - 1, Number(zone) || 0)), sid = rollWild(), tier = TIERS[SPECIES[sid].tier];
+    const z = Math.max(0, Math.min(WILD_ZONE_MIN.length - 1, Number(zone) || 0)), sid = rollWild(Math.random(), id => SPECIES[id].wildOne && this.wildOneBusy(id)), tier = TIERS[SPECIES[sid].tier];
     const level = wildLevel(SPECIES[sid], monstar.level, Math.random, WILD_ZONE_MIN[z]); // always above your Monstar (special ones: 1% chance of a level 1)
     this.db.prepare('INSERT INTO wild_runs(signature,wallet,species,level,created_at) VALUES(?,?,?,?,?)').run(sig, wallet, sid, level, this.now());
     if (this.byWallet.has(wallet)) this.leave(wallet);
     return this.aiRoom(wallet, [monstar], [new Monstar({ speciesId: sid, level })], { wild: { signature: sig, speciesId: sid, level, tier: SPECIES[sid].tier }, hard: tier.lvl >= 12 });
   }
+
+  /** A one-of-a-kind wild Monstar is met by one player at a time, and never again once it has been caught. */
+  wildOneBusy(sid) { return this.registry.wildOneTaken(sid) || [...this.rooms.values()].some(r => r.wild?.speciesId === sid && ['countdown', 'live'].includes(r.state)); }
 
   aiRoom(wallet, team, bots, { wild = null, hard = false, level = 'normal', squad = false }) {
     const monstar = team[0], bot = bots[0], sid = bot.species.id;
@@ -213,7 +216,10 @@ export class MatchManager {
     room.throws++; room.lastThrow = now;
     const chance = captureChance(room.wild.speciesId, frac), ok = Math.random() < chance;
     const msg = { t: 'capture', ok, chance: Math.round(chance * 100), left: 3 - room.throws, code: room.code };
-    if (ok) { this.takeCatch(wallet); room.captured = this.registry.catchWild(room.players[0].wallet, room.wild.speciesId, room.wild.level); forfeit(room.sim, 1); this.end(room); }
+    if (ok) {
+      try { room.captured = this.registry.catchWild(room.players[0].wallet, room.wild.speciesId, room.wild.level); }
+      catch (e) { const gone = { ...msg, ok: false, taken: true, error: e.message }; this.emit(room, gone); return gone; } // a one-of-a-kind someone else just caught
+      this.takeCatch(wallet); forfeit(room.sim, 1); this.end(room); }
     else this.emit(room, msg);
     return msg;
   }
@@ -306,7 +312,9 @@ export class MatchManager {
       const won = sim.winner === 0, chance = TIERS[room.wild.tier].catch;
       caught = { won, chance, speciesId: room.wild.speciesId, tier: room.wild.tier, ok: false };
       const allow = this.catchAllowance(room.players[0].wallet); if (won && !allow.ok) caught.needPass = true;
-      if (won && allow.ok && Math.random() < chance) { this.takeCatch(room.players[0].wallet); const c = this.registry.catchWild(room.players[0].wallet, room.wild.speciesId, room.wild.level); caught.ok = true; caught.monstar = c.toJSON(); }
+      if (won && allow.ok && Math.random() < chance) {
+        try { const c = this.registry.catchWild(room.players[0].wallet, room.wild.speciesId, room.wild.level); this.takeCatch(room.players[0].wallet); caught.ok = true; caught.monstar = c.toJSON(); }
+        catch (e) { caught.taken = true; caught.error = e.message; } }
       this.db.prepare('UPDATE wild_runs SET won=?, caught_serial=? WHERE signature=?').run(won ? 1 : 0, caught.monstar?.serial ?? null, room.wild.signature);
     }
     let immortal = null;

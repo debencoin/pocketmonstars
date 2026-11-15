@@ -248,19 +248,40 @@ export function wildLevel(sp, myLevel = 1, rand = Math.random, floor = 1) {
   return Math.max(floor, myLevel + 1 + extra);
 }
 /** Weighted random wild species (rarer tiers show up less often). `rand` is 0..1. */
-export function rollWild(rand = Math.random()) {
-  const total = WILD_IDS.reduce((t, id) => t + TIERS[SPECIES[id].tier].weight / tierCount(SPECIES[id].tier), 0);
+/** `skip(id)` leaves species out of the roll: the server skips one-of-a-kind wild Monstars that have already been caught. */
+export function rollWild(rand = Math.random(), skip = null) {
+  const ids = skip ? WILD_IDS.filter(id => !skip(id)) : WILD_IDS;
+  const total = ids.reduce((t, id) => t + TIERS[SPECIES[id].tier].weight / tierCount(SPECIES[id].tier), 0);
   let r = rand * total;
-  for (const id of WILD_IDS) { r -= TIERS[SPECIES[id].tier].weight / tierCount(SPECIES[id].tier); if (r <= 0) return id; }
-  return WILD_IDS[0];
+  for (const id of ids) { r -= TIERS[SPECIES[id].tier].weight / tierCount(SPECIES[id].tier); if (r <= 0) return id; }
+  return ids[0] ?? WILD_IDS[0];
 }
-const _tc = {}; function tierCount(t) { return (_tc[t] ??= WILD_IDS.filter(id => SPECIES[id].tier === t).length); }
+let _tc = {}; function tierCount(t) { return (_tc[t] ??= WILD_IDS.filter(id => SPECIES[id].tier === t).length); }
+/**
+ * One-of-a-kind wild Monstars: special characters the founder released from their wallet into the wild. Rare tier.
+ * Each exists ONCE: it rolls in the wild until a player catches it, then it belongs to that player (and whoever they
+ * trade or sell it to) and never spawns again. It is never gifted, sold in the shop or bred.
+ * Add a character here by name to release it (the founder's unminted copy leaves their wallet on the next server start).
+ */
+export const WILD_ONE_NAMES = [];
+export const WILD_ONE_IDS = [];
+export function markWildOne(names) {
+  for (const n of names) {
+    const sp = SPECIES.find(s => s.name.toLowerCase() === String(n).toLowerCase()); if (!sp) throw Error('No Monstar named ' + n);
+    if (sp.wildOne) continue;
+    Object.assign(sp, { wildOne: true, unique: true, tier: 'Rare', legendary: undefined, legendFor: undefined, drop: undefined, starter: undefined });
+    WILD_ONE_IDS.push(sp.id); if (!WILD_IDS.includes(sp.id)) WILD_IDS.push(sp.id);
+    for (const L of [LEGENDARY_IDS, SALE_IDS, SHOP_IDS]) { const k = L.indexOf(sp.id); if (k >= 0) L.splice(k, 1); }
+  }
+  _tc = {};
+}
 for (const s of SPECIES) if (s.legendary) s.legendFor ||= 'founder';
 export const LEGENDARY_IDS = SPECIES.filter(s => s.legendary).map(s => s.id);
 export const HERO_IDS = SPECIES.filter(s => s.hero).map(s => s.id);
 /** Species sold once each for SOL: the drop heroes (time-limited) and the market Sky Benders (no time limit). */
 export const SALE_IDS = SPECIES.filter(s => s.drop).map(s => s.id);
 export const SHOP_IDS = SPECIES.filter(s => s.drop?.shop).map(s => s.id);
+markWildOne(WILD_ONE_NAMES);
 /** Legendary species held by each founder wallet ('founder' = first wallet, 'royal' = second). */
 export const legendaryIdsFor = key => SPECIES.filter(s => s.legendary && s.legendFor === key).map(s => s.id);
 /** File name of a species' NFT / market picture in dist/art/nft (portraits are .jpg). */

@@ -34,9 +34,9 @@ D = {
            ('waterslash', (710, 368, 858, 505)), ('origin', (952, 692, 1178, 898))],
     forms=[(916, 503, 987, 598), (916, 503, 987, 598), (1010, 500, 1085, 598), (1105, 500, 1185, 598), (1295, 500, 1375, 598), (1414, 494, 1498, 594)]),
   # the creator's second set of element benders (and the fire sheet for Ignar). Sheets are full-colour on white paper.
-  'ignar': dict(tol=20, glow=(255, 120, 30),
+  'ignar': dict(tol=20, glow=(255, 120, 30), blank=[(928, 840, 1254, 1254)],   # paint out the detail panel beside the jumping pose
     side=(745, 5, 975, 495),
-    poses=[('fireball', (5, 555, 362, 862)), ('stomp', (340, 580, 690, 858)), ('spiral', (675, 555, 928, 880))],
+    poses=[('fireball', (5, 555, 362, 862)), ('stomp', (340, 580, 690, 858)), ('spiral', (675, 555, 985, 880))],
     forms=[(5, 885, 170, 1185), (5, 885, 170, 1185), (170, 855, 350, 1185), (350, 855, 520, 1185), (520, 855, 735, 1185), (735, 855, 925, 1185)]),
   'aerix': dict(tol=20, glow=(150, 200, 255),
     side=(700, 5, 945, 375),
@@ -159,6 +159,10 @@ if __name__ == '__main__':
     for name, d in D.items():
         if only and name not in only: continue
         sheet = Image.open(os.path.join(SRC, d.get('file', name + '_sheet.png')))
+        if d.get('blank'):
+            from PIL import ImageDraw
+            sheet = sheet.convert('RGB'); dr = ImageDraw.Draw(sheet)
+            for r in d['blank']: dr.rectangle(r, fill=(255, 255, 255))
         ai = d.get('ai', set())
         def cutf(sh, box, *a, _c={}, _ai=ai, _all=d.get('matte') == 'ai'):
             if not (_all or box in _ai): return cut(sh, box, *a)

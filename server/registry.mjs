@@ -3,7 +3,7 @@
 // Levels (EXP) are stored here; Legendary and Bred collections are created here too.
 import { createHash, randomBytes } from 'node:crypto';
 import { PublicKey } from '@solana/web3.js';
-import { HERO_IDS, SALE_IDS, STARTER_IDS, expForLevel as expAt, legendaryIdsFor, nftArt, SPECIES, GENESIS_IDS, LEGENDARY_IDS, WILD_IDS, RARITIES, Monstar, traitsFromDna, traitSignature, composeDna, rarityIndex, expForLevel } from '../shared/monstars.mjs';
+import { WILD_ONE_IDS, HERO_IDS, SALE_IDS, STARTER_IDS, expForLevel as expAt, legendaryIdsFor, nftArt, SPECIES, GENESIS_IDS, LEGENDARY_IDS, WILD_IDS, RARITIES, Monstar, traitsFromDna, traitSignature, composeDna, rarityIndex, expForLevel } from '../shared/monstars.mjs';
 
 export function deriveDna(owner, speciesId, nonce) {
   return createHash('sha256').update(`pocketmonstars:dna:v1:${owner}:${speciesId}:${nonce}`).digest('hex');
@@ -42,6 +42,15 @@ export class Registry {
       const gone = SPECIES.filter(s => s.retired).map(s => s.id).join(',') || '-1';
       try { db.exec(`DELETE FROM monstars WHERE species IN (${gone}) AND asset IS NULL`); } catch (e) { console.error('retire benders:', e.message); }
       db.prepare("INSERT INTO meta(k,v) VALUES('retire-benders-v1','done')").run();
+    }
+    // one-of-a-kind wild Monstars the founder released: an unminted gifted copy (genesis) leaves the wallet so the one copy can be
+    // caught in the wild. A copy that was already minted is a real NFT: it stays, and the species does not spawn.
+    if (WILD_ONE_IDS.length) {
+      const ids = WILD_ONE_IDS.join(',');
+      try { const r = db.prepare(`DELETE FROM monstars WHERE species IN (${ids}) AND genesis=1 AND asset IS NULL`).run(); if (r.changes) console.log(`released ${r.changes} one-of-a-kind Monstar(s) to the wild`); }
+      catch (e) { console.error('release to wild:', e.message); }
+      for (const r of db.prepare(`SELECT serial, species FROM monstars WHERE species IN (${ids}) AND genesis=1 AND asset IS NOT NULL`).all())
+        console.warn(`#${r.serial} (${SPECIES[r.species].name}) is minted, so it stays with its holder and is not in the wild`);
     }
     // gifts handed out (so a gift is given once, even when the Monstar is born to its creator and not to the holder)
     db.exec('CREATE TABLE IF NOT EXISTS gift_claims(owner TEXT NOT NULL, species INTEGER NOT NULL, serial INTEGER NOT NULL, PRIMARY KEY(owner, species))');
@@ -100,7 +109,7 @@ export class Registry {
   claimLegendaries(owner) {
     owner = normOwner(owner);
     const key = owner === this.legendaryOwner ? 'founder' : owner === this.royalOwner ? 'royal' : null;
-    const ids = [...(key ? legendaryIdsFor(key) : []), ...(this.gifts[owner] || [])];
+    const ids = [...(key ? legendaryIdsFor(key) : []), ...(this.gifts[owner] || [])].filter(sid => !SPECIES[sid].wildOne); // one-of-a-kind wild Monstars are only caught
     if (!ids.length) return [];
     return ids.map(sid => {
       const creator = this.creators[SPECIES[sid].collection];
@@ -158,6 +167,13 @@ export class Registry {
   catchWild(owner, speciesId, level = 1) {
     owner = normOwner(owner);
     if (!WILD_IDS.includes(speciesId)) throw Error('That is not a wild species.');
+    // one of a kind: the first catch wins it, for good (the check and the insert run in one synchronous step, so two catches can't both pass)
+    if (SPECIES[speciesId].wildOne && this.wildOneTaken(speciesId)) throw Error(`${SPECIES[speciesId].name} is one of a kind and was already caught by another player.`);
+    return this.catchAny(owner, speciesId, level);
+  }
+  /** True once a one-of-a-kind wild Monstar exists in any wallet (caught, or a minted copy the founder kept). */
+  wildOneTaken(speciesId) { return !!this.db.prepare('SELECT 1 FROM monstars WHERE species=? LIMIT 1').get(speciesId); }
+  catchAny(owner, speciesId, level) {
     const seed = randomBytes(8).toString('hex'), sp = SPECIES[speciesId], keep = !owner.startsWith('@') && level > 1;
     return this.insertUnique({ speciesId, originOwner: owner, owner, genesis: false, collection: sp.collection, exp: keep ? expAt(Math.min(100, Math.floor(level))) : 0,
       dnaFor: n => createHash('sha256').update(`pocketmonstars:wild:${owner}:${speciesId}:${seed}:${n}`).digest('hex') });
