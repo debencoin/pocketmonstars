@@ -74,6 +74,18 @@ function animFor(sid) {
   return d.J && d.img.complete && d.img.naturalWidth ? d : null;
 }
 const ANIM_STAND = 132; // standing height on the 960 canvas: the same at every form, stage and move
+// Every character is drawn the same size: its body (opaque pixels of its standing frame, glow ignored) is scaled so its
+// tallest side is BODY canvas pixels, whatever its art, evolution stage or form.
+const BODY = ANIM_STAND, bodyK = new Map();
+function bodyFit(key, c) {
+  let k = bodyK.get(key); if (k !== undefined) return k;
+  try {
+    const d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data; let x0 = c.width, y0 = c.height, x1 = -1, y1 = -1;
+    for (let y = 0; y < c.height; y++) for (let x = 0; x < c.width; x++) if (d[(y * c.width + x) * 4 + 3] > 170) { if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
+    k = x1 < 0 ? 0 : BODY / Math.max(x1 - x0 + 1, y1 - y0 + 1);
+  } catch { k = 0; }
+  bodyK.set(key, k); return k;
+}
 const ELEMS = ['earth', 'wind', 'fire', 'water', 'lightning', 'fifth'];
 /** Which frame of which sequence the character shows right now. */
 function animPick(d, f, i, opt, now) {
@@ -403,7 +415,9 @@ function createRenderer(canvas, arena) {
     grow[i] = Math.max(0, grow[i] - opt.dt * 0.8);
     const sc = (AN ? 1 : STAGE_SCALE[scaleStage]) * (1 + Math.sin(grow[i] * 12) * 0.12 * grow[i]); // a frame-animated character keeps one size
     const hiK = AN ? 1 : spr.width > 150 ? 140 / spr.width : 1; // drawn-art sheets (Aura Warriors) are 3x size: shown a little bigger than pixel sprites
-    const dw = AN ? Math.round(ANIM_STAND * 0.62 * sc) : Math.round(spr.width * sc * SPR * hiK), dh = AN ? Math.round(ANIM_STAND * 1.06 * sc) : Math.round(spr.height * sc * SPR * hiK);
+    const idle0 = AN ? null : stageSprite(f.s, 0, stage, pal, false, 0), bk = idle0 ? bodyFit(f.s + '|' + stage, idle0) : 0; // same body size for everyone
+    const grow1 = 1 + Math.sin(grow[i] * 12) * 0.12 * grow[i];
+    const dw = AN ? Math.round(ANIM_STAND * 0.62 * sc) : bk ? Math.round(spr.width * bk * grow1) : Math.round(spr.width * sc * SPR * hiK), dh = AN ? Math.round(ANIM_STAND * 1.06 * sc) : bk ? Math.round(spr.height * bk * grow1) : Math.round(spr.height * sc * SPR * hiK);
     let X = wx * K * Z, Y = wy * K * Z + 22 * U; // feet in canvas pixels
     const tr = trails[i]; if (f.ds || (f.bt && Math.random() < 0.5)) tr.push({ x: X, y: Y, life: 0.3 });
     if (f.ds && !dashSeen[i]) { puffs(X / Z, Y / Z, 6, '#e2d6bc', 34, 8, 0.6); } dashSeen[i] = f.ds ? 1 : 0;
