@@ -49,7 +49,7 @@ const POSES = {
   zephar: { basic: 6, special: [[1, 7], [10, 8], [25, 9], [50, 13]], guard: 10, dash: [[1, 11], [25, 12]] },
   terrok: { basic: [[1, 6], [25, 10]], special: [[1, 7], [10, 9], [25, 11], [50, 12]], guard: [[1, 8], [25, 13]] },
   tydal: { basic: [[1, 6], [25, 10]], special: [[1, 7], [10, 9], [25, 12], [50, 13]], guard: 8, dash: 11 },
-  covo: { basic: 6, special: [[1, 10], [10, 7], [25, 9]], guard: 8, mega: 11 },
+  covo: { basic: 6, special: [[1, 9], [10, 7], [25, 8], [50, 12]], guard: 13, dash: 14, mega: 11 },
 };
 const atLv = (v, lv) => Array.isArray(v) ? v.reduce((f, [l, fr]) => (lv >= l ? fr : f), v[0][1]) : v;
 function poseFrame(f) {

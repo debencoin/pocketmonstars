@@ -355,3 +355,4 @@ Stats: HP, Attack, Defense, Sp. Atk, Sp. Def, Speed. Types: EMBER, GROVE, TIDE, 
 - Terrok (earth), Tydal (water) and COVO (fifth element) are cut from the creator's character sheets (`scripts/make_master_art.py`, sources `art-src/masters/*_sheet.png`; COVO's sheet has a dark background, cut with `dark`). Each stage shows the sheet's form; each power plays its pose (`POSES`, now also per-level basic/guard and COVO's Mega Shot, Origin Burst).
 - Power names follow the sheets (Earth Push, Rock Spike, Earth Shield, Earth Wave, Boulder Toss, Stone Pillar, Quake Burst, Earth Wall; Water Push, Whip, Shield, Wave, Spear, Surge, Whirlpool, Dragon).
 - Element Masters' stats are +75%, the same as the Aura Warriors. Ignar (fire) keeps the drawn design.
+- v59: COVO redrawn from the Chosen One's full sprite sheet (real run frames, one pose per element, guard, dash, Origin Burst).

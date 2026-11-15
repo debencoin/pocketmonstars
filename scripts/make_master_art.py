@@ -28,11 +28,13 @@ D = {
     poses=[('push', (13, 429, 248, 611)), ('whip', (246, 429, 468, 611)), ('shield', (468, 429, 711, 611)), ('wave', (711, 429, 950, 611)),
            ('spear', (5, 653, 238, 818)), ('surge', (234, 653, 479, 818)), ('whirlpool', (479, 653, 702, 818)), ('dragon', (705, 653, 946, 818))],
     forms=[(13, 870, 114, 1039), (125, 866, 266, 1039), (264, 862, 398, 1039), (400, 855, 536, 1039), (536, 855, 672, 1039), (800, 852, 964, 1039)]),
-  'covo': dict(dark=22, glow=(170, 80, 255),
-    side=(916, 503, 987, 598),   # the painted backgrounds behind the big views can't be cut away cleanly, so he runs as his Initiate form
-    poses=[('staff', (165, 368, 288, 505)), ('waterspin', (292, 368, 428, 505)), ('ring', (428, 368, 568, 505)), ('fire', (570, 368, 708, 505)),
-           ('waterslash', (710, 368, 858, 505)), ('origin', (952, 692, 1178, 898))],
-    forms=[(916, 503, 987, 598), (916, 503, 987, 598), (1010, 500, 1085, 598), (1105, 500, 1185, 598), (1295, 500, 1375, 598), (1414, 494, 1498, 594)]),
+  'covo': dict(tol=26, glow=(170, 80, 255),   # the Chosen One's own full sprite sheet: real run frames, one pose per power
+    side=(219, 358, 277, 412),
+    run=[(219, 358, 277, 412), (282, 358, 342, 412), (345, 358, 405, 412), (405, 358, 468, 412)],
+    poses=[('basic', (950, 125, 1050, 186)), ('earth', (900, 312, 1042, 361)), ('wind', (900, 368, 1048, 414)), ('fire', (900, 421, 1042, 470)),
+           ('water', (900, 475, 1048, 524)), ('origin', (1085, 695, 1310, 832)), ('lightning', (900, 529, 1062, 580)), ('guard', (543, 642, 598, 688)),
+           ('dash', (940, 205, 1065, 272))],
+    forms=[(18, 872, 80, 968), (18, 872, 80, 968), (130, 872, 187, 968), (240, 872, 300, 968), (360, 872, 417, 968), (480, 872, 545, 968)]),
 }
 
 def cut(sheet, box, tol=20, dark=None):
@@ -69,7 +71,10 @@ if __name__ == '__main__':
         if only and name not in only: continue
         sheet = Image.open(os.path.join(SRC, name + '_sheet.png'))
         side = cut(sheet, d['side'], d.get('tol', 20), d.get('dark')); k = (H - 40) / side.height          # one scale for the big drawings
-        run = A['frames'](place(side, k).crop(place(side, k).getbbox()))[2:6]
+        if d.get('run'):
+            rk = (H - 40) / max(cut(sheet, b, d.get('tol', 20)).height for b in d['run'])
+            run = [place(cut(sheet, b, d.get('tol', 20)), rk) for b in d['run']]
+        else: run = A['frames'](place(side, k).crop(place(side, k).getbbox()))[2:6]
         fit = lambda im: place(im, min((W - 8) / im.width, (H - 24) / im.height))   # each power pose fills the frame like the idle and run drawings
         poses = [fit(cut(sheet, b, d.get('tol', 20), d.get('dark'))) for _, b in d['poses']]
         for st in range(6):
