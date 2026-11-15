@@ -350,3 +350,8 @@ Stats: HP, Attack, Defense, Sp. Atk, Sp. Def, Speed. Types: EMBER, GROVE, TIDE, 
 ## v57 — Zephar, the air bender from the creator's sheet
 - The air Element Master is now Zephar (same species id; art `zephar`), cut straight from the creator's character sheet by `scripts/make_master_art.py` (source `art-src/masters/zephar_sheet.png`). Sheets have 14 frames: idle (the form for each stage: Base, Enhanced Flow, Wind Master, Sky Ascendant, Cloud Sage), run (side view), then one frame per power pose from the sheet: Air Push, Air Slash, Air Cyclone, Air Burst, Air Shield, Air Dash, Glider Flight, Air Jump / Levitation.
 - `POSES` in pixel-arena.js picks the pose for the power in use (attack, special by level tier, guard, dash), so each power plays its pose from the sheet.
+
+## v58 — Terrok, Tydal and COVO from the creator's sheets
+- Terrok (earth), Tydal (water) and COVO (fifth element) are cut from the creator's character sheets (`scripts/make_master_art.py`, sources `art-src/masters/*_sheet.png`; COVO's sheet has a dark background, cut with `dark`). Each stage shows the sheet's form; each power plays its pose (`POSES`, now also per-level basic/guard and COVO's Mega Shot, Origin Burst).
+- Power names follow the sheets (Earth Push, Rock Spike, Earth Shield, Earth Wave, Boulder Toss, Stone Pillar, Quake Burst, Earth Wall; Water Push, Whip, Shield, Wave, Spear, Surge, Whirlpool, Dragon).
+- Element Masters' stats are +75%, the same as the Aura Warriors. Ignar (fire) keeps the drawn design.

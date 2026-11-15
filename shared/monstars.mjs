@@ -204,7 +204,8 @@ const MEGA_SIGNATURE = {
   Neferion: { kind: 'lightning', name: 'Neferion Storm Orbs', note: 'Seven lightning balls chase the rival. The first one to hit stuns it so the rest can zap it.', power: 1.1, size: 1 },
 };
 for (const sp of SPECIES) if (MEGA_SIGNATURE[sp.name]) sp.kit.mega = { ...sp.kit.mega, ...MEGA_SIGNATURE[sp.name] };
-for (const sp of SPECIES) for (const [part, o] of Object.entries(sp.sig || {})) sp.kit[part] = { ...sp.kit[part], ...o }; // Legend Heroes, Sky Benders, COVO and COVA
+for (const sp of SPECIES) for (const [part, o] of Object.entries(sp.sig || {})) sp.kit[part] = { ...sp.kit[part], ...o };
+{ const covo = SPECIES.find(s => s.name === 'COVO'); if (covo) covo.kit.mega = { ...covo.kit.mega, name: 'COVO Origin Burst', note: 'A blast of all five elements and the fifth element at once.' }; } // Legend Heroes, Sky Benders, COVO and COVA
 { // keep every Mega Shot tuning and every dash/guard/Mega combination one of a kind (signature kits can share a kind)
   const megaKey = k => [k.mega.kind, k.mega.power, k.mega.size].join(), combo = k => k.dash.kind + k.guard.kind + k.mega.kind;
   const megas = new Set(), combos = new Set(), GK = Object.keys(GUARD_KINDS);
@@ -371,7 +372,7 @@ export class Monstar {
 /** Stats for a Monstar at any level: base + DNA rolls, grown by level and evolution stage, shaped by nature. */
 export function statsAt(m, level) {
   const nat = NATURES.find(n => n.name === m.traits.nature) || NATURES[7];
-  const elite = m.species.aura || m.species.god ? 1.75 : m.species.master && !m.species.unique ? 1.55 : m.species.starter ? 1.2 : m.species.bender ? (m.species.elite ? 1.8 : 1.55) : m.species.giftHero ? 1.45 : m.species.legendary ? 1.2 : m.species.drop ? (m.species.drop.top ? 1.25 : 1.15) : 1; // founder legendaries: elite Infants, 20% stronger at every level
+  const elite = m.species.aura || m.species.god ? 1.75 : m.species.master && !m.species.unique ? 1.75 : m.species.starter ? 1.2 : m.species.bender ? (m.species.elite ? 1.8 : 1.55) : m.species.giftHero ? 1.45 : m.species.legendary ? 1.2 : m.species.drop ? (m.species.drop.top ? 1.25 : 1.15) : 1; // founder legendaries: elite Infants, 20% stronger at every level
   const st = stageFor(level), growth = (1 + (level - 1) * 0.03) * (m.species.bender ? 1 : TIERS[m.species.tier]?.mult || 1) * elite; // benders' wild tier only sets how often they show up // rarer wild species are stronger
   const out = {};
   STAT_KEYS.forEach((k, i) => {

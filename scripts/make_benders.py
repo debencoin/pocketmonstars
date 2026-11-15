@@ -43,10 +43,7 @@ D = {
   'zephra':   dict(el='air', el2='fire',    f=True,  skin=1, hair=c('#ff8a3a'), hs='pony',    top=c('#e8702a'), trim=c('#fff0b0'), pants=c('#3a1a10'), boots=c('#2a1410')),
   'windara':  dict(el='air', el2='thunder', f=True,  skin=4, hair=c('#f4f4ff'), hs='afro',    top=c('#7a3ac8'), trim=c('#ffe14a'), pants=c('#241840'), boots=c('#14102a')),
   'skylis':   dict(el='air', el2='earth',   f=True,  skin=2, hair=c('#3a2418'), hs='braid',   top=c('#5a9a5a'), trim=c('#f0e0b0'), pants=c('#4a3a24'), boots=c('#2e2418')),
-  'covo':     dict(el='air', el2='all',     f=False, skin=4, hair=c('#3a1466'), hs='mohawk',  top=c('#4a1a8a'), trim=c('#ffd23f'), pants=c('#2a0e52'), boots=c('#e8b828'), elite=True, eyes=c('#e8c8ff'), keep=True, casts=True),
   # Element Masters (the creator's five benders: earth, air, water, fire and COVO above): gi, sash, wrist bands, boots
-  'terrok':   dict(el='earth', f=False, skin=4, hair=c('#2a1a10'), hs='locs',    top=c('#4a7a1e'), trim=c('#f0e0b0'), pants=c('#3a6418'), boots=c('#3a2a1a'), band=c('#7ab02a'), casts=True, keepfit=True),
-  'tydal':    dict(el='water', f=False, skin=4, hair=c('#10142a'), hs='afro',    top=c('#2a4ac8'), trim=c('#ffffff'), pants=c('#2238a8'), boots=c('#3a5ae0'), band=c('#8ad0ff'), casts=True),
   'ignar':    dict(el='fire',  f=False, skin=4, hair=c('#3a0e0a'), hs='spiky',   top=c('#c81e1e'), trim=c('#f0b820'), pants=c('#a81616'), boots=c('#2a1410'), band=c('#f0b820'), casts=True),
   'cova':     dict(el='air', el2='all',     f=True,  skin=4, hair=c('#ffd23f'), hs='long',    top=c('#14141a'), trim=c('#ffd23f'), pants=c('#0e0e14'), boots=c('#0a0a0e'), elite=True, eyes=c('#ffe14a'), keep=True),
   'kena':     dict(el='air', el2='all',     f=True,  skin=3, hair=c('#f4f4ff'), hs='braid',   top=c('#2a1440'), trim=c('#5ef0e0'), pants=c('#14081f'), boots=c('#0e0618'), elite=True, eyes=c('#5ef0e0'), keep=True),

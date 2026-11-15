@@ -463,20 +463,20 @@ export const WATCHER_GODS = [
 // levels up (`tiers`: from that level, these parts of the kit take over). New players choose one of the four.
 const EM = (name, el, cls, main, forms, tiers) => ({ ...ST(name, el, cls, main, false), master: true, forms, tiers });
 export const ELEMENT_MASTERS = [
-  EM('Terrok', 'earth', 'titan', '#4a7a1e', ['Terrok Initiate', 'Terrok Focused Flow', 'Terrok Stone Skin', 'Terrok Earth Awakened', 'Terra Terrok', 'Gaia Terrok'], [
-    { lv: 1, basic: { name: 'Earth Push', look: 'boulder', knock: 2, note: 'A palm strike that fires a chunk of rock.' }, special: { name: 'Rock Spike', style: 'strike', note: 'A stomp: stone spikes burst up under the rival.' }, guard: { name: 'Earth Shield' } },
-    { lv: 10, basic: { name: 'Boulder Toss', look: 'boulder', knock: 3, note: 'Hurls a boulder that knocks the rival back.' }, special: { name: 'Earth Wave', style: 'cone', power: 1.1, note: 'A sweeping kick sends a wave of earth rolling forward.' } },
-    { lv: 25, special: { name: 'Earth Pillar', style: 'strike', power: 1.2, note: 'A rising knee: a pillar of stone shoots up under the rival.' }, guard: { name: 'Earth Wall' } },
-    { lv: 50, special: { name: 'Tremor', style: 'strike', power: 1.35, note: 'A double-fist slam: the whole ground breaks open around the rival.' } } ]),
+  EM('Terrok', 'earth', 'titan', '#3a6a1e', ['Terrok', 'Terrok Focused Flow', 'Terrok Stone Armor', 'Terrok Earth Ascendant', 'Terrok Terra Form', 'Terrok Gaia Form'], [
+    { lv: 1, basic: { name: 'Earth Push', look: 'boulder', knock: 2, note: 'A palm strike that throws chunks of rock.' }, special: { name: 'Rock Spike', style: 'strike', note: 'Stone spikes burst up under the rival.' }, guard: { name: 'Earth Shield', note: 'A ring of stone rises around him.' } },
+    { lv: 10, special: { name: 'Earth Wave', style: 'cone', power: 1.1, note: 'A wave of rock and earth rolls forward.' } },
+    { lv: 25, basic: { name: 'Boulder Toss', look: 'boulder', knock: 3, note: 'Lifts a huge boulder and hurls it.' }, special: { name: 'Stone Pillar', style: 'strike', power: 1.2, note: 'Pillars of stone shoot up under the rival.' }, guard: { name: 'Earth Wall', note: 'A wall of stone columns blocks hits.' } },
+    { lv: 50, special: { name: 'Quake Burst', style: 'strike', power: 1.35, note: 'Slams the ground: the whole floor breaks open around the rival.' } } ]),
   EM('Zephar', 'air', 'skirmisher', '#7a4ad8', ['Young Zephar', 'Zephar Enhanced Flow', 'Zephar', 'Zephar Wind Master', 'Zephar Sky Ascendant', 'Zephar Cloud Sage'], [
     { lv: 1, basic: { name: 'Air Push', look: 'gust', knock: 3, note: 'An open-palm strike that fires rings of wind.' }, special: { name: 'Air Slash', style: 'cone', note: 'A low lunge that sweeps a blade of wind.' }, dash: { name: 'Air Dash', note: 'Shoots forward on a stream of wind.' }, guard: { name: 'Air Shield', note: 'A sphere of spinning wind blocks hits.' } },
     { lv: 10, special: { name: 'Air Cyclone', style: 'levitate', note: 'A cyclone spins up, lifts the rival off the ground and throws it.' } },
     { lv: 25, basic: { name: 'Twin Air Push', look: 'gust', shots: 2, knock: 2, note: 'Two palm strikes: two rings of wind.' }, special: { name: 'Air Burst', style: 'strike', power: 1.2, note: 'Drops to the ground: the air explodes around the rival.' }, dash: { name: 'Glider Flight', note: 'Glides a long way on the wind glider.' } },
     { lv: 50, special: { name: 'Sky Levitation', style: 'levitate', power: 1.35, note: 'Rises cross-legged into the air: a huge wind lifts the rival high and drops it.' } } ]),
-  EM('Tydal', 'water', 'mystic', '#2a4ac8', ['Tydal Initiate', 'Tydal Flowing Form', 'Tydal Tidal Form', 'Tydal Raging Tide', 'Tydal Ocean Form', 'Tydal Divine Current'], [
-    { lv: 1, basic: { name: 'Water Push', look: 'ice', knock: 2, note: 'A palm strike that fires a ring of water.' }, special: { name: 'Water Whip', style: 'cone', note: 'A sweeping arm that lashes a whip of water.' }, guard: { name: 'Water Shield' } },
-    { lv: 10, special: { name: 'Water Wave', style: 'beam', note: 'Both palms push a wave across the arena.' } },
-    { lv: 25, basic: { name: 'Water Spear', look: 'ice', shots: 2, note: 'Two spear-hand thrusts of hard water.' }, special: { name: 'Water Whirlpool', style: 'levitate', power: 1.15, note: 'A turning stance: a whirlpool spins the rival up and around.' } },
+  EM('Tydal', 'water', 'mystic', '#1e3aa8', ['Tydal', 'Tydal Flowing Form', 'Tydal Tidal Form', 'Tydal Raging Tide', 'Tydal Ocean Form', 'Tydal Divine Current'], [
+    { lv: 1, basic: { name: 'Water Push', look: 'ice', knock: 2, note: 'A palm strike that fires a ring of water.' }, special: { name: 'Water Whip', style: 'cone', note: 'A sweeping arm lashes a whip of water.' }, guard: { name: 'Water Shield', note: 'A sphere of water surrounds him.' }, dash: { name: 'Water Surge', note: 'Rides a burst of water a good way off.' } },
+    { lv: 10, special: { name: 'Water Wave', style: 'beam', note: 'A great wave rolls across the arena.' } },
+    { lv: 25, basic: { name: 'Water Spear', look: 'ice', shots: 2, note: 'Spear-hand thrusts of hard water.' }, special: { name: 'Water Whirlpool', style: 'levitate', power: 1.15, note: 'A whirlpool spins the rival up and around.' } },
     { lv: 50, special: { name: 'Water Dragon', style: 'projectile', look: 'dragon', homing: true, seek: true, big: 1.6, power: 1.4, note: 'A dragon of water that hunts the rival until it bites.' } } ]),
   EM('Ignar', 'fire', 'striker', '#c81e1e', ['Ignar Initiate', 'Ignar Kindled', 'Ignar Blazing', 'Ignar Inferno', 'Ignar Phoenix', 'Ignar Solar Flame'], [
     { lv: 1, basic: { name: 'Fire Ball', look: 'fire', status: 'burn', note: 'A straight punch that fires a ball of flame.' }, special: { name: 'Flame Stomp', style: 'strike', note: 'A fist to the ground: fire bursts up under the rival.' }, guard: { name: 'Flame Guard' } },

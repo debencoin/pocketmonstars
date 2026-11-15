@@ -45,12 +45,18 @@ const STY = { projectile: { r: 12 }, bolt: { range: 420, hitAt: 0.08, dur: 0.22 
 
 // Monstars drawn from the creator's character sheets play the sheet's own pose for each power (frame numbers in the sheet).
 // special / dash: [from level, frame] pairs, because a stronger power takes over the button as the Monstar levels up.
-const POSES = { zephar: { basic: 6, special: [[1, 7], [10, 8], [25, 9], [50, 13]], guard: 10, dash: [[1, 11], [25, 12]] } };
+const POSES = {
+  zephar: { basic: 6, special: [[1, 7], [10, 8], [25, 9], [50, 13]], guard: 10, dash: [[1, 11], [25, 12]] },
+  terrok: { basic: [[1, 6], [25, 10]], special: [[1, 7], [10, 9], [25, 11], [50, 12]], guard: [[1, 8], [25, 13]] },
+  tydal: { basic: [[1, 6], [25, 10]], special: [[1, 7], [10, 9], [25, 12], [50, 13]], guard: 8, dash: 11 },
+  covo: { basic: 6, special: [[1, 10], [10, 7], [25, 9]], guard: 8, mega: 11 },
+};
 const atLv = (v, lv) => Array.isArray(v) ? v.reduce((f, [l, fr]) => (lv >= l ? fr : f), v[0][1]) : v;
 function poseFrame(f) {
   const P = POSES[NAMES[f.s]]; if (!P) return -1;
-  if (f.ck && f.ct < 0.5 && P[f.ck === 'basic' ? 'basic' : f.ck === 'special' ? 'special' : ''] != null) return atLv(P[f.ck === 'basic' ? 'basic' : 'special'], f.lv || 1);
-  if (f.g && P.guard != null) return P.guard;
+  if (f.ck && f.ct < 0.5 && P[f.ck] != null) return atLv(P[f.ck], f.lv || 1);
+  if ((f.uo || f.ck === 'mega') && P.mega != null && f.ct < 1.2) return P.mega;
+  if (f.g && P.guard != null) return atLv(P.guard, f.lv || 1);
   if (f.ds && P.dash != null) return atLv(P.dash, f.lv || 1);
   return -1;
 }
