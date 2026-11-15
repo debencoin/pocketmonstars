@@ -455,13 +455,13 @@ function whirl(ctx,x,y,r,t,k,flat=1){
   spiralPath(ctx,x,y,r*.32*Math.min(1,k),1.8,t*TAU*1.5);ctx.strokeStyle='#ffffff';ctx.lineWidth=2;ctx.stroke();
   ctx.restore();
 }
-function waterAura(ctx,cx,gy,h,k,t,seed=0){
+function waterAura(ctx,cx,gy,h,k,t,seed=0,wf=1){
   if(k<=0)return;
   ctx.save();
-  const eg=ctx.createRadialGradient(cx,gy-h*.42,4,cx,gy-h*.42,h*.62);eg.addColorStop(0,`rgba(140,225,255,${.42*k})`);eg.addColorStop(1,'rgba(140,225,255,0)');
-  ctx.fillStyle=eg;ctx.beginPath();ctx.ellipse(cx,gy-h*.42,h*.48,h*.62,0,0,TAU);ctx.fill();
+  const eg=ctx.createRadialGradient(cx,gy-h*.42,4,cx,gy-h*.42,h*.62*wf);eg.addColorStop(0,`rgba(140,225,255,${.42*k})`);eg.addColorStop(1,'rgba(140,225,255,0)');
+  ctx.fillStyle=eg;ctx.beginPath();ctx.ellipse(cx,gy-h*.42,h*.48*wf,h*.62,0,0,TAU);ctx.fill();
   for(let i=0;i<13;i++){
-    const u=(i/12)-.5;const bx=cx+u*h*.62;const ph=t*TAU*2+i*1.7+seed;
+    const u=(i/12)-.5;const bx=cx+u*h*.62*wf;const ph=t*TAU*2+i*1.7+seed;
     const top=gy-h*(.55+.45*(1-Math.abs(u)*1.4))*k*(.85+.15*Math.sin(ph));
     const w=5+3*hash(i+seed);
     ctx.beginPath();ctx.moveTo(bx-w,gy);ctx.quadraticCurveTo(bx-w*1.2+Math.sin(ph)*5,(gy+top)/2,bx+Math.sin(ph+1)*6,top);
@@ -681,7 +681,7 @@ function renderFrame(ctx,a,t,i,opts={}){
   const S=skel(p);
   // shadow
   if(p.sink<1){ctx.save();const sh=clamp(1-(p.air||0)/120,.3,1);ctx.globalAlpha=.22*sh;ctx.fillStyle='#0a2f7a';ctx.beginPath();ctx.ellipse(S.hip[0],1.5,22*sh,4*sh,0,0,TAU);ctx.fill();ctx.restore();}
-  if(p.aura>0)waterAura(ctx,S.hip[0],0,118+p.form*6,Math.min(1.2,p.aura),p._t*1.5,a.id.length);
+  if(p.aura>0)waterAura(ctx,S.hip[0],0,118+p.form*6,Math.min(1.2,p.aura),p._t*1.5,a.id.length,opts.auraW||1);
   a.fx&&a.fx.back&&a.fx.back(ctx,S,p,t,o);
   drawChar(ctx,p);
   a.fx&&a.fx.front&&a.fx.front(ctx,S,p,t,o);

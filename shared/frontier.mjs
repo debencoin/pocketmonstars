@@ -460,7 +460,7 @@ export const WATCHER_GODS = [
 
 // Element Masters: the creator's four element benders (COVO, above, is the fifth: all five elements). They replace every
 // earlier bender. The four buttons never change, but the power on a button is replaced by a stronger one as the bender
-// levels up (`tiers`: from that level, these parts of the kit take over). New players choose one of the four.
+// levels up (`tiers`: from that level, these parts of the kit take over). New players choose one of the four; Spira is gifted.
 const EM = (name, el, cls, main, forms, tiers) => ({ ...ST(name, el, cls, main, false), master: true, forms, tiers });
 export const ELEMENT_MASTERS = [
   EM('Terrok', 'earth', 'titan', '#3a6a1e', ['Terrok', 'Terrok Focused Flow', 'Terrok Stone Armor', 'Terrok Earth Ascendant', 'Terrok Terra Form', 'Terrok Gaia Form'], [
@@ -491,4 +491,15 @@ export const ELEMENT_MASTERS = [
     sig: { ...FINAL_SIG('Azaelion', 2), dash: { kind: 'blink', name: 'Azaelion Teleport', note: 'Teleports a long way in a blink (very short recharge).', dist: 1.83, cd: 0.71 },
       basic: { name: 'Elemental Surge', look: 'firenado', homing: true, status: 'burn', knock: 3, note: 'A whirlwind of the elements that follows the rival until it hits, and burns.' },
       special: { name: 'Fifth Element Bolts', shots: 3, look: 'icezap', status: 'freeze', zap: true, note: 'Shoots 3 orbs of ice and lightning from the staff: they freeze, and an electric zap jumps out.' } } },
+  // SPIRA, the Tide-Spiral Bender: the creator's water bender with golden curl buns and the blue spiral on her forehead
+  // (art-src/masters/spira/). Every power plays its own animated cast from her sprite sheet. Appended last so no species id moves.
+  { ...EM('Spira', 'water', 'mystic', '#1677e8', ['Spira Initiate', 'Spira Ripple Form', 'Spira Current Form', 'Spira Tidal Form', 'Spira Abyssal Form', 'Spira, the Spiral Sovereign'], [
+    { lv: 1, basic: { name: 'Droplet Volley', look: 'ice', shots: 2, note: 'Pulls a bead of water from the air and flicks spinning droplets at the rival.' }, special: { name: 'Spiral Lash', style: 'cone', note: 'A water whip cracks forward and coils into a spiral snare.' },
+      guard: { name: 'Tidal Mirror', kind: 'reflect', note: 'A spinning disc of water catches shots and sprays them back.' }, dash: { name: 'Undertow Rush', note: 'Rides a jet of current straight through, then flips up with a rising palm.' },
+      mega: { name: 'Grand Maelstrom', note: 'Her spiral mark ignites into a crown of water and the whole arena turns into one spinning maelstrom.' } },
+    { lv: 10, special: { name: 'Coral Geyser', style: 'strike', power: 1.1, note: 'A stomp sends a ripple along the floor: a pillar of water erupts under the rival.' } },
+    { lv: 25, basic: { name: 'Bubble Lock', look: 'ice', status: 'soak', knock: 2, note: 'A bubble swells as it drifts, swallows the rival and seals with her spiral mark.' }, special: { name: 'Rain Needles', style: 'strike', power: 1.2, note: 'Leaps high and rains frozen needles across the floor ahead.' } },
+    { lv: 50, special: { name: 'Maelstrom Crown Cannon', style: 'beam', power: 1.4, note: 'A whirlpool halo opens behind her and two spiralling streams braid into one tide cannon across the arena.' } } ]),
+    starter: undefined, female: true, legendary: true, legendFor: 'gift',
+    lore: { pronounce: 'SPY-ra', ancientTitle: 'Spira, the Spiral Sovereign', meaning: 'The spiral on her brow is the source of every tide she bends.' } },
 ];
