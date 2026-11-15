@@ -478,7 +478,7 @@ export const ELEMENT_MASTERS = [
     { lv: 10, special: { name: 'Water Wave', style: 'beam', note: 'A great wave rolls across the arena.' } },
     { lv: 25, basic: { name: 'Water Spear', look: 'ice', shots: 2, note: 'Spear-hand thrusts of hard water.' }, special: { name: 'Water Whirlpool', style: 'levitate', power: 1.15, note: 'A whirlpool spins the rival up and around.' } },
     { lv: 50, special: { name: 'Water Dragon', style: 'projectile', look: 'dragon', homing: true, seek: true, big: 1.6, power: 1.4, note: 'A dragon of water that hunts the rival until it bites.' } } ]),
-  EM('Ignar', 'fire', 'striker', '#c81e1e', ['Ignar Initiate', 'Ignar Kindled', 'Ignar Blazing', 'Ignar Inferno', 'Ignar Phoenix', 'Ignar Solar Flame'], [
+  EM('Ignar', 'fire', 'striker', '#c81e1e', ['Young Ignar', 'Ignar', 'Ascended Ignar', 'Ascended Ignar II', 'Ascended Ignar III', 'Divine Ignar'], [
     { lv: 1, basic: { name: 'Fire Ball', look: 'fire', status: 'burn', note: 'A straight punch that fires a ball of flame.' }, special: { name: 'Flame Stomp', style: 'strike', note: 'A fist to the ground: fire bursts up under the rival.' }, guard: { name: 'Flame Guard' } },
     { lv: 10, special: { name: 'Fire Spiral', style: 'cone', power: 1.1, note: 'A jumping spin kick that throws a spiral of fire.' } },
     { lv: 25, basic: { name: 'Twin Flames', look: 'fire', shots: 2, status: 'burn', note: 'A one-two punch: two balls of flame.' }, special: { name: 'Fire Tornado', style: 'projectile', look: 'firenado', homing: true, power: 1.2, note: 'A whirlwind of fire that follows the rival.' } },
@@ -491,4 +491,32 @@ export const ELEMENT_MASTERS = [
     sig: { ...FINAL_SIG('Azaelion', 2), dash: { kind: 'blink', name: 'Azaelion Teleport', note: 'Teleports a long way in a blink (very short recharge).', dist: 1.83, cd: 0.71 },
       basic: { name: 'Elemental Surge', look: 'firenado', homing: true, status: 'burn', knock: 3, note: 'A whirlwind of the elements that follows the rival until it hits, and burns.' },
       special: { name: 'Fifth Element Bolts', shots: 3, look: 'icezap', status: 'freeze', zap: true, note: 'Shoots 3 orbs of ice and lightning from the staff: they freeze, and an electric zap jumps out.' } } },
+  // The creator's second set of element benders, cut from their own character sheets (art-src/masters/<name>_sheet.png).
+  // Appended last so no species id moves. They are not in the new-player starter choice (that stays the first four).
+  ...[EM('Aerix', 'air', 'skirmisher', '#4a8ad8', ['Young Aerix', 'Aerix Enhanced Flow', 'Aerix', 'Aerix Wind Master', 'Aerix Sky Ascendant', 'Aerix Cloud Sage'], [
+    { lv: 1, basic: { name: 'Air Push', look: 'gust', knock: 3, note: 'A palm strike that fires rings of wind.' }, special: { name: 'Air Slash', style: 'cone', note: 'A low lunge that sweeps a blade of wind.' }, dash: { name: 'Air Dash', note: 'Shoots forward on a stream of wind.' }, guard: { name: 'Air Shield', note: 'A bubble of spinning wind blocks hits.' } },
+    { lv: 10, special: { name: 'Air Cyclone', style: 'levitate', note: 'A cyclone lifts the rival off the ground and throws it.' } },
+    { lv: 25, basic: { name: 'Twin Air Push', look: 'gust', shots: 2, knock: 2, note: 'Two palm strikes: two rings of wind.' }, special: { name: 'Air Burst', style: 'strike', power: 1.2, note: 'Drops low: the air explodes around the rival.' }, dash: { name: 'Glider Flight', note: 'Glides a long way on his wind glider.' } },
+    { lv: 50, special: { name: 'Air Levitation', style: 'levitate', power: 1.35, note: 'Floats up cross-legged: a huge wind lifts the rival high and drops it.' } } ]),
+  EM('Bouldar', 'earth', 'titan', '#4a7a1e', ['Bouldar', 'Bouldar Focused Flow', 'Bouldar Stone Skin', 'Bouldar Earth Awakened', 'Bouldar Terra Form', 'Bouldar Gaia Form'], [
+    { lv: 1, basic: { name: 'Earth Push', look: 'boulder', knock: 2, note: 'A palm strike that throws chunks of rock.' }, special: { name: 'Rock Spike', style: 'strike', note: 'Stone spikes burst up under the rival.' }, guard: { name: 'Earth Shield', note: 'A ring of boulders rises around him.' } },
+    { lv: 10, special: { name: 'Earth Wave', style: 'cone', power: 1.1, note: 'A wave of rock and dirt rolls forward.' } },
+    { lv: 25, basic: { name: 'Boulder Toss', look: 'boulder', knock: 3, note: 'Lifts a huge boulder over his head and hurls it.' }, special: { name: 'Earth Pillar', style: 'strike', power: 1.2, note: 'Stone pillars shoot up under the rival.' }, guard: { name: 'Earth Wall', note: 'A wall of stone columns blocks hits.' } },
+    { lv: 50, special: { name: 'Tremor', style: 'strike', power: 1.35, note: 'Slams the ground: the whole floor shatters around the rival.' } } ]),
+  EM('Nerin', 'water', 'mystic', '#1e4ac8', ['Nerin', 'Nerin Flowing Form', 'Nerin Tidal Form', 'Nerin Raging Tide', 'Nerin Ocean Form', 'Nerin Divine Current'], [
+    { lv: 1, basic: { name: 'Water Push', look: 'ice', knock: 2, note: 'A palm strike that fires a ring of water.' }, special: { name: 'Water Whip', style: 'cone', note: 'A sweeping arm lashes a whip of water.' }, guard: { name: 'Water Shield', note: 'A sphere of water surrounds him.' }, dash: { name: 'Water Surge', note: 'Rides a burst of water a good way off.' } },
+    { lv: 10, special: { name: 'Water Wave', style: 'beam', note: 'A great wave rolls across the arena.' } },
+    { lv: 25, basic: { name: 'Water Spear', look: 'ice', shots: 2, note: 'Hurls spears of hard water.' }, special: { name: 'Water Whirlpool', style: 'levitate', power: 1.15, note: 'A whirlpool spins the rival up and around.' } },
+    { lv: 50, special: { name: 'Water Dragon', style: 'projectile', look: 'dragon', homing: true, seek: true, big: 1.6, power: 1.4, note: 'A dragon of water hunts the rival until it bites.' } } ]),
+  { ...EM('Zuri', 'water', 'mystic', '#2a6ae8', ['Zuri', 'Zuri Rising Tide', 'Golden Zuri', 'Zuri Storm Crown', 'Zuri Radiant Ocean', 'Zuri, Queen of the Tide'], [
+    { lv: 1, basic: { name: 'Tide Palm', look: 'ice', knock: 3, note: 'An open palm sends a spiral of water at the rival.' }, special: { name: 'Spiral Orb', style: 'projectile', look: 'ki', homing: true, status: 'soak', note: 'A glowing orb of water and energy that curves after the rival.' }, guard: { name: 'Water Veil', note: 'Rings of water circle her and block hits.' } },
+    { lv: 10, special: { name: 'Rising Torrent', style: 'levitate', power: 1.1, note: 'Fists clenched, she powers up: a torrent lifts the rival and throws it down.' } },
+    { lv: 25, basic: { name: 'Twin Tide Palm', look: 'ice', shots: 2, knock: 2, note: 'Two palms: two spirals of water.' }, special: { name: 'Golden Spiral Orb', style: 'projectile', look: 'ki', shots: 2, homing: true, status: 'soak', power: 1.2, note: 'Two energy orbs that chase the rival.' } },
+    { lv: 50, special: { name: 'Golden Tsunami', style: 'beam', power: 1.4, note: 'A wave of water charged with golden energy across the whole arena.' } } ]), female: true },
+  EM('Verdex', 'thunder', 'striker', '#2ad82a', ['Verdex', 'Verdex Charged', 'Verdex Emerald Surge', 'Verdex Storm Blade', 'Verdex Thunder King', 'Verdex Emerald Overlord'], [
+    { lv: 1, basic: { name: 'Emerald Orb', look: 'ki', status: 'paralyze', note: 'Throws a crackling ball of green energy that paralyzes.' }, special: { name: 'Energy Blade Slash', style: 'cone', note: 'A low slash with his green energy blade.' }, guard: { name: 'Emerald Barrier', note: 'Green lightning wraps around him and blocks hits.' } },
+    { lv: 10, special: { name: 'Blade Wave', style: 'beam', power: 1.1, note: 'Swings the blade: a wave of green energy cuts across the arena.' } },
+    { lv: 25, basic: { name: 'Twin Emerald Orbs', look: 'ki', shots: 2, status: 'paralyze', note: 'Two balls of green energy.' }, special: { name: 'Lightning Cleave', style: 'strike', power: 1.25, note: 'Drives the blade into the ground: green lightning bursts up under the rival.' } },
+    { lv: 50, special: { name: 'Emerald Overdrive', style: 'beam', power: 1.4, note: 'His hair blazes: a huge green energy beam across the arena.' } } ]),
+  ].map(m => ({ ...m, starter: undefined })),
 ];
