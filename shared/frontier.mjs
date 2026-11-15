@@ -485,8 +485,8 @@ export const ELEMENT_MASTERS = [
     { lv: 50, special: { name: 'Inferno Wave', style: 'beam', power: 1.4, note: 'Both fists forward: a river of fire across the arena.' } } ]),
   // AZAELION, the Eternal Chosen One: the Fifth Element Bender from the creator's Chosen One sheets. A separate character from COVO:
   // he commands all five elements (earth, wind, fire, water, lightning) and the Fifth Element. One of a kind, gifted to the founder.
-  { ...BE('Azaelion', 'GALE', 'deity', 'Fire gust', 'Ice balls', 'projectile', 'projectile', '#5a1ab0', 'Eternal Chosen One', true), master: true, el2: 'all', sky: true, unique: true, legendFor: 'gift', speedBoost: 1.35,
-    forms: ['Azaelion Initiate', 'Elemental Azaelion', 'Harmonic Azaelion', 'Ascendant Azaelion', 'Transcendent Azaelion', 'Azaelion, the Eternal Chosen One'],
+  { ...BE('Azaelion', 'GALE', 'deity', 'Fire gust', 'Ice balls', 'projectile', 'projectile', '#5a1ab0', 'Eternal Chosen One', true), master: true, battleForms: true, // starts every fight in his natural form and transforms as he fights (see sim powerUp) el2: 'all', sky: true, unique: true, legendFor: 'gift', speedBoost: 1.35,
+    forms: ['Natural Azaelion', 'Elemental Azaelion', 'Harmonic Azaelion', 'Ascendant Azaelion', 'Transcendent Azaelion', 'Ultimate Chosen One Azaelion'],
     lore: { pronounce: 'Ah-ZAY-lee-on', ancientTitle: 'Azaelion, the Firstborn of Eternity', meaning: 'The one who existed before time, commands all elements, and transcends the power of gods.' },
     sig: { ...FINAL_SIG('Azaelion', 2), dash: { kind: 'blink', name: 'Azaelion Teleport', note: 'Teleports a long way in a blink (very short recharge).', dist: 1.83, cd: 0.71 },
       basic: { name: 'Elemental Surge', look: 'firenado', homing: true, status: 'burn', knock: 3, note: 'A whirlwind of the elements that follows the rival until it hits, and burns.' },

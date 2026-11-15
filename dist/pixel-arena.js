@@ -58,6 +58,43 @@ const POSES = {
   zuri: { col: '#7ad0ff', basic: 6, special: [[1, 8], [10, 7], [25, 8], [50, 6]], guard: 7 },
   verdex: { col: '#7aff4a', basic: 6, special: 7, dash: 8 },
 };
+// Full frame-by-frame animation drawn straight from a character's complete sprite sheet (scripts/make_chosen_anim.py):
+// an atlas of frames, each with its foot anchor, so the character always stands on the same spot at the same size.
+const ANIM = { azaelion: 'art/anim/azaelion' };
+const animData = {};
+function animFor(sid) {
+  const n = NAMES[sid], src = ANIM[n]; if (!src) return null;
+  let d = animData[n];
+  if (!d) {
+    d = animData[n] = { img: new Image(), J: null, white: new Map(), st: [] };
+    d.img.onerror = () => { d.img.onerror = null; d.img.src = src + '.png'; }; // older browsers without WebP
+    d.img.src = src + '.webp';
+    fetch(src + '.json').then(r => r.json()).then(J => { d.J = J; d.ks = ANIM_STAND / J.stand; }).catch(() => {});
+  }
+  return d.J && d.img.complete && d.img.naturalWidth ? d : null;
+}
+const ANIM_STAND = 132; // standing height on the 960 canvas: the same at every form, stage and move
+const ELEMS = ['earth', 'wind', 'fire', 'water', 'lightning', 'fifth'];
+/** Which frame of which sequence the character shows right now. */
+function animPick(d, f, i, opt, now) {
+  const S = d.J.seqs, st = d.st[i] || (d.st[i] = { el: 0, combo: 0, lastCt: 9, g: 0, gOn: false, faint: 0 });
+  const at = (seq, u, loop) => { const q = S[seq]; const k = Math.floor(u * q.length); return q[loop ? ((k % q.length) + q.length) % q.length : Math.max(0, Math.min(q.length - 1, k))]; };
+  if (f.ck && f.ct < st.lastCt - 0.05 && f.ct < 0.2) { if (f.ck === 'special') st.el = (st.el + 1) % ELEMS.length; if (f.ck === 'basic') st.combo++; } // a new cast began
+  st.lastCt = f.ck ? f.ct : 9;
+  if (f.g && !st.gOn) st.g = now; st.gOn = !!f.g;
+  if (opt.faint) return at('knock', opt.faint * 1.3);
+  if (f.tr > 0) { const u = 1 - f.tr / 0.9; return u < 0.34 ? at('powerup', 0) : u < 0.67 ? at('auraon', 0) : at('transform', 0); }
+  if ((f.uo || f.ck === 'mega') && f.ct < 1.3) return at('mega', f.ct / 1.3);
+  if (f.ck === 'special' && f.ct < 0.85) return at(ELEMS[st.el], f.ct / 0.75);
+  if (f.ck === 'basic' && f.ct < 0.45) return at(st.combo % 2 ? 'heavy' : 'light', f.ct / 0.42);
+  if (f.bk > 0) return at('teleport', 0);
+  if (f.g) return at('guard', (now - st.g) / 0.28);
+  if (f.hu > 0) return at('hit', 1 - f.hu / 0.35);
+  if (f.ds) return at('dash', 0.3 + ((now * 12) % 5) / 7, false);
+  if (f.mv) return at('run', now * 1.6, true);
+  const form = Math.max(0, Math.min(5, f.sg || 0));
+  return form ? S.forms[Math.min(form, S.forms.length - 1)] : at('idle', now * 0.8, true);
+}
 // How long a cast pose is held: a special is a bigger move, so the character stays in it longer (wind-up, strike, hold, recover).
 const castHold = f => (f.ck === 'special' ? 0.85 : f.ck === 'mega' ? 1.2 : 0.5);
 const atLv = (v, lv) => Array.isArray(v) ? v.reduce((f, [l, fr]) => (lv >= l ? fr : f), v[0][1]) : v;
@@ -307,6 +344,9 @@ function createRenderer(canvas, arena) {
       wave(f.x * K, f.y * K + 6, '#ffd84a', 160); star(f.x * K, f.y * K - 10, '#ffd84a', 110, 24); return; }
     if (ev.type === 'dash') { const f = snap.f[ev.side]; if (!f) return; puffs(f.x * K, f.y * K, 6, ev.k === 'shadow' || ev.k === 'blink' ? '#b98cff' : ev.k === 'mend' ? '#9ef0c8' : '#e2d6bc', 40, 8, 0.5);
       if (ev.k === 'burst') say(f.x * K, f.y * K - 40, 'SPEED UP!', '#48d0ff', 1, 5); if (ev.k === 'mend') say(f.x * K, f.y * K - 40, 'HEAL', '#9ef0c8', 1, 5); return; }
+    if (ev.type === 'transform') { const f = snap.f[ev.side] || (snap.x || []).find(o => o.sd === ev.side); if (!f) return; const col = '#b45aff';
+      banner = { txt: String(ev.name || 'TRANSFORM').toUpperCase() + '!', sub: 'Form ' + ev.form + ' · stronger and faster this fight', t: 1.5, side: ev.side }; flash = Math.max(flash, 0.45); shake = Math.max(shake, 0.45);
+      wave(f.x * K, f.y * K + 6, col, 200); star(f.x * K, f.y * K - 14, '#ffd84a', 120, 26); burst(f.x * K, f.y * K - 14, [col, '#d8a8ff', '#ffffff', '#ffd84a'], 28, 100); return; }
     if (ev.type === 'ascend') { const f = snap.f[ev.side] || (snap.x || []).find(o => o.sd === ev.side); if (!f) return; const col = AURA_COL[ev.tier];
       banner = { txt: (ev.name || 'AURA').toUpperCase() + '!', sub: ['', 'Gold', 'Purple', 'Green', 'Red', 'White'][ev.tier] + ' aura · stronger and faster', t: 1.5, side: ev.side }; flash = Math.max(flash, 0.4); shake = Math.max(shake, 0.4);
       wave(f.x * K, f.y * K + 6, col, 180); star(f.x * K, f.y * K - 14, col, 120, 26); burst(f.x * K, f.y * K - 14, [col, col, '#ffffff', col], 24, 90); return; }
@@ -356,12 +396,14 @@ function createRenderer(canvas, arena) {
     const walker = WALKERS.has(f.s), ph0 = now + i * 0.37;
     // walk cycle: run frames while moving (faster when dashing), breathing idle otherwise
     const pf = poseFrame(f), frame = !walker ? 0 : pf >= 0 ? pf : f.ct < 0.3 && f.ck ? (f.ck === 'basic' ? 6 : 7) : f.ds ? 2 + Math.floor(ph0 * 16) % 4 : f.mv ? 2 + Math.floor(ph0 * 9) % 4 : Math.floor(ph0 * 2) % 2;
-    const spr = stageSprite(f.s, opt.hue || 0, stage, pal, false, frame), wh = stageSprite(f.s, opt.hue || 0, stage, pal, true, frame);
+    const AN = walker ? animFor(f.s) : null;
+    let spr = stageSprite(f.s, opt.hue || 0, stage, pal, false, frame), wh = stageSprite(f.s, opt.hue || 0, stage, pal, true, frame);
+    if (AN) { const ai = animPick(AN, f, i, opt, now); spr = { anim: AN, i: ai }; wh = { anim: AN, i: ai, white: true }; }
     if (!spr) return;
     grow[i] = Math.max(0, grow[i] - opt.dt * 0.8);
-    const sc = STAGE_SCALE[scaleStage] * (1 + Math.sin(grow[i] * 12) * 0.12 * grow[i]);
-    const hiK = spr.width > 150 ? 140 / spr.width : 1; // drawn-art sheets (Aura Warriors) are 3x size: shown a little bigger than pixel sprites
-    const dw = Math.round(spr.width * sc * SPR * hiK), dh = Math.round(spr.height * sc * SPR * hiK);
+    const sc = (AN ? 1 : STAGE_SCALE[scaleStage]) * (1 + Math.sin(grow[i] * 12) * 0.12 * grow[i]); // a frame-animated character keeps one size
+    const hiK = AN ? 1 : spr.width > 150 ? 140 / spr.width : 1; // drawn-art sheets (Aura Warriors) are 3x size: shown a little bigger than pixel sprites
+    const dw = AN ? Math.round(ANIM_STAND * 0.62 * sc) : Math.round(spr.width * sc * SPR * hiK), dh = AN ? Math.round(ANIM_STAND * 1.06 * sc) : Math.round(spr.height * sc * SPR * hiK);
     let X = wx * K * Z, Y = wy * K * Z + 22 * U; // feet in canvas pixels
     const tr = trails[i]; if (f.ds || (f.bt && Math.random() < 0.5)) tr.push({ x: X, y: Y, life: 0.3 });
     if (f.ds && !dashSeen[i]) { puffs(X / Z, Y / Z, 6, '#e2d6bc', 34, 8, 0.6); } dashSeen[i] = f.ds ? 1 : 0;
@@ -385,7 +427,7 @@ function createRenderer(canvas, arena) {
     } else if (!f.fl) oy -= (Math.floor(phase * 2.4) % 2) ? 2 : 0;
     // Sheet-drawn characters play each move as a sequence: wind-up (squash and pull back), strike (lunge with a flash and
     // after-images), hold (energy pours from the hands) and recovery (the pose melts back into the stance).
-    const SP = walker && pf >= 0 ? POSES[NAMES[f.s]] : null, cast = SP && f.ck && f.ct < castHold(f) ? f.ct : -1, hold = castHold(f);
+    const SP = walker && pf >= 0 && !AN ? POSES[NAMES[f.s]] : null, cast = SP && f.ck && f.ct < castHold(f) ? f.ct : -1, hold = castHold(f);
     let strikeK = 0;
     if (cast >= 0) {
       const d = f.fx < 0 ? -1 : 1, ease = u => 1 - (1 - u) * (1 - u);
@@ -430,7 +472,7 @@ function createRenderer(canvas, arena) {
     if (f.st === 'burn' && !blinkW) { ctx.filter = 'sepia(.5) saturate(1.6) hue-rotate(-20deg)'; }
     // smooth pose changes: the old frame fades out under the new one (into and out of every move, guard and dash)
     const sq = seqF[i] || (seqF[i] = { cur: frame, prev: frame, t: 1 });
-    if (frame !== sq.cur) { const big = frame >= 6 || sq.cur >= 6; sq.prev = sq.cur; sq.cur = frame; sq.t = big && walker ? 0 : 1; }
+    if (frame !== sq.cur) { const big = frame >= 6 || sq.cur >= 6; sq.prev = sq.cur; sq.cur = frame; sq.t = big && walker && !AN ? 0 : 1; }
     sq.t = Math.min(1, sq.t + opt.dt / 0.11);
     if (sq.t < 1 && !blinkW) { const old = stageSprite(f.s, opt.hue || 0, stage, pal, false, sq.prev);
       if (old) { ctx.globalAlpha = alpha * (1 - sq.t); blit(old, X + ox, Y + oy, dw, dh, flip, sx, sy, rot); ctx.globalAlpha = alpha * (0.35 + 0.65 * sq.t); } }
@@ -440,6 +482,10 @@ function createRenderer(canvas, arena) {
     if (cast >= 0.04 && SP.col) { const d = f.fx < 0 ? -1 : 1, hx = X + ox + d * dw * 0.34, hy = Y + oy - dh * 0.5, fade = cast < 0.24 ? 1 : Math.max(0, 1 - (cast - 0.24) / (hold - 0.24));
       ctx.save(); ctx.globalCompositeOperation = 'lighter'; glowAt(hx, hy, dw * (0.28 + 0.12 * Math.sin(now * 30)) * (0.6 + 0.4 * fade), SP.col, 0.75 * fade); ctx.restore();
       if (Math.random() < 0.8 * fade) part((hx + (Math.random() - 0.5) * 10 * U) / Z, (hy + (Math.random() - 0.5) * 14 * U) / Z, d * (30 + Math.random() * 40), (Math.random() - 0.5) * 20, 0.35, SP.col, 1); }
+    if (AN && (f.sg > 0 || f.tr > 0)) { ctx.save(); ctx.globalCompositeOperation = 'lighter'; // the higher his form, the stronger his violet aura
+      const k = Math.min(1, (f.sg || 0) / 5 + (f.tr > 0 ? 0.5 : 0)); glowAt(X + ox, Y + oy - dh * 0.45, dw * (0.9 + 0.5 * k), '#b45aff', (0.25 + 0.45 * k) * (0.85 + 0.15 * Math.sin(now * 14)));
+      if (Math.random() < 0.3 + 0.5 * k) part((X + ox + (Math.random() - 0.5) * dw) / Z, (Y + oy - Math.random() * dh * 0.9) / Z, 0, -30 - Math.random() * 30, 0.5, Math.random() < 0.5 ? '#d8a8ff' : '#ffd84a', 1);
+      ctx.restore(); }
     blit(blinkW || grow[i] > 0.9 ? wh : spr, X + ox, Y + oy, dw, dh, flip, sx, sy, rot);
     if (strikeK > 0.4 && wh) { ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = (strikeK - 0.4) * 0.9; blit(wh, X + ox, Y + oy, dw, dh, flip, sx, sy, rot); ctx.restore(); } // flash as the blow lands
     ctx.filter = 'none'; ctx.globalAlpha = 1;
@@ -619,6 +665,11 @@ function createRenderer(canvas, arena) {
     LOG();
   }
   function blit(img, fx, fy, w, h, flip, sx, sy, rot) {
+    if (img?.anim) { const A = img.anim, [x, y, fw, fh, ax, ay] = A.J.frames[img.i], k = A.ks * (w / Math.round(ANIM_STAND * 0.62)) || A.ks;
+      let src = A.img, sxo = x, syo = y;
+      if (img.white) { let c = A.white.get(img.i); if (!c) { c = document.createElement('canvas'); c.width = fw; c.height = fh; const g2 = c.getContext('2d'); g2.drawImage(A.img, x, y, fw, fh, 0, 0, fw, fh); g2.globalCompositeOperation = 'source-in'; g2.fillStyle = '#ffffff'; g2.fillRect(0, 0, fw, fh); if (A.white.size > 60) A.white.clear(); A.white.set(img.i, c); } src = c; sxo = 0; syo = 0; }
+      ctx.save(); ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high'; ctx.translate(Math.round(fx), Math.round(fy)); if (rot) ctx.rotate(rot); if (flip) ctx.scale(-1, 1); ctx.scale(sx, sy);
+      ctx.drawImage(src, sxo, syo, fw, fh, -ax * k, -ay * k, fw * k, fh * k); ctx.restore(); return; }
     const dw = Math.round(w * sx), dh = Math.round(h * sy);
     ctx.save(); ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high'; ctx.translate(Math.round(fx), Math.round(fy)); if (rot) ctx.rotate(rot); if (flip) ctx.scale(-1, 1); ctx.drawImage(img, -Math.round(dw / 2), -dh, dw, dh); ctx.restore();
   }
