@@ -65,10 +65,57 @@ def glow(fr, col, t):
     g = Image.new('RGBA', fr.size, col + (0,)); g.putalpha(al.point(lambda v: int(v * (0.25 + 0.12 * t))))
     return Image.alpha_composite(g, fr)
 
+FX = {  # effect-only crops from the Chosen One sprite sheet (the little character is left out)
+  'basic': (1000, 125, 1062, 186), 'earth': (950, 312, 1042, 361), 'wind': (948, 368, 1048, 414), 'fire': (950, 421, 1042, 470),
+  'water': (950, 475, 1048, 524), 'lightning': (950, 529, 1062, 580), 'guard': (575, 642, 600, 688), 'dash': (190, 438, 330, 472)}
+
+def build_covo():
+    """COVO looks like the big character art (art-src/masters/covo_design.png) and moves like the sprite sheet:
+    run cycle, a pose + effect per element, guard, dash and the Origin Burst ring."""
+    design = Image.open(os.path.join(SRC, 'covo_design.png')); sheet = Image.open(os.path.join(SRC, 'covo_sheet.png'))
+    front = cut(design, (0, 0, 255, 322), 26); side = cut(design, (262, 20, 412, 318), 26).transpose(Image.FLIP_LEFT_RIGHT)
+    glowc = (170, 80, 255)
+    def body(h):
+        return front.resize((round(front.width * h / front.height), h), Image.LANCZOS)
+    def with_fx(key, h=214, fxw=124, gap=-18, dy=0.0):
+        b = body(h); fx = cut(sheet, FX[key], 26); fx = fx.resize((fxw, max(1, round(fx.height * fxw / fx.width))), Image.LANCZOS)
+        fr = Image.new('RGBA', (W, H), (0, 0, 0, 0)); bx = 4; fr.alpha_composite(b, (bx, H - 6 - b.height))
+        fr.alpha_composite(fx, (min(W - fx.width, bx + b.width + gap), int(H - 6 - b.height * (0.62 + dy) - fx.height / 2))); return fr
+    idle = place(front, (H - 40) / front.height)
+    idle2 = Image.new('RGBA', (W, H), (0, 0, 0, 0)); sq = idle.resize((W, round(H * 0.985)), Image.LANCZOS); idle2.alpha_composite(sq, (0, H - sq.height))
+    k = (H - 40) / side.height; sp = place(side, k); run = A['frames'](sp.crop(sp.getbbox()))[2:6]
+    basic = with_fx('basic', fxw=110)
+    elems = [with_fx(e) for e in ('earth', 'wind', 'fire', 'water')]
+    ring = fit_ring = None
+    mega = cut(sheet, (1085, 695, 1310, 832), 26); mega = mega.resize((W - 8, round(mega.height * (W - 8) / mega.width)), Image.LANCZOS)
+    og = Image.new('RGBA', (W, H), (0, 0, 0, 0)); og.alpha_composite(mega, (4, H - 6 - mega.height))
+    b = body(206); og.alpha_composite(b, ((W - b.width) // 2, H - 6 - b.height))
+    light = with_fx('lightning', fxw=124)
+    g = body(214)
+    from PIL import ImageDraw
+    ring = Image.new('RGBA', (W, H), (0, 0, 0, 0)); d = ImageDraw.Draw(ring)
+    for r, al in ((118, 90), (110, 170), (102, 255)): d.ellipse((W // 2 - r + 30, H // 2 - r + 25, W // 2 + r + 30, H // 2 + r + 25), outline=(190, 120, 255, al), width=4)
+    ring = ring.filter(ImageFilter.GaussianBlur(1.2))
+    guard = Image.new('RGBA', (W, H), (0, 0, 0, 0)); guard.alpha_composite(ring); guard.alpha_composite(g, (28, H - 6 - g.height))
+    ds = sp.crop(sp.getbbox()); ds = ds.resize((round(ds.width * 190 / ds.height), 190), Image.LANCZOS)
+    dash = Image.new('RGBA', (W, H), (0, 0, 0, 0))
+    for n, a in ((3, 0.18), (2, 0.3), (1, 0.5)):   # purple speed trail behind the lean
+        ghost = ds.copy(); ghost.putalpha(ghost.split()[3].point(lambda v: int(v * a))); dash.alpha_composite(glow(ghost, glowc, 2), (W - ds.width - 4 - n * 34, H - 6 - ds.height))
+    dash.alpha_composite(ds, (W - ds.width - 4, H - 6 - ds.height))
+    poses = [basic, *elems, og, light, guard, dash]
+    for st_i in range(6):
+        t = max(0, st_i - 1); fs = [glow(f, glowc, t) for f in [idle, idle2, *run, *poses]]
+        sh = Image.new('RGBA', (W * len(fs), H), (0, 0, 0, 0))
+        for i, f in enumerate(fs): sh.paste(f, (i * W, 0))
+        sh.save(os.path.join(WALK, f'covo_s{st_i}.png'), optimize=True); fs[0].save(os.path.join(HD, f'covo_s{st_i}.png'), optimize=True)
+        if st_i == 2: fs[0].save(os.path.join(HD, 'covo.png'), optimize=True)
+    print('covo', len(fs), 'frames (design art + sheet moves)')
+
 if __name__ == '__main__':
     only = set(sys.argv[1:])
     for name, d in D.items():
         if only and name not in only: continue
+        if name == 'covo': build_covo(); continue
         sheet = Image.open(os.path.join(SRC, name + '_sheet.png'))
         side = cut(sheet, d['side'], d.get('tol', 20), d.get('dark')); k = (H - 40) / side.height          # one scale for the big drawings
         if d.get('run'):

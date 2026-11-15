@@ -356,3 +356,4 @@ Stats: HP, Attack, Defense, Sp. Atk, Sp. Def, Speed. Types: EMBER, GROVE, TIDE, 
 - Power names follow the sheets (Earth Push, Rock Spike, Earth Shield, Earth Wave, Boulder Toss, Stone Pillar, Quake Burst, Earth Wall; Water Push, Whip, Shield, Wave, Spear, Surge, Whirlpool, Dragon).
 - Element Masters' stats are +75%, the same as the Aura Warriors. Ignar (fire) keeps the drawn design.
 - v59: COVO redrawn from the Chosen One's full sprite sheet (real run frames, one pose per element, guard, dash, Origin Burst).
+- v60: COVO now looks like the Chosen One character art (staff, gold and purple robe) and keeps the sprite-sheet moves: run, element casts with their effects, guard ring, dash trail, Origin Burst.
