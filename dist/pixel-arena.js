@@ -67,11 +67,18 @@ const POSES = {
 };
 // Full frame-by-frame animation drawn straight from a character's complete sprite sheet (scripts/make_chosen_anim.py):
 // an atlas of frames, each with its foot anchor, so the character always stands on the same spot at the same size.
-const ANIM = { azaelion: 'art/anim/azaelion' };
+const ANIM = { azaelion: 'art/anim/azaelion', covo: 'art/anim/covo', cova: 'art/anim/cova', kena: 'art/anim/kena' };
 // 360 degrees: the frame where the 8-view turnaround starts (front, front-right, right, back-right, back, back-left, left, front-left)
-const DIRS = { covo: 16, cova: 16, kena: 16 };
+const DIRS = { covo: 16, cova: 16, kena: 16 }; // (their frame-by-frame atlases carry the 8 views in seqs.dirs)
 function dirIdx(f) { const deg = Math.atan2(f.fy || 0, f.fx || 1) * 180 / Math.PI; return (((Math.round((90 - deg) / 45) % 8) + 8) % 8); }
 const animData = {};
+// The effects drawn on COVO's, COVA's and Kena's own sprite sheets are the projectiles they throw (art/fx/<name>_<element>.png)
+const FXSP = new Set(['covo', 'cova', 'kena']), FXMAP = { fire: 'fire', firenado: 'fire', ice: 'water', icezap: 'lightning', gust: 'wind', boulder: 'earth' }, fxImgs = {};
+function fxImg(sid, lk) {
+  const n = NAMES[sid], el = FXMAP[lk]; if (!el || !FXSP.has(n)) return null; const k = n + '_' + el; let im = fxImgs[k];
+  if (!im) { im = fxImgs[k] = new Image(); im.src = 'art/fx/' + k + '.png'; }
+  return im.complete && im.naturalWidth ? im : null;
+}
 function animFor(sid) {
   const n = NAMES[sid], src = ANIM[n]; if (!src) return null;
   let d = animData[n];
@@ -98,9 +105,9 @@ function bodyFit(key, c) {
 }
 const ELEMS = ['earth', 'wind', 'fire', 'water', 'lightning', 'fifth'];
 /** Which frame of which sequence the character shows right now. */
-function animPick(d, f, i, opt, now) {
+function animPick(d, f, i, opt, now, dirI = -1) {
   const S = d.J.seqs, st = d.st[i] || (d.st[i] = { el: 0, combo: 0, lastCt: 9, g: 0, gOn: false, faint: 0 });
-  const at = (seq, u, loop) => { const q = S[seq]; const k = Math.floor(u * q.length); return q[loop ? ((k % q.length) + q.length) % q.length : Math.max(0, Math.min(q.length - 1, k))]; };
+  const at = (seq, u, loop) => { const q = S[seq] || S.idle; const k = Math.floor(u * q.length); return q[loop ? ((k % q.length) + q.length) % q.length : Math.max(0, Math.min(q.length - 1, k))]; };
   if (f.ck && f.ct < st.lastCt - 0.05 && f.ct < 0.2) { if (f.ck === 'special') st.el = (st.el + 1) % ELEMS.length; if (f.ck === 'basic') st.combo++; } // a new cast began
   st.lastCt = f.ck ? f.ct : 9;
   if (f.g && !st.gOn) st.g = now; st.gOn = !!f.g;
@@ -113,6 +120,7 @@ function animPick(d, f, i, opt, now) {
   if (f.g) return at('guard', (now - st.g) / 0.28);
   if (f.hu > 0) return at('hit', 1 - f.hu / 0.35);
   if (f.ds) return at('dash', 0.3 + ((now * 12) % 5) / 7, false);
+  if (dirI >= 0 && S.dirs && S.dirs[dirI] != null) return S.dirs[dirI];   // facing up, down or diagonally: the turnaround view
   if (f.mv) return at('run', now * 1.6, true);
   const form = Math.max(0, Math.min(5, f.sg || 0));
   return form ? S.forms[Math.min(form, S.forms.length - 1)] : at('idle', now * 0.8, true);
@@ -429,7 +437,7 @@ function createRenderer(canvas, arena) {
     const frame = useDir ? DB + dI : !walker ? 0 : pf >= 0 ? pf : f.ct < 0.3 && f.ck ? (f.ck === 'basic' ? 6 : 7) : f.ds ? 2 + Math.floor(ph0 * 16) % 4 : f.mv ? 2 + Math.floor(ph0 * 9) % 4 : Math.floor(ph0 * 2) % 2;
     const AN = walker ? animFor(f.s) : null;
     let spr = stageSprite(f.s, opt.hue || 0, stage, pal, false, frame), wh = stageSprite(f.s, opt.hue || 0, stage, pal, true, frame);
-    if (AN) { const ai = animPick(AN, f, i, opt, now); spr = { anim: AN, i: ai }; wh = { anim: AN, i: ai, white: true }; }
+    if (AN) { const ai = animPick(AN, f, i, opt, now, useDir ? dI : -1); spr = { anim: AN, i: ai }; wh = { anim: AN, i: ai, white: true }; }
     if (!spr) return;
     grow[i] = Math.max(0, grow[i] - opt.dt * 0.8);
     const sc = (AN ? 1 : STAGE_SCALE[scaleStage]) * (1 + Math.sin(grow[i] * 12) * 0.12 * grow[i]); // a frame-animated character keeps one size
@@ -710,6 +718,15 @@ function createRenderer(canvas, arena) {
   function projectile(p, x, y, now) {
     const pal = palFor(p.ty, p.sid), a = Math.atan2(p.vy, p.vx), fl = Math.floor(now * 20) % 2, v = vidOf(p);
     y -= 8;
+    const fim = fxImg(p.sid, p.lk);
+    if (fim) { // the effect drawn on the character's own sprite sheet flies out of the hands: a fireball, a water wave, a wind spiral, rocks, a lightning bolt
+      const t = now / 1000, w = (p.lk === 'boulder' ? 46 : 40) * (1 + Math.sin(t * 16 + p.id) * 0.05), h = w * fim.naturalHeight / fim.naturalWidth, ca = Math.cos(a);
+      ctx.save(); ctx.translate(x, y); ctx.rotate(a); if (ca < 0) ctx.scale(1, -1);
+      ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high'; ctx.drawImage(fim, -w * 0.75, -h / 2, w, h);
+      ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = 0.35 + Math.sin(t * 22 + p.id) * 0.15; ctx.drawImage(fim, -w * 0.75, -h / 2, w, h); ctx.restore();
+      if (Math.random() < 0.5) part(x - Math.cos(a) * w * 0.7 + (Math.random() - 0.5) * 4, y - Math.sin(a) * w * 0.7 + (Math.random() - 0.5) * 4, -Math.cos(a) * 10, -4 + Math.random() * 4, 0.35, p.lk === 'fire' || p.lk === 'firenado' ? '#ffb040' : '#cfe8ff', 1, 80);
+      return;
+    }
     if (p.lk === 'ice') { // water / ice ball: a wobbling clear-blue drop with a glint, a tapering stream behind it, falling droplets and ripples
       const t = now / 1000, ca = Math.cos(a), sa = Math.sin(a);
       FULL(); ctx.save(); ctx.globalCompositeOperation = 'lighter'; glow(x * Z, y * Z, 20 * U, '#ffffff', '#7ad8ff', 0.7); ctx.restore(); LOG();

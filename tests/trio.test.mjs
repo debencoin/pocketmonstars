@@ -28,3 +28,12 @@ test('master, the second founder wallet and Ashley each get a copy; only the mas
   assert.deepEqual(Object.keys(CONFIG.masterOnly).map(Number).sort(), NAMES.map(ID).sort());
   assert.ok(Object.values(CONFIG.masterOnly).every(w => w === MASTER));
 });
+
+test('COVO, COVA and Kena play frame-by-frame animation with 8 turnaround views and their own sheet effects', () => {
+  for (const n of ['covo', 'cova', 'kena']) {
+    const J = JSON.parse(fs.readFileSync(`dist/art/anim/${n}.json`, 'utf8'));
+    for (const q of ['idle', 'run', 'dash', 'guard', 'hit', 'knock', 'light', 'heavy', 'earth', 'wind', 'fire', 'water', 'lightning', 'mega', 'forms']) assert.ok(J.seqs[q]?.length, `${n} ${q}`);
+    assert.equal(J.seqs.dirs.length, 8, `${n} turnaround`);
+    for (const el of ['earth', 'wind', 'fire', 'water', 'lightning']) assert.ok(fs.existsSync(`dist/art/fx/${n}_${el}.png`), `${n} ${el} effect`);
+  }
+});
