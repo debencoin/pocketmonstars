@@ -107,6 +107,22 @@ def glow(fr, col, t):
     g = Image.new('RGBA', fr.size, col + (0,)); g.putalpha(al.point(lambda v: int(v * (0.25 + 0.12 * t))))
     return Image.alpha_composite(g, fr)
 
+def mass(im):
+    """How much very dark (hair and outline) there is: a steady yardstick for body size across poses, whatever the effects around the body."""
+    a = np.asarray(im.convert('RGBA')); return max(1, int(((a[..., 3] > 200) & (a[..., :3].max(-1) < 60)).sum()))
+
+def norm_place(im, target):
+    """Scale a pose so its body matches `target` (the standing frame's body), keep that scale even when effects make the picture wide
+    (the window is centred on the body and the far effect is trimmed) and stand it on the floor of a 288x336 frame."""
+    n = mass(im); s = min(4.0, max(0.25, (target / n) ** 0.5))
+    a = np.asarray(im.convert('RGBA')); dm = (a[..., 3] > 200) & (a[..., :3].max(-1) < 60); cx = (np.nonzero(dm)[1].mean() if dm.any() else im.width / 2) * s; cy = (np.nonzero(dm)[0].mean() if dm.any() else im.height / 2) * s
+    im = im.resize((max(1, round(im.width * s)), max(1, round(im.height * s))), Image.LANCZOS)
+    if im.width > W - 8:
+        x0 = int(min(max(0, cx - (W - 8) / 2), im.width - (W - 8))); im = im.crop((x0, 0, x0 + W - 8, im.height))
+    if im.height > H - 8:   # a tall effect (a column of water, a tornado): keep the window on the body, not on the floor
+        y0 = int(min(max(0, cy + 70 - (H - 8) / 2), im.height - (H - 8))); im = im.crop((0, y0, im.width, y0 + H - 8))
+    fr = Image.new('RGBA', (W, H), (0, 0, 0, 0)); fr.alpha_composite(im, ((W - im.width) // 2, H - 6 - im.height)); return fr
+
 FX = {  # effect-only crops from the Chosen One sprite sheet (the little character is left out)
   'basic': (1000, 125, 1062, 186), 'earth': (950, 312, 1042, 361), 'wind': (948, 368, 1048, 414), 'fire': (950, 421, 1042, 470),
   'water': (950, 475, 1048, 524), 'lightning': (950, 529, 1062, 580), 'guard': (575, 642, 600, 688), 'dash': (190, 438, 330, 472)}
@@ -169,19 +185,22 @@ if __name__ == '__main__':
             if not (_all or box in _ai): return cut(sh, box, *a)
             if box not in _c: _c[box] = matte(sh, box, d.get('boost', False))
             return _c[box]
-        side = cutf(sheet, d['side'], d.get('tol', 20), d.get('dark')); k = (H - 40) / side.height          # one scale for the big drawings
-        if d.get('run'):
-            rk = (H - 40) / max(cutf(sheet, b, d.get('tol', 20)).height for b in d['run'])
-            run = [place(cutf(sheet, b, d.get('tol', 20)), rk) for b in d['run']]
-        else: run = A['frames'](place(side, k).crop(place(side, k).getbbox()))[2:6]
-        fit = lambda im: place(im, min((W - 8) / im.width, (H - 24) / im.height))   # each power pose fills the frame like the idle and run drawings
-        poses = [fit(cutf(sheet, b, d.get('tol', 20), d.get('dark'))) for _, b in d['poses']]
+        tol = d.get('tol', 20)
+        side = cutf(sheet, d['side'], tol, d.get('dark'))
+        runs = [cutf(sheet, b, tol) for b in d['run']] if d.get('run') else None
+        poses_raw = [cutf(sheet, b, tol, d.get('dark')) for _, b in d['poses']]
         for st in range(6):
-            form = cutf(sheet, d['forms'][st], d.get('tol', 20), d.get('dark')); idle = place(form, (H - 40) * [0.86, 0.92, 1, 1, 1, 1][st] / form.height)
+            form = cutf(sheet, d['forms'][st], tol, d.get('dark')); idle = place(form, (H - 40) * [0.86, 0.92, 1, 1, 1, 1][st] / form.height)
+            M = mass(idle)                      # the standing body: every run and move frame is drawn at this body size
             idle2 = Image.new('RGBA', (W, H), (0, 0, 0, 0)); sq = idle.resize((W, round(H * 0.985)), Image.LANCZOS); idle2.alpha_composite(sq, (0, H - sq.height))
+            if runs: run = [norm_place(r, M) for r in runs]
+            else:
+                sn = norm_place(side, M); run = A['frames'](sn.crop(sn.getbbox()))[2:6]
+            poses = [norm_place(p_, M) for p_ in poses_raw]
             t = max(0, st - 1); fs = [glow(f, d['glow'], t) for f in [idle, idle2, *run, *poses]]
             sh = Image.new('RGBA', (W * len(fs), H), (0, 0, 0, 0))
             for i, f in enumerate(fs): sh.paste(f, (i * W, 0))
             sh.save(os.path.join(WALK, f'{name}_s{st}.png'), optimize=True); fs[0].save(os.path.join(HD, f'{name}_s{st}.png'), optimize=True)
             if st == 2: fs[0].save(os.path.join(HD, name + '.png'), optimize=True)
+            if st == 2: print(name, 'body mass', M, 'pose masses', [mass(f) for f in poses])
         print(name, len(fs), 'frames')

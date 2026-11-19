@@ -702,10 +702,13 @@ function createRenderer(canvas, arena) {
   function projectile(p, x, y, now) {
     const pal = palFor(p.ty, p.sid), a = Math.atan2(p.vy, p.vx), fl = Math.floor(now * 20) % 2, v = vidOf(p);
     y -= 8;
-    if (p.lk === 'ice') { // Ice Balls: frosty blue spheres with a white glint
-      FULL(); ctx.save(); ctx.globalCompositeOperation = 'lighter'; glow(x * Z, y * Z, 20 * U, '#ffffff', '#7ad8ff', 0.8); ctx.restore(); LOG();
-      disc(x, y, 6, '#9be6ff'); disc(x - 1, y - 1, 4, '#dff8ff'); px(x - 3, y - 3, 2, 2, '#ffffff');
-      if (Math.random() < 0.4) part(x - Math.cos(a) * 6, y - Math.sin(a) * 6, 0, 0, 0.3, '#dff8ff', 1);
+    if (p.lk === 'ice') { // water / ice ball: a wobbling clear-blue drop with a glint, a tapering stream behind it, falling droplets and ripples
+      const t = now / 1000, ca = Math.cos(a), sa = Math.sin(a);
+      FULL(); ctx.save(); ctx.globalCompositeOperation = 'lighter'; glow(x * Z, y * Z, 20 * U, '#ffffff', '#7ad8ff', 0.7); ctx.restore(); LOG();
+      for (let k = 7; k >= 1; k--) { const w = Math.sin(t * 18 - k * 0.9) * 1.4; disc(x - ca * k * 2.6 - sa * w, y - sa * k * 2.6 + ca * w, Math.max(1, 5.2 - k * 0.6), k % 2 ? '#4aa8e8' : '#7ad0ff'); }
+      disc(x, y, 6, '#3f9be0'); disc(x - 0.5, y - 0.5, 5, '#6ec8ff'); disc(x + Math.sin(t * 20) * 0.8, y - 1, 3, '#b8ecff'); px(x - 3, y - 3, 2, 2, '#ffffff'); px(x + 1, y + 2, 1, 1, '#e8fbff');
+      ring(x, y, 7 + (Math.floor(t * 12) % 3), 6 + (Math.floor(t * 12) % 3), '#9be6ff66');
+      if (Math.random() < 0.7) part(x - ca * 7 + (Math.random() - 0.5) * 5, y - sa * 7 + (Math.random() - 0.5) * 5, -ca * 14 + (Math.random() - 0.5) * 12, -6 + Math.random() * 6, 0.45, Math.random() < 0.5 ? '#9be6ff' : '#e8fbff', 1, 90);
       return;
     }
     if (p.lk === 'ki') { // Ki Blast: a bright energy ball with a white core
@@ -770,24 +773,36 @@ function createRenderer(canvas, arena) {
       if (Math.random() < 0.3) part(x + (Math.random() - 0.5) * 10, y + (Math.random() - 0.5) * 10, 0, 0, 0.2, '#ffe14a', 1);
       return;
     }
-    if (p.lk === 'fire') { // Fire Gust / fireballs: a flickering orange ball with a flame tail
-      FULL(); ctx.save(); ctx.globalCompositeOperation = 'lighter'; glow(x * Z, y * Z, 22 * U, '#fff6a8', '#ff8a1f', 0.9); ctx.restore(); LOG();
-      disc(x, y, 6, '#ff6a1a'); disc(x + Math.cos(a), y + Math.sin(a) - 1, 4, '#ffb030'); disc(x + Math.cos(a) * 2, y + Math.sin(a) * 2 - 1, 2, '#fff1a0');
-      for (let k = 0; k < 2; k++) part(x - Math.cos(a) * (6 + k * 3), y - Math.sin(a) * (6 + k * 3) + (Math.random() - 0.5) * 4, -Math.cos(a) * 10, -14, 0.3, k ? '#ff8a1f' : '#ffd23f', 1, -20);
+    if (p.lk === 'fire') { // fireball: a white-hot core, four flickering flame lobes streaming behind it, rising embers and a puff of smoke
+      const t = now / 1000, ca = Math.cos(a), sa = Math.sin(a);
+      FULL(); ctx.save(); ctx.globalCompositeOperation = 'lighter'; glow(x * Z, y * Z, 26 * U, '#fff6a8', '#ff6a1a', 0.95); ctx.restore(); LOG();
+      const cols = ['#a82a10', '#e0481a', '#ff8a1f', '#ffc83a'];
+      for (let k = 4; k >= 1; k--) { const fk = Math.sin(t * 26 + k * 1.7) * 2.2; disc(x - ca * k * 4.2 - sa * fk, y - sa * k * 4.2 + ca * fk - k * 0.6, Math.max(2, 7.5 - k * 1.3), cols[Math.min(3, 4 - k)]); }
+      disc(x, y, 6 + (Math.floor(t * 24) % 2), '#ff6a1a'); disc(x + ca, y + sa - 1, 4.5, '#ffb030'); disc(x + ca * 1.5, y + sa * 1.5 - 1, 2.5, '#fff1a0'); px(x - 1, y - 2, 1, 1, '#ffffff');
+      for (let k = 0; k < 3; k++) part(x - ca * (7 + k * 3) + (Math.random() - 0.5) * 6, y - sa * (7 + k * 3) + (Math.random() - 0.5) * 6, -ca * 12 + (Math.random() - 0.5) * 14, -12 - Math.random() * 14, 0.4 + Math.random() * 0.3, ['#ffd23f', '#ff8a1f', '#ff5a1a'][k], 1, -30);
+      if (Math.random() < 0.35) part(x - ca * 11, y - sa * 11 - 3, -ca * 8, -10, 0.7, '#3a3430', 2, -12);
       return;
     }
-    if (p.lk === 'gust') { // Air Blast / wind balls: a pale swirling ball of wind
-      const t = now / 1000; FULL(); ctx.save(); ctx.globalCompositeOperation = 'lighter'; glow(x * Z, y * Z, 18 * U, '#ffffff', '#bfe8ff', 0.55); ctx.restore(); LOG();
-      ring(x, y, 6, 4, '#e8fbff'); ring(x + Math.cos(t * 14) * 2, y + Math.sin(t * 14), 3, 2, '#ffffff');
-      if (Math.random() < 0.5) part(x - Math.cos(a) * 7, y - Math.sin(a) * 7 + (Math.random() - 0.5) * 6, -Math.cos(a) * 20, 0, 0.25, '#dff6ff', 1);
+    if (p.lk === 'gust') { // wind: a pale spiral of three curling streaks around a core, shedding dust and leaves
+      const t = now / 1000, ca = Math.cos(a), sa = Math.sin(a);
+      FULL(); ctx.save(); ctx.globalCompositeOperation = 'lighter'; glow(x * Z, y * Z, 18 * U, '#ffffff', '#bfe8ff', 0.5); ctx.restore(); LOG();
+      for (let arm = 0; arm < 3; arm++) { const ph = t * 16 + arm * 2.094; let lx = x, ly = y;
+        for (let k = 1; k <= 8; k++) { const r2 = 7 * (1 - k / 11), ang = ph - k * 0.5, qx = x - ca * k * 2.6 + (-sa) * Math.sin(ang) * r2, qy = y - sa * k * 2.6 + ca * Math.sin(ang) * r2;
+          line(lx, ly, qx, qy, k < 4 ? '#ffffff' : '#bfe8ff', k < 4 ? 2 : 1); lx = qx; ly = qy; } }
+      ring(x, y, 6, 4, '#e8fbffaa'); disc(x, y, 2, '#ffffff');
+      if (Math.random() < 0.6) part(x - ca * 8 + (Math.random() - 0.5) * 8, y - sa * 8 + (Math.random() - 0.5) * 8, -ca * 18 + (Math.random() - 0.5) * 20, (Math.random() - 0.5) * 20, 0.35, Math.random() < 0.3 ? '#a8c878' : '#dff6ff', 1);
       return;
     }
-    if (p.lk === 'boulder') { // Slab Slide: a tall stone slab sliding along the ground, kicking up dust
-      const h2 = 22, w2 = 10, gy = y + 8;
-      ellipse(x, gy + 1, 9, 2, '#00000055');
-      px(x - w2 / 2, gy - h2, w2, h2, '#8f7a5a'); px(x - w2 / 2, gy - h2, 3, h2, '#6e5c44'); px(x + w2 / 2 - 2, gy - h2, 2, h2, '#b8a07a'); px(x - w2 / 2, gy - h2, w2, 2, '#c8b088');
-      px(x - 2, gy - h2 + 7, 4, 1, '#5e4e38'); px(x - 1, gy - h2 + 14, 3, 1, '#5e4e38');
-      if (Math.random() < 0.6) part(x - Math.cos(a) * 8, gy, -Math.cos(a) * 20, -8 - Math.random() * 8, 0.4, '#c8b088', 1, 40);
+    if (p.lk === 'boulder') { // Slab Slide: a chunky stone slab ploughing along the ground: a crack opens behind it, dust rolls off and chips fly
+      const t = now / 1000, ca = Math.cos(a), gy = y + 9, h2 = 21 + ((p.id || 0) % 3) * 2, w2 = 12, wob = Math.sin(t * 22 + (p.id || 0)) * 0.6;
+      ellipse(x, gy + 1, 11, 3, '#00000066');
+      for (let k = 1; k <= 6; k++) px(x - ca * k * 5, gy, 3, 1, k < 4 ? '#2e241a' : '#4a3c2c');                 // the crack it leaves in the floor
+      px(x - w2 / 2, gy - h2 + wob, w2, h2, '#7f6a4c'); px(x - w2 / 2 - 1, gy - h2 + 3 + wob, 1, h2 - 5, '#7f6a4c');            // body with chipped sides
+      px(x - w2 / 2, gy - h2 + wob, 4, h2, '#5e4c36'); px(x + w2 / 2 - 3, gy - h2 + wob, 3, h2, '#a8906a'); px(x - w2 / 2 + 1, gy - h2 + wob, w2 - 2, 3, '#cdb68c');
+      px(x - w2 / 2 + 2, gy - h2 + 3 + wob, w2 - 4, 1, '#e2d0a8'); px(x - 3, gy - h2 + 8, 2, 5, '#4e3e2a'); px(x + 1, gy - h2 + 13, 3, 1, '#4e3e2a'); px(x - 2, gy - 4, 4, 1, '#4e3e2a');
+      px(x - 1, gy - h2 - 2 + wob, 3, 2, '#9b8560'); px(x + 3, gy - h2 - 1 + wob, 2, 2, '#7f6a4c');                                     // jagged top
+      for (let k = 0; k < 2; k++) if (Math.random() < 0.8) part(x - ca * 7 + (Math.random() - 0.5) * 6, gy - Math.random() * 3, -ca * 22 + (Math.random() - 0.5) * 16, -10 - Math.random() * 14, 0.5, k ? '#d8c49a' : '#b09870', 2, 60);
+      if (Math.random() < 0.6) part(x + (Math.random() - 0.5) * 8, gy - h2 * Math.random(), (Math.random() - 0.5) * 30, -6 - Math.random() * 10, 0.5, '#6e5c44', 1, 120);
       return;
     }
     if (p.lt) { // Storm Orbs: crackling lightning balls (smaller while charging up beside the caster)
