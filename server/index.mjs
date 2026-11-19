@@ -32,7 +32,7 @@ function sessionSecret() {
 export function createServer({ config = CONFIG, chain = new SolanaChain(config.rpc), dbFile = path.join(DATA_DIR, 'pocketmonstars.db'), keys = serverKeys(),
   stripe = new StripePay({ secretKey: config.stripeSecretKey, webhookSecret: config.stripeWebhookSecret, fixedSolUsd: config.solUsd, publicUrl: config.publicUrl }) } = {}) {
   const db = openDb(dbFile);
-  const registry = new Registry(db, { legendaryOwner: config.legendaryOwner, royalOwner: config.royalOwner, gifts: config.gifts, creators: config.creators }), auth = new Auth({ secret: sessionSecret() });
+  const registry = new Registry(db, { legendaryOwner: config.legendaryOwner, royalOwner: config.royalOwner, gifts: config.gifts, creators: config.creators, masterOnly: config.masterOnly }), auth = new Auth({ secret: sessionSecret() });
   const players = new Players(db);
   const matches = new MatchManager({ db, registry, chain, config, players });
   const nft = new NftService({ config, keys, chain });
@@ -49,6 +49,7 @@ export function createServer({ config = CONFIG, chain = new SolanaChain(config.r
   const welcome = (id, ref) => { if (isNew(id) && ref) players.setReferrer(id, ref); registry.claimAll(id); return auth.issue(id); };
   const dropMemo = sid => `PMDROP:${sid}`;
   const companyBpsFor = m => config.companyFeeBps?.[m?.species?.collection] ?? 500; // PocketMonstars' cut of a marketplace sale (5%; 1% for the Watcher Gods)
+  const masterOnlyCheck = (m, w) => { const o = registry.masterOnly?.[m.species.id]; if (o && w !== o) throw Error('Only the master wallet can sell ' + m.species.name + ': your copy is yours to play with.'); };
   const sellerOf = sid => config.creators?.[SPECIES[sid].collection] || config.dropTreasury; // who is paid for a store Monstar: its creator, else the founder wallet
   const dropPrice = sid => BigInt(SPECIES[sid].drop.priceLamports);
   let dropsReadyCard = null;
@@ -229,7 +230,7 @@ export function createServer({ config = CONFIG, chain = new SolanaChain(config.r
     'GET /api/usd/listings': () => ({ enabled: stripe.enabled, listings: players.usdListings().map(l => { const m = registry.get(l.serial); return m && m.owner === l.seller && !m.asset ? { serial: l.serial, seller: l.seller, cents: l.cents, usd: usd(l.cents), monstar: m.toJSON() } : null; }).filter(Boolean) }),
     'POST /api/usd/list': async req => { const w = need(req), b = await body(req), m = registry.get(Number(b.serial)), cents = Math.round(Number(b.priceUsd) * 100);
       if (!stripe.enabled) throw Error('Card payments are not switched on yet.');
-      if (!m || m.owner !== w) throw Error('You do not own that Monstar.');
+      if (!m || m.owner !== w) throw Error('You do not own that Monstar.'); masterOnlyCheck(m, w);
       if (m.asset) throw Error('This Monstar is minted as an NFT: sell it for SOL in the NFT market instead.');
       if (players.openSoulClaimFor(m.serial)) throw Error('Its old owner can still buy this Monstar back (Immortal Combat). Wait until the buy-back time ends.');
       if (!(cents >= 100 && cents <= 1_000_000)) throw Error('Pick a price from $1 to $10,000.');
@@ -321,7 +322,7 @@ export function createServer({ config = CONFIG, chain = new SolanaChain(config.r
     'GET /api/market': () => ({ listings: db.prepare("SELECT * FROM listings WHERE state='active' ORDER BY id DESC LIMIT 200").all()
       .map(l => ({ ...l, monstar: registry.byAsset(l.asset)?.toJSON() || null })) }),
     'POST /api/market/list': async req => { const w = needWallet(req), b = await body(req), m = registry.get(Number(b.serial));
-      if (!m?.asset) throw Error('Mint this Monstar before listing it.'); const price = BigInt(b.priceLamports);
+      if (!m?.asset) throw Error('Mint this Monstar before listing it.'); masterOnlyCheck(m, w); const price = BigInt(b.priceLamports);
       if (price < 10_000n) throw Error('Minimum price is 0.00001 SOL.');
       await nft.verifyListable({ asset: m.asset, seller: w });
       db.prepare("UPDATE listings SET state='cancelled', closed_at=? WHERE asset=? AND state='active'").run(Date.now(), m.asset);

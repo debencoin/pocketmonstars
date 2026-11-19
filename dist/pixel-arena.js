@@ -49,7 +49,10 @@ const POSES = {
   zephar: { col: '#c8b0ff', basic: 6, special: [[1, 7], [10, 8], [25, 9], [50, 13]], guard: 10, dash: [[1, 11], [25, 12]] },
   terrok: { col: '#e0b060', basic: [[1, 6], [25, 10]], special: [[1, 7], [10, 9], [25, 11], [50, 12]], guard: [[1, 8], [25, 13]] },
   tydal: { col: '#5ec2ff', basic: [[1, 6], [25, 10]], special: [[1, 7], [10, 9], [25, 12], [50, 13]], guard: 8, dash: 11 },
-  covo: { col: '#c080ff', basic: 6, special: [[1, 10], [10, 7], [25, 9]], guard: 8, mega: 11 },
+  // COVO, COVA and Kena: 24 frames (idle, run, strike, five elements, guard, dash, Origin Burst, hit) then the 8-view turnaround (DIRS)
+  covo: { col: '#c080ff', basic: 9, special: [[1, 11], [10, 10], [25, 8], [50, 7]], guard: 12, dash: 13, mega: 14 },
+  cova: { col: '#b070ff', basic: 9, special: [[1, 10], [10, 11], [25, 8], [50, 7]], guard: 12, dash: 13, mega: 14 },
+  kena: { col: '#c890ff', basic: 9, special: [[1, 10], [10, 11], [25, 8], [50, 7]], guard: 12, dash: 13, mega: 14 },
   azaelion: { col: '#c080ff', basic: 6, special: [[1, 9], [10, 7], [25, 8], [50, 12]], guard: 13, dash: 14, mega: 11 },
   ignar: { col: '#ff8a1f', basic: 6, special: [[1, 7], [10, 8], [25, 8], [50, 6]] },
   aerix: { col: '#d8ecff', basic: 6, special: [[1, 7], [10, 8], [25, 9], [50, 13]], guard: 10, dash: [[1, 11], [25, 12]] },
@@ -65,6 +68,9 @@ const POSES = {
 // Full frame-by-frame animation drawn straight from a character's complete sprite sheet (scripts/make_chosen_anim.py):
 // an atlas of frames, each with its foot anchor, so the character always stands on the same spot at the same size.
 const ANIM = { azaelion: 'art/anim/azaelion' };
+// 360 degrees: the frame where the 8-view turnaround starts (front, front-right, right, back-right, back, back-left, left, front-left)
+const DIRS = { covo: 16, cova: 16, kena: 16 };
+function dirIdx(f) { const deg = Math.atan2(f.fy || 0, f.fx || 1) * 180 / Math.PI; return (((Math.round((90 - deg) / 45) % 8) + 8) % 8); }
 const animData = {};
 function animFor(sid) {
   const n = NAMES[sid], src = ANIM[n]; if (!src) return null;
@@ -417,8 +423,10 @@ function createRenderer(canvas, arena) {
     const wx = prev ? prev.x + (f.x - prev.x) * t : f.x, wy = prev ? prev.y + (f.y - prev.y) * t : f.y;
     const pal = palFor(opt.type, f.s), stage = f.as > 0 ? 5 + f.as : f.sg ?? 0, scaleStage = Math.min(5, f.as > 0 ? Math.max(3, f.sg ?? 0) : f.sg ?? 0);
     const walker = WALKERS.has(f.s), ph0 = now + i * 0.37;
+    const DB = WALKERS.has(f.s) ? DIRS[NAMES[f.s]] : undefined, dI = DB != null ? dirIdx(f) : 2;
     // walk cycle: run frames while moving (faster when dashing), breathing idle otherwise
-    const pf = poseFrame(f, ph0), frame = !walker ? 0 : pf >= 0 ? pf : f.ct < 0.3 && f.ck ? (f.ck === 'basic' ? 6 : 7) : f.ds ? 2 + Math.floor(ph0 * 16) % 4 : f.mv ? 2 + Math.floor(ph0 * 9) % 4 : Math.floor(ph0 * 2) % 2;
+    const pf = poseFrame(f, ph0), useDir = DB != null && pf < 0 && !f.ds && !(f.ct < 0.3 && f.ck) && !f.fl && dI !== 2 && dI !== 6; // facing up, down or diagonally: the turnaround view
+    const frame = useDir ? DB + dI : !walker ? 0 : pf >= 0 ? pf : f.ct < 0.3 && f.ck ? (f.ck === 'basic' ? 6 : 7) : f.ds ? 2 + Math.floor(ph0 * 16) % 4 : f.mv ? 2 + Math.floor(ph0 * 9) % 4 : Math.floor(ph0 * 2) % 2;
     const AN = walker ? animFor(f.s) : null;
     let spr = stageSprite(f.s, opt.hue || 0, stage, pal, false, frame), wh = stageSprite(f.s, opt.hue || 0, stage, pal, true, frame);
     if (AN) { const ai = animPick(AN, f, i, opt, now); spr = { anim: AN, i: ai }; wh = { anim: AN, i: ai, white: true }; }
@@ -442,7 +450,7 @@ function createRenderer(canvas, arena) {
     if (f.st === 'paralyze' && Math.floor(now * 14) % 3 === 0) ox += (Math.random() - 0.5) * 6 * U;
     if (f.rc) ox += (Math.random() - 0.5) * 3 * U;
     lean[i] = (lean[i] || 0) + (((f.mv || f.ds) ? (f.fx < 0 ? -1 : 1) * (f.ds ? 0.16 : 0.07) : 0) - (lean[i] || 0)) * Math.min(1, opt.dt * 9); // ease into a forward lean when running, back upright when stopping
-    if (walker) { if (f.mv && !f.ds) oy -= (frame % 2 === 0 ? 1.5 : 0) * U; }
+    if (walker) { if (useDir) { if (f.mv) { const st2 = Math.abs(Math.sin(phase * 9)); oy -= st2 * 5 * U; if (st2 < 0.2) { sx = 1.05; sy = 0.95; } } } else if (f.mv && !f.ds) oy -= (frame % 2 === 0 ? 1.5 : 0) * U; }
     else if (f.mv && !f.ds) {
       if (mo === 'pounce' || mo === 'prance') { const s2 = Math.abs(Math.sin(phase * 10)); oy -= s2 * 7 * U; if (s2 < 0.2) { sx = 1.08; sy = 0.9; } }
       else if (mo === 'stomp' || mo === 'charge') { oy -= Math.abs(Math.sin(phase * 7)) * 3; if (Math.random() < 0.15) part(X / Z, Y / Z, (Math.random() - 0.5) * 10, -6, 0.4, '#b8a888', 1); }
@@ -466,8 +474,8 @@ function createRenderer(canvas, arena) {
     if (f.bk > 0) alpha *= 0.3 + (1 - f.bk / 0.35) * 0.7;
     if (opt.faint) { oy += opt.faint * 20 * U; alpha *= 1 - opt.faint; sy *= 1 - opt.faint * 0.5; }
     if (opt.vanish) { oy -= opt.vanish * 26 * U; alpha *= 1 - opt.vanish; sx *= 1 - opt.vanish * 0.85; sy *= 1 - opt.vanish * 0.85; } // pulled up into the catch beam
-    const flip = f.fx < 0;
-    if (!rot && !f.fl) rot = lean[i] * (hiK < 1 ? 0.4 : 1); // the drawn run frames already lean
+    const flip = !useDir && f.fx < 0;
+    if (!rot && !f.fl && !useDir) rot = lean[i] * (hiK < 1 ? 0.4 : 1); // the drawn run frames already lean
     if (f.au) { // Aura Warriors teleport: an after-image stays where they vanished from
       if (f.bk > 0.2 && !tpSeen[i] && lastPos[i]) ghosts.push({ x: lastPos[i].x, y: lastPos[i].y, life: 0.45, wh, dw, dh, flip });
       tpSeen[i] = f.bk > 0.2 ? 1 : 0; lastPos[i] = { x: X, y: Y };

@@ -336,8 +336,7 @@ export const FINAL_BENDERS = [
     // COVO's own: a fire tornado that chases the rival, and ice balls that crackle with lightning
     basic: { name: 'Fire Tornado', look: 'firenado', homing: true, status: 'burn', knock: 3, note: 'A whirlwind of fire that follows the rival until it hits, and burns.' },
     special: { name: 'Thunder Ice Balls', shots: 2, look: 'icezap', status: 'freeze', zap: true, note: 'Shoots 2 or 3 ice balls crackling with lightning: they freeze, and an electric zap jumps out.' } } },
-  { ...BE('COVA', 'GALE', 'deity', 'Fire gust', 'Ice balls', 'projectile', 'projectile', '#14141a', 'Final Air Bender', true), el2: 'all', sky: true, unique: true, female: true, legendary: undefined, legendFor: undefined,
-    drop: { priceLamports: '10000000000', shop: true }, speedBoost: 1.35, sig: FINAL_SIG('COVA', 1) },
+  { ...BE('COVA', 'GALE', 'deity', 'Fire gust', 'Ice balls', 'projectile', 'projectile', '#14141a', 'Final Air Bender', true), el2: 'all', sky: true, unique: true, female: true, master: true, legendFor: 'gift', speedBoost: 1.35, sig: FINAL_SIG('COVA', 1) },
 ];
 
 // Starter Benders: every new player (username account or Phantom wallet) starts with ONE of these, picked at random:
@@ -354,7 +353,7 @@ export const STARTER_BENDERS = [
 
 // KENA: a final air bender like COVA (all five elements, teleport, very fast), gifted to Ashley's wallet. Appended last so no species id moves.
 export const GIFT_FINALS = [
-  { ...BE('Kena', 'GALE', 'deity', 'Fire gust', 'Ice balls', 'projectile', 'projectile', '#2a1440', 'Final Air Bender', true), el2: 'all', sky: true, unique: true, female: true, legendFor: 'gift', speedBoost: 1.35, sig: FINAL_SIG('Kena', 2) },
+  { ...BE('Kena', 'GALE', 'deity', 'Fire gust', 'Ice balls', 'projectile', 'projectile', '#2a1440', 'Final Air Bender', true), el2: 'all', sky: true, unique: true, female: true, master: true, legendFor: 'gift', speedBoost: 1.35, sig: FINAL_SIG('Kena', 2) },
 ];
 
 // Aurelia and Amyah: elite women benders gifted to Ashley's wallet (appended last so no species id moves).

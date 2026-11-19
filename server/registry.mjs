@@ -23,9 +23,10 @@ export function starterSpecies(owner) {
 
 const hasTable = (db, t) => !!db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name=?").get(t);
 export class Registry {
-  constructor(db, { legendaryOwner = null, royalOwner = null, gifts = {}, creators = {} } = {}) {
+  constructor(db, { legendaryOwner = null, royalOwner = null, gifts = {}, creators = {}, masterOnly = {} } = {}) {
     // collection -> creator wallet: the artist who drew that collection. Its Monstars are "born to" the creator, so the
     // 5% resale royalty goes to that wallet for ever, whoever holds or sells them.
+    this.masterOnly = Object.fromEntries(Object.entries(masterOnly || {}).map(([sid, w]) => [Number(sid), new PublicKey(w).toBase58()])); // species only one wallet may sell (it also gets the royalty)
     this.creators = Object.fromEntries(Object.entries(creators || {}).map(([c, w]) => [c, new PublicKey(w).toBase58()]));
     this.gifts = Object.fromEntries(Object.entries(gifts || {}).map(([w, ids]) => [normOwner(w), ids]));
     this.db = db;
@@ -57,6 +58,13 @@ export class Registry {
         for (const x of db.prepare(`SELECT serial, species FROM monstars WHERE species IN (${ids}) AND owner=? AND (asset IS NOT NULL OR NOT (${keep}))`).all(f))
           console.warn(`#${x.serial} (${SPECIES[x.species].name}) is minted or listed, so it stays in the founder wallet`);
       } catch (e) { console.error('release to wild:', e.message); }
+    }
+    for (const [sid, master] of Object.entries(this.masterOnly)) { // copies already handed out: the royalty (origin owner) is the master wallet's
+      for (const r of db.prepare('SELECT serial, species, origin_owner, genesis FROM monstars WHERE species=? AND origin_owner<>? AND asset IS NULL').all(Number(sid), master)) {
+        db.exec('CREATE TABLE IF NOT EXISTS gift_claims(owner TEXT NOT NULL, species INTEGER NOT NULL, serial INTEGER NOT NULL, PRIMARY KEY(owner, species))');
+        db.prepare('INSERT OR IGNORE INTO gift_claims(owner, species, serial) VALUES(?,?,?)').run(r.origin_owner, r.species, r.serial);
+        db.prepare('UPDATE monstars SET origin_owner=?, genesis=? WHERE serial=?').run(master, 0, r.serial);
+      }
     }
     // gifts handed out (so a gift is given once, even when the Monstar is born to its creator and not to the holder)
     db.exec('CREATE TABLE IF NOT EXISTS gift_claims(owner TEXT NOT NULL, species INTEGER NOT NULL, serial INTEGER NOT NULL, PRIMARY KEY(owner, species))');
@@ -111,6 +119,8 @@ export class Registry {
     return this.insertUnique({ speciesId, originOwner: owner, owner, genesis: true, collection: SPECIES[speciesId].collection, dnaFor: n => deriveDna(owner, speciesId, n) });
   }
 
+  creatorOf(sid) { return this.masterOnly[sid] || this.creators[SPECIES[sid].collection] || null; }
+
   /** The founder wallet holds the Legendary collections. They hatch as level 1 Infants with elite attributes (Legendary rarity, near-perfect rolls, +20% stats). */
   claimLegendaries(owner) {
     owner = normOwner(owner);
@@ -118,7 +128,7 @@ export class Registry {
     const ids = [...(key ? legendaryIdsFor(key) : []), ...(this.gifts[owner] || [])].filter(sid => !(SPECIES[sid].wildOne && owner === this.legendaryOwner)); // the founder's released one-of-a-kinds are only caught now
     if (!ids.length) return [];
     return ids.map(sid => {
-      const creator = this.creators[SPECIES[sid].collection];
+      const creator = this.creatorOf(sid);
       const claim = creator && this.db.prepare('SELECT serial FROM gift_claims WHERE owner=? AND species=?').get(owner, sid);
       const existing = claim ? this.db.prepare('SELECT * FROM monstars WHERE serial=?').get(claim.serial)
         : this.db.prepare('SELECT * FROM monstars WHERE origin_owner=? AND species=? AND genesis=1' + (creator ? ' AND owner=?' : '')).get(...(creator ? [creator, sid, owner] : [owner, sid]));
@@ -194,7 +204,7 @@ export class Registry {
     if (!SALE_IDS.includes(speciesId)) throw Error('That Monstar is not for sale.');
     const had = this.db.prepare('SELECT * FROM monstars WHERE species=? AND genesis=0 AND serial NOT IN (SELECT serial FROM gift_claims) ORDER BY serial LIMIT 1').get(speciesId); // the one market copy (gifts are genesis)
     if (had) return this.toMonstar(had);
-    return this.insertUnique({ speciesId, originOwner: this.creators[SPECIES[speciesId].collection] || owner, owner, genesis: false, collection: SPECIES[speciesId].collection, exp: 0,
+    return this.insertUnique({ speciesId, originOwner: this.creatorOf(speciesId) || owner, owner, genesis: false, collection: SPECIES[speciesId].collection, exp: 0,
       dnaFor: n => composeDna(createHash('sha256').update(`pocketmonstars:hero:${speciesId}:${signature}:${n}`).digest('hex'), { rarity: 'Legendary', ivs: [15, 15, 14, 15, 14, 15] }) });
   }
 
