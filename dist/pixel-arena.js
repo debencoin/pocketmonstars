@@ -527,7 +527,7 @@ function createRenderer(canvas, arena) {
       const k = Math.min(1, (f.sg || 0) / 5 + (f.tr > 0 ? 0.5 : 0)); glowAt(X + ox, Y + oy - dh * 0.45, dw * (0.9 + 0.5 * k), '#b45aff', (0.25 + 0.45 * k) * (0.85 + 0.15 * Math.sin(now * 14)));
       if (Math.random() < 0.3 + 0.5 * k) part((X + ox + (Math.random() - 0.5) * dw) / Z, (Y + oy - Math.random() * dh * 0.9) / Z, 0, -30 - Math.random() * 30, 0.5, Math.random() < 0.5 ? '#d8a8ff' : '#ffd84a', 1);
       ctx.restore(); }
-    blit(blinkW || grow[i] > 0.9 ? wh : spr, X + ox, Y + oy, dw, dh, flip, sx, sy, rot);
+    if (!(NAMES[f.s] === 'covo' && window.PMCovo3D?.ready && window.PMCovo3D.draw(ctx, X + ox, Y + oy, dh * 1.23, f, alpha))) { blit(blinkW || grow[i] > 0.9 ? wh : spr, X + ox, Y + oy, dw, dh, flip, sx, sy, rot); }
     if (strikeK > 0.4 && wh) { ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = (strikeK - 0.4) * 0.9; blit(wh, X + ox, Y + oy, dw, dh, flip, sx, sy, rot); ctx.restore(); } // flash as the blow lands
     ctx.filter = 'none'; ctx.globalAlpha = 1;
     statusFx(f, X + ox, Y + oy, dw, dh, now);
