@@ -230,7 +230,7 @@ test('arena hazards: water and lava hurt (their own element is safe), cracks dro
 
 test('Aura Warriors: stronger than benders; power up into an Aura form by level (gold Lv3 ... white Lv80) and turn back to normal', async () => {
   const S = await import('../shared/sim.mjs'), { Monstar, SPECIES, SHOP_IDS } = await import('../shared/monstars.mjs');
-  const aw = SPECIES.filter(s => s.aura); assert.equal(aw.length, 10); assert.ok(aw.every(s => SHOP_IDS.includes(s.id) && s.collection === 'aurawarriors'));
+  const aw = SPECIES.filter(s => s.aura && s.collection === 'aurawarriors'); assert.equal(aw.length, 10); assert.ok(aw.every(s => SHOP_IDS.includes(s.id) && s.collection === 'aurawarriors'));
   const bender = SPECIES.find(s => s.name === 'Pyreska'), d = SPECIES.find(s => s.name === 'Dashi'); // both strikers
   const st = sp => Object.values(new Monstar({ speciesId: sp.id, level: 1 }).stats).reduce((a, b) => a + b, 0);
   assert.ok(st(d) > st(bender), 'stronger than a bender of the same class');
@@ -262,7 +262,7 @@ test('Aura Warrior creator: gifts and the market copy are born to the creator wa
   const { createServer } = await import('../server/index.mjs'), { CONFIG } = await import('../server/config.mjs'), { SPECIES } = await import('../shared/monstars.mjs');
   const { server, registry } = createServer({ dbFile: ':memory:', config: { ...CONFIG, rebuildDrops: false } });
   try {
-    const creator = CONFIG.creators.aurawarriors, founder = CONFIG.legendaryOwner, aw = SPECIES.filter(s => s.aura).map(s => s.id);
+    const creator = CONFIG.creators.aurawarriors, founder = CONFIG.legendaryOwner, aw = SPECIES.filter(s => s.aura && s.collection === 'aurawarriors').map(s => s.id);
     const first = registry.claimAll(founder).filter(m => aw.includes(m.species.id));
     assert.equal(first.length, 10); assert.ok(first.every(m => m.owner === founder && m.originOwner === creator));
     const again = registry.claimAll(founder).filter(m => aw.includes(m.species.id));

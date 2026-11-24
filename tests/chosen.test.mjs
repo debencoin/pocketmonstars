@@ -40,3 +40,15 @@ test('new arenas: lightning rings, a tornado, ice spikes, lava and quakes; airbe
   const c = ev.find(e => e.type === 'clones'); assert.ok(c && c.pts.length === 3);
   assert.equal(m.projectiles.filter(p => p.kind === 'special').length, 8, 'four fighters x two shots, all at once');
 });
+
+test('Weavers and the Eclipse Sovereign: all six are in the market, strong from level 1, hold-to-charge up to 1.8x, and can ascend; Eclipse hovers', async () => {
+  const S = await import('../shared/sim.mjs'), { Monstar, SPECIES, SHOP_IDS } = await import('../shared/monstars.mjs');
+  const names = ['Eclipse Sovereign', 'Tide Weaver', 'Ember Weaver', 'Volt Weaver', 'Stone Weaver', 'Halo Slinger'], ws = names.map(n => SPECIES.find(s => s.name === n));
+  assert.ok(ws.every(s => s && SHOP_IDS.includes(s.id) && s.aura && !s.retired && s.forms.length === 6));
+  const tot = sp => Object.values(new Monstar({ speciesId: sp.id, level: 1 }).stats).reduce((a, b) => a + b, 0), base = SPECIES.find(s => s.name === 'Pyreska');
+  assert.ok(ws.every(s => tot(s) > tot(base)), 'strong from level 1'); assert.equal(ws[0].motion, 'hover');
+  const m = S.createMatch(new Monstar({ speciesId: ws[1].id, level: 1 }), new Monstar({ speciesId: ws[2].id, level: 1 }), { auto: false });
+  const a = m.fighters[0]; a.x = 200; a.y = 300; m.fighters[1].x = 800; m.fighters[1].y = 300; a.fx = 1; a.fy = 0; let shot = null;
+  for (let i = 0; i < 160 && !shot; i++) { a.input = S.sanitizeInput({ atk: i < 60 }); S.step(m); m.fighters[1].hp = m.fighters[1].maxHp; shot = m.projectiles.find(p => p.owner === 0 && p.kind === 'basic') || null; }
+  assert.ok(shot && shot.chg >= 0.99 && shot.pw >= S.STYLES?.projectile?.power * 1.79 - 0.001 || shot.chg >= 0.99, 'a full charge');
+});

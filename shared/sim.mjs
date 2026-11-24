@@ -460,7 +460,7 @@ function land(m, att, vic, kind, style, events, dirx, diry, knock = 90, power, f
 }
 
 // Elemental benders hold the shot button to charge: let go and a bigger blast leaves with up to double the damage. A quick tap fires the normal shot.
-const CHARGERS = new Set(['Aquari', 'Rokko', 'Blazen', 'Gusti']), CHARGE_MAX = 1.2, CHARGE_TAP = 0.25; // seconds of real time
+const CHARGERS = new Set(['Aquari', 'Rokko', 'Blazen', 'Gusti', 'Eclipse Sovereign', 'Tide Weaver', 'Ember Weaver', 'Volt Weaver', 'Stone Weaver', 'Halo Slinger']), CHARGE_MAX = 1.5, CHARGE_TAP = 0.25; // seconds of real time
 function cast(m, f, kind, lvl = 0) {
   const style = f.styles[kind], S = STYLES[style];
   f.energy -= S.cost; f.cd[kind] = S.cd * (kind === 'special' ? f.mods.specialCd : 1) * (f.kit?.[kind]?.cd ?? 1); f.actions++;
@@ -473,9 +473,9 @@ function cast(m, f, kind, lvl = 0) {
       const look = f.kit?.[kind]?.look, spread = look === 'boulder' ? 0.3 : 0.22, vary = look === 'boulder' ? 0.75 + Math.random() * 0.5 : 1; // slabs come out differently
       const a = Math.atan2(f.fy, f.fx) + (shots > 1 ? (k - (shots - 1) / 2) * spread + (look === 'boulder' ? (Math.random() - 0.5) * 0.12 : 0) : 0), dx = Math.cos(a) * vary, dy = Math.sin(a) * vary;
       m.projectiles.push({ id: k ? m.nextId++ : id, owner: f.side, by: f, kind, style, type: f.type, sid: f.speciesId, x: f.x + dx * 36, y: f.y + dy * 36,
-        vx: dx * sp, vy: dy * sp, r: S.r * (f.kit?.[kind]?.big || 1) * (1 + lvl * 0.9), chg: lvl > 0 ? Math.round(lvl * 100) / 100 : 0, life: S.life * (f.kit?.[kind]?.seek ? 3 : 1), hitDone: false, missDone: false, homing: !!f.kit?.[kind]?.homing, leech: f.kit?.[kind]?.leech, pw: shots > 1 ? S.power * (kind === 'special' ? 0.55 : 0.62) * (kind === 'special' ? f.kit?.special.power ?? 1 : 1) * 1.6 : undefined, kb: kind === 'basic' ? f.kit?.basic.knock || 1 : look === 'boulder' ? 2 : f.kit?.special.knock || 1, look, onHit: f.kit?.[kind]?.status, zap: !!f.kit?.[kind]?.zap, turn: f.kit?.[kind]?.seek ? 9 : f.kit?.[kind]?.homing ? 3.4 : undefined });
+        vx: dx * sp, vy: dy * sp, r: S.r * (f.kit?.[kind]?.big || 1) * (1 + lvl * 0.7), chg: lvl > 0 ? Math.round(lvl * 100) / 100 : 0, life: S.life * (f.kit?.[kind]?.seek ? 3 : 1), hitDone: false, missDone: false, homing: !!f.kit?.[kind]?.homing, leech: f.kit?.[kind]?.leech, pw: shots > 1 ? S.power * (kind === 'special' ? 0.55 : 0.62) * (kind === 'special' ? f.kit?.special.power ?? 1 : 1) * 1.6 : undefined, kb: kind === 'basic' ? f.kit?.basic.knock || 1 : look === 'boulder' ? 2 : f.kit?.special.knock || 1, look, onHit: f.kit?.[kind]?.status, zap: !!f.kit?.[kind]?.zap, turn: f.kit?.[kind]?.seek ? 9 : f.kit?.[kind]?.homing ? 3.4 : undefined });
     }
-    if (lvl > 0) for (const q of m.projectiles.slice(-shots)) q.pw = (q.pw ?? S.power) * (1 + lvl); // a charged shot hits up to twice as hard
+    if (lvl > 0) for (const q of m.projectiles.slice(-shots)) q.pw = (q.pw ?? S.power) * (1 + lvl * 0.8); // a charged shot hits up to twice as hard
     return;
   }
   const e = { id, owner: f.side, by: f, kind, style, type: f.type, sid: f.speciesId, x: f.x, y: f.y, dx: f.fx, dy: f.fy,

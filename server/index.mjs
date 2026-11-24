@@ -285,7 +285,7 @@ export function createServer({ config = CONFIG, chain = new SolanaChain(config.r
           sold: !!sale, owner: sale ? registry.get(sale.serial)?.owner || sale.buyer : null, held: !sale && r && r.until > Date.now() }; }),
       // Sky Bender market: one of each, sold for SOL with no time limit (COVA is 10 SOL)
       shop: SHOP_IDS.map(sid => { const sale = players.sale(sid), r = reserved.get(sid), sp = SPECIES[sid];
-        return { speciesId: sid, name: sp.name, type: sp.type, element: sp.el2, female: !!sp.female, unique: !!sp.unique, aura: !!sp.aura, priceLamports: sp.drop.priceLamports, mega: sp.kit.mega.name, seller: sellerOf(sid), creator: config.creators?.[sp.collection] || null,
+        return { speciesId: sid, name: sp.name, type: sp.type, element: sp.el2, female: !!sp.female, unique: !!sp.unique, aura: !!sp.aura && sp.collection !== 'weavers', weaver: sp.collection === 'weavers', priceLamports: sp.drop.priceLamports, mega: sp.kit.mega.name, seller: sellerOf(sid), creator: config.creators?.[sp.collection] || null,
           sold: !!sale, owner: sale ? registry.get(sale.serial)?.owner || sale.buyer : null, held: !sale && r && r.until > Date.now() }; }) }),
     'POST /api/drop/tx': async req => { const w = needWallet(req), b = await body(req), sid = Number(b.speciesId);
       if (!SALE_IDS.includes(sid)) throw Error('That Monstar is not for sale.');

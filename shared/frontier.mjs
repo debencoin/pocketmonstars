@@ -594,6 +594,49 @@ Object.assign(CHK_SIG, {
       mega: { kind: 'omnistorm', name: 'Aether Rift', note: 'Tears a rift in space: every element at once.', power: 1.55, size: 1.35 } }, names: ['Aether Wave', 'Aether Spear', 'Aether Vortex'] },
 });
 
+
+// ---------- The Weavers and the Eclipse Sovereign (hold-to-charge fighters, sold in the market) ----------
+// Strong from level 1 (Aura-fighter stats), they charge their basic attack while the button is held (up to 1.5 s: 1.8x damage), have their own guard
+// and secondary move, and can ascend into an evolved form and back (the Aura button). Eclipse Sovereign hovers. All six are sold in the market.
+Object.assign(CHK_SIG, {
+  'Eclipse Sovereign': { type: 'ASTRAL', cls: 'deity', title: 'Twin Eclipse', female: false, motion: 'hover', main: '#7a5aff', market: 2,
+    sig: { basic: { name: 'Eclipse Coil', look: 'wsprite', status: 'weaken', knock: 4, power: 1.5, note: 'Hold to charge: blue Radiant and red Umbral energy twist into one helix that saps the rival.' },
+      special: { name: 'Umbral Pull', style: 'levitate', power: 1.5, note: 'A red gravity well drags the rival in, lifts it and slams it down.' },
+      dash: { kind: 'blink', name: 'Eclipse Drift', note: 'Slides through the eclipse and appears a long way off.', dist: 1.9, cd: 0.7 },
+      guard: { kind: 'absorb', name: 'Radiant Guard', note: 'A blue arc absorbs a frontal hit: blocked hits charge the ULT meter.', time: 1.4, cd: 5.2 },
+      mega: { kind: 'judgment', name: 'Total Eclipse', note: 'The sun goes dark: the rival is lifted, then crushed by the eclipse.', power: 1.7, size: 1.4 } }, names: ['Dark Pull', 'Twin Coil', 'Eclipse Ascendant'], forms: ['Eclipse Acolyte', 'Eclipse Disciple', 'Eclipse Sovereign', 'Eclipse Knight', 'Eclipse Lord', 'Eclipse Ascendant'] },
+  'Tide Weaver': { type: 'TIDE', cls: 'mystic', title: 'Tide Weaver', female: true, el2: 'water', main: '#35b8ff', market: 1,
+    sig: { basic: { name: 'Tide Pulse', look: 'wsprite', status: 'soak', knock: 5, power: 1.45, note: 'Hold to charge a compressed blast of water that splashes on impact.' },
+      special: { name: 'Undertow Sweep', style: 'cone', status: 'soak', power: 1.45, note: 'A low surge sweeps the rival sideways.' },
+      dash: { kind: 'burst', name: 'Tide Slide', note: 'Slides on a surge of water: very fast.', dist: 1.75, cd: 0.78 },
+      guard: { kind: 'barrier', name: 'Riptide Guard', note: 'A curved wall of water that throws the rival back.', time: 1.3, cd: 5.3 },
+      mega: { kind: 'stormdrain', name: 'Tsunami', note: 'A wave over a big area; 45% of the damage heals her.', power: 1.6, size: 1.4 } }, names: ['Rising Sweep', 'Twin Tide Pulse', 'High Tide'], forms: ['Tide Pup', 'Tide Apprentice', 'Tide Weaver', 'Tide Adept', 'Tide Master', 'High Tide'] },
+  'Ember Weaver': { type: 'EMBER', cls: 'striker', title: 'Ember Weaver', female: true, el2: 'fire', main: '#ff6a1a', market: 1,
+    sig: { basic: { name: 'Ember Pulse', look: 'wsprite', status: 'burn', knock: 4, power: 1.5, note: 'Hold to charge a molten fireball with a flame trail.' },
+      special: { name: 'Flame Lash', style: 'whip', status: 'burn', power: 1.5, note: 'A short curl of fire sweeps across the floor.' },
+      dash: { kind: 'charge', name: 'Ember Dash', note: 'Charges ahead in a streak of embers.', dist: 1.65, cd: 0.84 },
+      guard: { kind: 'thorns', name: 'Cinder Guard', note: 'A burning screen that hurts the rival when it hits the guard.', time: 1.2, cd: 5.2 },
+      mega: { kind: 'meteors', name: 'Wildfire Rain', note: 'Four molten meteors crash around the rival.', power: 1.65, size: 1.35 } }, names: ['Searing Lash', 'Twin Ember Pulse', 'Wildfire Crown'], forms: ['Ember Spark', 'Ember Apprentice', 'Ember Weaver', 'Ember Adept', 'Ember Master', 'Wildfire Crown'] },
+  'Volt Weaver': { type: 'SPARK', cls: 'skirmisher', title: 'Volt Weaver', female: true, el2: 'lightning', main: '#ffe23a', market: 1,
+    sig: { basic: { name: 'Volt Pulse', look: 'wsprite', status: 'paralyze', knock: 3, power: 1.45, note: 'Hold to charge a branching bolt of lightning.' },
+      special: { name: 'Arc Step', style: 'strike', status: 'paralyze', power: 1.5, note: 'Steps along an arc of lightning and strikes the rival where it lands.' },
+      dash: { kind: 'shock', name: 'Static Dash', note: 'A crackling dash that shocks what it touches.', dist: 1.7, cd: 0.76 },
+      guard: { kind: 'counter', name: 'Static Guard', note: 'Strikes back with a shock when hit while guarding.', time: 1.1, cd: 5.0 },
+      mega: { kind: 'thunderstrike', name: 'Storm Crown Strike', note: 'Six lightning strikes from the sky; the first one stuns.', power: 1.6, size: 1.35 } }, names: ['Long Arc', 'Twin Volt Pulse', 'Storm Crown'], forms: ['Volt Spark', 'Volt Apprentice', 'Volt Weaver', 'Volt Adept', 'Volt Master', 'Storm Crown'] },
+  'Stone Weaver': { type: 'STONE', cls: 'titan', title: 'Stone Weaver', female: true, el2: 'earth', main: '#a08a60', market: 1,
+    sig: { basic: { name: 'Stone Pulse', look: 'wsprite', status: 'root', knock: 6, power: 1.5, note: 'Hold to charge a stone core that shatters on impact.' },
+      special: { name: 'Fault Sweep', style: 'cone', status: 'daze', power: 1.5, note: 'A crack runs along the floor and sweeps the rival off its feet.' },
+      dash: { kind: 'leap', name: 'Stone Roll', note: 'A heavy leap that lands with a thud.', dist: 1.5, cd: 0.92 },
+      guard: { kind: 'fortress', name: 'Basalt Guard', note: 'A wall of basalt: nearly nothing gets through.', time: 1.6, cd: 5.9 },
+      mega: { kind: 'boulderstorm', name: 'Bedrock Quake', note: 'Boulders rain over a big area.', power: 1.65, size: 1.4 } }, names: ['Deep Sweep', 'Twin Stone Pulse', 'Bedrock Ascendant'], forms: ['Stone Pebble', 'Stone Apprentice', 'Stone Weaver', 'Stone Adept', 'Stone Master', 'Bedrock Ascendant'] },
+  'Halo Slinger': { type: 'ASTRAL', cls: 'ranger', title: 'Halo Slinger', female: false, main: '#ffd23a', market: 1,
+    sig: { basic: { name: 'Halo Energy Disk', look: 'wsprite', status: 'mark', knock: 3, power: 1.5, note: 'Hold to charge a disk that grows, then flies as a spinning ring.' },
+      special: { name: 'Ring Step', style: 'strike', status: 'mark', power: 1.5, note: 'Steps through a ring of light and strikes from above.' },
+      dash: { kind: 'phase', name: 'Halo Glide', note: 'Glides through a halo: nothing can touch him for a moment.', dist: 1.7, cd: 0.8 },
+      guard: { kind: 'shield', name: 'Halo Guard', note: 'A ring of light that can block a hit completely.', time: 1.3, cd: 5.3 },
+      mega: { kind: 'barrage', name: 'Resonant Rings', note: 'Seven homing rings of light.', power: 1.6, size: 1.3 } }, names: ['Wide Ring', 'Twin Halo Disk', 'Resonant Form'], forms: ['Halo Spark', 'Halo Apprentice', 'Halo Slinger', 'Halo Adept', 'Halo Master', 'Resonant Form'] },
+});
+
 const chosenTiers = (k, names) => { // the same buttons get stronger powers at levels 10, 25 and 50
   const { basic: b, special: s, mega: m } = k.sig, up = (v, f) => +((v || 1) * f).toFixed(2);
   return [{ lv: 10, special: { name: names[0], power: up(s.power, 1.12), note: s.note.replace(/\.$/, '') + ', stronger.' } },
@@ -605,7 +648,7 @@ const CHK = name => {
   const k = { ...k0, sig: { ...k0.sig, dash: tw(k0.sig.dash, 'dist', 'cd'), guard: tw(k0.sig.guard, 'time', 'cd') } };
   const b = BE(name, k.type, k.cls, k.sig.basic.name, k.sig.special.name, k.sig.basic.look === 'crescent' || k.sig.basic.look === 'ki' ? 'projectile' : 'projectile', k.sig.special.style === 'levitate' ? 'projectile' : 'projectile', k.main, k.title, true);
   return { ...b, master: true, battleForms: false, female: k.female, legendary: true, legendFor: 'gift', unique: undefined, bender: true, elite: true, ...(k0.el2 ? { el2: k0.el2 } : {}), ...(k0.motion ? { motion: k0.motion } : {}),
-    forms: [`${name} Acolyte`, `${name} Disciple`, name, `${name} Knight`, `${name} Lord`, `${name}, the Chosen`], tiers: chosenTiers(k, k.names), sig: k.sig,
+    forms: k0.forms || [`${name} Acolyte`, `${name} Disciple`, name, `${name} Knight`, `${name} Lord`, `${name}, the Chosen`], tiers: chosenTiers(k, k.names), sig: k.sig,
     lore: { pronounce: name, ancientTitle: `${name}, ${k.title}`, meaning: `A Chosen One of the saber order: ${k.title}.` } };
 };
 
@@ -786,4 +829,7 @@ export const ELEMENT_MASTERS = [
 
 // The new Chosen Ones (appended last so no species id moves).
 export const NEW_FIGHTERS = ['Dawnward', 'Verdant Crown', 'Suncrest Tide', 'Amethyst Lynx', 'Cinderblade', 'Verdant Fang', 'Lion Regent', 'Cyan Shade', 'Sun Pharaoh', 'Orbit Ranger', 'Reactor Alchemist', 'Stormcaller', 'Crimson Ronin', 'Crown Street', 'Halo Sentinel', 'Ember Warden', 'Nerida', 'Ignessa', 'Terrasa', 'Zephyra', 'Etheria'].map(n => CHK(n));
+// Sold in the market (Sky Bender shop) at 1 SOL (Tide, Ember, Volt, Stone Weavers, Halo Slinger) or 2 SOL (Eclipse Sovereign); strong from level 1 and able to ascend
+export const WEAVERS = ['Eclipse Sovereign', 'Tide Weaver', 'Ember Weaver', 'Volt Weaver', 'Stone Weaver', 'Halo Slinger'].map(n => { const b = CHK(n), sol = CHK_SIG[n].market;
+  return { ...b, master: undefined, legendary: undefined, legendFor: undefined, bender: undefined, elite: undefined, aura: true, drop: { priceLamports: String(sol * 1_000_000_000), shop: true } }; });
 export const CHOSEN_ONES = ['AKENA', 'Azaelion Void', 'Azmara', 'Kaelion', 'Malakar', 'Nymara', 'Solarius', 'Zayron', 'Pyrelion', 'Glacion', 'Rosalis', 'Thalassa'].map(CHK);

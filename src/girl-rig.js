@@ -1,4 +1,4 @@
-// The five Girl Elementals in 3D (dist/girls/<element>.glb: static models, so the whole body moves: lean, lunge, spin, rise) drawn into the
+// The five Girl Elementals, the Eclipse Sovereign and the Weavers in 3D (dist/girls/<element>.glb: static models, so the whole body moves: lean, lunge, spin, rise) drawn into the
 // arena with Three.js (bundled by `npm run build`, never loaded from a CDN). Each one commands an element: the element gathers around her,
 // streams into her palms when she casts, shields her when she guards and bursts out of her in a mega attack. Same size as COVO and the Chosen Ones.
 import * as T from 'three';
@@ -11,6 +11,13 @@ const GIRLS = {
   terrasa: { glb: 'earth',  el: 'earth',  c1: 0xb08a50, c2: 0x8bd04a },
   zephyra: { glb: 'air',    el: 'air',    c1: 0xc8f4ff, c2: 0xffffff },
   etheria: { glb: 'aether', el: 'aether', c1: 0xd08aff, c2: 0x6a8aff },
+  // the Eclipse Sovereign and the Weavers
+  eclipsesovereign: { glb: 'eclipsesovereign', el: 'aether', c1: 0x3a8aff, c2: 0xff3a4a },
+  tideweaver:  { glb: 'tideweaver', el: 'water', c1: 0x35c8ff, c2: 0xcff6ff },
+  emberweaver: { glb: 'emberweaver', el: 'fire', c1: 0xff5a1a, c2: 0xffd23a },
+  voltweaver:  { glb: 'voltweaver', el: 'volt', c1: 0xffe23a, c2: 0xffffff },
+  stoneweaver: { glb: 'stoneweaver', el: 'earth', c1: 0xb08a50, c2: 0x8bd04a },
+  haloslinger: { glb: 'haloslinger', el: 'aether', c1: 0xffd23a, c2: 0xffffff },
 };
 const BASE = './girls/', SIZE = 320, H = 1.7;
 const inst = {}, fstate = {};
