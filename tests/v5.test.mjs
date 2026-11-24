@@ -161,7 +161,7 @@ test('Elemental Benders: gifted wallets get their benders (Tempestro only to q2x
   // every earlier bender is retired: no wallet is given one any more; the founder holds the four Element Masters and COVO
   for (const w of Object.keys(gifts)) assert.ok(!reg.claimAll(w).some(m => m.species.retired), 'no retired benders are given');
   const f = reg.claimAll(CONFIG.legendaryOwner).filter(m => m.species.master).map(m => m.species.name).sort();
-  assert.deepEqual(f, ['AKENA', 'Aerix', 'Amyah', 'Aurelia', 'Azaelion', 'Azaelion Void', 'Azmara', 'Bouldar', 'COVA', 'COVO', 'Glacion', 'Ignar', 'Kaelion', 'Kena', 'Malakar', 'Nerin', 'Nymara', 'Pyrelion', 'Rosalis', 'Solarius', 'Spira', 'Terrok', 'Thalassa', 'Tydal', 'Verdex', 'Zayron', 'Zephar', 'Zuri']); // + the 14 Chosen Ones
+  assert.deepEqual(f, ['AKENA', 'Aerix', 'Amethyst Lynx', 'Amyah', 'Aurelia', 'Azaelion', 'Azaelion Void', 'Azmara', 'Bouldar', 'COVA', 'COVO', 'Cinderblade', 'Crimson Ronin', 'Crown Street', 'Cyan Shade', 'Dawnward', 'Ember Warden', 'Etheria', 'Glacion', 'Halo Sentinel', 'Ignar', 'Ignessa', 'Kaelion', 'Kena', 'Lion Regent', 'Malakar', 'Nerida', 'Nerin', 'Nymara', 'Orbit Ranger', 'Pyrelion', 'Reactor Alchemist', 'Rosalis', 'Solarius', 'Spira', 'Stormcaller', 'Sun Pharaoh', 'Suncrest Tide', 'Terrasa', 'Terrok', 'Thalassa', 'Tydal', 'Verdant Crown', 'Verdant Fang', 'Verdex', 'Zayron', 'Zephar', 'Zephyra', 'Zuri']); // + the Chosen Ones, the Covo-style fighters and the Girl Elementals
   assert.ok(reg.claimAll('HgPy9avE7tMVTgpehYwFQRQYGPUPbZKGzKPAuLNoeD3U').length > 5, 'Ashley keeps her wallet and her other Monstars');
   const S = await import('../shared/sim.mjs'), t = SPECIES.find(s => s.name === 'Tempestro'); assert.equal(t.kit.mega.kind, 'thunderstrike');
   const { Monstar } = await import('../shared/monstars.mjs');
@@ -280,7 +280,7 @@ test('Watcher Gods: ten gods as strong as Aura Warriors, temple arenas, levitati
   const st = sp => Object.values(new Monstar({ speciesId: sp.id, level: 1 }).stats).reduce((a, b) => a + b, 0);
   assert.ok(st(gods[1]) > st(SPECIES.find(s => s.name === 'Pyreska')), 'stronger than a bender of the same class');
   const m = S.createMatch(new Monstar({ speciesId: gods[3].id, level: 20 }), new Monstar({ speciesId: 3, level: 20 }), { auto: false, arena: 2 });
-  assert.ok(m.arena === 6 || m.arena === 7, 'gods fight in the temple arenas'); assert.equal(S.ARENA_COUNT, 8);
+  assert.ok(m.arena === 0 || m.arena === 1, 'gods fight in the Thunderstorm Citadel or the Inferno Rift'); assert.equal(S.ARENA_COUNT, 5);
   const [a, b] = m.fighters; a.x = 300; a.y = 300; b.x = 420; b.y = 300; a.cd.special = 0; a.energy = 100; a.input = S.sanitizeInput({ sp: true, ax: 1, ay: 0 }); let lifted = false;
   for (let i = 0; i < 120; i++) { S.step(m); a.input = S.sanitizeInput({}); b.vx = b.vy = 0; if (b.status?.k === 'lift') lifted = true; }
   assert.ok(lifted && b.hp < b.maxHp, 'Gravity Lift raises the rival and hurts it');

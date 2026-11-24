@@ -2,14 +2,14 @@
 // PocketMonstars pixel arena renderer: a 320x180 native-resolution battlefield scaled up with crisp pixels.
 // Draws animated pixel Monstars and a hand-built animation for every power. Exposes window.PMArena.
 (() => {
-const NAMES = ["cindercub","mossprout","ripplefin","voltwing","duskhorn","pebblit","frostuft","bloomtail","soloryx","seraphon","psyvolt","blazebuck","cinderwyrm","pyrofinch","magmole","emberjack","coralisk","bubblyn","clawtide","abyssquid","wavewing","thornox","fernling","mantiseed","acornaut","lilypadra","zapurr","ohmoth","voltusk","joltail","gloomwisp","nocturrow","shadefang","hexmask","quarrox","fossilith","geodillo","cragcrab","glacielk","snowpuff","icicrow","rimewyrm","cometail","lunaroo","orbitron","mindmoth","oracub","prismeye","toxitoad","mycospore","stingrex","viperoot","gearhound","rivetbot","bladewing","ironshell","zephyrkit","galeon","whirlwisp","drakelet","skyrex","aurielle","valkyra","nimbiel","aeonox","anuvax","enlilor","enkiryn","inannox","utuflare","nannamoth","marduzar","tiamaw","ninhurra","lamassor","shedulon","apkalith","anzurok","humbaroth","pazuzar","mushussar","nergalith","ereshkyl","nabuscribe","ziggurok","semyazar","azazelith","armarok","baraqion","kokabyx","tamiren","ramielon","danelith","ezeqor","sarielle","shamsor","arakor","penemyr","nephilox","grigoran","ophanex","irinyx","eyelurk","gazewing","vigilon","nyxara","serqeth","kaelor","lumiyah","thothex","khonsar","selenox","amunrah","azarath","setekh","horuskai","neferion","ptahmos","khepron","osirak","isisra","rasolar","anuket","anupex","nefertek","ninshara","kingaru","lahmuron","gulani","zababor","shalira","nisabel","ninurtax","solarch","voltaris","gravitas","aegiron","nightvale","blazewing","magmara","tidebreaker","coralon","hailstrike","frostbyte","quakefist","bouldra","galeforce","vortexa","thornheart","verdantia","nebulor","comettra","mindlock","psyra","steelbrand","ferronix","shadowstep","duskara","joltrix","ampere","drakonis","runeguard","sentrion","tidewen","marovek","granitus","terrala","pyreska","emberon","zephyrine","aerokai","voltessa","thundrik","tempestro","aurorex","titanor","phantomir","pyronyx","chronar","stormvane","bulwarkus","venomaw","quasarion","gorrath","starlara","lumivra","frostelle","blazara","sylphra","galdris","skyvar","windrik","aeromar","cyrran","aerisa","sylvane","zephra","windara","skylis","breezo","nimbra","cirrus","aeralyn","zephyl","tidegale","mistral","rainor","oceara","glacia","dustan","rockwen","sandor","terrai","quarra","emberwind","ashra","blazor","flarissa","pyrrin","voltair","sparra","thundro","zappira","boltan","covo","cova","aquari","rokko","blazen","gusti","voltz","kena","aurelia","amyah","dashi","bolo","swish","kapri","nyla","verdo","bunzo","tigo","vikko","noxx","anpurak","wepwarr","khemtek","duatron","selqira","isetra","ptahrex","khnumek","apisor","wadjeth","terrok","zephar","tydal","ignar","azaelion","spira","aerix","bouldar","nerin","zuri","verdex","akena","azaelionvoid","azmara","kaelion","malakar","nymara","solarius","zayron","pyrelion","glacion","rosalis","thalassa"]; // generated from shared/monstars.mjs SPECIES order
+const NAMES = ["cindercub","mossprout","ripplefin","voltwing","duskhorn","pebblit","frostuft","bloomtail","soloryx","seraphon","psyvolt","blazebuck","cinderwyrm","pyrofinch","magmole","emberjack","coralisk","bubblyn","clawtide","abyssquid","wavewing","thornox","fernling","mantiseed","acornaut","lilypadra","zapurr","ohmoth","voltusk","joltail","gloomwisp","nocturrow","shadefang","hexmask","quarrox","fossilith","geodillo","cragcrab","glacielk","snowpuff","icicrow","rimewyrm","cometail","lunaroo","orbitron","mindmoth","oracub","prismeye","toxitoad","mycospore","stingrex","viperoot","gearhound","rivetbot","bladewing","ironshell","zephyrkit","galeon","whirlwisp","drakelet","skyrex","aurielle","valkyra","nimbiel","aeonox","anuvax","enlilor","enkiryn","inannox","utuflare","nannamoth","marduzar","tiamaw","ninhurra","lamassor","shedulon","apkalith","anzurok","humbaroth","pazuzar","mushussar","nergalith","ereshkyl","nabuscribe","ziggurok","semyazar","azazelith","armarok","baraqion","kokabyx","tamiren","ramielon","danelith","ezeqor","sarielle","shamsor","arakor","penemyr","nephilox","grigoran","ophanex","irinyx","eyelurk","gazewing","vigilon","nyxara","serqeth","kaelor","lumiyah","thothex","khonsar","selenox","amunrah","azarath","setekh","horuskai","neferion","ptahmos","khepron","osirak","isisra","rasolar","anuket","anupex","nefertek","ninshara","kingaru","lahmuron","gulani","zababor","shalira","nisabel","ninurtax","solarch","voltaris","gravitas","aegiron","nightvale","blazewing","magmara","tidebreaker","coralon","hailstrike","frostbyte","quakefist","bouldra","galeforce","vortexa","thornheart","verdantia","nebulor","comettra","mindlock","psyra","steelbrand","ferronix","shadowstep","duskara","joltrix","ampere","drakonis","runeguard","sentrion","tidewen","marovek","granitus","terrala","pyreska","emberon","zephyrine","aerokai","voltessa","thundrik","tempestro","aurorex","titanor","phantomir","pyronyx","chronar","stormvane","bulwarkus","venomaw","quasarion","gorrath","starlara","lumivra","frostelle","blazara","sylphra","galdris","skyvar","windrik","aeromar","cyrran","aerisa","sylvane","zephra","windara","skylis","breezo","nimbra","cirrus","aeralyn","zephyl","tidegale","mistral","rainor","oceara","glacia","dustan","rockwen","sandor","terrai","quarra","emberwind","ashra","blazor","flarissa","pyrrin","voltair","sparra","thundro","zappira","boltan","covo","cova","aquari","rokko","blazen","gusti","voltz","kena","aurelia","amyah","dashi","bolo","swish","kapri","nyla","verdo","bunzo","tigo","vikko","noxx","anpurak","wepwarr","khemtek","duatron","selqira","isetra","ptahrex","khnumek","apisor","wadjeth","terrok","zephar","tydal","ignar","azaelion","spira","aerix","bouldar","nerin","zuri","verdex","akena","azaelionvoid","azmara","kaelion","malakar","nymara","solarius","zayron","pyrelion","glacion","rosalis","thalassa","dawnward","verdantcrown","suncresttide","amethystlynx","cinderblade","verdantfang","lionregent","cyanshade","sunpharaoh","orbitranger","reactoralchemist","stormcaller","crimsonronin","crownstreet","halosentinel","emberwarden","nerida","ignessa","terrasa","zephyra","etheria"]; // generated from shared/monstars.mjs SPECIES order
 const W = 320, H = 180, K = 1 / 3; // world (960x540) -> logical pixels; the canvas is 2x (640x360) so sprites keep fine detail
 const CW = 960, CH = 540, Z = 3, U = Z / 2; // U scales hand-tuned canvas-pixel sizes from the old 640 canvas
 const SPR = 0.95; // 96px battle sprites are drawn at ~65px tall on the 960 canvas (Ultimate stage)
 const STAGE_SCALE = [0.6, 0.72, 0.85, 1.0, 1.12, 1.25];
 const imgs = NAMES.map(n => { const i = new Image(); i.src = 'art/hd/' + n + '.png'; return i; });
 // Animated characters: a 6-frame sheet (idle A, idle B, run 1-4) in art/walk/ (generated by scripts/make_walkers.py)
-const WALKERS = new Set([105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132, 133, 134, 135, 136, 137, 138, 139, 140, 141, 142, 143, 144, 145, 146, 147, 148, 149, 150, 151, 152, 153, 154, 155, 156, 157, 158, 159, 160, 161, 162, 163, 164, 165, 166, 167, 168, 169, 170, 171, 172, 173, 174, 175, 176, 177, 178, 179, 180, 181, 182, 183, 184, 185, 186, 187, 188, 189, 190, 191, 192, 193, 194, 195, 196, 197, 198, 199, 200, 201, 202, 203, 204, 205, 206, 207, 208, 209, 210, 211, 212, 213, 214, 215, 216, 217, 218, 219, 220, 221, 222, 223, 224, 225, 226, 227, 228, 229, 230, 231, 232, 233, 234, 235, 236, 237, 238, 239, 240, 241, 242, 243, 244, 245, 246, 247, 248, 249, 250, 251, 252, 253, 254, 255, 256, 257, 258, 259, 260, 261, 262, 263, 264, 265, 266, 267, 268, 269, 270, 271, 272, 273, 274, 275, 276]);
+const WALKERS = new Set([105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132, 133, 134, 135, 136, 137, 138, 139, 140, 141, 142, 143, 144, 145, 146, 147, 148, 149, 150, 151, 152, 153, 154, 155, 156, 157, 158, 159, 160, 161, 162, 163, 164, 165, 166, 167, 168, 169, 170, 171, 172, 173, 174, 175, 176, 177, 178, 179, 180, 181, 182, 183, 184, 185, 186, 187, 188, 189, 190, 191, 192, 193, 194, 195, 196, 197, 198, 199, 200, 201, 202, 203, 204, 205, 206, 207, 208, 209, 210, 211, 212, 213, 214, 215, 216, 217, 218, 219, 220, 221, 222, 223, 224, 225, 226, 227, 228, 229, 230, 231, 232, 233, 234, 235, 236, 237, 238, 239, 240, 241, 242, 243, 244, 245, 246, 247, 248, 249, 250, 251, 252, 253, 254, 255, 256, 257, 258, 259, 260, 261, 262, 263, 264, 265, 266, 267, 268, 269, 270, 271, 272, 273, 274, 275, 276, 277, 278, 279, 280, 281, 282, 283, 284, 285, 286, 287, 288, 289, 290, 291, 292, 293, 294, 295, 296, 297]);
 // one sheet per evolution stage: art/walk/<name>_s0.png (Infant) ... _s5.png (Ascended)
 // Sheets load only for Monstars that are actually on screen (keeps memory low in the Phantom in-app browser).
 const sheets = {};
@@ -215,91 +215,18 @@ function line(x1, y1, x2, y2, col, w = 1) { g.fillStyle = col; const n = Math.ma
 function rng(seed) { let s = seed >>> 0; return () => ((s = (s * 1664525 + 1013904223) >>> 0) / 4294967296); }
 
 // ---------- arenas (top-down, like a stadium floor seen from above) ----------
-const THEMES = [
-  { name: 'Stone Coliseum', a: '#55596a', b: '#4b4f60', line: '#2c2f3c', mark: '#6fd8c8', crack: '#33364a' },
-  { name: 'Dust Bowl', a: '#8a6a48', b: '#7f6142', line: '#5e4630', mark: '#e8dcc0', crack: '#5a4230' },
-  { name: 'Grass Pitch', a: '#4f9a3c', b: '#468e35', line: '#3a7a2c', mark: '#e8f4e0', crack: '#3c7a2e' },
-  { name: 'Cosmic Dome', a: '#241c52', b: '#20184a', line: '#3a2e7a', mark: '#b06ad8', crack: '#2e2464' },
-  { name: 'Volcano', a: '#4a3a34', b: '#423430', line: '#2a201c', mark: '#c8a088', crack: '#ff6a1f' },
-  { name: 'Ice Field', a: '#cfe8f4', b: '#c2e0f0', line: '#a8cce0', mark: '#ffffff', crack: '#8ab8d8' },
-  { name: 'Temple of the Sun', a: '#d8b878', b: '#cfae6c', line: '#a8844a', mark: '#2a6ab0', crack: '#9a7840' },
-  { name: 'Jungle Pyramid', a: '#6f7a5c', b: '#667254', line: '#48523a', mark: '#e8d070', crack: '#3c5a2c' },
+const THEMES = [ // the five arenas (aerial renders in art/arenas/); a plain floor of the same colour shows while a picture loads
+  { name: 'Thunderstorm Citadel', img: 'thunder', a: '#2c3350', b: '#262c46', line: '#1c2138', mark: '#ffe45a', crack: '#ffe45a' },
+  { name: 'Inferno Rift', img: 'lava', a: '#4a2a22', b: '#422620', line: '#2a1612', mark: '#ff8a2a', crack: '#ff6a1f' },
+  { name: 'Earthquake Dominion', img: 'earth', a: '#6e5a40', b: '#64523a', line: '#463826', mark: '#d8b878', crack: '#3a2c1c' },
+  { name: 'Frozen Abyss', img: 'ice', a: '#8fb8d8', b: '#86b0d0', line: '#6890b0', mark: '#ffffff', crack: '#6a9cc0' },
+  { name: 'Tempest Coast', img: 'coast', a: '#7a8a70', b: '#708066', line: '#506048', mark: '#e8f4ff', crack: '#506048' },
 ];
+const arenaImgs = THEMES.map(t => { const i = new Image(); i.decoding = 'async'; i.src = 'art/arenas/' + t.img + '.jpg'; return i; });
+
 const grounds = {};
-function buildGround(rocks, theme = 0) {
-  const T = THEMES[theme % THEMES.length];
-  const c = document.createElement('canvas'); c.width = W; c.height = H; g = c.getContext('2d');
-  const r = rng(11 + theme * 7);
-  if (theme === 0) { // flagstones
-    px(0, 0, W, H, T.a);
-    for (let y = 0; y < H; y += 12) { const off = (y / 12) % 2 ? 9 : 0; for (let x = -off; x < W; x += 18) { px(x, y, 18, 12, r() < 0.5 ? T.a : T.b); px(x, y, 18, 1, T.line); px(x, y, 1, 12, T.line); } }
-    for (let i = 0; i < 26; i++) { let x = r() * W, y = r() * H; for (let k = 0; k < 8; k++) { x += (r() - 0.5) * 6; y += r() * 3; px(x, y, 1, 1, T.crack); } }
-  } else if (theme === 2) { // mowed stripes
-    for (let x = 0; x < W; x += 20) px(x, 0, 20, H, (x / 20) % 2 ? T.a : T.b);
-    for (let i = 0; i < 300; i++) px(r() * W, r() * H, 1, 1, T.line);
-  } else if (theme === 3) { // cosmic grid
-    px(0, 0, W, H, T.a);
-    for (let x = 0; x < W; x += 16) px(x, 0, 1, H, T.line); for (let y = 0; y < H; y += 16) px(0, y, W, 1, T.line);
-    for (let i = 0; i < 60; i++) px(r() * W, r() * H, 1, 1, r() < 0.3 ? '#ffffff' : '#8a7ad8');
-  } else if (theme === 4) { // volcanic rock with glowing lava cracks
-    px(0, 0, W, H, T.a);
-    for (let i = 0; i < 700; i++) px(r() * W, r() * H, r() < 0.2 ? 2 : 1, 1, r() < 0.5 ? T.b : '#564640');
-    for (let i = 0; i < 34; i++) { let x = r() * W, y = 18 + r() * (H - 18); for (let k = 0; k < 14; k++) { x += (r() - 0.5) * 8; y += (r() - 0.5) * 5; px(x - 1, y, 3, 1, '#ff8a1f'); px(x, y, 1, 1, '#ffd23f'); } }
-    px(0, 18, 8, H, '#ff6a1f'); px(W - 8, 18, 8, H, '#ff6a1f'); px(0, 18, 4, H, '#ffd23f'); px(W - 4, 18, 4, H, '#ffd23f');
-  } else if (theme === 5) { // ice sheet
-    px(0, 0, W, H, T.a);
-    for (let x = 0; x < W; x += 24) for (let y = 18; y < H; y += 16) px(x + ((y / 16) % 2) * 12, y, 23, 15, r() < 0.5 ? T.a : T.b);
-    for (let i = 0; i < 40; i++) { let x = r() * W, y = r() * H; for (let k = 0; k < 6; k++) { x += (r() - 0.5) * 7; y += r() * 3; px(x, y, 1, 1, T.crack); } }
-    for (let i = 0; i < 120; i++) px(r() * W, r() * H, 1, 1, '#ffffff');
-  } else if (theme === 6) { // Egyptian temple floor: big sandstone blocks, carved signs, drifting sand, a gold sun at the centre
-    px(0, 0, W, H, T.a);
-    for (let y = 18, row = 0; y < H; y += 20, row++) for (let x = -(row % 2) * 16; x < W; x += 32) { px(x, y, 31, 19, r() < 0.5 ? T.a : T.b); px(x, y + 19, 32, 1, T.line); px(x + 31, y, 1, 20, T.line);
-      if (r() < 0.3) { const gx = x + 6 + R(r() * 16), gy = y + 5 + R(r() * 8), t = R(r() * 4); // a carved sign
-        if (t === 0) { px(gx, gy, 1, 6, T.crack); px(gx - 2, gy + 2, 5, 1, T.crack); ring(gx, gy - 1, 2, 2, T.crack); } else if (t === 1) { ellipse(gx, gy + 2, 4, 2, T.crack); px(gx, gy + 2, 1, 1, T.a); }
-        else if (t === 2) { for (let k = 0; k < 4; k++) px(gx + k * 2, gy + (k % 2), 1, 5, T.crack); } else { px(gx, gy, 5, 1, T.crack); px(gx + 2, gy, 1, 6, T.crack); } } }
-    for (let i = 0; i < 260; i++) px(r() * W, r() * H, r() < 0.3 ? 3 : 1, 1, '#ecd49a');
-    px(0, H - 8, W, 8, '#b8905a'); for (let x = 0; x < W; x += 8) px(x, H - 8, 4, 2, '#e8c84a');
-  } else if (theme === 7) { // Mayan pyramid court: mossy stone slabs, glyph squares, vines and jungle growth at the edges
-    px(0, 0, W, H, T.a);
-    for (let y = 18; y < H; y += 16) for (let x = 0; x < W; x += 16) { px(x, y, 15, 15, r() < 0.5 ? T.a : T.b); if (r() < 0.22) px(x + R(r() * 8), y + R(r() * 8), 4 + R(r() * 5), 3 + R(r() * 4), T.crack);
-      if (r() < 0.12) { const gx = x + 3, gy = y + 3; px(gx, gy, 9, 9, T.line); px(gx + 1, gy + 1, 7, 7, T.b); px(gx + 3, gy + 3, 3, 3, T.line); px(gx + 2, gy + 7, 5, 1, T.line); } } // a glyph block
-    for (let i = 0; i < 26; i++) { let x = r() * W, y = 18 + r() * 30; for (let k = 0; k < 12; k++) { x += (r() - 0.5) * 4; y += 2; px(x, y, 1, 2, '#2e6a2a'); if (k % 4 === 0) px(x + 1, y, 2, 1, '#4a9a3a'); } }
-    for (let i = 0; i < 90; i++) { const x = r() * W, y = r() < 0.5 ? H - 2 - r() * 10 : 18 + r() * 6; px(x, y, 2, 3, r() < 0.5 ? '#2e6a2a' : '#4a9a3a'); }
-  } else { // dirt
-    px(0, 0, W, H, T.a);
-    for (let i = 0; i < 900; i++) px(r() * W, r() * H, r() < 0.2 ? 2 : 1, 1, r() < 0.5 ? T.b : '#94744f');
-    for (let i = 0; i < 18; i++) { let x = r() * W, y = r() * H; for (let k = 0; k < 7; k++) { x += (r() - 0.5) * 5; y += r() * 3; px(x, y, 1, 1, T.crack); } }
-  }
-  // field markings: boundary, halfway line, big centre circle
-  const m = T.mark, dash = theme === 1;
-  const lineH = (x, y, w) => { for (let i = 0; i < w; i++) if (!dash || (i >> 2) % 2 === 0) px(x + i, y, 1, 1, m); };
-  const lineV = (x, y, h) => { for (let i = 0; i < h; i++) if (!dash || (i >> 2) % 2 === 0) px(x, y + i, 1, 1, m); };
-  g.globalAlpha = theme === 0 ? 0.9 : 0.6;
-  lineH(14, 22, W - 28); lineH(14, H - 10, W - 28); lineV(14, 22, H - 32); lineV(W - 15, 22, H - 32); lineV(160, 22, H - 32);
-  if (theme === 4 || theme === 5) g.globalAlpha = 0.45;
-  if (theme === 0) { for (let k = 0; k < 2; k++) ring(160, 96, 52 + k, 52 + k, m); disc(160, 96, 13, '#e8d8a0'); disc(160, 96, 11, '#f4e6b0'); ring(160, 96, 13, 13, m); }
-  else { ring(160, 96, 40, 40, m); ring(160, 96, 6, 6, m); lineH(14, 70, 26); lineV(40, 70, 52); lineH(14, 122, 26); lineH(W - 40, 70, 26); lineV(W - 41, 70, 52); lineH(W - 40, 122, 26); }
-  g.globalAlpha = 1;
-  // stands / wall along the top
-  px(0, 0, W, 16, theme === 3 ? '#140e34' : '#2a2c36');
-  for (let x = 2; x < W; x += 5) px(x, 4 + (x % 3), 3, 3, ['#d8584a', '#4a8ad8', '#e8c84a', '#58b858', '#d8d8d8'][(x / 5 | 0) % 5]);
-  px(0, 16, W, 2, theme === 3 ? '#3a2e7a' : '#8a8c96');
-  if (theme === 6) { px(0, 0, W, 16, '#f0a860'); px(0, 0, W, 6, '#f8d090'); disc(W - 60, 7, 5, '#fff2c0'); // dusk sky, sun, three pyramids and obelisks
-    for (const [cx, hh] of [[70, 14], [150, 16], [235, 12]]) for (let y = 0; y < hh; y++) { px(cx - y, 16 - hh + y, y + 1, 1, '#c89a52'); px(cx + 1, 16 - hh + y, y, 1, '#a87c3c'); }
-    for (const ox of [20, 112, 196, 290]) { px(ox, 4, 3, 12, '#b08a4a'); px(ox, 2, 3, 2, '#e8c84a'); } px(0, 16, W, 2, '#8a6a3a'); }
-  if (theme === 7) { px(0, 0, W, 16, '#1e4a2a'); for (let x = 0; x < W; x += 6) disc(x + 3, 4 + (x % 4), 5, x % 12 ? '#2a6a34' : '#3a8a40'); // jungle canopy and a stepped pyramid
-    for (let s = 0; s < 5; s++) px(130 + s * 6, 14 - s * 3, 60 - s * 12, 3, s % 2 ? '#8a927a' : '#a0a88c'); px(154, 0, 12, 3, '#c8b060'); px(0, 16, W, 2, '#48523a'); }
-  for (const k of rocks) { // boulders (broken stone pillars in the coliseum)
-    const cx = k.x * K, cy = k.y * K, rr = R(k.r * K);
-    ellipse(cx + 1, cy + rr * 0.7, rr, R(rr * 0.4), '#00000044');
-    if (theme === 0) { const h = rr + 4; px(cx - rr, cy - h, rr * 2, h + R(rr * 0.4), '#7a7e8e'); px(cx - rr, cy - h, 2, h + R(rr * 0.4), '#5a5e6e'); px(cx + rr - 2, cy - h, 2, h, '#9a9eae');
-      for (let f = 0; f < 3; f++) px(cx - rr + 3 + f * R(rr * 0.6), cy - h, 1, h, '#62667a');
-      ellipse(cx, cy - h, rr, R(rr * 0.45), '#a8acba'); ellipse(cx, cy - h, rr - 2, R(rr * 0.3), '#c0c4d0');
-      for (let j = 0; j < 4; j++) px(cx - rr + j * R(rr / 2), cy - h - 1 - (j % 2) * 2, 3, 2, '#8a8e9c');
-      px(cx + rr + 2, cy + 2, 3, 2, '#7a7e8e'); px(cx - rr - 4, cy + 3, 2, 2, '#7a7e8e'); continue; }
-    disc(cx, cy, rr, '#5e5a52'); disc(cx - 1, cy - 1, rr - 1, '#8a857a'); disc(cx - R(rr / 3), cy - R(rr / 3), R(rr / 2), '#aaa496');
-  }
-  return c;
+function buildGround(rocks, theme = 0) { // the plain floor shown for a moment while an arena picture loads (the old pixel-art floors are gone)
+  const T = THEMES[theme % THEMES.length], c = document.createElement('canvas'); c.width = W; c.height = H; g = c.getContext('2d'); px(0, 0, W, H, T.a); return c;
 }
 
 // ---------- renderer ----------
@@ -351,6 +278,8 @@ function createRenderer(canvas, arena) {
         for (let i = 0; i < q.n; i++) { const a = i / q.n * 6.283 + r() * 0.3, L = r0 * (0.5 + r()); ctx.strokeStyle = i % 3 ? q.col : '#ffffff'; ctx.lineWidth = (1 + r() * 2) * U;
           ctx.beginPath(); ctx.moveTo(Math.cos(a) * L * 0.15, Math.sin(a) * L * 0.15); ctx.lineTo(Math.cos(a) * L, Math.sin(a) * L); ctx.stroke(); }
         ctx.restore(); glow(q.x, q.y, q.size * 0.7 * (1 - t * 0.5), '#ffffff', q.col, 1 - t); }
+      else if (q.k === 'clone') { const im = imgs[q.sid]; if (im?.complete && im.naturalWidth) { const h2 = 139 * U / 1.5 * 0.8, w2 = h2 * im.naturalWidth / im.naturalHeight, a = Math.min(1, t * 6) * (t > 0.7 ? 1 - (t - 0.7) / 0.3 : 1); ctx.save(); ctx.globalAlpha = 0.78 * a; ctx.translate(q.x, q.y); if (q.flip) ctx.scale(-1, 1);
+          ctx.imageSmoothingEnabled = true; ctx.drawImage(im, -w2 / 2, -h2, w2, h2); ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = 0.35 * a; ctx.drawImage(im, -w2 / 2, -h2, w2, h2); ctx.restore(); } }
       else if (q.k === 'wave') { ctx.globalAlpha = 1 - t; ctx.strokeStyle = q.col; ctx.lineWidth = 4 * U * (1 - t) + 1; ctx.beginPath(); ctx.ellipse(q.x, q.y, q.r * (0.3 + t), q.r * (0.3 + t) * 0.45, 0, 0, 6.283); ctx.stroke(); }
       else if (q.k === 'rock') { q.x += q.vx * dt; q.y += q.vy * dt; q.vz -= 600 * U * dt; q.z = Math.max(0, q.z + q.vz * dt); if (q.z === 0) { q.vz = Math.abs(q.vz) > 60 * U ? -q.vz * 0.35 : 0; q.vx *= 0.7; q.vy *= 0.7; q.vr *= 0.6; }
         q.rot += q.vr * dt; ctx.globalAlpha = Math.min(1, q.life * 2);
@@ -360,6 +289,8 @@ function createRenderer(canvas, arena) {
     }
     ctx.globalAlpha = 1; fx = fx.filter(q => q.life > 0); if (fx.length > 400) fx = fx.slice(-400); LOG();
   }
+  const drawGround = th => { const im = arenaImgs[th % arenaImgs.length]; ctx.save(); ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high';
+    if (im.complete && im.naturalWidth) ctx.drawImage(im, 0, 0, CW, CH); else { ctx.imageSmoothingEnabled = false; ctx.setTransform(Z, 0, 0, Z, 0, 0); ctx.drawImage(groundFor(th), 0, 0); } ctx.restore(); };
   const groundFor = th => (grounds[th] ||= buildGround([], th)); // barriers and hazards are drawn per fight (random layout)
 
   function part(x, y, vx, vy, life, col, size = 1, grav = 0) { parts.push({ x, y, vx, vy, life, max: life, col, size, grav }); }
@@ -390,7 +321,9 @@ function createRenderer(canvas, arena) {
     if (ev.type === 'descend') { const f = snap.f[ev.side]; if (!f) return; puffs(f.x * K, f.y * K - 10, 8, '#ffffff', 40, 8, 0.6); return; }
     if (ev.type === 'hazard') { const col = { water: '#5ec2ff', lava: '#ff6a1a', crack: '#c8a070' }[ev.k] || '#fff';
       if (ev.k === 'water') puffs(ev.x * K, ev.y * K, 5, '#bfefff', 30, 6, 0.5); else if (ev.k === 'lava') { burst(ev.x * K, ev.y * K, ['#ff6a1a', '#ff6a1a', '#ffd23f', '#ff3b1f'], 8, 40); } else { chunks(ev.x * K, ev.y * K, 6, ['#6e5c44', '#8f7a5a', '#3a2e22']); shake = Math.max(shake, 0.15); }
-      say(ev.x * K, ev.y * K - 40, '-' + ev.damage + (ev.k === 'crack' ? ' ' + (ev.label || '') : ''), col, 0.9, 6); return; }
+      say(ev.x * K, ev.y * K - 40, '-' + ev.damage + (ev.label ? ' ' + ev.label : ''), col, 0.9, 6); return; }
+    if (ev.type === 'clones') { for (const q of ev.pts) { fx.push({ k: 'clone', x: q.x * K * Z, y: q.y * K * Z + 22 * U, sid: ev.sid, life: 1.5, max: 1.5, flip: ev.side === 1 }); burst(q.x * K, q.y * K, ['#fff', '#76ff2a', '#b8ff80', '#ffffff'], 8, 50); } return; }
+    if (ev.type === 'bolt') { shake = Math.max(shake, 0.5); wave(ev.x * K, ev.y * K, '#fff6a0', 150); burst(ev.x * K, ev.y * K, ['#fff', '#fff6a0', '#ffe45a', '#ffffff'], 14, 70); return; }
     if (ev.type === 'earthquake') { shake = Math.max(shake, 0.6); wave(ev.x * K, ev.y * K + 6, '#c8a070', 200); chunks(ev.x * K, ev.y * K, 10, ['#6e5c44', '#8f7a5a', '#3a2e22'], 160);
       banner = { txt: 'EARTHQUAKE!', sub: 'The ground cracked open', t: 1.3 }; return; }
     if (ev.type === 'wallhit') { burst(ev.x * K, ev.y * K, ev.k === 'crystal' ? ['#bfefff', '#bfefff', '#ffffff', '#7ad8ff'] : ev.k === 'fence' ? ['#8a5a2a', '#8a5a2a', '#c8a070', '#5a3a1a'] : ['#8f8676', '#8f8676', '#b0a690', '#6e665a'], 8, 50); return; }
@@ -427,9 +360,11 @@ function createRenderer(canvas, arena) {
 
   // ---------- fighters (drawn at full 640x360 resolution) ----------
   // 3D saber-bearers and elemental benders: drawn from their own models at the same size as COVO's (head to feet = 0.9 of the old sprite box). Falls back to the flat picture while the model loads.
+  const NEWCOL = {"dawnward": "#58b8ff", "verdantcrown": "#f2c230", "suncresttide": "#5aa8ff", "amethystlynx": "#a050ff", "cinderblade": "#d83a2a", "verdantfang": "#3adf5a", "lionregent": "#e8b030", "cyanshade": "#28e0ff", "sunpharaoh": "#ffd23a", "orbitranger": "#ff9a3a", "reactoralchemist": "#76ff2a", "stormcaller": "#8ae0ff", "crimsonronin": "#d82a3a", "crownstreet": "#f2c230", "halosentinel": "#fff2b0", "emberwarden": "#ff7a1a"}; // main colours of the Covo-style fighters (their shot looks)
   const ELEM = new Set(['aquari', 'rokko', 'blazen', 'gusti']);
-  const RIG3D = n => !!(window.PMChosen?.has(n) || (ELEM.has(n) && window.PMElemental));
+  const RIG3D = n => !!(window.PMChosen?.has(n) || window.PMGirl?.has(n) || (ELEM.has(n) && window.PMElemental));
   function draw3D(n, f, i, opt, now, x, y, h, col) {
+    if (window.PMGirl?.has(n)) return window.PMGirl.ready(n) && window.PMGirl.draw(ctx, x, y, h, f, col, { name: n, i, now: opt.now, faint: opt.faint });
     if (ELEM.has(n)) return !!window.PMElemental?.has(n) && window.PMElemental.draw(n, ctx, x, y, h, f);
     return window.PMChosen.ready(n) && window.PMChosen.draw(ctx, x, y, h, f, col, { name: n, i, now: opt.now, faint: opt.faint });
   }
@@ -579,10 +514,22 @@ function createRenderer(canvas, arena) {
       if (o.k === 'water') { ellipse(cx, cy + 1, rx + 1, ry + 1, '#1e4a7a'); ellipse(cx, cy, rx, ry, '#2a7ad0'); ellipse(cx - 2, cy - 1, R(rx * 0.75), R(ry * 0.65), '#3a90e0');
         for (let i = 0; i < 3; i++) { const p = (t * 0.5 + i / 3) % 1; g.globalAlpha = 1 - p; ring(cx + (i - 1) * rx * 0.4, cy + (i % 2) * 2 - 1, R(2 + p * rx * 0.3), R(1 + p * ry * 0.3), '#bfefff'); } g.globalAlpha = 1;
         px(cx - rx * 0.5, cy - ry * 0.4, 4, 1, '#dff6ff'); px(cx + rx * 0.2, cy + ry * 0.2, 3, 1, '#dff6ff'); }
+      else if (o.k === 'spikes') { ellipse(cx, cy + 1, rx + 1, ry + 1, '#1a3a5a'); ellipse(cx, cy, rx, ry, '#9ad4f0'); ellipse(cx, cy, R(rx * 0.8), R(ry * 0.7), '#cfeeff');
+        for (let i = 0; i < 9; i++) { const a = i * 2.4, bx = cx + Math.cos(a) * rx * (0.2 + (i % 3) * 0.25), by = cy + Math.sin(a) * ry * (0.2 + (i % 3) * 0.25), h = 5 + (i % 3) * 3;
+          g.fillStyle = '#e8f8ff'; g.beginPath(); g.moveTo(bx, by - h); g.lineTo(bx + 2.5, by + 1); g.lineTo(bx - 2.5, by + 1); g.fill(); g.fillStyle = '#7ac4e8'; g.beginPath(); g.moveTo(bx, by - h); g.lineTo(bx + 2.5, by + 1); g.lineTo(bx, by + 1); g.fill(); } }
       else { ellipse(cx, cy + 1, rx + 1, ry + 1, '#3a1208'); ellipse(cx, cy, rx, ry, '#c8301a'); ellipse(cx, cy, R(rx * 0.78), R(ry * 0.7), '#ff6a1a'); ellipse(cx + 1, cy - 1, R(rx * 0.45), R(ry * 0.4), '#ffb030');
         for (let i = 0; i < 4; i++) { const p = (t * 0.7 + i * 0.27) % 1, bx = cx + Math.sin(i * 2.3) * rx * 0.55, by = cy + Math.cos(i * 1.7) * ry * 0.45; disc(bx, by - p * 2, R(1 + p * 2), p < 0.8 ? '#ffd23f' : '#ff8a1f'); }
         if (Math.random() < 0.15) part(cx + (Math.random() - 0.5) * rx, cy + (Math.random() - 0.5) * ry, 0, -14, 0.6, '#ff8a1f', 1, -10); } }
-    for (const c of L.ck || []) { const cx = c.x * K, cy = c.y * K, rx = R(c.rx * K), a = Math.min(1, c.l / 0.6); g.globalAlpha = a;
+    for (const c of L.ck || []) { const cx = c.x * K, cy = c.y * K, rx = R(c.rx * K), a = Math.min(1, c.l / 0.6);
+      if (c.k === 'bolt') { // a red ring grows while the storm gathers, then the bolt strikes
+        if (c.wr > 0) { const p = 1 - c.wr / 1.2; g.globalAlpha = 0.35 + 0.3 * Math.sin(t * 18); ellipse(cx, cy, rx, R(c.ry * K), '#ff2a2a55'); g.globalAlpha = 0.9; ring(cx, cy, rx, R(c.ry * K), '#ff5a3a'); ring(cx, cy, R(rx * p), R(c.ry * K * p), '#ffe45a'); }
+        else { const f = Math.max(0, 1 - (0.7 - c.l) * 2.6); g.globalAlpha = f; ellipse(cx, cy, rx, R(c.ry * K), '#fff6b0'); g.fillStyle = '#ffffff'; g.fillRect(R(cx - 2), 0, 4, R(cy)); g.fillStyle = '#ffe45a'; g.fillRect(R(cx - 4), 0, 2, R(cy)); g.fillRect(R(cx + 2), 0, 2, R(cy)); }
+        g.globalAlpha = 1; continue; }
+      if (c.k === 'twister') { g.globalAlpha = Math.min(1, c.l / 0.8); ellipse(cx, cy + 2, rx, R(c.ry * K * 0.55), '#00000044');
+        for (let i = 0; i < 9; i++) { const q = i / 8, w = R((3 + q * 13) * (rx / 15)), yy = cy - q * 26 * (1) + 4, ox = Math.sin(t * 7 + i) * 3 * (1 + q); g.globalAlpha = 0.85 * Math.min(1, c.l / 0.8); ellipse(cx + ox, yy, w, R(2 + q * 2), i % 2 ? '#e6f4ff' : '#9cbad0'); }
+        if (Math.random() < 0.5) part(cx + (Math.random() - 0.5) * rx * 2, cy - Math.random() * 24, (Math.random() - 0.5) * 30, -20, 0.5, '#e6f4ff', 1);
+        g.globalAlpha = 1; continue; }
+      g.globalAlpha = a;
       ellipse(cx, cy, rx, R(c.ry * K), '#00000055'); g.fillStyle = '#140e08';
       for (let i = -rx; i < rx; i += 2) { const w = Math.max(1, R((1 - Math.abs(i) / rx) * 4)), off = Math.sin(i * 0.7 + c.x) * 2; g.fillRect(R(cx + i), R(cy + off - w / 2), 2, w); }
       for (let i = 0; i < 4; i++) { const sx = cx + (i - 1.5) * rx * 0.45; g.fillRect(R(sx), R(cy - 3 - (i % 2) * 2), 1, 3); } g.globalAlpha = 1; }
@@ -732,7 +679,7 @@ function createRenderer(canvas, arena) {
 
   // The Chosen Ones' own shot looks, drawn in each fighter's saber colours: a crescent of energy, a glowing orb, a spray of thorns. `chg` (0..1) is a charged shot: bigger and brighter.
   function chosenLook(p, x, y, a, now) {
-    const nm = NAMES[p.sid], cc = window.PMChosen?.colors(nm) || { c1: '#9fe8ff', c2: '#ffffff' }, t = now / 1000, g = 1 + (p.cg || 0) * 1.1;
+    const nm = NAMES[p.sid], cc = window.PMChosen?.colors(nm) || window.PMGirl?.colors(nm) || { c1: NEWCOL[nm] || '#9fe8ff', c2: '#ffffff' }, t = now / 1000, g = 1 + (p.cg || 0) * 1.1;
     ctx.save(); ctx.translate(x, y); ctx.rotate(a); ctx.globalCompositeOperation = 'lighter';
     if (p.lk === 'crescent') {
       for (let k = 0; k < 3; k++) { ctx.globalAlpha = 0.5 - k * 0.14; ctx.strokeStyle = k ? cc.c1 : cc.c2; ctx.lineWidth = (7 - k * 2) * g; ctx.lineCap = 'round'; ctx.beginPath(); ctx.arc(-14 * g - k * 6, 0, 17 * g, -1.25, 1.25); ctx.stroke(); }
@@ -1073,7 +1020,7 @@ function createRenderer(canvas, arena) {
     theme = cur?.ar ?? view.theme ?? 0;
     let sx = 0, sy = 0; if (shake > 0) { sx = R((Math.random() - 0.5) * 4 * shake * 3); sy = R((Math.random() - 0.5) * 4 * shake * 3); shake = Math.max(0, shake - dt); } SX = sx; SY = sy;
     const logical = () => ctx.setTransform(Z, 0, 0, Z, sx * Z, sy * Z), full = () => ctx.setTransform(1, 0, 0, 1, sx * Z, sy * Z);
-    logical(); ctx.drawImage(groundFor(theme), 0, 0); drawLayout(cur?.lay, now);
+    full(); drawGround(theme); logical(); drawLayout(cur?.lay, now);
     for (const d of decals) { d.life -= dt; g.globalAlpha = Math.min(1, d.life / 2);
       if (d.kind === 'crater') { ellipse(d.x, d.y, R(d.r * 0.7), R(d.r * 0.28), '#00000055'); ellipse(d.x, d.y + 1, R(d.r * 0.5), R(d.r * 0.18), '#00000077');
         const r = rng(R(d.x * 7 + d.y)); for (let k = 0; k < 7; k++) { let cx = d.x, cy = d.y; const a = k / 7 * 6.283 + r(); for (let s = 0; s < d.r * 0.9; s++) { cx += Math.cos(a) + (r() - 0.5); cy += (Math.sin(a) + (r() - 0.5)) * 0.45; px(cx, cy, 1, 1, '#00000088'); } }
@@ -1129,7 +1076,7 @@ function createRenderer(canvas, arena) {
       ctx.textBaseline = 'alphabetic'; ctx.globalAlpha = 1; if (banner.t <= 0) banner = null; }
   }
   function reset() { fx = []; parts = []; decals = []; texts = []; trails = [[], [], [], [], [], [], [], []]; impacts.clear(); shake = 0; flash = 0; banner = null; lean = []; tpSeen = []; lastPos = []; ghosts = []; seqF = []; grow = [0, 0, 0, 0, 0, 0, 0, 0]; }
-  return { draw, hit, event, reset, ground: (th, lay) => { g = ctx; ctx.setTransform(Z, 0, 0, Z, 0, 0); ctx.drawImage(groundFor(th), 0, 0); drawLayout(lay, performance.now()); ctx.setTransform(1, 0, 0, 1, 0, 0); }, idle: (th = theme) => { g = ctx; ctx.setTransform(Z, 0, 0, Z, 0, 0); ctx.drawImage(groundFor(th), 0, 0); ctx.setTransform(1, 0, 0, 1, 0, 0); }, themes: THEMES };
+  return { draw, hit, event, reset, ground: (th, lay) => { g = ctx; ctx.setTransform(1, 0, 0, 1, 0, 0); drawGround(th); ctx.setTransform(Z, 0, 0, Z, 0, 0); drawLayout(lay, performance.now()); ctx.setTransform(1, 0, 0, 1, 0, 0); }, idle: (th = theme) => { g = ctx; ctx.setTransform(1, 0, 0, 1, 0, 0); drawGround(th); ctx.setTransform(1, 0, 0, 1, 0, 0); }, themes: THEMES };
 }
 
 window.PMArena = { createRenderer, sprite, stageSprite, STAGE_SCALE, THEMES, spriteSrc: (sid, stage) => 'art/hd/' + NAMES[sid] + (stage != null ? '_s' + stage : '') + '.png', W, H, preload, onReady: cb => Promise.all(imgs.map(i => i.complete ? 1 : new Promise(r => { i.onload = i.onerror = r; }))).then(cb) };

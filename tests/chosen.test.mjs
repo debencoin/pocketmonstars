@@ -26,3 +26,17 @@ test('Elemental benders charge: a held shot grows and hits harder, a tap fires t
   m.fighters[0].input = S.sanitizeInput({ atk: true }); for (let i = 0; i < 20; i++) S.step(m);
   assert.ok(S.snapshot(m).f[0].cg > 0, 'the snapshot shows the charge');
 });
+
+test('new arenas: lightning rings, a tornado, ice spikes, lava and quakes; airbenders hover; the Replicator Protocol makes 3 duplicates that all attack at once', async () => {
+  const S = await import('../shared/sim.mjs'), { Monstar, SPECIES } = await import('../shared/monstars.mjs'), id = n => SPECIES.find(s => s.name === n).id;
+  assert.equal(S.ARENA_COUNT, 5);
+  const mk = (a, b, arena) => S.createMatch(new Monstar({ speciesId: id(a), level: 30 }), new Monstar({ speciesId: id(b), level: 30 }), { auto: false, arena, intro: true });
+  const seen = {}; for (const [arena, kind] of [[0, 'bolt'], [4, 'twister'], [2, 'crack']]) {
+    const m = mk('Dawnward', 'Lion Regent', arena); for (let i = 0; i < 30 * 40 && !seen[kind]; i++) { S.step(m); m.fighters.forEach(f => { f.hp = f.maxHp; }); if (m.cracks.some(c => c.k === kind)) seen[kind] = true; } }
+  assert.deepEqual(seen, { bolt: true, twister: true, crack: true });
+  assert.ok(Array.from({ length: 20 }, () => S.makeLayout(Math.random, 3).hz.length).some(n => n > 0), 'ice spikes'); assert.ok(S.makeLayout(Math.random, 1).hz.every(h => h.k === 'lava') && S.makeLayout(Math.random, 0).hz.length === 0);
+  for (const n of ['Gusti', 'Zephar', 'Zephyra', 'Aerix']) assert.equal(SPECIES.find(s => s.name === n).motion, 'hover', n + ' flies');
+  const m = mk('Reactor Alchemist', 'Lion Regent', 2); let ev = []; for (let i = 0; i < 200 && !ev.some(e => e.type === 'clones'); i++) { m.fighters[0].ult = 100; m.fighters[0].input = S.sanitizeInput({ mega: i > 100 }); ev = S.step(m); }
+  const c = ev.find(e => e.type === 'clones'); assert.ok(c && c.pts.length === 3);
+  assert.equal(m.projectiles.filter(p => p.kind === 'special').length, 8, 'four fighters x two shots, all at once');
+});

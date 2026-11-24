@@ -25,16 +25,19 @@ export const HAZARDS = Object.freeze({
   water: { dps: 0.022, slow: 0.6, immune: ['TIDE', 'FROST'], el: 'water', label: 'SPLASH!' },
   lava: { dps: 0.05, slow: 0.85, immune: ['EMBER', 'DRACO'], el: 'fire', label: 'LAVA!' },
   crack: { fall: 0.07, immune: ['STONE', 'STEEL'], el: 'earth', label: 'FELL IN!' },
+  spikes: { dps: 0.03, slow: 0.75, immune: ['FROST', 'STEEL'], el: 'water', label: 'ICE SPIKES!' }, // Frozen Abyss
+  bolt: { hit: 0.1, immune: ['SPARK'], el: 'lightning', label: 'THUNDERSTRIKE!' }, // Thunderstorm Citadel: a warning ring, then a bolt
+  twister: { hit: 0.035, immune: ['GALE'], el: 'air', label: 'TORNADO!' }, // Tempest Coast: a tornado drifts across the coast
 });
 // Barriers block shots (and bodies): stone pillars, wooden fences and ice crystals.
 export const WALLS = Object.freeze({ pillar: { r: 26 }, crystal: { r: 20 }, fence: { w: 104, h: 18 } });
 const SPAWNS = [{ x: 170, y: 290 }, { x: 790, y: 290 }];
-export function makeLayout(rand = Math.random) {
+export function makeLayout(rand = Math.random, arena = 0) {
   const hz = [], wl = [], clear = (x, y, pad) => SPAWNS.every(s => Math.hypot(s.x - x, s.y - y) > 130 + pad) && [...hz, ...wl].every(o => Math.hypot(o.x - x, o.y - y) > (o.rx || o.r || 60) + pad + 40);
   const place = (pad, make) => { for (let i = 0; i < 40; i++) { const x = 130 + rand() * 700, y = 110 + rand() * 360; if (clear(x, y, pad)) return make(x, y); } return null; };
-  const kinds = ['lava', 'lava']; // no water patches; one lava patch, sometimes two
+  const kinds = arena === 1 ? ['lava', 'lava'] : arena === 3 ? ['spikes', 'spikes'] : []; // the Inferno Rift has lava, the Frozen Abyss ice spikes; the other arenas bring their weather (bolts, quakes, a tornado)
   for (const k of kinds.slice(0, 1 + (rand() < 0.35 ? 1 : 0))) { const o = place(70, (x, y) => ({ k, x: Math.round(x), y: Math.round(y), rx: Math.round(60 + rand() * 30), ry: Math.round(32 + rand() * 16) })); if (o) hz.push(o); }
-  const wk = ['pillar', 'fence', 'crystal'].sort(() => rand() - 0.5); // just 1 or 2 barriers
+  const wk = (arena === 3 ? ['crystal', 'crystal', 'pillar'] : arena === 4 ? ['fence', 'pillar', 'fence'] : ['pillar', 'fence', 'pillar']).sort(() => rand() - 0.5); // just 1 or 2 barriers
   for (const k of wk.slice(0, 1 + (rand() < 0.5 ? 1 : 0))) { const o = place(40, (x, y) => k === 'fence' ? { k, x: Math.round(x), y: Math.round(y), w: rand() < 0.5 ? WALLS.fence.w : WALLS.fence.h, h: 0 } : { k, x: Math.round(x), y: Math.round(y), r: WALLS[k].r });
     if (o) { if (k === 'fence') { o.h = o.w === WALLS.fence.w ? WALLS.fence.h : WALLS.fence.w; } wl.push(o); } }
   return { hz, wl };
@@ -51,19 +54,40 @@ function hazards(m, dt, events) {
   if (!m.layout) return;
   m.quakeT -= dt;
   if (m.quakeT <= 0) { // the ground shakes and opens a crack near someone
-    m.quakeT = 16 + Math.random() * 10; const f = onField(m)[Math.floor(Math.random() * onField(m).length)], a = Math.random() * 6.283;
+    m.quakeT = 9 + Math.random() * 6; const f = onField(m)[Math.floor(Math.random() * onField(m).length)], a = Math.random() * 6.283;
     const c = { k: 'crack', x: clamp(f.x + Math.cos(a) * 50, 120, ARENA.w - 120), y: clamp(f.y + Math.sin(a) * 30, 110, ARENA.h - 60), rx: 64, ry: 22, life: 9, id: m.nextId++ };
     m.cracks.push(c); events.push({ type: 'earthquake', x: Math.round(c.x), y: Math.round(c.y) });
   }
-  for (const c of m.cracks) c.life -= dt;
-  m.cracks = m.cracks.filter(c => c.life > 0);
+  // Thunderstorm Citadel: a red ring shows where lightning will land (1.2 s later). Tempest Coast: a tornado drifts across the floor.
+  m.strikeT -= dt; m.twisterT -= dt;
+  const fl = onField(m);
+  if (m.strikeT <= 0 && fl.length) { m.strikeT = 3.2 + Math.random() * 1.6; const f = fl[Math.floor(Math.random() * fl.length)], a = Math.random() * 6.283, near = Math.random() < 0.6;
+    m.cracks.push({ k: 'bolt', x: near ? clamp(f.x + Math.cos(a) * 60, 110, ARENA.w - 110) : 130 + Math.random() * 700, y: near ? clamp(f.y + Math.sin(a) * 40, 110, ARENA.h - 70) : 120 + Math.random() * 340, rx: 48, ry: 32, life: 1.9, id: m.nextId++ }); }
+  if (m.twisterT <= 0 && fl.length) { m.twisterT = 11 + Math.random() * 4; const left = Math.random() < 0.5, y = 150 + Math.random() * 240;
+    m.cracks.push({ k: 'twister', x: left ? 90 : ARENA.w - 90, y, rx: 44, ry: 30, life: 7, vx: (left ? 1 : -1) * 105, vy: (Math.random() - 0.5) * 50, id: m.nextId++ }); }
+  for (const c of m.cracks) {
+    c.life -= dt;
+    if (c.k === 'twister') { c.x += c.vx * dt; c.y = clamp(c.y + c.vy * dt, 100, ARENA.h - 60); if (c.y <= 100 || c.y >= ARENA.h - 60) c.vy = -c.vy; }
+    if (c.k !== 'bolt' && c.k !== 'twister') continue;
+    const H = HAZARDS[c.k];
+    if (c.k === 'bolt' && (c.done || c.life > 0.7)) continue;
+    if (c.k === 'bolt') { c.done = true; events.push({ type: 'bolt', x: Math.round(c.x), y: Math.round(c.y) }); }
+    for (const f of fl) {
+      if (f.hp <= 0 || !inPatch(c, f.x, f.y) || hazardImmune(f, c.k)) continue;
+      f.hzCd = f.hzCd || {}; if ((f.hzCd[c.id] || 0) > m.t) continue; f.hzCd[c.id] = m.t + (c.k === 'bolt' ? 99 : 0.7);
+      const dmg = Math.max(1, Math.round(f.maxHp * H.hit)); f.hp = Math.max(0, f.hp - dmg); f.hurtT = 0.3;
+      if (c.k === 'bolt') f.recT = Math.max(f.recT, 0.6); else { const [nx, ny] = norm(f.x - c.x, f.y - c.y || 1); f.vx += nx * 260 + c.vx * 1.5; f.vy += ny * 260; }
+      events.push({ type: 'hazard', side: f.side, k: c.k, damage: dmg, x: Math.round(f.x), y: Math.round(f.y), label: H.label });
+    }
+  }
+  m.cracks = m.cracks.filter(c => c.life > 0 && (c.k !== 'twister' || (c.x > 20 && c.x < ARENA.w - 20)));
   for (const f of onField(m)) {
     if (f.hp <= 0) continue;
     const air = MOTION[f.motion]?.float || f.levT > 0 || (f.status && STATUS[f.status.k].lift) || f.dashT > 0;
     f.hzSlow = 1;
     if (air) continue;
     for (const o of [...m.layout.hz, ...m.cracks]) {
-      if (!inPatch(o, f.x, f.y) || hazardImmune(f, o.k)) continue;
+      if (o.k === 'bolt' || o.k === 'twister' || !inPatch(o, f.x, f.y) || hazardImmune(f, o.k)) continue;
       const H = HAZARDS[o.k];
       if (o.k === 'crack') {
         f.hzCd = f.hzCd || {}; if ((f.hzCd[o.id] || 0) > m.t) continue; f.hzCd[o.id] = m.t + 2.5;
@@ -89,7 +113,7 @@ export const SQUAD_PACE = 1; // the whole game now runs at the slower squad pace
 const MV = MOVE_SPEED / GAME_SPEED;
 // All damage is 30% lower than the base formula, so battles last most of the minute.
 export const DAMAGE_SCALE = 0.7;
-export const ARENA_COUNT = 8; // 0 ruins coliseum, 1 dust bowl, 2 grass, 3 cosmic, 4 volcano, 5 ice, 6 Egyptian temple, 7 Mayan temple
+export const ARENA_COUNT = 5; // 0 Thunderstorm Citadel (lightning), 1 Inferno Rift (lava), 2 Earthquake Dominion (quakes), 3 Frozen Abyss (ice spikes), 4 Tempest Coast (tornado)
 // What a power does to the Monstar it hits (special moves always, basic moves 15% of the time).
 // stop = can't move, act = can't attack, slow = speed multiplier, dot = % max HP per second, lift = carried around in the air.
 export const STATUS = Object.freeze({
@@ -196,17 +220,18 @@ export function createMatch(monstarA, monstarB, opts = {}) {
   const fighters = [makeFighter(teams[0][0], 0, teamMax[0]), makeFighter(teams[1][0], 1, teamMax[1])];
   const roster = teams.map((t, side) => t.map((mo, i) => (i === 0 ? fighters[side] : squad ? makeFighter(mo, side, teamMax[side]) : null)));
   if (squad) for (const side of [0, 1]) roster[side].forEach((f, i) => { f.y = ARENA.h / 2 + 20 + [0, -120, 120][i]; f.x += i ? (side ? 60 : -60) : 0; f.slot = i; f.mem = {}; });
-  return { t: 0, over: false, winner: null, reason: null, auto: opts.auto !== false, arena: fighters.some(f => SPECIES[f.speciesId]?.god) ? 6 + ((fighters[0].speciesId + fighters[1].speciesId) % 2) : opts.arena ?? 0, /* the Watcher Gods fight in their temples */ squad, pace: squad ? SQUAD_PACE : 1,
+  const arena = fighters.some(f => SPECIES[f.speciesId]?.god) ? (fighters[0].speciesId + fighters[1].speciesId) % 2 : (opts.arena ?? 0) % ARENA_COUNT;
+  return { t: 0, over: false, winner: null, reason: null, auto: opts.auto !== false, arena, /* the Watcher Gods fight in the Thunderstorm Citadel or the Inferno Rift */ squad, pace: squad ? SQUAD_PACE : 1,
     teams, teamMax, roster, slot: [0, 0], swCd: [0, 0],
     limit: teams[0].length > 1 || teams[1].length > 1 ? 150 : ARENA.roundSeconds, fighters, projectiles: [], effects: [], nextId: 1, finished: false, pickups: [], nextPickup: PICKUP.every, cpu: opts.cpu || null,
-    intro: opts.intro ? INTRO_SECONDS : 0, ...arenaLayout(opts, fighters, roster) }; // Monstars teleport in as soul orbs first: nothing moves until they land
+    intro: opts.intro ? INTRO_SECONDS : 0, ...arenaLayout(opts, fighters, roster, arena) }; // Monstars teleport in as soul orbs first: nothing moves until they land
 }
-function arenaLayout(opts, fighters, roster) {
+function arenaLayout(opts, fighters, roster, arena = 0) {
   // real fights (server and app, which pass `intro`) get a random layout; bare simulations keep the two classic rocks
-  const layout = opts.layout === false ? null : opts.layout || (opts.intro ? makeLayout() : null);
+  const layout = opts.layout === false ? null : opts.layout || (opts.intro ? makeLayout(Math.random, arena) : null);
   if (!layout) return { layout: null, cracks: [], quakeT: Infinity };
   for (const f of [...fighters, ...roster.flat().filter(Boolean)]) f.walls = layout.wl;
-  return { layout, cracks: [], quakeT: 14 + Math.random() * 8 };
+  return { layout, cracks: [], quakeT: arena === 2 ? 6 + Math.random() * 4 : Infinity, strikeT: arena === 0 ? 3 : Infinity, twisterT: arena === 4 ? 5 : Infinity };
 }
 const alive = (m, side, i) => { const f = m.roster[side][i]; return !f || f.hp > 0; };
 /** Everyone fighting right now: both active Monstars, or in a squad match every Monstar still standing. */
@@ -287,6 +312,13 @@ function megaShot(m, f, foe, events) {
     gx: clamp(x, 40, ARENA.w - 40), gy: clamp(y, BOUNDS.y0, BOUNDS.y1), t: 0, dur: S.dur, hit: false, nextTick: 0, thrown: 0, bolted: false, pw: P, mega: true, ...extra }); };
   if (k === 'barrage') { for (let i = 0; i < 7; i++) { const a = Math.atan2(f.fy, f.fx) + (i - 3) * 0.16, sp = STYLES.projectile.speed * 1.1;
     m.projectiles.push({ id: m.nextId++, owner: f.side, by: f, kind: 'special', style: 'projectile', type: f.type, sid: f.speciesId, x: f.x + Math.cos(a) * 36, y: f.y + Math.sin(a) * 36, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, r: 16, life: 1.4, hitDone: false, missDone: false, pw: P * 0.38, homing: true }); } }
+  else if (k === 'clones') { // Replicator Protocol: three duplicates appear around the caster; all four attack with a power attack at the same time
+    const base = Math.atan2(f.fy, f.fx), spots = [{ x: f.x, y: f.y }], offs = [[-70, -85], [-70, 85], [-120, 0]];
+    for (const [ox, oy] of offs) { const c = Math.cos(base), sn = Math.sin(base); spots.push({ x: clamp(f.x + ox * c - oy * sn, 40, ARENA.w - 40), y: clamp(f.y + ox * sn + oy * c, BOUNDS.y0, BOUNDS.y1) }); }
+    events.push({ type: 'clones', side: f.side, sid: f.speciesId, pts: spots.slice(1).map(q => ({ x: Math.round(q.x), y: Math.round(q.y) })) });
+    const look = f.kit?.special?.look || f.kit?.basic?.look, grp = m.nextId++;
+    spots.forEach((q, n) => { for (let i = 0; i < 2; i++) { const a = Math.atan2(foe.y - q.y, foe.x - q.x) + (i - 0.5) * 0.22, sp = STYLES.projectile.speed * 1.05;
+      m.projectiles.push({ id: m.nextId++, owner: f.side, by: f, kind: 'special', style: 'projectile', type: f.type, sid: f.speciesId, x: q.x + Math.cos(a) * 30, y: q.y + Math.sin(a) * 30, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, r: 17, life: 1.6, hitDone: false, missDone: false, pw: P * 0.3, homing: true, turn: 3.4, look, onHit: f.kit?.basic?.status, grp }); } }); }
   else if (k === 'lightning') { // Storm Orbs: 7 homing lightning balls, launched one after another; the first hit stuns
     const grp = m.nextId++;
     for (let i = 0; i < 7; i++) { const a = Math.atan2(f.fy, f.fx) + (i - 3) * 0.3, sp = STYLES.projectile.speed * 0.95;
@@ -705,7 +737,7 @@ export function snapshot(m) {
   const r = v => Math.round(v * 10) / 10;
   const tm = m.teams[0].length > 1 || m.teams[1].length > 1
     ? m.teams.map((t, side) => t.map((mo, i) => { const f = m.roster[side][i]; return { s: mo.species.id, hp: f ? Math.max(0, Math.round(f.hp)) : mo.stats.hp * BATTLE_HP, mx: f ? f.maxHp : mo.stats.hp * BATTLE_HP, lv: f ? f.level : mo.level }; })) : null;
-  return { t: r(m.t), in: r(m.intro || 0), lay: m.layout ? { hz: m.layout.hz, wl: m.layout.wl, ck: m.cracks.map(c => ({ x: Math.round(c.x), y: Math.round(c.y), rx: c.rx, ry: c.ry, l: r(c.life) })) } : null, over: m.over, winner: m.winner, reason: m.reason, ar: m.arena, tm, sl: m.slot.slice(), sc: m.swCd.map(r),
+  return { t: r(m.t), in: r(m.intro || 0), lay: m.layout ? { hz: m.layout.hz, wl: m.layout.wl, ck: m.cracks.map(c => ({ x: Math.round(c.x), y: Math.round(c.y), rx: c.rx, ry: c.ry, l: r(c.life), ...(c.k === 'crack' ? {} : { k: c.k, wr: c.k === 'bolt' ? r(Math.max(0, c.life - 0.7)) : 0 }) })) } : null, over: m.over, winner: m.winner, reason: m.reason, ar: m.arena, tm, sl: m.slot.slice(), sc: m.swCd.map(r),
     f: m.fighters.map(f => { const p = expProgress(f); return { s: f.speciesId, x: r(f.x), y: r(f.y), fx: r(f.fx), fy: r(f.fy), hp: r(f.hp), max: f.maxHp, en: Math.round(f.energy),
       cd: { b: r(f.cd.basic), s: r(f.cd.special), d: r(f.cd.dash), g: r(f.cd.guard), a: r(f.cd.asc || 0) }, as: f.ascT > 0 ? f.asc : 0, au: f.aura ? 1 : 0, i: f.iframes > 0, g: f.guardT > 0,
       mv: f.moving, ds: f.dashT > 0, ct: r(Math.min(f.castT, 9)), ck: f.castKind, hu: r(f.hurtT),

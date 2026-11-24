@@ -8,11 +8,12 @@ const { Monstars } = S, { SPECIES, TIERS, WILD_IDS, rollWild } = Monstars;
 const q = id => document.getElementById(id);
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const KEY = 'pm-wild-v2';
-const ZONES = [
-  { name: 'Grass Pitch', theme: 2, min: 1, blurb: 'Young wild Monstars. Start here.' },
-  { name: 'Dust Bowl', theme: 1, min: 6, blurb: 'Hot dirt and faster hitters.' },
-  { name: 'Stone Coliseum', theme: 0, min: 14, blurb: 'Broken pillars and old champions.' },
-  { name: 'Cosmic Dome', theme: 3, min: 26, blurb: 'The strongest wild Monstars, and where the angels are seen most.' },
+const ZONES = [ // the five arenas
+  { name: 'Tempest Coast', theme: 4, min: 1, blurb: 'Young wild Monstars. Watch out for the tornado.' },
+  { name: 'Earthquake Dominion', theme: 2, min: 6, blurb: 'The ground cracks open under you.' },
+  { name: 'Frozen Abyss', theme: 3, min: 14, blurb: 'Slippery spikes and tough champions.' },
+  { name: 'Thunderstorm Citadel', theme: 0, min: 24, blurb: 'Lightning strikes where the red ring grows.' },
+  { name: 'Inferno Rift', theme: 1, min: 34, blurb: 'The strongest wild Monstars, and where the angels are seen most.' },
 ];
 const TIER_ORDER = ['Common', 'Uncommon', 'Rare', 'Epic', 'Mythic', 'Divine'];
 const TIER_COL = { Common: '#b9c3d9', Uncommon: '#5fd38a', Rare: '#48d0ff', Epic: '#c08cff', Mythic: '#ffd84a', Divine: '#ff7ad8' };

@@ -279,7 +279,7 @@ select.pv-input{appearance:auto}
 .wx-steps i.done{background:#4caa3a;border-color:#4caa3a;color:#fff}.wx-steps i.cur{border-color:#ffd23f;color:#ffd23f}
 .wx-zones{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .wx-zone{display:flex;flex-direction:column;gap:6px;text-align:left;padding:12px;border-radius:14px;border:2px solid var(--line);color:#fff;min-width:0;background-size:cover}
-.wx-zone.t2{background:linear-gradient(#4f9a3cdd,#2f6a24dd)}.wx-zone.t1{background:linear-gradient(#8a6a48dd,#5e4630dd)}.wx-zone.t0{background:linear-gradient(#55596add,#33364add)}.wx-zone.t3{background:linear-gradient(#3a2e7add,#140e34dd)}
+.wx-zone.t2{background:linear-gradient(#8a6a48dd,#5e4630dd)}.wx-zone.t1{background:linear-gradient(#c8401add,#4a1a10dd)}.wx-zone.t0{background:linear-gradient(#4a5a9add,#262c52dd)}.wx-zone.t4{background:linear-gradient(#4aa0b8dd,#2a6a5add)}.wx-zone.t3{background:linear-gradient(#3a2e7add,#140e34dd)}
 .wx-zone.on{border-color:#ffd23f;box-shadow:0 0 0 2px #ffd23f55}
 .wx-zone.locked{filter:grayscale(.8) brightness(.6)}
 .wx-zn{font:9px 'Press Start 2P',monospace;line-height:1.4}
