@@ -3,3 +3,5 @@ const common={bundle:true,platform:'browser',format:'iife',target:'es2022',minif
 await build({...common,entryPoints:['src/nft-client.js'],outfile:'dist/chain-client.js'});
 await build({...common,entryPoints:['src/stake-client.js'],outfile:'dist/stake-client.js'});
 await build({...common,entryPoints:['src/covo-rig.js'],outfile:'dist/covo-rig.js'});
+await build({...common,entryPoints:['src/chosen-rig.js'],outfile:'dist/chosen-rig.js'});
+await build({...common,entryPoints:['src/elemental-rig.js'],outfile:'dist/elemental-rig.js'});

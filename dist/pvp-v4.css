@@ -503,9 +503,8 @@ nav{display:none!important}
 .v6-hero{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,.9fr);gap:20px;align-items:center;margin:8px 0 24px}
 .v6-hero h1{font-size:clamp(34px,8vw,56px);line-height:1.02;margin:8px 0}.v6-hero h1 em{color:var(--lime);font-style:normal}
 .v6-cta{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px}.v6-cta button{min-height:48px;padding:0 20px}
-.v6-heroart{display:flex;justify-content:center;align-items:flex-end;gap:2px}
-.v6-heroart img{width:20%;max-width:110px;image-rendering:pixelated}
-.v6-heroart img:nth-child(3){width:26%;max-width:140px}
+.v6-heroart{display:grid;grid-template-columns:repeat(5,1fr);gap:0 2px;align-items:end}
+.v6-heroart img{width:100%;aspect-ratio:1;object-fit:contain}
 @media (max-width:640px){.v6-hero{grid-template-columns:1fr}.v6-heroart{order:-1}}
 .v6-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px}
 .v6-card{display:flex;flex-direction:column;gap:6px;text-align:left;background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:16px;color:var(--white)}

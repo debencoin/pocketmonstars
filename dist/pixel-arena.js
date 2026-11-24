@@ -2,14 +2,14 @@
 // PocketMonstars pixel arena renderer: a 320x180 native-resolution battlefield scaled up with crisp pixels.
 // Draws animated pixel Monstars and a hand-built animation for every power. Exposes window.PMArena.
 (() => {
-const NAMES = ["cindercub","mossprout","ripplefin","voltwing","duskhorn","pebblit","frostuft","bloomtail","soloryx","seraphon","psyvolt","blazebuck","cinderwyrm","pyrofinch","magmole","emberjack","coralisk","bubblyn","clawtide","abyssquid","wavewing","thornox","fernling","mantiseed","acornaut","lilypadra","zapurr","ohmoth","voltusk","joltail","gloomwisp","nocturrow","shadefang","hexmask","quarrox","fossilith","geodillo","cragcrab","glacielk","snowpuff","icicrow","rimewyrm","cometail","lunaroo","orbitron","mindmoth","oracub","prismeye","toxitoad","mycospore","stingrex","viperoot","gearhound","rivetbot","bladewing","ironshell","zephyrkit","galeon","whirlwisp","drakelet","skyrex","aurielle","valkyra","nimbiel","aeonox","anuvax","enlilor","enkiryn","inannox","utuflare","nannamoth","marduzar","tiamaw","ninhurra","lamassor","shedulon","apkalith","anzurok","humbaroth","pazuzar","mushussar","nergalith","ereshkyl","nabuscribe","ziggurok","semyazar","azazelith","armarok","baraqion","kokabyx","tamiren","ramielon","danelith","ezeqor","sarielle","shamsor","arakor","penemyr","nephilox","grigoran","ophanex","irinyx","eyelurk","gazewing","vigilon","nyxara","serqeth","kaelor","lumiyah","thothex","khonsar","selenox","amunrah","azarath","setekh","horuskai","neferion","ptahmos","khepron","osirak","isisra","rasolar","anuket","anupex","nefertek","ninshara","kingaru","lahmuron","gulani","zababor","shalira","nisabel","ninurtax","solarch","voltaris","gravitas","aegiron","nightvale","blazewing","magmara","tidebreaker","coralon","hailstrike","frostbyte","quakefist","bouldra","galeforce","vortexa","thornheart","verdantia","nebulor","comettra","mindlock","psyra","steelbrand","ferronix","shadowstep","duskara","joltrix","ampere","drakonis","runeguard","sentrion","tidewen","marovek","granitus","terrala","pyreska","emberon","zephyrine","aerokai","voltessa","thundrik","tempestro","aurorex","titanor","phantomir","pyronyx","chronar","stormvane","bulwarkus","venomaw","quasarion","gorrath","starlara","lumivra","frostelle","blazara","sylphra","galdris","skyvar","windrik","aeromar","cyrran","aerisa","sylvane","zephra","windara","skylis","breezo","nimbra","cirrus","aeralyn","zephyl","tidegale","mistral","rainor","oceara","glacia","dustan","rockwen","sandor","terrai","quarra","emberwind","ashra","blazor","flarissa","pyrrin","voltair","sparra","thundro","zappira","boltan","covo","cova","aquari","rokko","blazen","gusti","voltz","kena","aurelia","amyah","dashi","bolo","swish","kapri","nyla","verdo","bunzo","tigo","vikko","noxx","anpurak","wepwarr","khemtek","duatron","selqira","isetra","ptahrex","khnumek","apisor","wadjeth","terrok","zephar","tydal","ignar","azaelion","spira","aerix","bouldar","nerin","zuri","verdex"]; // generated from shared/monstars.mjs SPECIES order
+const NAMES = ["cindercub","mossprout","ripplefin","voltwing","duskhorn","pebblit","frostuft","bloomtail","soloryx","seraphon","psyvolt","blazebuck","cinderwyrm","pyrofinch","magmole","emberjack","coralisk","bubblyn","clawtide","abyssquid","wavewing","thornox","fernling","mantiseed","acornaut","lilypadra","zapurr","ohmoth","voltusk","joltail","gloomwisp","nocturrow","shadefang","hexmask","quarrox","fossilith","geodillo","cragcrab","glacielk","snowpuff","icicrow","rimewyrm","cometail","lunaroo","orbitron","mindmoth","oracub","prismeye","toxitoad","mycospore","stingrex","viperoot","gearhound","rivetbot","bladewing","ironshell","zephyrkit","galeon","whirlwisp","drakelet","skyrex","aurielle","valkyra","nimbiel","aeonox","anuvax","enlilor","enkiryn","inannox","utuflare","nannamoth","marduzar","tiamaw","ninhurra","lamassor","shedulon","apkalith","anzurok","humbaroth","pazuzar","mushussar","nergalith","ereshkyl","nabuscribe","ziggurok","semyazar","azazelith","armarok","baraqion","kokabyx","tamiren","ramielon","danelith","ezeqor","sarielle","shamsor","arakor","penemyr","nephilox","grigoran","ophanex","irinyx","eyelurk","gazewing","vigilon","nyxara","serqeth","kaelor","lumiyah","thothex","khonsar","selenox","amunrah","azarath","setekh","horuskai","neferion","ptahmos","khepron","osirak","isisra","rasolar","anuket","anupex","nefertek","ninshara","kingaru","lahmuron","gulani","zababor","shalira","nisabel","ninurtax","solarch","voltaris","gravitas","aegiron","nightvale","blazewing","magmara","tidebreaker","coralon","hailstrike","frostbyte","quakefist","bouldra","galeforce","vortexa","thornheart","verdantia","nebulor","comettra","mindlock","psyra","steelbrand","ferronix","shadowstep","duskara","joltrix","ampere","drakonis","runeguard","sentrion","tidewen","marovek","granitus","terrala","pyreska","emberon","zephyrine","aerokai","voltessa","thundrik","tempestro","aurorex","titanor","phantomir","pyronyx","chronar","stormvane","bulwarkus","venomaw","quasarion","gorrath","starlara","lumivra","frostelle","blazara","sylphra","galdris","skyvar","windrik","aeromar","cyrran","aerisa","sylvane","zephra","windara","skylis","breezo","nimbra","cirrus","aeralyn","zephyl","tidegale","mistral","rainor","oceara","glacia","dustan","rockwen","sandor","terrai","quarra","emberwind","ashra","blazor","flarissa","pyrrin","voltair","sparra","thundro","zappira","boltan","covo","cova","aquari","rokko","blazen","gusti","voltz","kena","aurelia","amyah","dashi","bolo","swish","kapri","nyla","verdo","bunzo","tigo","vikko","noxx","anpurak","wepwarr","khemtek","duatron","selqira","isetra","ptahrex","khnumek","apisor","wadjeth","terrok","zephar","tydal","ignar","azaelion","spira","aerix","bouldar","nerin","zuri","verdex","akena","azaelionvoid","azmara","kaelion","malakar","nymara","solarius","zayron","pyrelion","glacion","rosalis","thalassa"]; // generated from shared/monstars.mjs SPECIES order
 const W = 320, H = 180, K = 1 / 3; // world (960x540) -> logical pixels; the canvas is 2x (640x360) so sprites keep fine detail
 const CW = 960, CH = 540, Z = 3, U = Z / 2; // U scales hand-tuned canvas-pixel sizes from the old 640 canvas
 const SPR = 0.95; // 96px battle sprites are drawn at ~65px tall on the 960 canvas (Ultimate stage)
 const STAGE_SCALE = [0.6, 0.72, 0.85, 1.0, 1.12, 1.25];
 const imgs = NAMES.map(n => { const i = new Image(); i.src = 'art/hd/' + n + '.png'; return i; });
 // Animated characters: a 6-frame sheet (idle A, idle B, run 1-4) in art/walk/ (generated by scripts/make_walkers.py)
-const WALKERS = new Set([105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132, 133, 134, 135, 136, 137, 138, 139, 140, 141, 142, 143, 144, 145, 146, 147, 148, 149, 150, 151, 152, 153, 154, 155, 156, 157, 158, 159, 160, 161, 162, 163, 164, 165, 166, 167, 168, 169, 170, 171, 172, 173, 174, 175, 176, 177, 178, 179, 180, 181, 182, 183, 184, 185, 186, 187, 188, 189, 190, 191, 192, 193, 194, 195, 196, 197, 198, 199, 200, 201, 202, 203, 204, 205, 206, 207, 208, 209, 210, 211, 212, 213, 214, 215, 216, 217, 218, 219, 220, 221, 222, 223, 224, 225, 226, 227, 228, 229, 230, 231, 232, 233, 234, 235, 236, 237, 238, 239, 240, 241, 242, 243, 244, 245, 246, 247, 248, 249, 250, 251, 252, 253, 254, 255, 256, 257, 258, 259, 260, 261, 262, 263, 264]);
+const WALKERS = new Set([105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132, 133, 134, 135, 136, 137, 138, 139, 140, 141, 142, 143, 144, 145, 146, 147, 148, 149, 150, 151, 152, 153, 154, 155, 156, 157, 158, 159, 160, 161, 162, 163, 164, 165, 166, 167, 168, 169, 170, 171, 172, 173, 174, 175, 176, 177, 178, 179, 180, 181, 182, 183, 184, 185, 186, 187, 188, 189, 190, 191, 192, 193, 194, 195, 196, 197, 198, 199, 200, 201, 202, 203, 204, 205, 206, 207, 208, 209, 210, 211, 212, 213, 214, 215, 216, 217, 218, 219, 220, 221, 222, 223, 224, 225, 226, 227, 228, 229, 230, 231, 232, 233, 234, 235, 236, 237, 238, 239, 240, 241, 242, 243, 244, 245, 246, 247, 248, 249, 250, 251, 252, 253, 254, 255, 256, 257, 258, 259, 260, 261, 262, 263, 264, 265, 266, 267, 268, 269, 270, 271, 272, 273, 274, 275, 276]);
 // one sheet per evolution stage: art/walk/<name>_s0.png (Infant) ... _s5.png (Ascended)
 // Sheets load only for Monstars that are actually on screen (keeps memory low in the Phantom in-app browser).
 const sheets = {};
@@ -426,6 +426,13 @@ function createRenderer(canvas, arena) {
   const hit = (ev, snap) => event({ type: 'hit', ...ev }, snap);
 
   // ---------- fighters (drawn at full 640x360 resolution) ----------
+  // 3D saber-bearers and elemental benders: drawn from their own models at the same size as COVO's (head to feet = 0.9 of the old sprite box). Falls back to the flat picture while the model loads.
+  const ELEM = new Set(['aquari', 'rokko', 'blazen', 'gusti']);
+  const RIG3D = n => !!(window.PMChosen?.has(n) || (ELEM.has(n) && window.PMElemental));
+  function draw3D(n, f, i, opt, now, x, y, h, col) {
+    if (ELEM.has(n)) return !!window.PMElemental?.has(n) && window.PMElemental.draw(n, ctx, x, y, h, f);
+    return window.PMChosen.ready(n) && window.PMChosen.draw(ctx, x, y, h, f, col, { name: n, i, now: opt.now, faint: opt.faint });
+  }
   function drawFighter(f, prev, t, i, opt) {
     const now = opt.now / 1000;
     const wx = prev ? prev.x + (f.x - prev.x) * t : f.x, wy = prev ? prev.y + (f.y - prev.y) * t : f.y;
@@ -438,7 +445,7 @@ function createRenderer(canvas, arena) {
     const AN = walker ? animFor(f.s) : null;
     let spr = stageSprite(f.s, opt.hue || 0, stage, pal, false, frame), wh = stageSprite(f.s, opt.hue || 0, stage, pal, true, frame);
     if (AN) { const ai = animPick(AN, f, i, opt, now, useDir ? dI : -1); spr = { anim: AN, i: ai }; wh = { anim: AN, i: ai, white: true }; }
-    if (!spr && NAMES[f.s] === 'covo' && window.PMCovoRig) { spr = document.createElement('canvas'); spr.width = 96; spr.height = 112; wh = spr; }
+    if (!spr && (NAMES[f.s] === 'covo' && window.PMCovoRig || RIG3D(NAMES[f.s]))) { spr = document.createElement('canvas'); spr.width = 96; spr.height = 112; wh = spr; }
     if (!spr) return;
     grow[i] = Math.max(0, grow[i] - opt.dt * 0.8);
     const sc = (AN ? 1 : STAGE_SCALE[scaleStage]) * (1 + Math.sin(grow[i] * 12) * 0.12 * grow[i]); // a frame-animated character keeps one size
@@ -516,19 +523,26 @@ function createRenderer(canvas, arena) {
     const sq = seqF[i] || (seqF[i] = { cur: frame, prev: frame, t: 1 });
     if (frame !== sq.cur) { const big = frame >= 6 || sq.cur >= 6; sq.prev = sq.cur; sq.cur = frame; sq.t = big && walker && !AN ? 0 : 1; }
     sq.t = Math.min(1, sq.t + opt.dt / 0.11);
-    if (sq.t < 1 && !blinkW && !(NAMES[f.s] === 'covo' && window.PMCovoRig)) { const old = stageSprite(f.s, opt.hue || 0, stage, pal, false, sq.prev);
+    if (sq.t < 1 && !blinkW && !(NAMES[f.s] === 'covo' && window.PMCovoRig) && !RIG3D(NAMES[f.s])) { const old = stageSprite(f.s, opt.hue || 0, stage, pal, false, sq.prev);
       if (old) { ctx.globalAlpha = alpha * (1 - sq.t); blit(old, X + ox, Y + oy, dw, dh, flip, sx, sy, rot); ctx.globalAlpha = alpha * (0.35 + 0.65 * sq.t); } }
     if (strikeK > 0) { const d = f.fx < 0 ? -1 : 1; // after-images trailing the lunge
       for (let k = 3; k >= 1; k--) { ctx.globalAlpha = alpha * strikeK * 0.16 * (4 - k); blit(spr, X + ox - d * k * 9 * U, Y + oy, dw, dh, flip, sx, sy, rot); }
       ctx.globalAlpha = alpha; }
-    if (cast >= 0.04 && SP?.col && !(NAMES[f.s] === 'covo' && window.PMCovoRig)) { const d = f.fx < 0 ? -1 : 1, hx = X + ox + d * dw * 0.34, hy = Y + oy - dh * 0.5, fade = cast < 0.24 ? 1 : Math.max(0, 1 - (cast - 0.24) / (hold - 0.24));
+    if (cast >= 0.04 && SP?.col && !(NAMES[f.s] === 'covo' && window.PMCovoRig) && !RIG3D(NAMES[f.s])) { const d = f.fx < 0 ? -1 : 1, hx = X + ox + d * dw * 0.34, hy = Y + oy - dh * 0.5, fade = cast < 0.24 ? 1 : Math.max(0, 1 - (cast - 0.24) / (hold - 0.24));
       ctx.save(); ctx.globalCompositeOperation = 'lighter'; glowAt(hx, hy, dw * (0.28 + 0.12 * Math.sin(now * 30)) * (0.6 + 0.4 * fade), SP.col, 0.75 * fade); ctx.restore();
       if (Math.random() < 0.8 * fade) part((hx + (Math.random() - 0.5) * 10 * U) / Z, (hy + (Math.random() - 0.5) * 14 * U) / Z, d * (30 + Math.random() * 40), (Math.random() - 0.5) * 20, 0.35, SP.col, 1); }
     if (AN && (f.sg > 0 || f.tr > 0)) { ctx.save(); ctx.globalCompositeOperation = 'lighter'; // the higher his form, the stronger his violet aura
       const k = Math.min(1, (f.sg || 0) / 5 + (f.tr > 0 ? 0.5 : 0)); glowAt(X + ox, Y + oy - dh * 0.45, dw * (0.9 + 0.5 * k), '#b45aff', (0.25 + 0.45 * k) * (0.85 + 0.15 * Math.sin(now * 14)));
       if (Math.random() < 0.3 + 0.5 * k) part((X + ox + (Math.random() - 0.5) * dw) / Z, (Y + oy - Math.random() * dh * 0.9) / Z, 0, -30 - Math.random() * 30, 0.5, Math.random() < 0.5 ? '#d8a8ff' : '#ffd84a', 1);
       ctx.restore(); }
-    if (!(NAMES[f.s] === 'covo' && (window.PMCovoRig?.draw(ctx, X + ox, Y + oy + dh * 0.06, dh * 0.96, f, SP?.col || pal[1]) || (window.PMCovo3D?.ready && window.PMCovo3D.draw(ctx, X + ox, Y + oy, dh * 1.23, f, alpha))))) { blit(blinkW || grow[i] > 0.9 ? wh : spr, X + ox, Y + oy, dw, dh, flip, sx, sy, rot); }
+    if (!(RIG3D(NAMES[f.s]) && draw3D(NAMES[f.s], f, i, opt, now, X + ox, Y + oy + dh * 0.06, dh * 0.9, SP?.col || pal[1])) && !(NAMES[f.s] === 'covo' && (window.PMCovoRig?.draw(ctx, X + ox, Y + oy + dh * 0.06, dh * 0.96, f, SP?.col || pal[1]) || (window.PMCovo3D?.ready && window.PMCovo3D.draw(ctx, X + ox, Y + oy, dh * 1.23, f, alpha))))) { blit(blinkW || grow[i] > 0.9 ? wh : spr, X + ox, Y + oy, dw, dh, flip, sx, sy, rot); }
+    if (f.cg > 0) { // charging a shot: energy gathers in front of the fighter and swells
+      const d = f.fx < 0 ? -1 : 1, cx = X + ox + d * dw * 0.28, cy = Y + oy - dh * 0.5, rr = 7 + f.cg * 26, cc = SP?.col || pal[1], t3 = now * 9;
+      ctx.save(); ctx.globalCompositeOperation = 'lighter'; const gr = ctx.createRadialGradient(cx, cy, 1, cx, cy, rr); gr.addColorStop(0, '#fff'); gr.addColorStop(0.4, cc); gr.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.globalAlpha = 0.55 + f.cg * 0.4; ctx.fillStyle = gr; ctx.beginPath(); ctx.arc(cx, cy, rr, 0, 7); ctx.fill();
+      ctx.globalAlpha = 0.8; ctx.strokeStyle = cc; ctx.lineWidth = 2; for (let k2 = 0; k2 < 3; k2++) { const a2 = t3 + k2 * 2.09, r2 = rr * (1.6 - ((now * 2 + k2 / 3) % 1) * 0.9); ctx.beginPath(); ctx.arc(cx + Math.cos(a2) * r2 * 0.2, cy + Math.sin(a2) * r2 * 0.2, r2, 0, 7); ctx.globalAlpha = 0.25 * (1 - ((now * 2 + k2 / 3) % 1)); ctx.stroke(); }
+      ctx.restore(); if (Math.random() < 0.5) part(cx + (Math.random() - 0.5) * rr * 2, cy + (Math.random() - 0.5) * rr * 2, (cx - X) * -1, 0, 0.3, cc, 1, 80);
+    }
     if (strikeK > 0.4 && wh) { ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = (strikeK - 0.4) * 0.9; blit(wh, X + ox, Y + oy, dw, dh, flip, sx, sy, rot); ctx.restore(); } // flash as the blow lands
     ctx.filter = 'none'; ctx.globalAlpha = 1;
     statusFx(f, X + ox, Y + oy, dw, dh, now);
@@ -540,8 +554,8 @@ function createRenderer(canvas, arena) {
       label('SHIELD ' + (f.sh || 70) + '%', X, Y + 14 * U, '#48d0ff'); }
     if (!opt.faint && !(opt.vanish > 0.5)) { // owner marker
       const mx = Math.round(X), my = Math.round(Y - dh - 12 * U + oy + (Math.floor(now * 3) % 2) * 2);
-      if (opt.extra || opt.ctl) { // squad: a small HP bar over every Monstar, team-coloured; the one being controlled also gets the arrow
-        const bw = 26 * U, bh = 4 * U, by2 = my - (opt.ctl ? 7 * U : 0), pct = Math.max(0, Math.min(1, f.hp / (f.max || 1)));
+      { // a health bar over every fighter, team-coloured; the one being controlled also gets the arrow
+        const bw = 30 * U, bh = 4 * U, by2 = my - 8 * U, pct = Math.max(0, Math.min(1, f.hp / (f.max || 1)));
         ctx.fillStyle = '#10141a'; ctx.fillRect(mx - bw / 2 - U, by2 - U, bw + 2 * U, bh + 2 * U);
         ctx.fillStyle = pct > 0.5 ? '#58d858' : pct > 0.25 ? '#f8c838' : '#f85838'; ctx.fillRect(mx - bw / 2, by2, Math.round(bw * pct), bh);
         ctx.fillStyle = opt.you ? '#9ef0c8' : '#ff6b6b'; ctx.fillRect(mx - bw / 2 - U, by2 + bh + U, bw + 2 * U, U);
@@ -716,10 +730,35 @@ function createRenderer(canvas, arena) {
     ctx.save(); ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high'; ctx.translate(Math.round(fx), Math.round(fy)); if (rot) ctx.rotate(rot); if (flip) ctx.scale(-1, 1); ctx.drawImage(img, -Math.round(dw / 2), -dh, dw, dh); ctx.restore();
   }
 
-  function projectile(p, x, y, now) {
+  // The Chosen Ones' own shot looks, drawn in each fighter's saber colours: a crescent of energy, a glowing orb, a spray of thorns. `chg` (0..1) is a charged shot: bigger and brighter.
+  function chosenLook(p, x, y, a, now) {
+    const nm = NAMES[p.sid], cc = window.PMChosen?.colors(nm) || { c1: '#9fe8ff', c2: '#ffffff' }, t = now / 1000, g = 1 + (p.cg || 0) * 1.1;
+    ctx.save(); ctx.translate(x, y); ctx.rotate(a); ctx.globalCompositeOperation = 'lighter';
+    if (p.lk === 'crescent') {
+      for (let k = 0; k < 3; k++) { ctx.globalAlpha = 0.5 - k * 0.14; ctx.strokeStyle = k ? cc.c1 : cc.c2; ctx.lineWidth = (7 - k * 2) * g; ctx.lineCap = 'round'; ctx.beginPath(); ctx.arc(-14 * g - k * 6, 0, 17 * g, -1.25, 1.25); ctx.stroke(); }
+      ctx.globalAlpha = 0.9; ctx.strokeStyle = '#fff'; ctx.lineWidth = 2 * g; ctx.beginPath(); ctx.arc(-14 * g, 0, 17 * g, -1.1, 1.1); ctx.stroke();
+    } else if (p.lk === 'corb') {
+      const r = 9 * g, gr = ctx.createRadialGradient(0, 0, 1, 0, 0, r * 2.2); gr.addColorStop(0, '#fff'); gr.addColorStop(0.35, cc.c2); gr.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.fillStyle = gr; ctx.beginPath(); ctx.arc(0, 0, r * 2.2, 0, 7); ctx.fill();
+      ctx.strokeStyle = cc.c1; ctx.globalAlpha = 0.85; ctx.lineWidth = 2 * g; ctx.beginPath(); ctx.ellipse(0, 0, r * 1.6, r * 0.6, t * 9 + p.id, 0, 7); ctx.stroke(); ctx.beginPath(); ctx.ellipse(0, 0, r * 1.6, r * 0.6, -t * 7 + p.id, 0, 7); ctx.stroke();
+    } else {
+      ctx.fillStyle = cc.c1; for (let k = 0; k < 5; k++) { const o = (k - 2) * 0.5 + Math.sin(t * 12 + k + p.id) * 0.12, L = (16 - Math.abs(k - 2) * 3) * g; ctx.globalAlpha = 0.8; ctx.save(); ctx.rotate(o); ctx.beginPath(); ctx.moveTo(L, 0); ctx.lineTo(-4, -3 * g); ctx.lineTo(-4, 3 * g); ctx.closePath(); ctx.fill(); ctx.restore(); }
+      ctx.globalAlpha = 0.7; ctx.fillStyle = cc.c2; ctx.beginPath(); ctx.arc(0, 0, 4 * g, 0, 7); ctx.fill();
+    }
+    ctx.restore();
+    if (Math.random() < 0.6) part(x - Math.cos(a) * 12 + (Math.random() - 0.5) * 6, y - Math.sin(a) * 12 + (Math.random() - 0.5) * 6, -Math.cos(a) * 14, -6 + Math.random() * 8, 0.4, Math.random() < 0.5 ? cc.c1 : cc.c2, 1, 80);
+    return true;
+  }
+
+  function projectile(p, x, y, now) { // a charged shot (p.cg 0..1) is drawn bigger
+    if (!p.cg) return projectileBase(p, x, y, now);
+    const k = 1 + p.cg * 0.9; ctx.save(); ctx.translate(x, y); ctx.scale(k, k); ctx.translate(-x, -y); projectileBase(p, x, y, now); ctx.restore();
+  }
+  function projectileBase(p, x, y, now) {
     const pal = palFor(p.ty, p.sid), a = Math.atan2(p.vy, p.vx), fl = Math.floor(now * 20) % 2, v = vidOf(p);
     y -= 8;
     if (NAMES[p.sid] === 'covo' && window.PMCovoRig?.projectile(ctx, x, y, a, p, now)) return;
+    if ((p.lk === 'crescent' || p.lk === 'corb' || p.lk === 'cthorn') && chosenLook(p, x, y, a, now)) return;
     const fim = fxImg(p.sid, p.lk);
     if (fim) { // the effect drawn on the character's own sprite sheet flies out of the hands: a fireball, a water wave, a wind spiral, rocks, a lightning bolt
       const t = now / 1000, w = (p.lk === 'boulder' ? 46 : 40) * (1 + Math.sin(t * 16 + p.id) * 0.05), h = w * fim.naturalHeight / fim.naturalWidth, ca = Math.cos(a);

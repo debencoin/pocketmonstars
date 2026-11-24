@@ -29,11 +29,11 @@ window.tab = function (id) { baseTab(id); drawer.querySelectorAll('[data-go]').f
 
 // ---------- Home ----------
 const home = el('section', { id: 'home', className: 'view hidden' }); main.prepend(home);
-const heroes = SPECIES.filter(s => s.hero && s.drop.top).slice(0, 5);
+const FIFTEEN = [['akena', 'AKENA'], ['amyah', 'Amyah'], ['aurelia', 'Aurelia'], ['azaelionvoid', 'Azaelion Void'], ['azmara', 'Azmara'], ['kaelion', 'Kaelion'], ['malakar', 'Malakar'], ['nymara', 'Nymara'], ['solarius', 'Solarius'], ['zayron', 'Zayron'], ['covo', 'COVO'], ['aquari', 'Aquari'], ['rokko', 'Rokko'], ['blazen', 'Blazen'], ['gusti', 'Gusti']]; // the 10 Chosen Ones, COVO and the 4 elemental benders: all drawn the same size
 home.innerHTML = `<div class="v6-hero"><div><div class="eyebrow">Battle · Capture · Evolve</div><h1>Your Monstars.<br><em>Your Arena!</em></h1>
   <p class="muted">Real-Time Battles With Original Creatures. Play Free Right Now, Sign Up To Capture Monstars In The Wild, Or Connect Phantom To Battle For SOL.</p>
   <div class="v6-cta"><button class="primary" id="hmFree">Play Free Now</button><button class="smallbtn" id="hmPhantom">Connect Phantom</button></div></div>
-  <div class="v6-heroart">${heroes.map(s => `<img src="art/hd/${s.art}_s4.png" alt="${esc(s.name)}" loading="lazy">`).join('')}</div></div>
+  <div class="v6-heroart">${FIFTEEN.map(([a, n]) => `<img src="art/home/${a}.png" alt="${esc(n)}" loading="lazy">`).join('')}</div></div>
   <div class="v6-cards">
    <button class="v6-card hot" data-go="pvp"><span class="k">1v1 · 3v3</span><b>Arena</b><span>Practice Free Vs The Computer, Or Stake SOL Against A Real Rival. Every Hit Moves SOL To Your Side.</span></button>
    <button class="v6-card drop" data-go="market"><span class="k">Launch Drop</span><b>Superhero Drop</b><span id="hmDrop">30 One-Of-One Heroes. Top 5 At 1 SOL, The Rest 0.5 SOL.</span></button>

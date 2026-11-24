@@ -356,10 +356,129 @@ export const GIFT_FINALS = [
   { ...BE('Kena', 'GALE', 'deity', 'Fire gust', 'Ice balls', 'projectile', 'projectile', '#2a1440', 'Final Air Bender', true), el2: 'all', sky: true, unique: true, female: true, master: true, legendFor: 'gift', speedBoost: 1.35, sig: FINAL_SIG('Kena', 2) },
 ];
 
+// ---------- The Chosen Ones ----------
+// Fourteen saber-bearers from the creator's Chosen Ones pack (3D models in dist/chosen/): Aurelia and Amyah (who join the gifted heroines) and 8 new
+// fighters, plus four more (Pyrelion, Glacion, Rosalis, Thalassa) made from the pack's models in new colours. They are as strong as the Element Masters
+// (stats +75%), each has its own energy saber and its own set of powers, and the powers grow stronger at levels 10, 25 and 50.
+const CHK_SIG = {
+  AKENA: { type: 'SHADE', cls: 'skirmisher', title: 'Shadow Ascendant', female: true, main: '#ff2a3a',
+    sig: { basic: { name: 'Crimson Lash', look: 'crescent', status: 'weaken', knock: 3, power: 1.25, note: 'The saber cracks out a crimson whip of energy that curses the rival: it deals less damage for a while.' },
+      special: { name: 'Gravity Well', style: 'levitate', power: 1.3, note: 'A well of dark gravity opens under the rival: it is lifted, crushed and thrown.' },
+      dash: { kind: 'shadow', name: 'Shadow Duplicate', note: 'Splits into a shadow and reappears right behind the rival.', dist: 1.7, cd: 0.8 },
+      guard: { kind: 'evade', name: 'Umbral Veil', note: 'Fades into shadow: cannot be touched for a moment.', time: 1.1, cd: 5.2 },
+      mega: { kind: 'vortex', name: 'Event Horizon', note: 'A black sun drags the rival in, then erupts.', power: 1.45, size: 1.3 } },
+    names: ['Crushing Well', 'Twin Crimson Lash', 'Singularity'] },
+  Amyah: { type: 'ASTRAL', cls: 'support', title: 'Astral Harmony', female: true, main: '#3a9bff',
+    sig: { basic: { name: 'Light Beam', look: 'ki', knock: 2, power: 1.2, note: 'A lance of white-blue light from the saber.' },
+      special: { name: 'Healing Field', style: 'beam', leech: 0.5, power: 1.25, note: 'A beam of harmony light: it hurts the rival and half the damage heals you.' },
+      dash: { kind: 'mend', name: 'Star Glide', note: 'Glides through the air and mends a little while dashing.', dist: 1.5, cd: 0.9 },
+      guard: { kind: 'mend', name: 'Orbit Guard', note: 'Three orbs of light circle her: they block hits and heal her.', time: 1.3, cd: 5.5 },
+      mega: { kind: 'drain', name: 'Astral Harmony', note: 'A huge beam of harmonised light that heals her by half the damage.', power: 1.4, size: 1.3 } },
+    names: ['Radiant Field', 'Twin Light Beam', 'Harmony of Stars'] },
+  Aurelia: { type: 'EMBER', cls: 'seraph', title: 'Solar Radiance', female: true, main: '#ffd23a',
+    sig: { basic: { name: 'Radiant Bolt', look: 'fire', status: 'burn', knock: 3, power: 1.25, note: 'A bolt of golden sunfire from the saber that burns.' },
+      special: { name: 'Solar Cyclone', style: 'projectile', look: 'firenado', homing: true, status: 'burn', power: 1.3, note: 'A cyclone of sunfire that hunts the rival until it hits.' },
+      dash: { kind: 'burst', name: 'Sun Sprint', note: 'Runs much faster for a moment, trailing light.', dist: 1.6, cd: 0.85 },
+      guard: { kind: 'absorb', name: 'Harmony Link', note: 'Ties her to her attackers: hits she blocks charge the ULT meter.', time: 1.2, cd: 5.4 },
+      mega: { kind: 'nova', name: 'Radiant Burst', note: 'The sun inside her bursts outward in every direction.', power: 1.5, size: 1.35 } },
+    names: ['Solar Twister', 'Twin Radiant Bolt', 'Corona Cyclone'] },
+  'Azaelion Void': { type: 'PSYCHIC', cls: 'deity', title: 'Cosmic Equilibrium', female: false, main: '#b45cff',
+    sig: { basic: { name: 'Void Pulse', look: 'corb', status: 'daze', knock: 3, power: 1.25, note: 'A pulse of violet void energy that dazes the rival.' },
+      special: { name: 'Energy Fusion', shots: 2, look: 'corb', homing: true, status: 'daze', power: 1.3, note: 'Fuses two orbs of void and light: they chase the rival.' },
+      dash: { kind: 'blink', name: 'Dimensional Gate', note: 'Steps through a gate and appears a long way off almost at once.', dist: 1.85, cd: 0.7 },
+      guard: { kind: 'barrier', name: 'Equilibrium', note: 'Balances the arena: blasts the rival away when raised.', time: 1.2, cd: 5.6 },
+      mega: { kind: 'judgment', name: 'Cosmic Equilibrium', note: 'Lifts the rival into the void, then brings the whole sky down on it.', power: 1.5, size: 1.3 } },
+    names: ['Void Surge', 'Triple Fusion', 'Collapse Fusion'] },
+  Azmara: { type: 'SPARK', cls: 'arcanist', title: 'Celestial Convergence', female: true, main: '#e060ff',
+    sig: { basic: { name: 'Polarity Orb', look: 'corb', status: 'paralyze', knock: 2, power: 1.2, note: 'An orb with two poles that paralyses what it touches.' },
+      special: { name: 'Reality Ring', style: 'projectile', look: 'ring', homing: true, status: 'stun', power: 1.3, note: 'A ring that bends reality: it curves after the rival and locks it in place.' },
+      dash: { kind: 'phase', name: 'Phase Shift', note: 'Slips out of phase: nothing can touch her for longer.', dist: 1.6, cd: 0.85 },
+      guard: { kind: 'mirror', name: 'Polarity Mirror', note: 'Bounces every status effect back at the rival.', time: 1.2, cd: 5.4 },
+      mega: { kind: 'chain', name: 'Celestial Convergence', note: 'Three arcs of dual-phase light strike the rival one after another.', power: 1.5, size: 1.25 } },
+    names: ['Dual-Phase Arc', 'Twin Polarity Orb', 'Convergence Ring'] },
+  Kaelion: { type: 'STEEL', cls: 'warden', title: 'Astral Guardian', female: false, main: '#3ac8ff',
+    sig: { basic: { name: 'Repulsion Wave', look: 'gust', knock: 7, power: 1.2, note: 'A wave of force that throws the rival back.' },
+      special: { name: 'Guardian Burst', style: 'strike', knock: 4, power: 1.3, note: 'Slams the saber down: a burst of blue force erupts under the rival.' },
+      dash: { kind: 'mend', name: 'Restoration Step', note: 'Rushes forward and restores a little health.', dist: 1.45, cd: 0.95 },
+      guard: { kind: 'fortress', name: 'Blue Barrier', note: 'A long, heavy barrier that almost nothing gets through.', time: 1.5, cd: 5.8 },
+      mega: { kind: 'freeze', name: 'Astral Bastion', note: 'A field of blue stasis erupts under the rival and freezes it.', power: 1.45, size: 1.3 } },
+    names: ['Guardian Quake', 'Twin Repulsion Wave', 'Astral Judgment'] },
+  Malakar: { type: 'SPARK', cls: 'striker', title: 'Crimson Dominion', female: false, main: '#ff1a2a',
+    sig: { basic: { name: 'Scarlet Bolt', look: 'crescent', status: 'paralyze', knock: 2, power: 1.25, note: 'A scarlet bolt flung from the saber that can paralyse.' },
+      special: { name: 'Scarlet Lightning', style: 'strike', status: 'paralyze', power: 1.35, note: 'Scarlet lightning crashes down on the rival and paralyses it.' },
+      dash: { kind: 'charge', name: 'Crimson Rush', note: 'Charges forward and slams the rival on contact.', dist: 1.55, cd: 0.9 },
+      guard: { kind: 'evade', name: 'Illusion', note: 'Leaves an illusion behind: cannot be touched for a moment.', time: 1.0, cd: 5.0 },
+      mega: { kind: 'thunderstrike', name: 'Void Rupture', note: 'The air tears open and scarlet bolts crash down; the first one stuns.', power: 1.5, size: 1.3 } },
+    names: ['Crimson Storm', 'Twin Scarlet Bolt', 'Dominion Lightning'] },
+  Nymara: { type: 'GROVE', cls: 'support', title: 'Living Balance', female: true, main: '#3aff6a',
+    sig: { basic: { name: 'Thorn Dart', look: 'cthorn', status: 'poison', knock: 2, power: 1.2, note: 'A thorn of living energy that poisons.' },
+      special: { name: 'Vine Bind', style: 'projectile', look: 'cthorn', homing: true, status: 'root', power: 1.25, note: 'Vines of energy chase the rival and tie it down.' },
+      dash: { kind: 'trail', name: 'Sanctuary Trail', note: 'Leaves a trail of vines that entangle the rival if it passes close.', dist: 1.5, cd: 0.9 },
+      guard: { kind: 'mend', name: 'Floral Renewal', note: 'Petals swirl around her and heal her while she guards.', time: 1.3, cd: 5.5 },
+      mega: { kind: 'pillars', name: 'Sanctuary Grove', note: 'A grove of giant roots bursts out of the ground in a line toward the rival.', power: 1.45, size: 1.3 } },
+    names: ['Thorn Volley', 'Twin Thorn Dart', 'Briar Crown'] },
+  Solarius: { type: 'ASTRAL', cls: 'ranger', title: 'Dual Radiance', female: false, main: '#ffb020',
+    sig: { basic: { name: 'Twin Arcs', look: 'crescent', shots: 2, status: 'burn', knock: 2, power: 1.2, note: 'Two arcs of solar energy, one from each side of the blade.' },
+      special: { name: 'Solar Vortex', style: 'cone', status: 'burn', power: 1.3, note: 'The saber spins up a vortex of sunfire that sweeps in front of him.' },
+      dash: { kind: 'blink', name: 'Radiant Gateway', note: 'Opens a gate of light and steps out a good way off.', dist: 1.75, cd: 0.75 },
+      guard: { kind: 'counter', name: 'Dawn Riposte', note: 'Strikes back when hit while guarding.', time: 1.1, cd: 5.2 },
+      mega: { kind: 'barrage', name: 'Twin Sun Barrage', note: 'Seven blazing arcs from two suns.', power: 1.5, size: 1.25 } },
+    names: ['Solar Maelstrom', 'Quad Arcs', 'Eclipse Vortex'] },
+  Zayron: { type: 'STONE', cls: 'warden', title: 'Nature Bond', female: false, main: '#8aff3a',
+    sig: { basic: { name: 'Root Snare', look: 'cthorn', status: 'root', knock: 2, power: 1.2, note: 'A root of green energy that snares the rival.' },
+      special: { name: 'Stone Rise', style: 'strike', power: 1.35, note: 'Stone towers rise under the rival and throw it up.' },
+      dash: { kind: 'mend', name: 'Renewal Pulse', note: 'A pulse of green light carries him forward and heals a little.', dist: 1.5, cd: 0.9 },
+      guard: { kind: 'thorns', name: 'Bark Guard', note: 'Bark armour that hurts the rival when it hits the guard.', time: 1.2, cd: 5.4 },
+      mega: { kind: 'boulderstorm', name: 'Mountain Awakening', note: 'The mountain wakes: boulders rain over a big area.', power: 1.5, size: 1.3 } },
+    names: ['Tremor Spires', 'Twin Root Snare', 'World Root'] },
+  Pyrelion: { type: 'EMBER', cls: 'striker', title: 'Phoenix Blade', female: false, main: '#ff7a1a',
+    sig: { basic: { name: 'Ember Slash', look: 'crescent', status: 'burn', knock: 3, power: 1.25, note: 'A crescent of flame thrown from the saber.' },
+      special: { name: 'Phoenix Dive', style: 'cone', status: 'burn', power: 1.35, note: 'Leaps and dives with the blade in a cone of phoenix fire.' },
+      dash: { kind: 'charge', name: 'Phoenix Rush', note: 'Charges forward wreathed in fire and slams the rival.', dist: 1.6, cd: 0.85 },
+      guard: { kind: 'counter', name: 'Flare Riposte', note: 'Strikes back with a flare when hit while guarding.', time: 1.1, cd: 5.2 },
+      mega: { kind: 'meteors', name: 'Phoenix Meteor', note: 'Four fiery meteors crash around the rival.', power: 1.5, size: 1.3 } },
+    names: ['Phoenix Wheel', 'Twin Ember Slash', 'Rebirth Dive'] },
+  Glacion: { type: 'FROST', cls: 'titan', title: 'Winter Sentinel', female: false, main: '#7af0ff',
+    sig: { basic: { name: 'Frost Spear', look: 'ice', status: 'freeze', knock: 3, power: 1.2, note: 'A spear of ice thrown from the saber that can freeze.' },
+      special: { name: 'Glacier Rise', style: 'strike', status: 'freeze', power: 1.3, note: 'Glaciers erupt under the rival and freeze it.' },
+      dash: { kind: 'trail', name: 'Rime Trail', note: 'Leaves a trail of frost on the rival if it passes close.', dist: 1.5, cd: 0.9 },
+      guard: { kind: 'fortress', name: 'Ice Bastion', note: 'A heavy wall of ice. He cannot move, but almost nothing gets through.', time: 1.5, cd: 5.8 },
+      mega: { kind: 'hailstorm', name: 'Absolute Winter', note: 'A storm of sharp ice over a big area: frozen and 30% HP.', power: 1.2, size: 1.35 } },
+    names: ['Glacier Wall', 'Twin Frost Spear', 'Permafrost'] },
+  Rosalis: { type: 'PSYCHIC', cls: 'mystic', title: 'Rose Oracle', female: true, main: '#ff6ad0',
+    sig: { basic: { name: 'Heart Pulse', look: 'ki', status: 'confuse', knock: 2, power: 1.2, note: 'A pink pulse that leaves the rival confused.' },
+      special: { name: 'Rose Charm', style: 'projectile', look: 'ring', homing: true, status: 'confuse', power: 1.25, note: 'A ring of rose light that curves after the rival and confuses it.' },
+      dash: { kind: 'blink', name: 'Petal Step', note: 'Vanishes in petals and reappears a good way off.', dist: 1.75, cd: 0.75 },
+      guard: { kind: 'reflect', name: 'Rose Mirror', note: 'A mirror of petals sends thrown attacks back.', time: 1.2, cd: 5.4 },
+      mega: { kind: 'lance', name: 'Rose Lance', note: 'A giant beam of rose light pierces the whole arena.', power: 1.5, size: 1.3 } },
+    names: ['Thorn Charm', 'Twin Heart Pulse', 'Garden of Visions'] },
+  Thalassa: { type: 'TIDE', cls: 'ranger', title: 'Tide Warden', female: true, main: '#1affd0',
+    sig: { basic: { name: 'Tide Lash', look: 'ice', status: 'soak', knock: 4, power: 1.2, note: 'A whip of seawater that sweeps the rival away.' },
+      special: { name: 'Tidal Surge', style: 'beam', status: 'soak', power: 1.3, note: 'A surge of teal water across the arena.' },
+      dash: { kind: 'burst', name: 'Riptide Sprint', note: 'Runs much faster on a riptide.', dist: 1.6, cd: 0.8 },
+      guard: { kind: 'shield', name: 'Wave Ward', note: 'A ward of water that can block a hit completely.', time: 1.3, cd: 5.5 },
+      mega: { kind: 'stormdrain', name: 'Maelstrom', note: 'A storm over a big area; 45% of the damage heals her.', power: 1.4, size: 1.3 } },
+    names: ['Whirlpool', 'Twin Tide Lash', 'Leviathan Surge'] },
+};
+const chosenTiers = (k, names) => { // the same buttons get stronger powers at levels 10, 25 and 50
+  const { basic: b, special: s, mega: m } = k.sig, up = (v, f) => +((v || 1) * f).toFixed(2);
+  return [{ lv: 10, special: { name: names[0], power: up(s.power, 1.12), note: s.note.replace(/\.$/, '') + ', stronger.' } },
+    { lv: 25, basic: { name: names[1], power: up(b.power, 1.25), shots: Math.max(2, (b.shots || 1)), note: b.note.replace(/\.$/, '') + ', twice.' }, special: { power: up(s.power, 1.28), reach: 1.15 } },
+    { lv: 50, special: { name: names[2], power: up(s.power, 1.5), big: 1.4, note: s.note.replace(/\.$/, '') + ', at full strength.' }, mega: { power: +(m.power + 0.12).toFixed(2), size: +(m.size + 0.1).toFixed(2) } }];
+};
+const CHK = name => {
+  const k0 = CHK_SIG[name], ix = Object.keys(CHK_SIG).indexOf(name), tw = (o, ...f) => { const r = { ...o }; for (const x of f) r[x] = +(r[x] + ix * 0.011).toFixed(3); return r; }; // every Chosen One has its own dash and guard numbers
+  const k = { ...k0, sig: { ...k0.sig, dash: tw(k0.sig.dash, 'dist', 'cd'), guard: tw(k0.sig.guard, 'time', 'cd') } };
+  const b = BE(name, k.type, k.cls, k.sig.basic.name, k.sig.special.name, k.sig.basic.look === 'crescent' || k.sig.basic.look === 'ki' ? 'projectile' : 'projectile', k.sig.special.style === 'levitate' ? 'projectile' : 'projectile', k.main, k.title, true);
+  return { ...b, master: true, battleForms: false, female: k.female, legendary: true, legendFor: 'gift', unique: undefined, bender: true, elite: true,
+    forms: [`${name} Acolyte`, `${name} Disciple`, name, `${name} Knight`, `${name} Lord`, `${name}, the Chosen`], tiers: chosenTiers(k, k.names), sig: k.sig,
+    lore: { pronounce: name, ancientTitle: `${name}, ${k.title}`, meaning: `A Chosen One of the saber order: ${k.title}.` } };
+};
+
 // Aurelia and Amyah: elite women benders gifted to Ashley's wallet (appended last so no species id moves).
 export const GIFT_ELITES = [
-  { ...SB('Aurelia', 'fire', 'seraph', '#e8a020', true, { gift: true, top: true }), elite: true, sig: { basic: { name: 'Golden Gust', look: 'fire', status: 'burn', knock: 4, note: 'A gust of golden fire that burns.' }, special: { name: 'Sun Flares', shots: 3, look: 'fire', status: 'burn', note: 'Fans out 3 or 4 sun flares that burn.' }, mega: M('meteors', 'Aurelia Phoenix Storm', 'Golden phoenix fire rains around the rival.', 1.42, 1.25) } },
-  { ...SB('Amyah', 'water', 'mystic', '#7a3ad8', true, { gift: true, top: true }), elite: true, sig: { basic: { name: 'Moon Mist', look: 'ice', knock: 3, note: 'A cold mist bolt.' }, special: { name: 'Ice Balls', shots: 2, look: 'ice', status: 'freeze', note: 'Shoots 2 or 3 ice balls that freeze.' }, mega: M('hailstorm', 'Amyah Moonlit Hailstorm', 'A moonlit ice storm over a big area: frozen and 30% HP.', 1.05, 1.3) } },
+  { ...CHK('Aurelia'), name: 'Aurelia' },
+  { ...CHK('Amyah'), name: 'Amyah' },
 ];
 
 // Aura Warriors: original fighters from the creator's own drawings. Stronger than benders (stats +75%). In battle they can
@@ -530,3 +649,6 @@ export const ELEMENT_MASTERS = [
     { lv: 50, special: { name: 'Emerald Overdrive', style: 'beam', power: 1.4, note: 'His hair blazes: a huge green energy beam across the arena.' } } ]),
   ].map(m => ({ ...m, starter: undefined })),
 ];
+
+// The new Chosen Ones (appended last so no species id moves).
+export const CHOSEN_ONES = ['AKENA', 'Azaelion Void', 'Azmara', 'Kaelion', 'Malakar', 'Nymara', 'Solarius', 'Zayron', 'Pyrelion', 'Glacion', 'Rosalis', 'Thalassa'].map(CHK);

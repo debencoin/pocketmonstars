@@ -1,5 +1,5 @@
 import { kitFor, GUARD_KINDS } from './abilities.mjs';
-import { FRONTIER, MYTHIC, ANUNNAKI, WATCHERS, ASCENDANTS, ROYALS, HEROES, BENDERS, LEGEND_HEROES, SKY_BENDERS, FINAL_BENDERS, STARTER_BENDERS, GIFT_FINALS, GIFT_ELITES, AURA_WARRIORS, WATCHER_GODS, ELEMENT_MASTERS, TIERS } from './frontier.mjs';
+import { FRONTIER, MYTHIC, ANUNNAKI, WATCHERS, ASCENDANTS, ROYALS, HEROES, BENDERS, LEGEND_HEROES, SKY_BENDERS, FINAL_BENDERS, STARTER_BENDERS, GIFT_FINALS, GIFT_ELITES, AURA_WARRIORS, WATCHER_GODS, ELEMENT_MASTERS, CHOSEN_ONES, TIERS } from './frontier.mjs';
 // PocketMonstars species, classes, evolution stages, EXP and DNA traits.
 // Pure ES module: runs in the browser (rendering) and in Node (authoritative server).
 // The server derives DNA; this file only turns a DNA hex string into traits and stats.
@@ -135,6 +135,7 @@ export const COLLECTIONS = {
   ascendants: { name: 'Ascendants', note: 'Twenty legendary portraits held by the founder wallet. Never found in the wild.' },
   masters: { name: 'Element Masters', note: 'The benders of earth, air, water and fire. A new player chooses one. Their powers are released with martial-arts moves, and stronger powers take over the same buttons as they level up.' },
   watchergods: { name: 'Watcher Gods', note: 'Ten Egyptian and Anunnaki machine-gods from the creator\'s pictures. As strong as the Aura Warriors. They lift rivals into the air, use ancient technology, and each is the ancestor of a line of other Monstars.' },
+  chosen: { name: 'Chosen Ones', note: 'Saber-bearers from the creator\'s Chosen Ones pack, drawn in 3D. Each has its own energy saber and its own powers, and they hit as hard as Element Masters. Gifted to chosen players only.' },
   watchers: { name: 'Watchers', note: 'Twenty many-eyed, many-winged sentinels of the sky, from the Book of Enoch.' },
 };
 export const SPECIES = [
@@ -150,8 +151,8 @@ export const SPECIES = [
   { id: 9, name: 'Seraphon', type: 'ASTRAL', art: 'seraphon', cls: Seraph, move: 'Holy lance', special: 'Heaven\'s judgment', basicStyle: 'bolt', specialStyle: 'strike', motion: 'hover', collection: 'legendary', legendary: true, color: '#f4f0ff' },
   { id: 10, name: 'Psyvolt', type: 'PSYCHIC', art: 'psyvolt', cls: Psion, move: 'Psy orb', special: 'Levitation storm', basicStyle: 'projectile', specialStyle: 'levitate', motion: 'hover', collection: 'legendary', legendary: true, color: '#c9a6ff' },
 ];
-for (const [list, coll] of [[FRONTIER, 'frontier'], [MYTHIC, 'mythic'], [ANUNNAKI, 'anunnaki'], [WATCHERS, 'watchers'], [ASCENDANTS, 'ascendants'], [ROYALS, 'royals'], [HEROES, 'heroes'], [BENDERS, 'benders'], [LEGEND_HEROES, 'legendheroes'], [SKY_BENDERS, 'skybenders'], [FINAL_BENDERS, 'skybenders'], [STARTER_BENDERS, 'starters'], [GIFT_FINALS, 'skybenders'], [GIFT_ELITES, 'skybenders'], [AURA_WARRIORS, 'aurawarriors'], [WATCHER_GODS, 'watchergods'], [ELEMENT_MASTERS, 'masters']]) for (const f of list) {
-  SPECIES.push({ id: SPECIES.length, name: f.name, type: f.type, art: f.name.toLowerCase(), cls: CLASS_BY_ID[f.cls], move: f.move, special: f.special,
+for (const [list, coll] of [[FRONTIER, 'frontier'], [MYTHIC, 'mythic'], [ANUNNAKI, 'anunnaki'], [WATCHERS, 'watchers'], [ASCENDANTS, 'ascendants'], [ROYALS, 'royals'], [HEROES, 'heroes'], [BENDERS, 'benders'], [LEGEND_HEROES, 'legendheroes'], [SKY_BENDERS, 'skybenders'], [FINAL_BENDERS, 'skybenders'], [STARTER_BENDERS, 'starters'], [GIFT_FINALS, 'skybenders'], [GIFT_ELITES, 'skybenders'], [AURA_WARRIORS, 'aurawarriors'], [WATCHER_GODS, 'watchergods'], [ELEMENT_MASTERS, 'masters'], [CHOSEN_ONES, 'chosen']]) for (const f of list) {
+  SPECIES.push({ id: SPECIES.length, name: f.name, type: f.type, art: f.name.toLowerCase().replace(/\s+/g, ''), cls: CLASS_BY_ID[f.cls], move: f.move, special: f.special,
     basicStyle: f.basicStyle, specialStyle: f.specialStyle, motion: f.motion, collection: coll, tier: f.tier, mythic: ['Mythic', 'Divine'].includes(f.tier) || undefined, legendary: f.legendary || undefined, legendFor: f.legendFor, portrait: f.look.plan === 'portrait' || undefined, walker: f.look.plan === 'walker' || undefined, forms: f.forms || (f.look.plan === 'walker' ? walkerForms(f.name) : undefined), hero: f.hero, drop: f.drop, bender: f.bender, elite: f.elite, giftHero: f.giftHero, sky: f.sky, el2: f.el2, female: f.female, unique: f.unique, starter: f.starter, aura: f.aura, god: f.god, master: f.master, battleForms: f.battleForms, tiers: f.tiers, speedBoost: f.speedBoost, sig: f.sig, lore: f.lore, color: f.look.main });
 }
 // Every earlier bender is retired: the Element Masters replace them. Retired species keep their id (old records still

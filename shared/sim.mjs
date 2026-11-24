@@ -173,7 +173,7 @@ function powerUp(f, foe, damage, events) {
 function makeFighter(monstar, side, teamMax = 0) {
   const s = monstar.stats, sp = monstar.species;
   return {
-    sg: stageFor(monstar.level).id, shield: monstar.traits?.shield ?? 70, side, teamMax: Math.round((teamMax || s.hp) * BATTLE_HP), mon: monstar, speciesId: sp.id, type: monstar.type, mods: monstar.cls.mods, stats: s,
+    sg: stageFor(monstar.level).id, shield: monstar.traits?.shield ?? 70, side, teamMax: Math.round((teamMax || s.hp) * BATTLE_HP), mon: monstar, speciesId: sp.id, charger: CHARGERS.has(sp.name), chg: 0, type: monstar.type, mods: monstar.cls.mods, stats: s,
     styles: { basic: sp.basicStyle || 'projectile', special: (monstar.kit || sp.kit)?.special?.style || monstar.specialStyle || sp.specialStyle || 'beam' }, kit: monstar.kit || sp.kit, burstT: 0, guardKind: null,
     motion: MOTION[sp.motion] ? sp.motion : 'pounce',
     level: monstar.level, exp: monstar.exp, expGained: 0,
@@ -427,7 +427,9 @@ function land(m, att, vic, kind, style, events, dirx, diry, knock = 90, power, f
   return true;
 }
 
-function cast(m, f, kind) {
+// Elemental benders hold the shot button to charge: let go and a bigger blast leaves with up to double the damage. A quick tap fires the normal shot.
+const CHARGERS = new Set(['Aquari', 'Rokko', 'Blazen', 'Gusti']), CHARGE_MAX = 1.2, CHARGE_TAP = 0.25; // seconds of real time
+function cast(m, f, kind, lvl = 0) {
   const style = f.styles[kind], S = STYLES[style];
   f.energy -= S.cost; f.cd[kind] = S.cd * (kind === 'special' ? f.mods.specialCd : 1) * (f.kit?.[kind]?.cd ?? 1); f.actions++;
   f.castT = 0; f.castKind = kind;
@@ -439,8 +441,9 @@ function cast(m, f, kind) {
       const look = f.kit?.[kind]?.look, spread = look === 'boulder' ? 0.3 : 0.22, vary = look === 'boulder' ? 0.75 + Math.random() * 0.5 : 1; // slabs come out differently
       const a = Math.atan2(f.fy, f.fx) + (shots > 1 ? (k - (shots - 1) / 2) * spread + (look === 'boulder' ? (Math.random() - 0.5) * 0.12 : 0) : 0), dx = Math.cos(a) * vary, dy = Math.sin(a) * vary;
       m.projectiles.push({ id: k ? m.nextId++ : id, owner: f.side, by: f, kind, style, type: f.type, sid: f.speciesId, x: f.x + dx * 36, y: f.y + dy * 36,
-        vx: dx * sp, vy: dy * sp, r: S.r * (f.kit?.[kind]?.big || 1), life: S.life * (f.kit?.[kind]?.seek ? 3 : 1), hitDone: false, missDone: false, homing: !!f.kit?.[kind]?.homing, leech: f.kit?.[kind]?.leech, pw: shots > 1 ? S.power * (kind === 'special' ? 0.55 : 0.62) * (kind === 'special' ? f.kit?.special.power ?? 1 : 1) * 1.6 : undefined, kb: kind === 'basic' ? f.kit?.basic.knock || 1 : look === 'boulder' ? 2 : f.kit?.special.knock || 1, look, onHit: f.kit?.[kind]?.status, zap: !!f.kit?.[kind]?.zap, turn: f.kit?.[kind]?.seek ? 9 : f.kit?.[kind]?.homing ? 3.4 : undefined });
+        vx: dx * sp, vy: dy * sp, r: S.r * (f.kit?.[kind]?.big || 1) * (1 + lvl * 0.9), chg: lvl > 0 ? Math.round(lvl * 100) / 100 : 0, life: S.life * (f.kit?.[kind]?.seek ? 3 : 1), hitDone: false, missDone: false, homing: !!f.kit?.[kind]?.homing, leech: f.kit?.[kind]?.leech, pw: shots > 1 ? S.power * (kind === 'special' ? 0.55 : 0.62) * (kind === 'special' ? f.kit?.special.power ?? 1 : 1) * 1.6 : undefined, kb: kind === 'basic' ? f.kit?.basic.knock || 1 : look === 'boulder' ? 2 : f.kit?.special.knock || 1, look, onHit: f.kit?.[kind]?.status, zap: !!f.kit?.[kind]?.zap, turn: f.kit?.[kind]?.seek ? 9 : f.kit?.[kind]?.homing ? 3.4 : undefined });
     }
+    if (lvl > 0) for (const q of m.projectiles.slice(-shots)) q.pw = (q.pw ?? S.power) * (1 + lvl); // a charged shot hits up to twice as hard
     return;
   }
   const e = { id, owner: f.side, by: f, kind, style, type: f.type, sid: f.speciesId, x: f.x, y: f.y, dx: f.fx, dy: f.fy,
@@ -625,12 +628,18 @@ export function step(m, realDt = TICK) {
     f.cd.counter = Math.max(0, (f.cd.counter || 0) - dt);
     if (inp.mega && !noAct && f.rootT === 0 && f.ult >= 100) { f.ult = 0; megaShot(m, f, foe, events); }
     if (inp.asc && f.aura && !noAct && !(f.ascT > 0) && !(f.cd.asc > 0)) ascend(m, f, events);
+    let released = 0; // elemental benders: hold the shot button to charge, let go to fire
+    if (f.charger) {
+      if (inp.atk && !noAct && f.rootT === 0 && f.cd.basic === 0 && f.energy >= STYLES[f.styles.basic].cost) f.chg = Math.min(CHARGE_MAX, f.chg + realDt); // charge runs in real time, not game speed
+      else if (!inp.atk && f.chg > 0) { released = f.chg; f.chg = 0; }
+      else if (!inp.atk || noAct || f.rootT > 0) f.chg = 0;
+    }
     if (f.rootT === 0 && !noAct) for (const kind of ['special', 'basic']) {
-      const want = kind === 'basic' ? inp.atk : inp.sp;
+      const want = kind === 'basic' ? (f.charger ? released > 0 : inp.atk) : inp.sp;
       if (want && f.cd[kind] === 0 && f.energy >= STYLES[f.styles[kind]].cost) {
         if (f.status && SS.fail && Math.random() < SS.fail) { f.cd[kind] = 0.5; events.push({ type: 'status', side: f.side, k: f.status.k, label: "CAN'T MOVE!" }); break; }
         f.ultOn = kind === 'special' && f.ult >= 100; if (f.ultOn) { f.ult = 0; events.push({ type: 'ult', side: f.side }); }
-        cast(m, f, kind); break;
+        cast(m, f, kind, kind === 'basic' && released > CHARGE_TAP ? Math.min(1, released / CHARGE_MAX) : 0); break;
       }
     }
   }
@@ -702,12 +711,12 @@ export function snapshot(m) {
       mv: f.moving, ds: f.dashT > 0, ct: r(Math.min(f.castT, 9)), ck: f.castKind, hu: r(f.hurtT),
       lv: f.level, sg: f.bfOn ? f.bf : stageFor(f.level).id, tr: f.trT > 0 ? r(f.trT) : 0, xi: p.into, xn: p.need, xg: f.expGained, fl: MOTION[f.motion].float || f.levT > 0, lt: r(f.levT), bk: r(f.blinkT), mo: f.motion,
       bs: f.styles.basic, ss: f.styles.special, sh: f.shield ?? 0, gk: f.guardT > 0 ? f.guardKind : null, bt: f.burstT > 0,
-      st: f.status?.k || null, stt: f.status ? r(f.status.t / f.status.max) : 0, rc: f.recT > 0, ul: Math.round(f.ult), uo: f.ultOn && f.castT < 1.2 }; }),
+      st: f.status?.k || null, stt: f.status ? r(f.status.t / f.status.max) : 0, rc: f.recT > 0, ul: Math.round(f.ult), uo: f.ultOn && f.castT < 1.2, cg: f.chg > CHARGE_TAP * 0.5 ? r(f.chg / CHARGE_MAX) : 0 }; }),
     x: m.squad ? m.roster.flat().filter(f => f.hp > 0 && m.fighters[f.side] !== f).map(f => ({ sd: f.side, sl: f.slot, s: f.speciesId, as: f.ascT > 0 ? f.asc : 0, x: r(f.x), y: r(f.y), fx: r(f.fx), fy: r(f.fy), hp: r(f.hp), max: f.maxHp,
       mv: f.moving, ds: f.dashT > 0, ct: r(Math.min(f.castT, 9)), ck: f.castKind, hu: r(f.hurtT), lv: f.level, sg: f.bfOn ? f.bf : stageFor(f.level).id, tr: f.trT > 0 ? r(f.trT) : 0, fl: MOTION[f.motion].float || f.levT > 0, lt: r(f.levT), bk: r(f.blinkT), mo: f.motion,
       bs: f.styles.basic, ss: f.styles.special, i: f.iframes > 0, g: f.guardT > 0, gk: f.guardT > 0 ? f.guardKind : null, st: f.status?.k || null, stt: f.status ? r(f.status.t / f.status.max) : 0, rc: f.recT > 0, ul: Math.round(f.ult), en: Math.round(f.energy) })) : null,
     sq: m.squad ? 1 : 0, lim: m.limit, pk: m.pickups.map(q => ({ id: q.id, x: r(q.x), y: r(q.y), k: q.k, l: r(q.life) })), gs: GAME_SPEED * (m.pace || 1),
-    p: m.projectiles.map(p => ({ id: p.id, o: p.owner, k: p.kind, st: p.style, ty: p.type, sid: p.sid, x: r(p.x), y: r(p.y), vx: Math.round(p.vx), vy: Math.round(p.vy), r: p.r, lt: p.lt ? 1 : 0, w: p.wait > 0 ? 1 : 0, lk: p.look || null })),
+    p: m.projectiles.map(p => ({ id: p.id, o: p.owner, k: p.kind, st: p.style, ty: p.type, sid: p.sid, x: r(p.x), y: r(p.y), vx: Math.round(p.vx), vy: Math.round(p.vy), r: p.r, lt: p.lt ? 1 : 0, w: p.wait > 0 ? 1 : 0, lk: p.look || null, cg: p.chg || 0 })),
     e: m.effects.map(e => ({ id: e.id, o: e.owner, k: e.kind, st: e.style, ty: e.type, sid: e.sid, x: r(e.x), y: r(e.y), dx: r(e.dx * 100) / 100, dy: r(e.dy * 100) / 100,
       gx: r(e.gx), gy: r(e.gy), t: Math.round(e.t * 100) / 100, d: e.dur, ra: e.rad || 0, wd: e.wid || 0, mg: e.mega ? 1 : 0, ls: e.ls ? 1 : 0, tw: e.tw ? 1 : 0, hs: e.hs ? 1 : 0, bs: e.bs ? 1 : 0, fg: e.fg ? 1 : 0, iw: e.iw ? 1 : 0, hb: e.hb ? 1 : 0 })) };
 }
