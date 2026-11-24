@@ -9,3 +9,4 @@ Validation: changed JavaScript files pass syntax checks; game-mechanics mock tes
 - Three.js 0.170 is bundled into dist/covo-rig.js by `npm run build` (src/covo-rig.js), not loaded from esm.sh.
 - The 3D COVO is drawn at the same body size as every other character (see the draw call in dist/pixel-arena.js).
 - The pick screen and market card use a front render of the model (dist/art/hd/covo*.png, dist/art/nft/covo.png).
+- Merged the other session's standalone Covo 3D lab (dist/app/covo-3d.html, dist/covo-arena-3d.js); the arena uses the GLB rig first and that procedural model only as a fallback (its CDN loader is not included in index.html).
