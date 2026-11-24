@@ -37,7 +37,7 @@ export function createServer({ config = CONFIG, chain = new SolanaChain(config.r
   const matches = new MatchManager({ db, registry, chain, config, players });
   const nft = new NftService({ config, keys, chain });
   const roots = { '/shared/': path.resolve('shared'), '/': path.resolve('dist') };
-  const types = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.mjs': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.png': 'image/png', '.json': 'application/json', '.svg': 'image/svg+xml', '.webp': 'image/webp', '.webmanifest': 'application/manifest+json' };
+  const types = { '.glb': 'model/gltf-binary', '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.mjs': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.png': 'image/png', '.json': 'application/json', '.svg': 'image/svg+xml', '.webp': 'image/webp', '.webmanifest': 'application/manifest+json' };
 
   const send = (res, code, body) => { const s = JSON.stringify(body, (_, v) => (typeof v === 'bigint' ? v.toString() : v)); res.writeHead(code, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' }); res.end(s); };
   const body = req => new Promise((ok, fail) => { let s = ''; req.on('data', c => { s += c; if (s.length > 20000) { fail(Error('Body too large')); req.destroy(); } }); req.on('end', () => { try { ok(s ? JSON.parse(s) : {}); } catch { fail(Error('Invalid JSON')); } }); });

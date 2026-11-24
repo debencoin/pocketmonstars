@@ -438,6 +438,7 @@ function createRenderer(canvas, arena) {
     const AN = walker ? animFor(f.s) : null;
     let spr = stageSprite(f.s, opt.hue || 0, stage, pal, false, frame), wh = stageSprite(f.s, opt.hue || 0, stage, pal, true, frame);
     if (AN) { const ai = animPick(AN, f, i, opt, now, useDir ? dI : -1); spr = { anim: AN, i: ai }; wh = { anim: AN, i: ai, white: true }; }
+    if (!spr && NAMES[f.s] === 'covo' && window.PMCovoRig) { spr = document.createElement('canvas'); spr.width = 96; spr.height = 112; wh = spr; }
     if (!spr) return;
     grow[i] = Math.max(0, grow[i] - opt.dt * 0.8);
     const sc = (AN ? 1 : STAGE_SCALE[scaleStage]) * (1 + Math.sin(grow[i] * 12) * 0.12 * grow[i]); // a frame-animated character keeps one size
@@ -515,19 +516,19 @@ function createRenderer(canvas, arena) {
     const sq = seqF[i] || (seqF[i] = { cur: frame, prev: frame, t: 1 });
     if (frame !== sq.cur) { const big = frame >= 6 || sq.cur >= 6; sq.prev = sq.cur; sq.cur = frame; sq.t = big && walker && !AN ? 0 : 1; }
     sq.t = Math.min(1, sq.t + opt.dt / 0.11);
-    if (sq.t < 1 && !blinkW) { const old = stageSprite(f.s, opt.hue || 0, stage, pal, false, sq.prev);
+    if (sq.t < 1 && !blinkW && !(NAMES[f.s] === 'covo' && window.PMCovoRig)) { const old = stageSprite(f.s, opt.hue || 0, stage, pal, false, sq.prev);
       if (old) { ctx.globalAlpha = alpha * (1 - sq.t); blit(old, X + ox, Y + oy, dw, dh, flip, sx, sy, rot); ctx.globalAlpha = alpha * (0.35 + 0.65 * sq.t); } }
     if (strikeK > 0) { const d = f.fx < 0 ? -1 : 1; // after-images trailing the lunge
       for (let k = 3; k >= 1; k--) { ctx.globalAlpha = alpha * strikeK * 0.16 * (4 - k); blit(spr, X + ox - d * k * 9 * U, Y + oy, dw, dh, flip, sx, sy, rot); }
       ctx.globalAlpha = alpha; }
-    if (cast >= 0.04 && SP.col) { const d = f.fx < 0 ? -1 : 1, hx = X + ox + d * dw * 0.34, hy = Y + oy - dh * 0.5, fade = cast < 0.24 ? 1 : Math.max(0, 1 - (cast - 0.24) / (hold - 0.24));
+    if (cast >= 0.04 && SP?.col && !(NAMES[f.s] === 'covo' && window.PMCovoRig)) { const d = f.fx < 0 ? -1 : 1, hx = X + ox + d * dw * 0.34, hy = Y + oy - dh * 0.5, fade = cast < 0.24 ? 1 : Math.max(0, 1 - (cast - 0.24) / (hold - 0.24));
       ctx.save(); ctx.globalCompositeOperation = 'lighter'; glowAt(hx, hy, dw * (0.28 + 0.12 * Math.sin(now * 30)) * (0.6 + 0.4 * fade), SP.col, 0.75 * fade); ctx.restore();
       if (Math.random() < 0.8 * fade) part((hx + (Math.random() - 0.5) * 10 * U) / Z, (hy + (Math.random() - 0.5) * 14 * U) / Z, d * (30 + Math.random() * 40), (Math.random() - 0.5) * 20, 0.35, SP.col, 1); }
     if (AN && (f.sg > 0 || f.tr > 0)) { ctx.save(); ctx.globalCompositeOperation = 'lighter'; // the higher his form, the stronger his violet aura
       const k = Math.min(1, (f.sg || 0) / 5 + (f.tr > 0 ? 0.5 : 0)); glowAt(X + ox, Y + oy - dh * 0.45, dw * (0.9 + 0.5 * k), '#b45aff', (0.25 + 0.45 * k) * (0.85 + 0.15 * Math.sin(now * 14)));
       if (Math.random() < 0.3 + 0.5 * k) part((X + ox + (Math.random() - 0.5) * dw) / Z, (Y + oy - Math.random() * dh * 0.9) / Z, 0, -30 - Math.random() * 30, 0.5, Math.random() < 0.5 ? '#d8a8ff' : '#ffd84a', 1);
       ctx.restore(); }
-    blit(blinkW || grow[i] > 0.9 ? wh : spr, X + ox, Y + oy, dw, dh, flip, sx, sy, rot);
+    if (!(NAMES[f.s] === 'covo' && window.PMCovoRig?.draw(ctx, X + ox, Y + oy + dh * 0.06, dh * 0.96, f, SP?.col || pal[1]))) { blit(blinkW || grow[i] > 0.9 ? wh : spr, X + ox, Y + oy, dw, dh, flip, sx, sy, rot); }
     if (strikeK > 0.4 && wh) { ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = (strikeK - 0.4) * 0.9; blit(wh, X + ox, Y + oy, dw, dh, flip, sx, sy, rot); ctx.restore(); } // flash as the blow lands
     ctx.filter = 'none'; ctx.globalAlpha = 1;
     statusFx(f, X + ox, Y + oy, dw, dh, now);
@@ -718,6 +719,7 @@ function createRenderer(canvas, arena) {
   function projectile(p, x, y, now) {
     const pal = palFor(p.ty, p.sid), a = Math.atan2(p.vy, p.vx), fl = Math.floor(now * 20) % 2, v = vidOf(p);
     y -= 8;
+    if (NAMES[p.sid] === 'covo' && window.PMCovoRig?.projectile(ctx, x, y, a, p, now)) return;
     const fim = fxImg(p.sid, p.lk);
     if (fim) { // the effect drawn on the character's own sprite sheet flies out of the hands: a fireball, a water wave, a wind spiral, rocks, a lightning bolt
       const t = now / 1000, w = (p.lk === 'boulder' ? 46 : 40) * (1 + Math.sin(t * 16 + p.id) * 0.05), h = w * fim.naturalHeight / fim.naturalWidth, ca = Math.cos(a);
