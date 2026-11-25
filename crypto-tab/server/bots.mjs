@@ -16,8 +16,11 @@ const candleCache = new Map();
 
 const now = () => Date.now();
 const persist = () => save('bots', bots);
-export const list = () => bots.map(view);
-export const get = (id) => { const b = bots.find((x) => x.id === id); if (!b) throw X.httpError(404, 'Bot not found'); return b; };
+const ownerOf = (b) => b.owner || 'owner';
+export const list = (uid = 'owner') => bots.filter((b) => ownerOf(b) === uid).map(view);
+export const all = () => bots;
+// uid given → the bot must belong to that user
+export const get = (id, uid) => { const b = bots.find((x) => x.id === id && (uid == null || ownerOf(x) === uid)); if (!b) throw X.httpError(404, 'Bot not found'); return b; };
 
 export function view(b) {
   const price = b.state.lastPrice;
@@ -85,17 +88,17 @@ export function setLines(id, body) {
   c.events.unshift({ t: now(), msg: `You moved: ${said.join(', ')}` });
   b.updatedAt = now();
   persist();
-  events.emit('bot', view(b));
+  events.emit('bot', { ...view(b), uid: ownerOf(b) });
   return view(b);
 }
 
-export async function create({ name, type, exchange, symbol, mode = 'paper', params, start = true }) {
+export async function create({ name, type, exchange, symbol, mode = 'paper', params, start = true }, uid = 'owner') {
   if (!STRATEGIES[type]) throw X.httpError(400, `Unknown bot type ${type}`);
-  if (mode === 'live' && start) await X.privateClient(exchange); // fails early if no key
+  if (mode === 'live' && start) await X.privateClient(exchange, uid); // fails early if no key
   const t = await X.ticker(exchange, symbol);
   const p = normalizeParams(type, params);
   const b = {
-    id: crypto.randomUUID().slice(0, 8), name: name || `${STRATEGIES[type].label} ${symbol}`, type, exchange, symbol, mode,
+    id: crypto.randomUUID().slice(0, 8), owner: uid, name: name || `${STRATEGIES[type].label} ${symbol}`, type, exchange, symbol, mode,
     status: start ? 'running' : 'draft', params: p, createdAt: now(), updatedAt: now(), error: null,
   };
   b.state = newState(b);
@@ -103,7 +106,7 @@ export async function create({ name, type, exchange, symbol, mode = 'paper', par
   b.state.lastPrice = t.p;
   bots.push(b);
   persist();
-  events.emit('bot', view(b));
+  events.emit('bot', { ...view(b), uid: ownerOf(b) });
   return view(b);
 }
 
@@ -111,21 +114,22 @@ export async function create({ name, type, exchange, symbol, mode = 'paper', par
 export async function startDraft(id) {
   const b = get(id);
   if (b.status !== 'draft') throw X.httpError(400, 'This bot has already started');
-  if (b.mode === 'live') await X.privateClient(b.exchange);
+  if (b.mode === 'live') await X.privateClient(b.exchange, ownerOf(b));
   const t = await X.ticker(b.exchange, b.symbol);
   b.state = newState(b);
   STRATEGIES[b.type].init(b, t.p, b.state);
   b.state.lastPrice = t.p;
   b.status = 'running'; b.createdAt = now(); b.updatedAt = now(); b.error = null;
   persist();
-  events.emit('bot', view(b));
+  events.emit('bot', { ...view(b), uid: ownerOf(b) });
   return view(b);
 }
 
 // Every fill of every bot on this market (for buy/sell arrows on the chart).
-export function tradesFor({ exchange, symbol, bot }) {
+export function tradesFor({ exchange, symbol, bot }, uid = 'owner') {
   const out = [];
   for (const b of bots) {
+    if (ownerOf(b) !== uid) continue;
     if (bot ? b.id !== bot : b.exchange !== exchange || b.symbol !== symbol) continue;
     for (const t of b.state.trades) out.push({ time: t.time, side: t.side, price: t.price, amount: t.amount, pnl: t.pnl ?? null, tag: t.tag, source: `bot: ${b.name}`, mode: b.mode });
   }
@@ -156,7 +160,7 @@ export async function update(id, { name, params, aiTuned, exchange, symbol, type
     b.state = newState(b);
     b.updatedAt = now();
     persist();
-    events.emit('bot', view(b));
+    events.emit('bot', { ...view(b), uid: ownerOf(b) });
     return view(b);
   }
   if (params) {
@@ -174,7 +178,7 @@ export async function update(id, { name, params, aiTuned, exchange, symbol, type
   if (aiTuned) b.aiTuned = { at: now(), note: aiTuned };
   b.updatedAt = now();
   persist();
-  events.emit('bot', view(b));
+  events.emit('bot', { ...view(b), uid: ownerOf(b) });
   return view(b);
 }
 
@@ -219,7 +223,7 @@ export async function stop(id, { sell = false } = {}) {
   }
   b.status = 'stopped'; b.stopReason = sell ? 'Stopped, coins sold' : 'Stopped, coins kept'; b.updatedAt = now();
   persist();
-  events.emit('bot', view(b));
+  events.emit('bot', { ...view(b), uid: ownerOf(b) });
   return view(b);
 }
 
@@ -231,9 +235,9 @@ export function remove(id) {
   return { ok: true };
 }
 
-export async function duplicate(id) {
-  const b = get(id);
-  return create({ name: `${b.name} copy`, type: b.type, exchange: b.exchange, symbol: b.symbol, mode: 'paper', params: b.params });
+export async function duplicate(id, uid = 'owner') {
+  const b = get(id, uid);
+  return create({ name: `${b.name} copy`, type: b.type, exchange: b.exchange, symbol: b.symbol, mode: 'paper', params: b.params }, uid);
 }
 
 // ---------- execution ----------
@@ -242,14 +246,14 @@ async function execFor(b) {
   if (b.mode !== 'live') return paper;
   // Live: marketable limit orders at the strategy's price, then book what actually filled.
   const fill = async (side, amount, price, tag, basis) => {
-    const o = await X.placeOrder(b.exchange, { symbol: b.symbol, side, type: 'limit', amount, price });
+    const o = await X.placeOrder(b.exchange, { symbol: b.symbol, side, type: 'limit', amount, price }, ownerOf(b));
     let order = o;
     for (let i = 0; i < 6 && order.status !== 'closed'; i++) {
       await new Promise((r) => setTimeout(r, 1000));
-      const f = await X.fetchOrder(b.exchange, o.id, b.symbol);
+      const f = await X.fetchOrder(b.exchange, o.id, b.symbol, ownerOf(b));
       order = { ...o, status: f.status, filled: f.filled, average: f.average };
     }
-    if (order.status !== 'closed') await X.cancelOrder(b.exchange, o.id, b.symbol).catch(() => {});
+    if (order.status !== 'closed') await X.cancelOrder(b.exchange, o.id, b.symbol, ownerOf(b)).catch(() => {});
     const filled = Number(order.filled || 0);
     if (filled <= 0) return null;
     const avgPx = Number(order.average || price);
@@ -294,17 +298,17 @@ async function tickBot(b) {
     const eq = equity(b.state, price);
     b.state.peakEquity = Math.max(b.state.peakEquity, eq);
     b.state.maxDrawdown = Math.max(b.state.maxDrawdown, (b.state.peakEquity - eq) / b.state.peakEquity);
-    if (r?.notify) events.emit('notify', { kind: 'bot', title: `${b.name}: ${r.notify.title}`, body: r.notify.body, tag: `bot-${b.id}-${Date.now()}` });
+    if (r?.notify) events.emit('notify', { uid: ownerOf(b), kind: 'bot', title: `${b.name}: ${r.notify.title}`, body: r.notify.body, tag: `bot-${b.id}-${Date.now()}` });
     if (r?.stop) {
       if (r.sellAll && b.state.base > 0) await exec.sell(b.state.base, price, r.stop);
       b.status = 'stopped'; b.stopReason = r.stop;
-      events.emit('notify', { kind: 'bot', title: `${b.name} stopped`, body: r.stop, tag: `bot-${b.id}` });
+      events.emit('notify', { uid: ownerOf(b), kind: 'bot', title: `${b.name} stopped`, body: r.stop, tag: `bot-${b.id}` });
     }
     if (b.state.tradeCount !== before) {
       for (const tr of b.state.trades.slice(0, b.state.tradeCount - before)) {
-        events.emit('trade', { bot: b.id, name: b.name, ...tr });
+        events.emit('trade', { uid: ownerOf(b), bot: b.id, name: b.name, ...tr });
         if (tr.side === 'sell' && tr.pnl > 0) {
-          events.emit('notify', { kind: 'profit', title: `+${tr.pnl.toFixed(2)} ${b.symbol.split('/')[1]} · ${b.name}`, body: `Sold ${fmt(tr.amount)} ${b.symbol} @ ${fmt(tr.price)} (${tr.tag})`, tag: `profit-${b.id}` });
+          events.emit('notify', { uid: ownerOf(b), kind: 'profit', title: `+${tr.pnl.toFixed(2)} ${b.symbol.split('/')[1]} · ${b.name}`, body: `Sold ${fmt(tr.amount)} ${b.symbol} @ ${fmt(tr.price)} (${tr.tag})`, tag: `profit-${b.id}` });
         }
       }
       persist();
@@ -314,7 +318,7 @@ async function tickBot(b) {
     b.error = String(e.message || e).slice(0, 200);
     if (b.mode === 'live' && /insufficient|balance|permission|auth/i.test(b.error)) {
       b.status = 'paused';
-      events.emit('notify', { kind: 'bot', title: `${b.name} paused`, body: b.error, tag: `bot-${b.id}` });
+      events.emit('notify', { uid: ownerOf(b), kind: 'bot', title: `${b.name} paused`, body: b.error, tag: `bot-${b.id}` });
     }
   } finally {
     busy.delete(b.id);

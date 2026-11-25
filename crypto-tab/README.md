@@ -62,6 +62,29 @@ Docker: `docker build -t crypto-tab crypto-tab && docker run -p 8787:8787 -v ct-
 
 A web app cannot loop sound in the background or override silent mode. For a true alarm-clock style ring on a locked phone (Android full-screen alarm, iOS Critical Alerts), the app needs a native wrapper such as Capacitor. That is the recommended next step.
 
+## Accounts & Crypto Tab Pro ($10/month)
+
+Anyone can create an account (email + password). The server owner still unlocks with the passcode (`CT_TOKEN`) and always has full access.
+
+| | Free | Pro |
+|---|---|---|
+| Charts, indicators, drawings, news, herd, bubbles, pump clock | ✓ | ✓ |
+| Manual trading (paper, or live with your own API keys) | ✓ | ✓ |
+| Spot Grid & DCA bots (paper) | ✓ | ✓ |
+| Every other bot (Pump Rider, Herd, News, Phoenix, Step Grid, signal bots) | | ✓ |
+| Live bot trading on your exchange | | ✓ |
+| AI bot tuning / auto-fill | | ✓ |
+
+Each user has their own bots, alerts, paper account and encrypted exchange keys; nobody sees anyone else's.
+
+**Payments**
+- **Card (Stripe):** set `STRIPE_SECRET_KEY` on the server. Checkout creates a $10/month subscription. Optional webhook: point Stripe at `/api/stripe/webhook` and set `STRIPE_WEBHOOK_SECRET`. Without the webhook, subscriptions are confirmed on return and re-checked every 6 hours.
+- **Crypto (ZEC, BTC, SOL, XRP):** set your receiving addresses as `CT_PAY_ZEC`, `CT_PAY_BTC`, `CT_PAY_SOL`, `CT_PAY_XRP`, or in the app under Settings → Owner dashboard. Each invoice has a unique amount (XRP uses a destination tag) and the server checks the blockchain every 45 s. Once it's paid, Pro is extended by 30 days per month bought (1, 3 or 12). Use a **transparent (t1…) Zcash address**; shielded payments can't be seen by the server.
+- **Free access:** list emails in `CT_COMP_EMAILS` (comma separated), or use Owner dashboard → Free access. It works even before the person signs up.
+- Price: `CT_PRICE_USD` (default 10).
+
+**Storage:** accounts and subscriptions live in `CT_DATA_DIR`. On a host without a persistent disk (e.g. Render's free plan), they are wiped on every redeploy.
+
 ## Exchange API keys
 
 Settings → Exchange API keys. Keys are encrypted with AES-256-GCM on your server and never sent back to the phone. Create keys with **trade permission only, no withdrawals**, and restrict them to your server's IP. OKX, KuCoin, Bitget, Crypto.com, BloFin and WOO also need the passphrase. A testnet toggle is available where the exchange offers one.

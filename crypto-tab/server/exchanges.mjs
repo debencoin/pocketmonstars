@@ -119,51 +119,55 @@ export function timeframes(id) {
   return Object.keys(ex.timeframes || { '1m': 1, '5m': 1, '15m': 1, '1h': 1, '4h': 1, '1d': 1 });
 }
 
-// ---------------- private (API key) side ----------------
+// ---------------- private (API key) side, per user ----------------
+// The owner's keys stay in 'keys' (as before); every other user has their own encrypted set.
 const priv = new Map();
+const userKeys = load('userkeys', {});
+const keysOf = (uid = 'owner') => (uid === 'owner' ? load('keys', {}) : (userKeys[uid] ||= {}));
+const saveKeys = (uid, k) => (uid === 'owner' ? save('keys', k) : (userKeys[uid] = k, save('userkeys', userKeys)));
 
-export function listKeys() {
-  const keys = load('keys', {});
-  return Object.entries(keys).map(([id, v]) => ({ exchange: id, label: v.label, added: v.added, sandbox: !!v.sandbox }));
+export function listKeys(uid = 'owner') {
+  return Object.entries(keysOf(uid)).map(([id, v]) => ({ exchange: id, label: v.label, added: v.added, sandbox: !!v.sandbox }));
 }
 
-export function saveKey(id, { apiKey, secret, password, label, sandbox }) {
+export function saveKey(id, { apiKey, secret, password, label, sandbox }, uid = 'owner') {
   if (!apiKey || !secret) throw httpError(400, 'API key and secret are required');
   publicClient(id);
-  const keys = load('keys', {});
+  const keys = keysOf(uid);
   keys[id] = { box: encrypt({ apiKey, secret, password }), label: label || id, added: Date.now(), sandbox: !!sandbox };
-  save('keys', keys);
-  priv.delete(id);
+  saveKeys(uid, keys);
+  priv.delete(`${uid}|${id}`);
 }
 
-export function deleteKey(id) {
-  const keys = load('keys', {});
+export function deleteKey(id, uid = 'owner') {
+  const keys = keysOf(uid);
   delete keys[id];
-  save('keys', keys);
-  priv.delete(id);
+  saveKeys(uid, keys);
+  priv.delete(`${uid}|${id}`);
 }
 
-export async function privateClient(id) {
-  if (priv.has(id)) return priv.get(id);
-  const rec = load('keys', {})[id];
+export async function privateClient(id, uid = 'owner') {
+  const k = `${uid}|${id}`;
+  if (priv.has(k)) return priv.get(k);
+  const rec = keysOf(uid)[id];
   if (!rec) throw httpError(400, `No API key saved for ${id}. Add one in Settings.`);
   const creds = decrypt(rec.box);
   const ex = new ccxt[id]({ ...creds, enableRateLimit: true, timeout: 20000, options: { defaultType: 'spot' } });
   if (rec.sandbox && ex.urls?.test) ex.setSandboxMode(true);
   await ex.loadMarkets();
-  priv.set(id, ex);
+  priv.set(k, ex);
   return ex;
 }
 
-export async function balance(id) {
-  const ex = await privateClient(id);
+export async function balance(id, uid = 'owner') {
+  const ex = await privateClient(id, uid);
   const b = await ex.fetchBalance();
   const rows = Object.entries(b.total || {}).filter(([, v]) => v > 0).map(([asset, total]) => ({ asset, total, free: b.free?.[asset] ?? 0, used: b.used?.[asset] ?? 0 }));
   return { exchange: id, balances: rows };
 }
 
-export async function placeOrder(id, { symbol, side, type = 'limit', amount, price, stopPrice, postOnly }) {
-  const ex = await privateClient(id);
+export async function placeOrder(id, { symbol, side, type = 'limit', amount, price, stopPrice, postOnly }, uid = 'owner') {
+  const ex = await privateClient(id, uid);
   const m = ex.market(symbol);
   amount = Number(ex.amountToPrecision(symbol, amount));
   if (price != null) price = Number(ex.priceToPrecision(symbol, price));
@@ -176,19 +180,24 @@ export async function placeOrder(id, { symbol, side, type = 'limit', amount, pri
   return { id: o.id, status: o.status, symbol, side, type, amount: o.amount ?? amount, price: o.price ?? price, filled: o.filled, average: o.average };
 }
 
-export async function openOrders(id, symbol) {
-  const ex = await privateClient(id);
+export async function openOrders(id, symbol, uid = 'owner') {
+  const ex = await privateClient(id, uid);
   const os = await ex.fetchOpenOrders(symbol || undefined);
   return os.map((o) => ({ id: o.id, symbol: o.symbol, side: o.side, type: o.type, price: o.price, amount: o.amount, filled: o.filled, status: o.status, time: o.timestamp }));
 }
 
-export async function cancelOrder(id, orderId, symbol) {
-  const ex = await privateClient(id);
+export async function cancelOrder(id, orderId, symbol, uid = 'owner') {
+  const ex = await privateClient(id, uid);
   await ex.cancelOrder(orderId, symbol);
   return { ok: true };
 }
 
-export async function fetchOrder(id, orderId, symbol) {
-  const ex = await privateClient(id);
+export async function fetchOrder(id, orderId, symbol, uid = 'owner') {
+  const ex = await privateClient(id, uid);
   return ex.fetchOrder(orderId, symbol);
+}
+
+export async function myTrades(id, symbol, uid = 'owner') {
+  const ex = await privateClient(id, uid);
+  return ex.fetchMyTrades(symbol, Date.now() - 30 * 864e5, 500);
 }

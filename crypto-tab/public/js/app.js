@@ -1,5 +1,6 @@
 // Crypto Tab app shell: routing, shared state, symbol picker, live events, notifications.
 import { api, qs, probe, events, onConn, conn, token } from './api.js';
+import { loginSheet, upgradeSheet, loadMe, handleReturn } from './account.js';
 import { $, $$, esc, store, sheet, toast, haptic, fmtPrice, fmtPct } from './ui.js';
 import { marketsView } from './markets.js';
 import { chartScreen } from './chartview.js';
@@ -81,17 +82,7 @@ const app = {
 };
 window.CT = app;
 
-function login() {
-  sheet('Connect to your server', (b, close) => {
-    b.innerHTML = `<p class="muted" style="margin-top:0;line-height:1.5">Enter the passcode shown when your Crypto Tab server starts (or the <code>CT_TOKEN</code> you set).</p>
-      <input class="input" id="lg-t" type="password" placeholder="Passcode" style="margin-bottom:12px"><button class="btn primary block" id="lg-go">Unlock</button>`;
-    b.querySelector('#lg-go').onclick = async () => {
-      const t = b.querySelector('#lg-t').value.trim();
-      try { await api('/api/login', { method: 'POST', body: { token: t }, quiet: true }); store.set('token', t); close(); toast('Unlocked', 'ok'); app.reconnect(); }
-      catch (e) { toast(e.message, 'err'); }
-    };
-  });
-}
+function login() { loginSheet(app); }
 
 // Zcash is the main coin: on first run after this update, open on ZEC and pin the five core coins.
 function zecFirstRun() {
@@ -120,18 +111,21 @@ async function boot() {
   $('.brand').onclick = () => app.go('markets');
   $('#btn-alerts').onclick = () => app.newAlert();
   $('#btn-settings').onclick = () => settingsSheet(app);
-  window.addEventListener('ct:login', () => { if (!$('#lg-t')) login(); });
+  window.addEventListener('ct:login', () => login());
+  window.addEventListener('ct:upgrade', (e) => upgradeSheet(app, e.detail));
 
   onConn((c) => { const d = $('#conn'); d.className = `conn ${c.state === 'ok' ? 'ok' : c.demo ? 'demo' : c.state === 'err' ? 'err' : ''}`; d.title = c.demo ? 'Demo data: connect a server in Settings' : c.state; });
   unlockAudio();
 
   const h = await probe();
   if (h && !token()) login();
+  else if (h) await loadMe();
   if (conn.demo) toast('Demo data. Connect your server in Settings for live markets.', '');
   else app.startEvents();
   startLocalChecker(app);
 
   const params = new URLSearchParams(location.search);
+  if (params.get('paid') || params.get('paycancel')) { await handleReturn(app, params); history.replaceState(null, '', '/?view=bots'); }
   if (params.get('ack')) { await api(`/api/alerts/${params.get('ack')}/ack`, { method: 'POST', body: {} }).catch(() => {}); history.replaceState(null, '', '/'); }
   app.go(params.get('view') || store.get('view', 'markets'));
   app.refreshAlertBadge();

@@ -35,6 +35,7 @@ export async function api(path, { method = 'GET', body, quiet } = {}) {
     const err = new Error(j.error || `Error ${res.status}`);
     err.status = res.status;
     if (res.status === 401 && !quiet) window.dispatchEvent(new CustomEvent('ct:login'));
+    if (res.status === 402) window.dispatchEvent(new CustomEvent('ct:upgrade', { detail: j.error }));
     throw err;
   }
   return j;

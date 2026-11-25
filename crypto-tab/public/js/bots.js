@@ -3,6 +3,7 @@
 import { api, qs, conn } from './api.js';
 import { ChartView } from './chart.js';
 import { STRATEGIES, defaultsFor, backtest, normalizeParams } from '/shared/strategies.mjs';
+import { lockedBot } from './account.js';
 import { optimize, suggestGrid } from '/shared/optimizer.mjs';
 import { runMeter, gridLinesForStep } from './meter.js';
 import { helpFor, STORY, ctxFor } from '/shared/fieldhelp.mjs';
@@ -356,7 +357,7 @@ export function botsScreen(el, app) {
           <div class="row between" style="margin-bottom:14px"><button class="ch-pair" id="nb-pair">${esc(app.S.symbol)} <small>${esc(app.S.ex)}</small> <span class="dim">▾</span></button>
             <div class="seg" id="nb-mode"><button data-m="paper" class="${mode === 'paper' ? 'active' : ''}">Paper</button><button data-m="live" class="${mode === 'live' ? 'active' : ''}">Live</button></div></div>
           <div class="label" style="margin-bottom:8px">2 · Bot</div>
-          <div class="strat-grid">${[['pumpgrid', STRATEGIES.pumpgrid], ...Object.entries(STRATEGIES).filter(([k]) => k !== 'pumpgrid')].map(([k, x]) => `<button class="strat ${k === type ? 'active' : ''}" data-type="${k}"><span class="ico">${ICONS[k]}</span><b>${esc(x.label)}</b><span>${esc(x.desc.split('.')[0])}.</span></button>`).join('')}</div>
+          <div class="strat-grid">${[['pumpgrid', STRATEGIES.pumpgrid], ...Object.entries(STRATEGIES).filter(([k]) => k !== 'pumpgrid')].map(([k, x]) => `<button class="strat ${k === type ? 'active' : ''}" data-type="${k}"><span class="ico">${ICONS[k]}</span><b>${esc(x.label)}${lockedBot(k) ? ' <span class="pro-tag">PRO</span>' : ''}</b><span>${esc(x.desc.split('.')[0])}.</span></button>`).join('')}</div>
           <hr class="sep">
           <div id="nb-profile"></div>
           <div id="nb-story">${storyHtml(type, app.S.symbol, params, app.last?.s === app.S.symbol ? app.last.p : null)}</div>
