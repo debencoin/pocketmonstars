@@ -179,6 +179,38 @@ export const HELP = {
     what: 'When the dump guard fires: off = keep the coins and sell them at a profit after the bounce; on = sell everything and buy back at the bottom.',
     example: (x) => `On: ${x.base} breaks down 5%, the bot sells the bag, waits, and rebuys lower, so you end up with more ${x.base} for the same money.`,
   },
+
+  // ---------- news ----------
+  newsGuard: {
+    what: 'Lets the news agent protect the bot: bearish news about the coin stops new buying until the bottom is confirmed; strong bullish news makes it hold its lots for 30 minutes so a news pump can run.',
+    example: (x) => `"${x.base} exchange hack" headline: the bot stops buying ${x.base} right away instead of buying the drop. "${x.base} listed on a big exchange": it keeps its coins instead of selling them too early.`,
+  },
+  minScore: {
+    what: 'How strong a news item must be to trade on it (0 to 1). The score mixes how bullish it is, how important it is, and how this kind of news moved prices before.',
+    example: (x) => `0.55: "${x.base} listed on Binance" scores high and trades; "${x.base} price analysis" scores low and is ignored.`,
+  },
+  maxAgeMin: {
+    what: 'Only trade news younger than this. The first minutes after big news are where the edge is; later the move is usually already in the price.',
+    example: (x) => `30: news about ${x.base} published 10 minutes ago can trade; news from 2 hours ago cannot.`,
+  },
+  maxChase: {
+    what: 'Skip the trade if the price already moved this much since the news came out, because chasing a finished pump is how people buy the top.',
+    example: (x) => `1%: news hits at ${x.px(x.price)}; if ${x.base} is already at ${x.px(x.price * 1.012)} the bot skips it.`,
+  },
+  'newsbot.takeProfit': {
+    what: 'Sell when up this much. 0 = automatic: the target comes from how far this token usually spikes after this kind of news, and its volatility.',
+    example: (x) => `Auto: if ${x.base} usually spikes about 2% in the hour after bullish news, the target is about 1.6–2%.`,
+  },
+  'newsbot.stopLoss': {
+    what: 'Sell if down this much. 0 = automatic: 1.5 × the token’s typical 15-minute move.',
+    example: (x) => `Auto: ${x.base} usually moves about 0.8% per 15 minutes, so the stop is about 1.2% under the entry.`,
+  },
+  'newsbot.trailing': {
+    what: 'Once the trade is in profit, sell if price falls this much from its best point.',
+    example: (x) => `0.6%: ${x.base} runs to ${x.px(x.price * 1.02)}, so the bot sells at ${x.px(x.price * 1.02 * 0.994)}.`,
+  },
+  holdMax: { what: 'News effects fade. Close the trade after this many minutes even if the target was not reached.', example: () => '240 = sell after 4 hours at most.' },
+  exitOnBearish: { what: 'Sell immediately if bearish news about the coin comes out while holding it.', example: (x) => `Holding ${x.base}, then "${x.base} delisted" appears: the bot sells at once.` },
 };
 
 export function helpFor(type, key) { return HELP[`${type}.${key}`] || HELP[key] || null; }
@@ -208,6 +240,12 @@ export const STORY = {
   gain: (x) => [`Buys ${x.base} when it is a set % under its moving average, sells at a fixed gain.`],
   supertrend: (x) => [`Buys when SuperTrend flips green on ${x.base} and sells when it flips red.`],
   macd: (x) => [`Buys when MACD momentum turns up below zero and sells when it turns back down.`],
+  newsbot: (x) => [
+    `The news agent reads 20+ crypto news sources every 90 seconds, including Binance listings and the Zcash teams' blogs.`,
+    `Bullish ${x.base} news appears, e.g. "${x.base} to be listed on a major exchange". The agent scores it and checks how ${x.base} moved after similar news before.`,
+    `If the score is high and the price has not run yet, the bot buys ${x.base} at about ${x.px(x.price)} within seconds.`,
+    `It sells at a target sized from that history (e.g. +1.8%), on a trailing stop, after 4 hours, or right away if bearish news follows.`,
+  ],
 };
 
 export function ctxFor(price, symbol, p) {

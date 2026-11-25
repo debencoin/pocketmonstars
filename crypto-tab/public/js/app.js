@@ -6,6 +6,7 @@ import { chartScreen } from './chartview.js';
 import { tradeScreen } from './trade.js';
 import { botsScreen } from './bots.js';
 import { aiScreen } from './ai.js';
+import { newsScreen } from './news.js';
 import { alertsSheet, alarmOn, alarmOff, unlockAudio, startLocalChecker, activeCount, playOnce } from './alerts.js';
 import { settingsSheet } from './settings.js';
 
@@ -68,7 +69,8 @@ const app = {
       'alarm-stop': (a) => { alarmOff(a.id); this.refreshAlertBadge(); },
       trade: (t) => { this.views.bots.onEvent?.('trade', t); if (t.side === 'sell' && t.pnl > 0) { if (store.get('profitSound', true)) playOnce('cash'); toast(`💰 ${t.name}: +${t.pnl.toFixed(2)}`, 'ok'); } },
       bot: (b) => this.views.bots.onEvent?.('bot', b),
-      notify: (n) => { if (n.kind === 'bot') toast(`${n.title}: ${n.body}`); },
+      notify: (n) => { if (n.kind === 'bot' || n.kind === 'news') toast(`${n.title}: ${n.body}`); if (n.kind === 'news') playOnce('ping'); },
+      news: (a) => this.views.news?.onNews?.(a),
     });
   },
 };
@@ -103,6 +105,7 @@ async function boot() {
   app.views.trade = tradeScreen($('#view-trade'), app);
   app.views.bots = botsScreen($('#view-bots'), app);
   app.views.ai = aiScreen($('#view-ai'), app);
+  app.views.news = newsScreen($('#view-news'), app);
 
   $('#tabbar').onclick = (e) => { const b = e.target.closest('[data-go]'); if (b) { haptic(); app.go(b.dataset.go); } };
   $('.brand').onclick = () => app.go('markets');

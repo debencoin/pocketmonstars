@@ -14,6 +14,7 @@ const ICON = (d) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" 
 export function chartScreen(el, app) {
   let cv = null, timers = [], tick = null, below = store.get('chBelow', 'book');
   let showFc = store.get('forecast', true);
+  let showNews = store.get('newsMarkers', true), newsMarks = [], markerPlugin = null;
   let ob = null, trades = null;
 
   el.innerHTML = `
@@ -31,6 +32,7 @@ export function chartScreen(el, app) {
       <button class="tool-btn" id="t-ind" title="Indicators">${ICON('M3 17l5-6 4 4 8-10')}<span>fx</span></button>
       <button class="tool-btn" id="t-draw" title="Drawing tools">${ICON('M4 20l4-1L19 8l-3-3L5 16zM14 6l3 3')}</button>
       <button class="tool-btn ${showFc ? 'active' : ''}" id="t-fc" title="Future forecast">${ICON('M3 17l6-6 4 4 4-8M17 7h4v4')}<span>Future</span></button>
+      <button class="tool-btn ${showNews ? 'active' : ''}" id="t-news" title="News on chart">📰</button>
       <button class="tool-btn" id="t-full" title="Fullscreen">${ICON('M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5')}</button>
     </div>
     <div class="ch-wrap" id="ch-wrap">
@@ -60,6 +62,19 @@ export function chartScreen(el, app) {
     cv.type = store.get('chartType', 'candles'); cv.makeMain();
     cv.indicators = store.get('indicators', [{ id: 'MA' }, { id: 'VOL' }, { id: 'MACD' }]);
     cv.draw.onChange(() => renderDrawUI());
+    // tap a candle that has news: show those articles and what the price did after them
+    cv.chart.subscribeClick((p) => {
+      if (!showNews || !p?.time || cv.draw.tool || !newsMarks.length) return;
+      const step = cv.tfSec;
+      const here = newsMarks.filter((n) => Math.floor(n.time / step) * step === p.time);
+      if (!here.length) return;
+      const bar = cv.candles.find((k) => k.time === p.time);
+      const lastC = cv.candles[cv.candles.length - 1].close;
+      sheet(`${here.length} news · ${app.S.symbol.split('/')[0]}`, (b) => {
+        b.innerHTML = here.map((n) => `<div class="news-item" style="margin:0 0 8px;border-left-color:${n.label === 'bullish' ? 'var(--up)' : n.label === 'bearish' ? 'var(--down)' : 'var(--line-2)'}"><div class="dim" style="font-size:11px">${esc(n.source)} · ${new Date(n.time * 1000).toLocaleString()}</div><a class="news-title" href="${esc(n.url)}" target="_blank" rel="noopener">${esc(n.title)}</a></div>`).join('')
+          + (bar ? `<div class="card" style="font-size:13px">Price at that candle ${fmtPrice(bar.close)} → now ${fmtPrice(lastC)} (<span class="${lastC >= bar.close ? 'up' : 'down'}">${fmtPct(((lastC - bar.close) / bar.close) * 100)}</span>)</div>` : '');
+      });
+    });
     cv.draw.setLocked(store.get('drawLock', false));
     cv.draw.onLockedTouch = () => toast('Drawings are locked (🔒 in the drawing bar)');
     return cv;
@@ -77,6 +92,7 @@ export function chartScreen(el, app) {
       cv.setData(candles, tfSec(tf));
       cv.fit();
       loadForecast();
+      loadNewsMarkers();
     } catch (e) { toast(e.message, 'err'); }
     refreshTicker();
   }
@@ -97,6 +113,30 @@ export function chartScreen(el, app) {
       badge.hidden = false;
       badge.innerHTML = `🔮 ${fc.model} · <span class="${fc.expectedMovePct >= 0 ? 'up' : 'down'}">${fmtPct(fc.expectedMovePct)}</span>`;
     }
+  }
+
+  // News on the chart: an arrow on every candle where news about this token came out.
+  async function loadNewsMarkers() {
+    if (!cv) return;
+    const L = cv.L;
+    if (!markerPlugin || markerPlugin._series !== cv.main) { markerPlugin = L.createSeriesMarkers(cv.main, []); markerPlugin._series = cv.main; }
+    if (!showNews) { markerPlugin.setMarkers([]); return; }
+    try {
+      const base = app.S.symbol.split('/')[0];
+      newsMarks = await api(`/api/news/markers${qs({ token: base, from: cv.candles[0]?.time })}`);
+      const step = cv.tfSec, byBar = new Map();
+      for (const n of newsMarks) {
+        const t = Math.floor(n.time / step) * step;
+        if (t < cv.candles[0].time || t > cv.candles[cv.candles.length - 1].time) continue;
+        const cur = byBar.get(t);
+        if (!cur || n.importance > cur.importance || (cur.label === 'neutral' && n.label !== 'neutral')) byBar.set(t, { ...n, count: (cur?.count || 0) + 1 }); else cur.count++;
+      }
+      const marks = [...byBar.entries()].sort((a, b) => a[0] - b[0]).map(([t, n]) => n.label === 'bullish'
+        ? { time: t, position: 'belowBar', color: '#00d68f', shape: 'arrowUp', text: n.count > 1 ? `📰${n.count}` : '📰' }
+        : n.label === 'bearish' ? { time: t, position: 'aboveBar', color: '#ff3b5c', shape: 'arrowDown', text: n.count > 1 ? `📰${n.count}` : '📰' }
+          : { time: t, position: 'aboveBar', color: '#858b97', shape: 'circle', text: '' });
+      markerPlugin.setMarkers(marks);
+    } catch { /* news offline */ }
   }
 
   async function refreshTicker() {
@@ -179,7 +219,7 @@ export function chartScreen(el, app) {
 
   $('#t-type', el).onclick = () => sheet('Chart type', (b, close) => {
     b.innerHTML = CHART_TYPES.map(([k, l]) => `<button class="btn block ${cv.type === k ? 'primary' : ''}" style="margin-bottom:8px" data-t="${k}">${l}</button>`).join('');
-    b.onclick = (e) => { const x = e.target.closest('[data-t]'); if (!x) return; cv.setType(x.dataset.t); store.set('chartType', x.dataset.t); cv.renderForecast(); close(); };
+    b.onclick = (e) => { const x = e.target.closest('[data-t]'); if (!x) return; cv.setType(x.dataset.t); store.set('chartType', x.dataset.t); cv.renderForecast(); loadNewsMarkers(); close(); };
   });
 
   $('#t-ind', el).onclick = () => sheet('Indicators', (b) => {
@@ -216,6 +256,7 @@ export function chartScreen(el, app) {
     loadForecast().then(() => showFc && cv.revealFuture());
     haptic();
   };
+  $('#t-news', el).onclick = () => { showNews = !showNews; store.set('newsMarkers', showNews); $('#t-news', el).classList.toggle('active', showNews); loadNewsMarkers(); haptic(); };
   $('#t-full', el).onclick = () => { $('#ch-wrap', el).classList.toggle('full'); haptic(); };
 
   function renderDrawUI() {

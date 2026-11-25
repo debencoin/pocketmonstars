@@ -55,6 +55,60 @@ Settings → Exchange API keys. Keys are encrypted with AES-256-GCM on your serv
 
 Supported (through CCXT): Binance, Binance.US, Coinbase Advanced, Kraken, OKX, Bybit, KuCoin, Gate.io, MEXC, Bitget, HTX, Crypto.com, Bitfinex, Bitstamp, Gemini, BingX, LBank, WhiteBIT, Poloniex, Upbit, Phemex, XT.com, Hyperliquid, Bitvavo, Bitrue, DigiFinex, WOO X, BloFin, Bithumb, Deribit, Toobit, WEEX.
 
+## News & sentiment agent
+
+A CryptoPanic-style news feed with an AI trading agent on top (**News** tab).
+
+- **Sources** (refreshed every 90 s):
+  - **Crypto news sites:** CoinDesk, Cointelegraph, The Block, Decrypt, Blockworks, The Defiant, Bitcoin Magazine, CryptoSlate, CryptoPotato, NewsBTC, Bitcoinist, U.Today, BeInCrypto, AMBCrypto, The Daily Hodl, Cryptonews and CoinJournal.
+  - **Binance listing announcements.**
+  - **Zcash sources:** Electric Coin Co, the Zcash Foundation and the Zcash forum.
+- **Each article** is tagged with the tokens it mentions (ticker, `$TICKER` or name, matched against every token the exchange lists). It also gets a bullish/bearish score, an importance score and a category (listing, hack, regulation, ETF, macro, partnership, upgrade, flows, price). With `ANTHROPIC_API_KEY` set, Claude also reads the headlines and adds an impact rating, a one-line summary and a short trading take.
+- **What happened after the news:** for every tagged token the server records the price when the article came out, then the move 15 minutes, 1 hour, 4 hours and 24 hours later, plus the biggest spike in the first hour. Older articles are measured from 5-minute candles. This is shown on each article and gathered into statistics per sentiment, category and token ("What happens after news").
+- **Signals:** fresh news (up to 6 h old) on a token the exchange lists becomes a signal.
+  - **Score:** combines sentiment, importance, Claude's impact rating, and whether history agrees. When this kind of news usually moved price the other way, the score is cut.
+  - **Target and stop:** sized from the token's typical spike after news and its volatility.
+  - **Labels:** "priced in" once the move already happened; WATCH or CAUTION when the score is below 0.55.
+- **The agent trades on it:**
+  - **News Sentiment Bot** (new bot type): buys fresh strong bullish news before it is priced in, and sells at the target or stop, on a trailing stop, after a time limit, or on bearish news.
+  - **News guard** on the Pump Rider: bearish news switches it to "wait for the bottom", and strong bullish news makes it hold its lots for 30 minutes.
+  - **Notifications** for strong news on ZEC, BTC, ETH, SOL, XRP and every token a bot is trading (`CT_NEWS_WATCH`).
+- **Chart:** 📰 arrows mark news on the chart (green bullish, red bearish). Tap one to read the articles and see the price then and now.
+- `CT_NEWS_EXCHANGE` (default `mexc`) is the exchange used to price news reactions.
+
+## Token profiles (any token)
+
+Every token on every exchange can be measured on its own (AI → Token profile, or automatically when you pick a coin for a Pump Rider bot). The profile measures:
+- its candle swing on 1m–1h;
+- the exchange's real taker fee;
+- backtests on every timeframe, both holding and selling on dumps.
+
+The settings are then derived from the token's own volatility:
+
+| Setting | How it is set |
+|---|---|
+| Timeframe | Best profit per day in the backtests |
+| Step | Just under the typical candle swing |
+| Dump guard | 7.5 typical candle swings |
+| Max lots | Dump guard ÷ step |
+| Restart drop | 5 typical candle swings |
+| Fee | The exchange's taker fee for that pair |
+| On dumps | Hold or sell the bag, whichever earned more |
+
+**Best tokens for the grid** ranks every liquid token by how well its candles fit the step band, how much it trades, and how sideways it is. Measured separately on MEXC on 2026-11-25:
+
+| Token | Best candles | Swing | Step | Dump guard | Backtest | Holding |
+|---|---|---|---|---|---|---|
+| ZEC | 15m | 0.81% | 0.73% | 6.1% (sell the bag) | +2.0% | −8.6% |
+| BTC | 15m | 0.39% | 0.39% | 3.0% | +1.5% | −1.6% |
+| ETH | 30m | 0.61% | 0.55% | 4.6% | +2.2% | −9.7% |
+| SOL | 30m | 0.71% | 0.64% | 5.4% | +0.1% | −6.2% |
+| XRP | 5m | 0.26% | 0.39% | 3.0% | −1.3% | −6.3% (candles below the band right now) |
+
+## Locking lines
+
+The 🔓/🔒 button on a bot's chart locks its lines, so they can't be dragged by accident. It is unlocked by default, and once you lock a bot it stays locked. The drawing bar has a matching lock for chart drawings.
+
 ## Bots
 
 All strategies live in `public/shared/strategies.mjs`. The same code runs the live engine, the backtester and the AI optimizer, so a backtest behaves like the real bot.

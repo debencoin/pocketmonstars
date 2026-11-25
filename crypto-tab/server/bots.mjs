@@ -4,6 +4,7 @@ import crypto from 'node:crypto';
 import { EventEmitter } from 'node:events';
 import { STRATEGIES, newState, paperExec, normalizeParams, gridLevels, equity, DEFAULT_FEE, defaultsFor } from '../public/shared/strategies.mjs';
 import * as X from './exchanges.mjs';
+import * as News from './news.mjs';
 import { load, save } from './store.mjs';
 
 export const events = new EventEmitter();
@@ -263,9 +264,10 @@ async function tickBot(b) {
     const t = await X.ticker(b.exchange, b.symbol);
     const price = t.p;
     const candles = strat.needsCandles ? await candlesFor(b) : null;
+    const news = strat.usesNews ? await News.signalsFor(b.symbol.split('/')[0]).catch(() => []) : undefined;
     const exec = await execFor(b);
     const before = b.state.tradeCount;
-    const r = await strat.tick(b, { price, candles, now: now() }, exec, b.state);
+    const r = await strat.tick(b, { price, candles, news, now: now() }, exec, b.state);
     b.state.lastPrice = price;
     const eq = equity(b.state, price);
     b.state.peakEquity = Math.max(b.state.peakEquity, eq);
@@ -305,6 +307,7 @@ export function start() {
   if (timer) return;
   timer = setInterval(async () => {
     const running = bots.filter((b) => b.status === 'running');
+    News.setBotTokens(running.map((b) => b.symbol.split('/')[0]));
     await Promise.allSettled(running.map(tickBot));
     if (now() - lastSave > 30000) { lastSave = now(); persist(); }
     events.emit('tick', running.length);

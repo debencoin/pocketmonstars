@@ -9,7 +9,7 @@ import { helpFor, STORY, ctxFor } from '/shared/fieldhelp.mjs';
 import { COINS, MAIN_COIN, presetFor } from '/shared/presets.mjs';
 import { $, esc, fmtPrice, fmtAmt, fmtPct, fmtUsd, cls, store, sheet, haptic, toast, confirmSheet, fieldsHtml, readFields, wireToggles, ago } from './ui.js';
 
-const ICONS = { pumpgrid: '🚀', grid: '▦', dca: '⬇', stepgrid: '⟋', bb: '◎', emacross: '✕', rsi: '∿', gain: '⤓', supertrend: '⇗', macd: '≋' };
+const ICONS = { newsbot: '📰', pumpgrid: '🚀', grid: '▦', dca: '⬇', stepgrid: '⟋', bb: '◎', emacross: '✕', rsi: '∿', gain: '⤓', supertrend: '⇗', macd: '≋' };
 const tfSec = (tf) => parseInt(tf, 10) * ({ m: 60, h: 3600, d: 86400, w: 604800 }[tf.replace(/\d+/g, '')] || 60);
 
 export function botsScreen(el, app) {

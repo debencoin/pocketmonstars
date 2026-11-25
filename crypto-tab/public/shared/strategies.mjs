@@ -375,6 +375,23 @@ function pumpGridTick() {
         notify('Stop loss', `Sold the bag at ${price}. Waiting for the bottom.`);
         return out;
       }
+      // news guard: bearish news stops buying (wait for the bottom); strong bullish news holds lots
+      if (p.newsGuard !== false && ctx.news?.length) {
+        c.newsSeen = c.newsSeen || [];
+        const bad = ctx.news.find((n) => n.label === 'bearish' && n.score >= 0.55 && n.ageMin <= 30 && !c.newsSeen.includes(n.id));
+        const good = ctx.news.find((n) => n.label === 'bullish' && n.score >= 0.55 && n.ageMin <= 30 && !c.newsSeen.includes(n.id));
+        if (bad) {
+          c.newsSeen.push(bad.id); c.newsSeen = c.newsSeen.slice(-100);
+          c.mode = 'wait'; c.top = c.gridHigh; c.low = price;
+          notify('News guard', `Bearish news (${bad.source}): "${bad.title}". Buying paused until the bottom is confirmed.`);
+          return out;
+        }
+        if (good) {
+          c.newsSeen.push(good.id); c.newsSeen = c.newsSeen.slice(-100);
+          c.holdUntil = ctx.now + 30 * 60e3;
+          note(`Bullish news (${good.source}): holding lots for 30 min so a news pump can run`);
+        }
+      }
       // pump: strong move off the recent low, green candle, above the fast averages
       const look = closed.slice(-15);
       const base = Math.min(...look.map((k) => k.low));
@@ -422,7 +439,7 @@ function pumpGridTick() {
         if (c.upRun === 1) c.runBase = c.ref;
         const holdFrom = Math.max(2, p.holdRun || 2);
         const ripping = k1.close > k1.open && ((k1.close - k1.open) / k1.open) * 100 >= A * 1.5 && price > ema9;
-        if (c.upRun < holdFrom && !ripping) await sellFifo();
+        if (c.upRun < holdFrom && !ripping && !(c.holdUntil > ctx.now)) await sellFifo();
         else if (c.upRun === holdFrom) note(`Up-run of ${c.upRun} steps: holding ${c.lots.length} lots instead of scalping`);
         c.ref = price;
         // a long enough run is a pump: switch to riding even before the candle-based trigger
@@ -500,7 +517,9 @@ STRATEGIES.pumpgrid = {
     ['dumpPct', 'Dump guard %', 'number', 4, 'Stop buying after this drop from the grid high (also stops when all lots are used and price keeps falling)'],
     ['dumpSell', 'Sell the bag on a dump', 'bool', false, 'Off = hold lots and sell them at profit after the bottom'],
     ['stopLoss', 'Stop loss %', 'number', 0, 'From average lot cost; 0 = off'],
+    ['newsGuard', 'News guard', 'bool', true, 'Bearish news stops buying; bullish news holds lots'],
   ],
+  usesNews: true,
   init(bot, price, st) { Object.assign(st.custom, { mode: 'grid', lots: [], ref: price, gridHigh: price, peak: null, top: null, low: null, step: null, measuredAt: 0, events: [] }); },
   tick: pumpGridTick(),
 };
@@ -640,3 +659,56 @@ export async function backtest(type, params, candles, { fee = params.feePct != n
     trades_sample: st.trades.slice(0, 50),
   };
 }
+
+// ---------------------------------------------------------------------------------------
+// News Sentiment bot: buys a token when fresh, strong bullish news about it arrives (before the
+// move is priced in) and exits on its take profit / stop (sized from what news usually does to
+// that token), a trailing stop, a time limit, or bearish news.
+// ---------------------------------------------------------------------------------------
+STRATEGIES.newsbot = {
+  label: 'News Sentiment Bot',
+  desc: 'Trades the news: buys when fresh bullish news about the token arrives, before the move is priced in, and sells at a target sized from how that token usually reacts to news.',
+  needsCandles: false,
+  usesNews: true,
+  fields: [
+    ['investment', 'Investment (quote)', 'number', 500, ''],
+    ['orderSize', 'Order size % of wallet', 'number', 100, ''],
+    ['minScore', 'Minimum news score (0-1)', 'number', 0.55, 'Higher = only big, clearly bullish news'],
+    ['maxAgeMin', 'Only news younger than (min)', 'number', 30, 'Speed matters: older news is often priced in'],
+    ['maxChase', 'Skip if it already moved %', 'number', 1, 'Do not chase a pump that already happened'],
+    ['takeProfit', 'Take profit %', 'number', 0, '0 = auto from the token’s usual news reaction'],
+    ['stopLoss', 'Stop loss %', 'number', 0, '0 = auto from the token’s volatility'],
+    ['trailing', 'Trailing stop %', 'number', 0.6, 'Lock in gains once in profit; 0 = off'],
+    ['holdMax', 'Max hold (min)', 'number', 240, 'News effects fade; exit after this'],
+    ['exitOnBearish', 'Exit on bearish news', 'bool', true, ''],
+  ],
+  init(bot, price, st) { Object.assign(st.custom, { pos: null, used: [] }); },
+  async tick(bot, ctx, exec, st) {
+    const p = bot.params, c = st.custom, price = ctx.price, news = ctx.news || [];
+    c.used = c.used || [];
+    if (!c.pos) {
+      const s = news.find((n) => n.label === 'bullish' && !c.used.includes(n.id) && n.score >= p.minScore && n.ageMin <= p.maxAgeMin && !n.pricedIn && n.movedSincePct < p.maxChase);
+      if (!s) return;
+      c.used.push(s.id); c.used = c.used.slice(-200);
+      const quote = (equity(st, price) * Math.min(100, p.orderSize)) / 100;
+      const t = await exec.buy(quote / price, price, `news: ${s.source}`);
+      if (!t) return;
+      st.started = true;
+      c.pos = { amount: t.amount, cost: t.cost + t.fee, entry: price, peak: price, opened: ctx.now, tp: p.takeProfit > 0 ? p.takeProfit : s.tpPct, sl: p.stopLoss > 0 ? p.stopLoss : s.slPct, why: s.title, source: s.source };
+      return { notify: { title: 'News buy', body: `${s.source}: "${s.title}". Target +${c.pos.tp}%, stop -${c.pos.sl}%.` } };
+    }
+    const pos = c.pos;
+    pos.peak = Math.max(pos.peak, price);
+    const g = ((price - pos.cost / pos.amount) / (pos.cost / pos.amount)) * 100;
+    let why = null;
+    if (g >= pos.tp) why = 'news target hit';
+    else if (g <= -pos.sl) why = 'news stop hit';
+    else if (p.trailing > 0 && g > 0.2 && ((pos.peak - price) / pos.peak) * 100 >= p.trailing) why = 'trailing stop';
+    else if (ctx.now - pos.opened > p.holdMax * 60e3) why = 'time limit';
+    else if (p.exitOnBearish && news.some((n) => n.label === 'bearish' && n.score >= 0.5 && n.published > pos.opened)) why = 'bearish news';
+    if (!why) return;
+    const t = await exec.sell(pos.amount, price, why, pos.cost);
+    if (t) c.pos = null;
+    return { notify: { title: `News trade closed (${why})`, body: `${g >= 0 ? '+' : ''}${g.toFixed(2)}% · ${pos.why}` } };
+  },
+};

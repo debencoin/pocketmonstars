@@ -8,6 +8,7 @@ import * as Bots from './bots.mjs';
 import * as Alerts from './alerts.mjs';
 import * as Paper from './paper.mjs';
 import * as AI from './ai.mjs';
+import * as News from './news.mjs';
 import { accessToken, flushAll } from './store.mjs';
 import { STRATEGIES, backtest, normalizeParams, defaultsFor } from '../public/shared/strategies.mjs';
 
@@ -38,6 +39,16 @@ route('GET', '/api/forecast', (q) => AI.forecastFor(q.ex, q.symbol, q.tf || '1h'
 route('GET', '/api/strategies', () => Object.fromEntries(Object.entries(STRATEGIES).map(([k, s]) => [k, { label: s.label, desc: s.desc, fields: s.fields, needsCandles: s.needsCandles }])), { open: true });
 route('GET', '/api/push/key', () => ({ key: Alerts.vapidPublicKey() }), { open: true });
 route('POST', '/api/login', (q, body) => { if (body.token !== TOKEN) throw X.httpError(401, 'Wrong passcode'); return { ok: true }; }, { open: true });
+
+// ---------- news & sentiment ----------
+route('GET', '/api/news', (q) => News.list(q), { open: true });
+route('GET', '/api/news/sentiment', (q) => News.sentimentIndex(q.tokens ? q.tokens.split(',') : undefined), { open: true });
+route('GET', '/api/news/stats', (q) => News.stats({ token: q.token }), { open: true });
+route('GET', '/api/news/signals', () => News.signals(), { open: true });
+route('GET', '/api/news/markers', (q) => News.markers(String(q.token || '').toUpperCase(), Number(q.from) || 0), { open: true });
+route('GET', '/api/news/feeds', () => News.feedStatus(), { open: true });
+route('GET', '/api/news/brief', (q) => News.tokenBrief(q.token || 'ZEC'), { open: true });
+route('POST', '/api/news/:id/vote', (q, body, p) => News.vote(p.id, body.kind));
 
 // ---------- keys / account ----------
 route('GET', '/api/keys', () => X.listKeys());
@@ -101,6 +112,8 @@ Bots.events.on('alarm-stop', (a) => broadcast('alarm-stop', a));
 Bots.events.on('trade', (t) => broadcast('trade', t));
 Bots.events.on('bot', (b) => broadcast('bot', b));
 Bots.events.on('notify', (n) => broadcast('notify', n));
+News.newsEvents.on('article', (a) => broadcast('news', a));
+News.newsEvents.on('notify', (n) => { broadcast('notify', n); Alerts.push(n).catch(() => {}); });
 setInterval(() => { for (const c of clients) c.write(': ping\n\n'); }, 20000);
 
 // ---------- http plumbing ----------
@@ -159,6 +172,7 @@ const server = http.createServer(async (req, res) => {
 Bots.start();
 Alerts.start();
 Paper.start();
+News.start();
 server.listen(PORT, () => {
   console.log(`Crypto Tab running on http://localhost:${PORT}`);
   console.log(`Passcode: ${TOKEN}   (set CT_TOKEN to choose your own)`);
