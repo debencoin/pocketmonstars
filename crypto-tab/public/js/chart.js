@@ -57,14 +57,80 @@ export class ChartView {
       timeScale: { tickMarkFormatter: (t, type) => fmtTime(t * 1000, tz(), type === 0 ? { year: 'numeric' } : type === 1 ? { month: 'short' } : type === 2 ? { month: 'short', day: 'numeric' } : { hour: 'numeric', minute: '2-digit' }), borderColor: C.line, timeVisible: true, secondsVisible: false, rightOffset: 12, barSpacing: 7, minBarSpacing: 1.5, fixLeftEdge: false, rightBarStaysOnScroll: true },
       crosshair: { mode: 0, vertLine: { color: '#5a606c', labelBackgroundColor: '#2a2f39' }, horzLine: { color: '#5a606c', labelBackgroundColor: '#2a2f39' } },
       localization: { priceFormatter: (p) => fmtPrice(p, this.refPrice), timeFormatter: (t) => fmtTime(t * 1000, tz(), { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) },
-      handleScale: { axisPressedMouseMove: { time: true, price: true }, pinch: true, mouseWheel: true },
-      handleScroll: { horzTouchDrag: true, vertTouchDrag: false, pressedMouseMove: true, mouseWheel: true },
+      handleScale: { axisPressedMouseMove: { time: true, price: true }, axisDoubleClickReset: { time: true, price: true }, pinch: true, mouseWheel: true },
+      handleScroll: { horzTouchDrag: true, vertTouchDrag: true, pressedMouseMove: true, mouseWheel: true },
       kineticScroll: { touch: true, mouse: false },
     });
     this.makeMain();
     this.chart.subscribeCrosshairMove((p) => this.legend(p));
     if (this.wantDrawings) this.draw = new DrawingLayer(this, this.host);
+    this.gestures();
     return this;
+  }
+
+  // Thumb control, like TradingView mobile:
+  //  - drag one finger anywhere: candles move left/right AND up/down
+  //  - drag up/down on the price axis: stretch / squash candles vertically
+  //  - drag left/right on the time axis: spread / squeeze candles
+  //  - pinch side to side: zoom time · pinch up and down (fingers above each other): zoom price
+  //  - double-tap the chart or an axis: back to auto-fit
+  gestures() {
+    const host = this.host;
+    host.ctChart = this;
+    const btn = document.createElement('button');
+    btn.className = 'chart-auto'; btn.textContent = 'AUTO'; btn.hidden = true; btn.title = 'Fit candles to screen';
+    btn.onclick = (e) => { e.stopPropagation(); this.autoFit(); };
+    host.appendChild(btn);
+    const ps = () => this.chart.priceScale('right');
+    const showBtn = () => { btn.hidden = ps().options().autoScale !== false; };
+    let pinch = null, lastTap = 0, pan = null;
+    const busy = () => this.draw?.tool || this.draw?.botDrag;
+    const dist = (t) => Math.abs(t[0].clientY - t[1].clientY);
+    host.addEventListener('touchstart', (e) => {
+      if (e.touches.length === 2) {
+        const [a, b] = e.touches, dx = Math.abs(a.clientX - b.clientX), dy = Math.abs(a.clientY - b.clientY);
+        const r = ps().getVisibleRange?.();
+        if (dy > dx * 1.2 && r) { // fingers stacked vertically: this is a price pinch, not a time pinch
+          if (pan?.wasAuto) ps().applyOptions({ autoScale: true });
+          pinch = { d0: Math.max(dy, 20), r, mid: (r.from + r.to) / 2 }; pan = null;
+          e.stopPropagation(); e.preventDefault();
+        }
+        return;
+      }
+      if (e.touches.length === 1) {
+        const t = e.touches[0], r = host.getBoundingClientRect();
+        const inPane = t.clientX - r.left < r.width - ps().width() && t.clientY - r.top < r.height - this.chart.timeScale().height();
+        pan = null;
+        if (inPane && !busy()) { // free the price scale so the chart's own drag moves candles up/down too
+          pan = { y0: t.clientY, dy: 0, wasAuto: ps().options().autoScale !== false };
+          if (pan.wasAuto) ps().applyOptions({ autoScale: false });
+        }
+        const now = Date.now();
+        if (now - lastTap < 280 && !this.draw?.tool) { this.autoFit(); lastTap = 0; } else lastTap = now;
+      }
+    }, { capture: true, passive: false });
+    host.addEventListener('touchmove', (e) => {
+      if (pan && e.touches.length === 1) { pan.dy = Math.max(pan.dy, Math.abs(e.touches[0].clientY - pan.y0)); return; }
+      if (!pinch || e.touches.length !== 2) return;
+      e.stopPropagation(); e.preventDefault();
+      const k = pinch.d0 / Math.max(dist(e.touches), 20); // fingers apart → smaller range → taller candles
+      const half = ((pinch.r.to - pinch.r.from) / 2) * k;
+      ps().applyOptions({ autoScale: false });
+      ps().setVisibleRange({ from: pinch.mid - half, to: pinch.mid + half });
+      showBtn();
+    }, { capture: true, passive: false });
+    const end = (e) => { if (pinch && e.touches.length < 2) { pinch = null; showBtn(); } if (!e.touches.length && pan) { if (pan.wasAuto && pan.dy < 12) ps().applyOptions({ autoScale: true }); pan = null; } setTimeout(showBtn, 50); };
+    host.addEventListener('touchend', end, { capture: true });
+    host.addEventListener('touchcancel', end, { capture: true });
+    host.addEventListener('pointerup', () => setTimeout(showBtn, 50));
+    host.addEventListener('wheel', () => setTimeout(showBtn, 50), { passive: true });
+  }
+
+  autoFit() {
+    this.chart.priceScale('right').applyOptions({ autoScale: true });
+    this.chart.timeScale().applyOptions({ barSpacing: 7 });
+    this.chart.timeScale().scrollToRealTime();
+    const b = this.host.querySelector('.chart-auto'); if (b) b.hidden = true;
   }
 
   makeMain() {
