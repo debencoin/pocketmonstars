@@ -281,6 +281,7 @@ function createRenderer(canvas, arena) {
         for (let i = 0; i < q.n; i++) { const a = i / q.n * 6.283 + r() * 0.3, L = r0 * (0.5 + r()); ctx.strokeStyle = i % 3 ? q.col : '#ffffff'; ctx.lineWidth = (1 + r() * 2) * U;
           ctx.beginPath(); ctx.moveTo(Math.cos(a) * L * 0.15, Math.sin(a) * L * 0.15); ctx.lineTo(Math.cos(a) * L, Math.sin(a) * L); ctx.stroke(); }
         ctx.restore(); glow(q.x, q.y, q.size * 0.7 * (1 - t * 0.5), '#ffffff', q.col, 1 - t); }
+      else if (q.k === 'e3') { if (q.life > 0) window.PMEnergy?.burst(ctx, q.x, q.y, q.size, q.col, q.col2, Math.min(1, t), performance.now()); }
       else if (q.k === 'img') { const w = q.w * (0.6 + t * 0.6) * U / 1.5, h = w * q.im.naturalHeight / q.im.naturalWidth; ctx.save(); ctx.imageSmoothingEnabled = true; ctx.globalAlpha = 1 - t * t; ctx.drawImage(q.im, q.x - w / 2, q.y - h * 0.7, w, h); ctx.restore(); }
       else if (q.k === 'clone') { const im = imgs[q.sid]; if (im?.complete && im.naturalWidth) { const h2 = 139 * U / 1.5 * 0.8, w2 = h2 * im.naturalWidth / im.naturalHeight, a = Math.min(1, t * 6) * (t > 0.7 ? 1 - (t - 0.7) / 0.3 : 1); ctx.save(); ctx.globalAlpha = 0.78 * a; ctx.translate(q.x, q.y); if (q.flip) ctx.scale(-1, 1);
           ctx.imageSmoothingEnabled = true; ctx.drawImage(im, -w2 / 2, -h2, w2, h2); ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = 0.35 * a; ctx.drawImage(im, -w2 / 2, -h2, w2, h2); ctx.restore(); } }
@@ -343,6 +344,8 @@ function createRenderer(canvas, arena) {
     let v = snap.f[ev.victim ?? 1 - ev.attacker], a = snap.f[ev.attacker]; if (!v || !a) return;
     { const im = ev.kind === 'basic' || ev.kind === 'special' ? WSP(NAMES[a.s], 'impact') : null; if (im) fx.push({ k: 'img', x: v.x * K * Z, y: v.y * K * Z + 10 * U, im, life: 0.5, max: 0.5, w: ev.kind === 'special' ? 150 : 110 }); } if (ev.vx != null) v = { ...v, x: ev.vx, y: ev.vy }; // squad: the Monstar actually hit
     const x = v.x * K, y = v.y * K - 10;
+    if (window.PMEnergy) { const ep = palFor(a.ty || snap.types?.[ev.attacker], a.s), ec = NEWCOL[NAMES[a.s]] || ep[1], big = ev.style === 'beam' || ev.style === 'strike' || ev.crit || ev.kind === 'mega'; // a 3D energy burst where the blow lands, like COVO's
+      fx.push({ k: 'e3', x: x * Z, y: y * Z, size: (big ? 150 : 110) * U, col: ec, col2: ep[2] || ec, life: 0.45, max: 0.45 }); }
     burst(x, y, ev.eff > 1 ? PAL.SPARK : ['#fff', '#fff', '#ffe', '#fdd'], 12, 50);
     const apal = palFor(a.ty || snap.types?.[ev.attacker], a.s), sid = a.s;
     star(x, y, sid === 0 ? '#ffb040' : sid === 2 ? '#7fd4ff' : sid === 3 || sid === 10 ? '#ffe14a' : ev.crit ? '#ff7a5a' : '#fff0c0', ev.style === 'beam' || ev.style === 'strike' || ev.crit ? 70 : 46);
@@ -392,7 +395,8 @@ function createRenderer(canvas, arena) {
     const hiK = AN ? 1 : spr.width > 150 ? 140 / spr.width : 1; // drawn-art sheets (Aura Warriors) are 3x size: shown a little bigger than pixel sprites
     const idle0 = AN ? null : stageSprite(f.s, 0, stage, pal, false, 0), bk = idle0 ? bodyFit(f.s + '|' + stage, idle0) : 0; // same body size for everyone
     const grow1 = 1 + Math.sin(grow[i] * 12) * 0.12 * grow[i];
-    const dw = AN ? Math.round(ANIM_STAND * 0.62 * sc) : bk ? Math.round(spr.width * bk * grow1) : Math.round(spr.width * sc * SPR * hiK), dh = AN ? Math.round(ANIM_STAND * 1.06 * sc) : bk ? Math.round(spr.height * bk * grow1) : Math.round(spr.height * sc * SPR * hiK);
+    let dw = AN ? Math.round(ANIM_STAND * 0.62 * sc) : bk ? Math.round(spr.width * bk * grow1) : Math.round(spr.width * sc * SPR * hiK), dh = AN ? Math.round(ANIM_STAND * 1.06 * sc) : bk ? Math.round(spr.height * bk * grow1) : Math.round(spr.height * sc * SPR * hiK);
+    dw = Math.round(dw * 0.75); dh = Math.round(dh * 0.75); // every Monstar drawn 25% smaller
     let X = wx * K * Z, Y = wy * K * Z + 22 * U; // feet in canvas pixels
     const tr = trails[i]; if (f.ds || (f.bt && Math.random() < 0.5)) tr.push({ x: X, y: Y, life: 0.3 });
     if (f.ds && !dashSeen[i]) { puffs(X / Z, Y / Z, 6, '#e2d6bc', 34, 8, 0.6); } dashSeen[i] = f.ds ? 1 : 0;
@@ -439,12 +443,6 @@ function createRenderer(canvas, arena) {
         ctx.fillStyle = '#ffffff'; for (let k = 0; k < 4; k++) ctx.fillRect(Math.round(gh.x + (k - 1.5) * gh.dw * 0.2), Math.round(gh.y - gh.dh * (0.2 + Math.random() * 0.8)), 2 * U, 12 * U); } }
       while (ghosts.length && ghosts[0].life <= 0) ghosts.shift(); ctx.globalAlpha = 1;
     }
-    if (f.au && (f.lv ?? 3) >= 3 && !opt.faint && !opt.vanish) { // monkey tail from the back, waving
-      const dir = flip ? 1 : -1, bx = X + ox + dir * dw * 0.16, by = Y + oy - dh * 0.26, L = dh * 0.5, wv = Math.sin(now * 3.2 + i) * 0.5 + (f.mv ? Math.sin(now * 11) * 0.25 : 0);
-      const c1x = bx + dir * L * 0.55, c1y = by + L * 0.15, c2x = bx + dir * L * (0.75 + wv * 0.25), c2y = by - L * (0.35 + wv * 0.2), ex = bx + dir * L * (0.55 + wv * 0.45), ey = by - L * (0.8 - Math.abs(wv) * 0.15);
-      ctx.save(); ctx.globalAlpha = alpha; ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo(bx, by); ctx.bezierCurveTo(c1x, c1y, c2x, c2y, ex, ey);
-      ctx.strokeStyle = '#1a0e06'; ctx.lineWidth = Math.max(4, dw * 0.085); ctx.stroke(); ctx.strokeStyle = f.as > 0 ? ['#ffd23f', '#b45aff', '#3aff7a', '#ff3b3b', '#f4fbff'][f.as - 1] : '#7a4a22'; ctx.lineWidth = Math.max(2, dw * 0.055); ctx.stroke(); ctx.restore();
-    }
     // shadow (smaller and lighter when airborne)
     ctx.globalAlpha = (f.fl ? 0.2 : 0.35) * alpha; ctx.fillStyle = '#10141a';
     ctx.beginPath(); ctx.ellipse(Math.round(X), Math.round(Y), Math.round(dw * (f.fl ? 0.22 : 0.3)), (f.fl ? 3 : 5) * U, 0, 0, Math.PI * 2); ctx.fill(); ctx.globalAlpha = 1;
@@ -479,7 +477,8 @@ function createRenderer(canvas, arena) {
     { const wn = NAMES[f.s], dx0 = f.fx < 0 ? -1 : 1;
       if (f.cg > 0) { const im = WSP(wn, 'charge'); if (im) { const w = 30 + f.cg * 80, h = w * im.naturalHeight / im.naturalWidth, cx = X + ox + dx0 * dw * 0.3, cy = Y + oy - dh * 0.5; ctx.save(); ctx.imageSmoothingEnabled = true; ctx.globalAlpha = 0.7 + f.cg * 0.3; ctx.drawImage(im, cx - w / 2, cy - h / 2, w, h); ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = 0.35; ctx.drawImage(im, cx - w / 2, cy - h / 2, w, h); ctx.restore(); } }
       if (f.g) { const im = WSP(wn, 'guard'); if (im) { const w = 120, h = w * im.naturalHeight / im.naturalWidth; ctx.save(); ctx.imageSmoothingEnabled = true; ctx.globalAlpha = 0.8; ctx.drawImage(im, X + ox - w / 2 + dx0 * 14, Y + oy + dh * 0.08 - h, w, h); ctx.restore(); } } }
-    if (f.cg > 0 && !WSP(NAMES[f.s], 'charge')) { // charging a shot: energy gathers in front of the fighter and swells
+    if (f.cg > 0 && window.PMEnergy) { const d = f.fx < 0 ? -1 : 1, cc = NEWCOL[NAMES[f.s]] || SP?.col || pal[1]; window.PMEnergy.orb(ctx, X + ox + d * dw * 0.3, Y + oy - dh * 0.5, 0, (30 + f.cg * 70) * U, cc, pal[2] || cc, 'orb', now * 1000, i); }
+    else if (f.cg > 0 && !WSP(NAMES[f.s], 'charge')) { // charging a shot: energy gathers in front of the fighter and swells
       const d = f.fx < 0 ? -1 : 1, cx = X + ox + d * dw * 0.28, cy = Y + oy - dh * 0.5, rr = 7 + f.cg * 26, cc = SP?.col || pal[1], t3 = now * 9;
       ctx.save(); ctx.globalCompositeOperation = 'lighter'; const gr = ctx.createRadialGradient(cx, cy, 1, cx, cy, rr); gr.addColorStop(0, '#fff'); gr.addColorStop(0.4, cc); gr.addColorStop(1, 'rgba(0,0,0,0)');
       ctx.globalAlpha = 0.55 + f.cg * 0.4; ctx.fillStyle = gr; ctx.beginPath(); ctx.arc(cx, cy, rr, 0, 7); ctx.fill();
@@ -714,6 +713,10 @@ function createRenderer(canvas, arena) {
     const pal = palFor(p.ty, p.sid), a = Math.atan2(p.vy, p.vx), fl = Math.floor(now * 20) % 2, v = vidOf(p);
     y -= 8;
     if (NAMES[p.sid] === 'covo' && window.PMCovoRig?.projectile(ctx, x, y, a, p, now)) return;
+    if (window.PMEnergy) { const ec = NEWCOL[NAMES[p.sid]] || pal[1], kind = window.PMEnergy.KIND(p.lk || ''); // the same lit 3D look as COVO's shots; the shape still follows the move
+      window.PMEnergy.orb(ctx, x, y, a, kind === 'rock' ? 44 : 48, ec, pal[2] || ec, kind, now, p.id || 0);
+      if (Math.random() < 0.6) part(x - Math.cos(a) * 14 + (Math.random() - 0.5) * 6, y - Math.sin(a) * 14 + (Math.random() - 0.5) * 6, -Math.cos(a) * 14, -6 + Math.random() * 8, 0.4, Math.random() < 0.5 ? ec : '#ffffff', 1, 80);
+      return; }
     if (p.lk === 'wsprite') { const im = WSP(NAMES[p.sid], 'projectile');
       if (im) { const w = 60, h = w * im.naturalHeight / im.naturalWidth; ctx.save(); ctx.translate(x, y); ctx.rotate(a); ctx.imageSmoothingEnabled = true; ctx.imageSmoothingQuality = 'high'; ctx.drawImage(im, -w * 0.62, -h / 2, w, h);
         ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = 0.3 + Math.sin(now / 1000 * 20 + p.id) * 0.12; ctx.drawImage(im, -w * 0.62, -h / 2, w, h); ctx.restore(); return; } }
@@ -895,15 +898,23 @@ function createRenderer(canvas, arena) {
         line(lx, ly, tx, ty, pal[3], 2); if (k % 3 === 0) { px(tx + nx * 2, ty + ny * 2, 2, 2, pal[2]); px(tx - nx * 2, ty - ny * 2, 1, 1, pal[1]); } lx = tx; ly = ty; }
       px(lx - 1, ly - 1, 3, 3, pal[2]);
     } else if (e.st === 'cone') { // flamethrower
+      if (lt < S.dur && window.PMEnergy) { const ec = NEWCOL[NAMES[e.sid]] || pal[1], a0 = Math.atan2(dy, dx); FULL();
+        for (let k = 0; k < 3; k++) { const u = ((now / 1000) * 2.2 + k / 3) % 1, d = 10 + u * S.range * K * 0.9, aa = a0 + Math.sin(k * 2.1 + now / 90) * S.angle * 0.5;
+          window.PMEnergy.orb(ctx, (ox + Math.cos(aa) * d) * Z, (oy + Math.sin(aa) * d) * Z, aa, (30 + u * 46) * U, ec, pal[2] || ec, 'flame', now, k + (e.id || 0)); } LOG(); }
       if (lt < S.dur) for (let k = 0; k < 6; k++) { const a = Math.atan2(dy, dx) + (Math.random() - 0.5) * S.angle * 1.6, sp = S.range * K * (2.4 + Math.random());
         part(ox + dx * 6, oy + dy * 6, Math.cos(a) * sp, Math.sin(a) * sp - 6, 0.36, v === 0 && e.ty !== 'DRACO' ? null : pal[1 + (Math.random() * 3 | 0)], 2 + (Math.random() < 0.3 ? 1 : 0), -20, 'flame'); }
     } else if (e.st === 'beam') {
       const len = S.range * K, wid = R((e.wd || S.width) * K);
-      if (lt < S.hitAt) { // charge
+      if (lt < S.hitAt && window.PMEnergy) { const p = lt / S.hitAt, ec = NEWCOL[NAMES[e.sid]] || pal[1]; FULL(); window.PMEnergy.orb(ctx, (ox + dx * 8) * Z, (oy + dy * 8) * Z, 0, (24 + p * 50) * U, ec, pal[2] || ec, 'orb', now, e.id || 0); LOG(); }
+      else if (lt < S.hitAt) { // charge
         const p = lt / S.hitAt, r = 2 + R(p * 6); disc(ox + dx * 8, oy + dy * 8, r, pal[2]); disc(ox + dx * 8, oy + dy * 8, R(r / 2), pal[0]);
         for (let k = 0; k < 3; k++) { const a = Math.random() * 6.283, d = 18 * (1 - p) + 6; part(ox + dx * 8 + Math.cos(a) * d, oy + dy * 8 + Math.sin(a) * d, -Math.cos(a) * 40, -Math.sin(a) * 40, 0.15, pal[1]); }
       } else {
         const p = (lt - S.hitAt) / (S.dur - S.hitAt), w = Math.max(1, R(wid * (p < 0.15 ? p / 0.15 : 1 - Math.max(0, (p - 0.6) / 0.4))));
+        if (window.PMEnergy) { const ec = NEWCOL[NAMES[e.sid]] || pal[1]; FULL(); // a lit 3D energy column with coils running along it, COVO-style
+          window.PMEnergy.beam(ctx, (ox + dx * 6) * Z, (oy + dy * 6) * Z, (ox + dx * len) * Z, (oy + dy * len) * Z, Math.max(wid, 6) * Z, ec, pal[2] || ec, Math.max(0.15, w / Math.max(1, wid)), now); LOG();
+          if (Math.random() < 0.8) { const d = Math.random() * len; part(ox + dx * d, oy + dy * d + (Math.random() - 0.5) * wid, (Math.random() - 0.5) * 20, -10, 0.4, Math.random() < 0.5 ? '#ffffff' : ec, 1, 40); }
+          return; }
         if (v === 2) { // maelstrom: three twisting water/wind streams with spray, like a whirlpool driven forward
           FULL(); ctx.save(); ctx.translate((ox + dx * 6) * Z, (oy + dy * 6) * Z); ctx.rotate(Math.atan2(dy, dx)); ctx.globalCompositeOperation = 'lighter'; ctx.lineCap = 'round';
           const Lz = len * Z, Wz = wid * Z * 0.5 * (w / Math.max(1, wid));

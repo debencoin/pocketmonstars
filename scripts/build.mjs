@@ -6,3 +6,4 @@ await build({...common,entryPoints:['src/covo-rig.js'],outfile:'dist/covo-rig.js
 await build({...common,entryPoints:['src/chosen-rig.js'],outfile:'dist/chosen-rig.js'});
 await build({...common,entryPoints:['src/elemental-rig.js'],outfile:'dist/elemental-rig.js'});
 await build({...common,entryPoints:['src/girl-rig.js'],outfile:'dist/girl-rig.js'});
+await build({...common,entryPoints:['src/energy-fx.js'],outfile:'dist/energy-fx.js'});
