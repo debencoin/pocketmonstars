@@ -467,12 +467,12 @@ test('gift wallet gets the three strongest Monstars once, as elite Legendary hat
 
 test('wild levels: always above your Monstar; special ones at least 2 up with a rare level 1; Phantom keeps the caught level, accounts get Lv1', async () => {
   const M = await import('../shared/monstars.mjs');
-  const anu = M.SPECIES.find(s => s.collection === 'anunnaki'), plain = M.SPECIES.find(s => s.collection === 'frontier' && s.tier === 'Common');
+  const anu = M.SPECIES.find(s => s.collection === 'mythic'), plain = M.SPECIES.find(s => s.collection === 'frontier' && s.tier === 'Common');
   let ones = 0;
   for (let i = 0; i < 4000; i++) { assert.ok(M.wildLevel(plain, 10) >= 11); const l = M.wildLevel(anu, 10); if (l === 1) ones++; else assert.ok(l >= 12); }
   assert.ok(ones > 10 && ones < 90, 'about 1% special level 1: ' + ones);
   assert.ok(!M.WILD_IDS.some(id => M.SPECIES[id].retired || (M.SPECIES[id].elite && !M.SPECIES[id].wildOne) || M.SPECIES[id].drop), 'retired benders are not met in the wild (COVO only as a one-of-a-kind)');
-  const reg = new Registry(openDb(':memory:')), sid = M.WILD_IDS.find(id => M.SPECIES[id].collection === 'anunnaki');
+  const reg = new Registry(openDb(':memory:')), sid = M.WILD_IDS.find(id => M.SPECIES[id].collection === 'mythic');
   assert.equal(reg.catchWild(wallet(), sid, 17).level, 17);
   assert.equal(reg.catchWild('@freeplayer', sid, 17).level, 1);
 });

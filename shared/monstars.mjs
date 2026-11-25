@@ -160,6 +160,9 @@ for (const [list, coll] of [[FRONTIER, 'frontier'], [MYTHIC, 'mythic'], [ANUNNAK
 }
 // Airbenders fly: every Monstar that commands air hovers above the ground (and over hazards)
 for (const s of SPECIES) if (s.el2 === 'air') s.motion = 'hover';
+// The Ancient Beings (Sariel the Watcher, Nerath the Nephilim, Enkar the Anunnaki) replace the older Anunnaki and Watcher sprites: those are no longer met in the wild
+// (copies players already own keep working, nothing is deleted).
+for (const s of SPECIES) if (['anunnaki', 'watchers'].includes(s.collection)) s.replaced = true;
 // Every earlier bender is retired: the Element Masters replace them. Retired species keep their id (old records still
 // read correctly) but are never given, sold, met in the wild or chosen as a starter.
 for (const s of SPECIES) if (['benders', 'skybenders', 'starters'].includes(s.collection) && !s.master) { s.retired = true; s.drop = undefined; s.legendary = undefined; s.legendFor = undefined; }
@@ -232,8 +235,8 @@ for (const n of ['COVO', 'Azaelion']) { const c = SPECIES.find(s => s.name === n
 export const GENESIS_IDS = SPECIES.filter(s => s.collection === 'genesis').map(s => s.id);
 export const FRONTIER_IDS = SPECIES.filter(s => s.collection === 'frontier').map(s => s.id);
 export const MYTHIC_IDS = SPECIES.filter(s => s.collection === 'mythic').map(s => s.id);
-export const ANUNNAKI_IDS = SPECIES.filter(s => s.collection === 'anunnaki').map(s => s.id);
-export const WATCHER_IDS = SPECIES.filter(s => s.collection === 'watchers').map(s => s.id);
+export const ANUNNAKI_IDS = SPECIES.filter(s => s.collection === 'anunnaki' && !s.replaced).map(s => s.id);
+export const WATCHER_IDS = SPECIES.filter(s => s.collection === 'watchers' && !s.replaced).map(s => s.id);
 // Genesis species roam the wild too, so players can catch the ones they didn't start with.
 for (const id of GENESIS_IDS) SPECIES[id].tier = 'Uncommon';
 /** Benders roam the wild too: the five Starter Benders (Rare) and the Elemental Benders (Epic; Tempestro stays one of a kind). */

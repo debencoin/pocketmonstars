@@ -20,8 +20,8 @@ const GIRLS = {
   haloslinger: { glb: 'haloslinger', el: 'aether', c1: 0xffd23a, c2: 0xffffff },
   // the Ancient Beings: a winged Watcher, a Nephilim giant and an Anunnaki ruler
   sarielthewatcher: { glb: 'sarielwatcher', el: 'aether', c1: 0x8a6aff, c2: 0xffe9a0, turn: Math.PI / 2, wings: [0.2], jt: { neck: 0.7, top: 0.96 } },
-  neraththenephilim: { glb: 'nerathnephilim', el: 'earth', c1: 0xc87a3a, c2: 0xffb060, turn: Math.PI / 2, rs: 1.5, jt: { hip: 0.44, chest: 0.52, neck: 0.74, top: 0.98, sh: [0.76, 0.2], el: [0.52, 0.33], wr: [0.37, 0.37], hand: [0.28, 0.38], hj: [0.44, 0.09], kn: [0.22, 0.1], an: [0.05, 0.11] } },
-  enkartheanunnaki: { glb: 'enkaranunnaki', el: 'aether', c1: 0xffb02a, c2: 0x3a6aff, turn: Math.PI / 2, rs: 1.2, jt: { hip: 0.34, chest: 0.42, neck: 0.56, top: 0.98, sh: [0.62, 0.15], el: [0.47, 0.27], wr: [0.34, 0.33], hand: [0.28, 0.34], hj: [0.34, 0.07], kn: [0.18, 0.075], an: [0.04, 0.08] } },
+  neraththenephilim: { glb: 'nerathnephilim', el: 'earth', c1: 0xc87a3a, c2: 0xffb060, turn: Math.PI / 2, rs: 1.5, gait: { cad: 8.5, amp: 0.95 }, jt: { hip: 0.44, chest: 0.52, neck: 0.74, top: 0.98, sh: [0.76, 0.2], el: [0.52, 0.33], wr: [0.37, 0.37], hand: [0.28, 0.38], hj: [0.44, 0.09], kn: [0.22, 0.1], an: [0.05, 0.11] } },
+  enkartheanunnaki: { glb: 'enkaranunnaki', el: 'aether', c1: 0xffb02a, c2: 0x3a6aff, turn: Math.PI / 2, rs: 1.2, gait: { cad: 10, amp: 1.0 }, jt: { hip: 0.34, chest: 0.42, neck: 0.56, top: 0.98, sh: [0.62, 0.15], el: [0.47, 0.27], wr: [0.34, 0.33], hand: [0.28, 0.34], hj: [0.34, 0.07], kn: [0.18, 0.075], an: [0.04, 0.08] } },
 };
 const BASE = './girls/', SIZE = 320, H = 1.7;
 const inst = {}, fstate = {};
@@ -63,6 +63,7 @@ function rigBody(scene, cfg = {}) {
   for (const sg of [1, -1]) { const A = sg > 0, b = A ? 3 : 5, t = A ? 7 : 9;
     segs.push([b, V(J.sh[0], sg * J.sh[1]), V(J.el[0], sg * J.el[1]), 0.05 * RS], [b + 1, V(J.el[0], sg * J.el[1]), V(J.wr[0], sg * J.wr[1]), 0.048 * RS], [b + 1, V(J.wr[0], sg * J.wr[1]), V(J.hand[0], sg * J.hand[1]), 0.05 * RS],
       [t, V(J.hj[0] + 0.02, sg * J.hj[1]), V(J.kn[0], sg * J.kn[1]), 0.1 * RS], [t + 1, V(J.kn[0], sg * J.kn[1]), V(J.an[0], sg * J.an[1]), 0.085 * RS], [A ? 11 : 12, V(J.an[0], sg * J.an[1]), V(J.an[0] - 0.02, sg * J.an[1], J.toe), 0.06 * RS]); }
+  segs.push([0, V(J.hj[0]), V(J.kn[0] + 0.04), 0.055 * RS]); // cloth hanging between the legs stays with the hips instead of stretching between the thighs
   const SI = new Uint16Array(n * 4), SW = new Float32Array(n * 4), v = new T.Vector3(), ab = new T.Vector3(), ap = new T.Vector3(), ws = new Float32Array(15);
   for (let i = 0; i < n; i++) { v.set(P[i * 3], P[i * 3 + 1], P[i * 3 + 2]); ws.fill(1e9);
     for (const [bi, a, b, r] of segs) { ab.subVectors(b, a); ap.subVectors(v, a); const k = clamp(ap.dot(ab) / ab.lengthSq(), 0, 1), d = ap.sub(ab.multiplyScalar(k)).length() / r; if (d < ws[bi]) ws[bi] = d; }
@@ -123,16 +124,16 @@ function stateOf(f, o) {
 const ease = k => k * k * (3 - 2 * k), mix = (a, b, k) => a + (b - a) * k;
 const R_wings = o => !!GIRLS[o.name]?.wings;
 function limbs(f, o, t, S, u, casting, moving, fly) {
-  const L = { thA: 0, thB: 0, kA: 0, kB: 0, uaA: 0, uaB: 0, faA: 0.2, faB: 0.2, twist: 0, hipTw: 0, headY: 0, headZ: 0, chestX: 0, chestZ: 0, splay: 0.1, tsp: 0.04, ground: true, shake: 0, wf: 0, wy: 0 };
+  const L = { thA: 0, thB: 0, kA: 0, kB: 0, uaA: 0, uaB: 0, faA: 0.2, faB: 0.2, twist: 0, hipTw: 0, headY: 0, headZ: 0, chestX: 0, chestZ: 0, splay: 0.1, tsp: 0.04, ground: true, shake: 0, wf: 0, wy: 0, hipRoll: 0 };
   const br = Math.sin(t * 2.4);
   if (fly) { // floating: legs hang loose and drift, arms float out
     L.ground = false; L.thA = 0.12 + Math.sin(t * 1.9) * 0.1; L.thB = -0.06 + Math.sin(t * 1.9 + 1.2) * 0.1; L.kA = 0.35; L.kB = 0.5; L.uaA = 0.25 + br * 0.08; L.uaB = 0.2 - br * 0.08; L.faA = 0.5; L.faB = 0.6; L.splay = 0.35;
     if (moving) { L.thA = -0.5; L.thB = -0.65; L.kA = 0.9; L.kB = 0.7; L.uaA = -0.5; L.uaB = -0.5; L.faA = 0.3; L.faB = 0.3; L.chestX = 0.1; }
   } else if (moving) { // run: the legs scissor, the knees fold on the way forward, the arms pump against the legs, the chest twists
-    const p = t * (f.ds ? 15 : 11.5), sA = Math.sin(p), sB = -sA, amp = f.ds ? 1.15 : 0.95;
+    const gt = GIRLS[o.name]?.gait || {}, p = t * (f.ds ? 15 : (gt.cad || 11.5)), sA = Math.sin(p), sB = -sA, amp = (f.ds ? 1.15 : 0.95) * (gt.amp || 1.08);
     L.thA = sA * amp; L.thB = sB * amp; L.kA = 0.2 + Math.max(0, Math.cos(p)) * 1.25; L.kB = 0.2 + Math.max(0, -Math.cos(p)) * 1.25;
     L.uaA = -sA * (f.ds ? 1.1 : 0.9) - (f.ds ? 0.5 : 0); L.uaB = -sB * (f.ds ? 1.1 : 0.9) - (f.ds ? 0.5 : 0); L.faA = 1.15 + sA * 0.25; L.faB = 1.15 + sB * 0.25;
-    L.twist = sA * 0.2; L.hipTw = -sA * 0.12; L.headY = -sA * 0.14; L.chestX = Math.cos(p * 2) * 0.03; L.splay = 0.05; L.tsp = 0.02;
+    L.twist = sA * 0.24; L.hipTw = -sA * 0.14; L.headY = -sA * 0.16; L.chestX = Math.cos(p * 2) * 0.04; L.chestZ = 0.1 + Math.abs(Math.cos(p)) * 0.03; L.hipRoll = sA * 0.07; L.splay = 0.05; L.tsp = 0.02;
   } else { // ready stance: a bounce on the toes, fists up, weight shifting
     const sw = Math.sin(t * 1.3); L.thA = 0.3 + sw * 0.05; L.thB = -0.14 - sw * 0.05; L.kA = 0.45 + br * 0.03; L.kB = 0.28; L.uaA = 0.55 + br * 0.04; L.uaB = 0.15 + br * 0.04; L.faA = 1.3; L.faB = 1.45; L.twist = 0.16 + sw * 0.03; L.hipTw = -0.08; L.headY = -0.1; L.splay = 0.08; L.chestZ = br * 0.015;
   }
@@ -167,7 +168,7 @@ const legReach = (R, th, k) => R.bones.lt * Math.cos(th) + R.bones.ls * Math.cos
 function skeleton(R, L, out, t) {
   const b = R.bones; if (!b) return;
   const sh = L.shake ? (Math.sin(t * 61) * L.shake) : 0, sh2 = L.shake ? Math.cos(t * 53) * L.shake : 0;
-  b.hips.rotation.set(0, L.hipTw, 0); b.chest.rotation.set(L.chestX + sh, L.twist, L.chestZ + sh2); b.head.rotation.set(0, L.headY, L.headZ);
+  b.hips.rotation.set(L.hipRoll, L.hipTw, 0); b.chest.rotation.set(L.chestX + sh, L.twist, L.chestZ + sh2); b.head.rotation.set(0, L.headY, L.headZ);
   b.uaA.rotation.set(-L.splay, 0, L.uaA); b.uaB.rotation.set(L.splay, 0, L.uaB); b.faA.rotation.set(0, 0, L.faA); b.faB.rotation.set(0, 0, L.faB);
   b.thA.rotation.set(-L.tsp, 0, L.thA); b.thB.rotation.set(L.tsp, 0, L.thB); b.shA.rotation.set(0, 0, -L.kA); b.shB.rotation.set(0, 0, -L.kB);
   // the feet stay flat on the ground when planted and point down as the leg trails behind
