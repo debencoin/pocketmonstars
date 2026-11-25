@@ -41,6 +41,7 @@ export class ChartView {
     this.forecast = null;
     this.onLegend = onLegend;
     this.storageKey = storageKey;
+    this.markerSets = {}; // kind -> markers (trades, news, herd), merged into one layer
     this.wantDrawings = drawings;
   }
 
@@ -77,6 +78,37 @@ export class ChartView {
     else if (t === 'hollow') this.main = this.chart.addSeries(L.CandlestickSeries, { ...common, upColor: 'rgba(0,0,0,0)', downColor: C.down, borderUpColor: C.up, borderDownColor: C.down, wickUpColor: C.up, wickDownColor: C.down });
     else this.main = this.chart.addSeries(L.CandlestickSeries, { ...common, upColor: C.up, downColor: C.down, borderVisible: false, wickUpColor: C.up, wickDownColor: C.down });
     for (const pl of this.priceLines) pl.handle = this.main.createPriceLine(pl.opts);
+    this.markerPlugin = null;
+    if (Object.keys(this.markerSets).length) this.applyMarkers();
+  }
+
+  setMarkerSet(kind, list) { this.markerSets[kind] = list || []; this.applyMarkers(); }
+
+  applyMarkers() {
+    if (!this.main) return;
+    if (!this.markerPlugin) this.markerPlugin = this.L.createSeriesMarkers(this.main, []);
+    const all = Object.values(this.markerSets).flat().sort((a, b) => a.time - b.time);
+    this.markerPlugin.setMarkers(all.slice(-600));
+  }
+
+  // Bar that contains a moment in time (works for every timeframe, incl. weekly/monthly)
+  barFor(tSec) {
+    const c = this.candles; if (!c.length || tSec < c[0].time) return null;
+    let lo = 0, hi = c.length - 1;
+    while (lo < hi) { const m = (lo + hi + 1) >> 1; if (c[m].time <= tSec) lo = m; else hi = m - 1; }
+    return c[lo];
+  }
+
+  // Green ▲ buys and red ▼ sells with the arrow tip on the exact fill price.
+  tradeMarkers(fills) {
+    const out = [];
+    for (const f of fills) {
+      const bar = this.barFor(Math.floor(f.time / 1000));
+      if (!bar || !(f.price > 0)) continue;
+      const buy = f.side === 'buy';
+      out.push({ time: bar.time, position: buy ? 'atPriceTop' : 'atPriceBottom', price: f.price, shape: buy ? 'arrowUp' : 'arrowDown', color: buy ? '#00d68f' : '#ff3b5c', size: 1, text: buy ? 'B' : f.pnl != null ? `${f.pnl >= 0 ? '+' : ''}${f.pnl.toFixed(2)}` : 'S' });
+    }
+    return out;
   }
 
   mainData(c = this.candles) {

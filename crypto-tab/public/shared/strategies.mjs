@@ -392,6 +392,24 @@ function pumpGridTick() {
           note(`Bullish news (${good.source}): holding lots for 30 min so a news pump can run`);
         }
       }
+      // herd guard: the token's correlated group is dumping / pumping right now
+      if (p.herdGuard !== false && ctx.herd?.length) {
+        c.herdSeen = c.herdSeen || [];
+        const dumpH = ctx.herd.find((h) => h.dir === 'dump' && h.confidence >= 0.5 && h.ageMin <= 20 && !c.herdSeen.includes(h.id));
+        const pumpH = ctx.herd.find((h) => h.dir === 'pump' && h.confidence >= 0.5 && h.ageMin <= 20 && !c.herdSeen.includes(h.id));
+        if (dumpH) {
+          c.herdSeen.push(dumpH.id); c.herdSeen = c.herdSeen.slice(-100);
+          c.mode = 'wait'; c.top = c.gridHigh; c.low = price;
+          if (p.dumpSell) await sellBag('herd dump');
+          notify('Herd guard', `${dumpH.name} is dumping together (${Math.round(dumpH.breadth * 100)}% of the group). ${p.dumpSell ? 'Sold the bag' : 'Buying paused'} until the bottom is confirmed.`);
+          return out;
+        }
+        if (pumpH) {
+          c.herdSeen.push(pumpH.id); c.herdSeen = c.herdSeen.slice(-100);
+          c.holdUntil = ctx.now + 30 * 60e3;
+          note(`${pumpH.name} is pumping together: holding lots for 30 min`);
+        }
+      }
       // pump: strong move off the recent low, green candle, above the fast averages
       const look = closed.slice(-15);
       const base = Math.min(...look.map((k) => k.low));
@@ -518,8 +536,10 @@ STRATEGIES.pumpgrid = {
     ['dumpSell', 'Sell the bag on a dump', 'bool', false, 'Off = hold lots and sell them at profit after the bottom'],
     ['stopLoss', 'Stop loss %', 'number', 0, 'From average lot cost; 0 = off'],
     ['newsGuard', 'News guard', 'bool', true, 'Bearish news stops buying; bullish news holds lots'],
+    ['herdGuard', 'Herd guard', 'bool', true, 'When its correlated group dumps together, stop buying; when it pumps together, hold lots'],
   ],
   usesNews: true,
+  usesHerd: true,
   init(bot, price, st) { Object.assign(st.custom, { mode: 'grid', lots: [], ref: price, gridHigh: price, peak: null, top: null, low: null, step: null, measuredAt: 0, events: [] }); },
   tick: pumpGridTick(),
 };
@@ -710,5 +730,58 @@ STRATEGIES.newsbot = {
     const t = await exec.sell(pos.amount, price, why, pos.cost);
     if (t) c.pos = null;
     return { notify: { title: `News trade closed (${why})`, body: `${g >= 0 ? '+' : ''}${g.toFixed(2)}% · ${pos.why}` } };
+  },
+};
+
+// ---------------------------------------------------------------------------------------
+// Herd Follower: follows the big money. When the token's correlated group starts pumping
+// together and this token has not moved yet (a laggard), it buys; when the group starts
+// dumping together, it sells. Confidence comes from the herd agent's learned follow rates.
+// ---------------------------------------------------------------------------------------
+STRATEGIES.herd = {
+  label: 'Herd Follower',
+  desc: 'Follows coordinated moves: buys this token when its correlated group starts pumping together and it has not moved yet, and sells when the group starts dumping together.',
+  needsCandles: false,
+  usesHerd: true,
+  fields: [
+    ['investment', 'Investment (quote)', 'number', 500, ''],
+    ['orderSize', 'Order size % of wallet', 'number', 100, ''],
+    ['minConfidence', 'Minimum follow rate (0-1)', 'number', 0.55, 'How often laggards in this group followed before (learned)'],
+    ['entryMode', 'Enter when', 'select:laggard,any', 'laggard', 'laggard = only if this token has not moved yet; any = whenever its group pumps'],
+    ['maxChase', 'Skip if it already moved %', 'number', 0.8, 'In the last 15 minutes'],
+    ['takeProfit', 'Take profit %', 'number', 0, '0 = auto from the size of the group move'],
+    ['stopLoss', 'Stop loss %', 'number', 0, '0 = auto from the size of the group move'],
+    ['trailing', 'Trailing stop %', 'number', 0.5, ''],
+    ['holdMax', 'Max hold (min)', 'number', 120, ''],
+    ['exitOnDump', 'Sell when the group dumps', 'bool', true, ''],
+  ],
+  init(bot, price, st) { Object.assign(st.custom, { pos: null, used: [] }); },
+  async tick(bot, ctx, exec, st) {
+    const p = bot.params, c = st.custom, price = ctx.price, herd = ctx.herd || [];
+    c.used = c.used || [];
+    if (!c.pos) {
+      const h = herd.find((x) => x.dir === 'pump' && !c.used.includes(x.id) && x.confidence >= p.minConfidence && x.ageMin <= 20 && (p.entryMode === 'any' || x.role === 'laggard') && (x.tokenMove ?? 0) < p.maxChase);
+      if (!h) return;
+      c.used.push(h.id); c.used = c.used.slice(-200);
+      const t = await exec.buy(((equity(st, price) * Math.min(100, p.orderSize)) / 100) / price, price, `herd: ${h.name}`);
+      if (!t) return;
+      st.started = true;
+      const size = Math.abs(h.clusterMove || 1);
+      c.pos = { amount: t.amount, cost: t.cost + t.fee, peak: price, opened: ctx.now, tp: p.takeProfit > 0 ? p.takeProfit : +Math.max(0.6, size * 0.8).toFixed(2), sl: p.stopLoss > 0 ? p.stopLoss : +Math.max(0.6, size * 0.6).toFixed(2), why: h.name };
+      return { notify: { title: 'Herd buy', body: `${h.name} is pumping together (${Math.round(h.breadth * 100)}%); this token had not moved yet. Target +${c.pos.tp}%, stop -${c.pos.sl}%.` } };
+    }
+    const pos = c.pos;
+    pos.peak = Math.max(pos.peak, price);
+    const g = ((price - pos.cost / pos.amount) / (pos.cost / pos.amount)) * 100;
+    let why = null;
+    if (g >= pos.tp) why = 'herd target hit';
+    else if (g <= -pos.sl) why = 'herd stop hit';
+    else if (p.trailing > 0 && g > 0.2 && ((pos.peak - price) / pos.peak) * 100 >= p.trailing) why = 'trailing stop';
+    else if (ctx.now - pos.opened > p.holdMax * 60e3) why = 'time limit';
+    else if (p.exitOnDump && herd.some((x) => x.dir === 'dump' && x.confidence >= 0.45)) why = 'group dumping';
+    if (!why) return;
+    const t = await exec.sell(pos.amount, price, why, pos.cost);
+    if (t) c.pos = null;
+    return { notify: { title: `Herd trade closed (${why})`, body: `${g >= 0 ? '+' : ''}${g.toFixed(2)}% · ${pos.why}` } };
   },
 };

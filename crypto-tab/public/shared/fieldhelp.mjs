@@ -211,6 +211,26 @@ export const HELP = {
   },
   holdMax: { what: 'News effects fade. Close the trade after this many minutes even if the target was not reached.', example: () => '240 = sell after 4 hours at most.' },
   exitOnBearish: { what: 'Sell immediately if bearish news about the coin comes out while holding it.', example: (x) => `Holding ${x.base}, then "${x.base} delisted" appears: the bot sells at once.` },
+
+  // ---------- herd ----------
+  herdGuard: {
+    what: 'Uses the correlation agent: when the group of coins that usually move with this one starts dumping together (often one big player selling a basket), the bot stops buying; when the group pumps together, it holds its lots.',
+    example: (x) => `${x.base} moves with its group. 60% of them suddenly drop together, so the bot stops buying ${x.base} before it gets dragged down too.`,
+  },
+  minConfidence: {
+    what: 'How often coins in this group that had not moved yet went on to follow the group, as learned from past group moves. The agent keeps updating it after every move.',
+    example: () => '0.55: only trade groups where at least 55% of the lagging coins followed the move before.',
+  },
+  entryMode: {
+    what: '"laggard" buys only if this coin has not moved yet while its group pumps (it is likely to catch up). "any" buys whenever its group pumps.',
+    example: (x) => `Laggard: SOL, SUI and DOGE jump 2% together but ${x.base} is flat, so the bot buys ${x.base} expecting it to follow.`,
+  },
+  'herd.maxChase': { what: 'Skip the trade if this coin already moved this much in the last 15 minutes.', example: () => '0.8%: if it already rose 1%, the catch-up already happened, so the bot skips it.' },
+  'herd.takeProfit': { what: 'Sell when up this much. 0 = automatic: about 80% of the size of the group move.', example: () => 'The group moved +2% → target about +1.6%.' },
+  'herd.stopLoss': { what: 'Sell if down this much. 0 = automatic: about 60% of the size of the group move.', example: () => 'The group moved +2% → stop about -1.2%.' },
+  'herd.trailing': { what: 'Once in profit, sell if price falls this much from its best point.', example: (x) => `0.5% from the high.` },
+  'herd.holdMax': { what: 'Group moves fade. Close the trade after this many minutes.', example: () => '120 = at most 2 hours.' },
+  exitOnDump: { what: 'Sell right away if the coin’s group starts dumping together.', example: (x) => `Holding ${x.base} when the group turns down together, so the bot sells with it.` },
 };
 
 export function helpFor(type, key) { return HELP[`${type}.${key}`] || HELP[key] || null; }
@@ -240,6 +260,12 @@ export const STORY = {
   gain: (x) => [`Buys ${x.base} when it is a set % under its moving average, sells at a fixed gain.`],
   supertrend: (x) => [`Buys when SuperTrend flips green on ${x.base} and sells when it flips red.`],
   macd: (x) => [`Buys when MACD momentum turns up below zero and sells when it turns back down.`],
+  herd: (x) => [
+    `The herd agent learns which coins move together, e.g. ${x.base} with its group, and who moves first.`,
+    `Several coins in ${x.base}'s group suddenly jump together; ${x.base} has not moved yet.`,
+    `The bot buys ${x.base} at about ${x.px(x.price)} if laggards in this group usually follow (learned follow rate).`,
+    `It sells at a target sized from the group move, on a trailing stop, after 2 hours, or right away when the group starts dumping.`,
+  ],
   newsbot: (x) => [
     `The news agent reads 20+ crypto news sources every 90 seconds, including Binance listings and the Zcash teams' blogs.`,
     `Bullish ${x.base} news appears, e.g. "${x.base} to be listed on a major exchange". The agent scores it and checks how ${x.base} moved after similar news before.`,

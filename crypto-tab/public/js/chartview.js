@@ -1,6 +1,6 @@
 // Chart screen: pro chart + timeframes + indicators + drawing tools + future forecast,
 // with order book / trades / AI levels underneath and one-tap Buy / Sell.
-import { api, qs } from './api.js';
+import { api, qs, conn } from './api.js';
 import { ChartView, CHART_TYPES } from './chart.js';
 import { TOOLS, COLORS } from './drawings.js';
 import { INDICATORS } from '/shared/indicators.mjs';
@@ -14,7 +14,8 @@ const ICON = (d) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" 
 export function chartScreen(el, app) {
   let cv = null, timers = [], tick = null, below = store.get('chBelow', 'book');
   let showFc = store.get('forecast', true);
-  let showNews = store.get('newsMarkers', true), newsMarks = [], markerPlugin = null;
+  let showNews = store.get('newsMarkers', true), newsMarks = [];
+  let showTrades = store.get('tradeMarkers', true);
   let ob = null, trades = null;
 
   el.innerHTML = `
@@ -32,7 +33,8 @@ export function chartScreen(el, app) {
       <button class="tool-btn" id="t-ind" title="Indicators">${ICON('M3 17l5-6 4 4 8-10')}<span>fx</span></button>
       <button class="tool-btn" id="t-draw" title="Drawing tools">${ICON('M4 20l4-1L19 8l-3-3L5 16zM14 6l3 3')}</button>
       <button class="tool-btn ${showFc ? 'active' : ''}" id="t-fc" title="Future forecast">${ICON('M3 17l6-6 4 4 4-8M17 7h4v4')}<span>Future</span></button>
-      <button class="tool-btn ${showNews ? 'active' : ''}" id="t-news" title="News on chart">📰</button>
+      <button class="tool-btn ${showTrades ? 'active' : ''}" id="t-trades" title="My buys and sells"><span style="color:var(--up)">▲</span><span style="color:var(--down)">▼</span></button>
+      <button class="tool-btn ${showNews ? 'active' : ''}" id="t-news" title="News and herd moves on chart">📰</button>
       <button class="tool-btn" id="t-full" title="Fullscreen">${ICON('M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5')}</button>
     </div>
     <div class="ch-wrap" id="ch-wrap">
@@ -93,6 +95,7 @@ export function chartScreen(el, app) {
       cv.fit();
       loadForecast();
       loadNewsMarkers();
+      loadTradeMarkers();
     } catch (e) { toast(e.message, 'err'); }
     refreshTicker();
   }
@@ -118,9 +121,7 @@ export function chartScreen(el, app) {
   // News on the chart: an arrow on every candle where news about this token came out.
   async function loadNewsMarkers() {
     if (!cv) return;
-    const L = cv.L;
-    if (!markerPlugin || markerPlugin._series !== cv.main) { markerPlugin = L.createSeriesMarkers(cv.main, []); markerPlugin._series = cv.main; }
-    if (!showNews) { markerPlugin.setMarkers([]); return; }
+    if (!showNews) { cv.setMarkerSet('news', []); cv.setMarkerSet('herd', []); return; }
     try {
       const base = app.S.symbol.split('/')[0];
       newsMarks = await api(`/api/news/markers${qs({ token: base, from: cv.candles[0]?.time })}`);
@@ -135,8 +136,17 @@ export function chartScreen(el, app) {
         ? { time: t, position: 'belowBar', color: '#00d68f', shape: 'arrowUp', text: n.count > 1 ? `📰${n.count}` : '📰' }
         : n.label === 'bearish' ? { time: t, position: 'aboveBar', color: '#ff3b5c', shape: 'arrowDown', text: n.count > 1 ? `📰${n.count}` : '📰' }
           : { time: t, position: 'aboveBar', color: '#858b97', shape: 'circle', text: '' });
-      markerPlugin.setMarkers(marks);
+      cv.setMarkerSet('news', marks);
+      // herd moves this token took part in (⚡ purple)
+      const evs = await api(`/api/herd/events${qs({ token: base, days: 8 })}`).catch(() => []);
+      cv.setMarkerSet('herd', evs.map((e) => { const bar = cv.barFor(Math.floor(e.time / 1000)); return bar && { time: bar.time, position: e.dir === 'pump' ? 'belowBar' : 'aboveBar', shape: 'circle', color: '#a78bfa', text: `⚡${Math.round(e.breadth * 100)}%` }; }).filter(Boolean));
     } catch { /* news offline */ }
+  }
+
+  async function loadTradeMarkers() {
+    if (!cv?.candles.length) return;
+    if (!showTrades || conn.demo || !store.get('token')) { cv.setMarkerSet('trades', []); return; }
+    try { cv.setMarkerSet('trades', cv.tradeMarkers(await api(`/api/fills${qs({ ex: app.S.ex, symbol: app.S.symbol })}`, { quiet: true }))); } catch { /* not logged in */ }
   }
 
   async function refreshTicker() {
@@ -219,7 +229,7 @@ export function chartScreen(el, app) {
 
   $('#t-type', el).onclick = () => sheet('Chart type', (b, close) => {
     b.innerHTML = CHART_TYPES.map(([k, l]) => `<button class="btn block ${cv.type === k ? 'primary' : ''}" style="margin-bottom:8px" data-t="${k}">${l}</button>`).join('');
-    b.onclick = (e) => { const x = e.target.closest('[data-t]'); if (!x) return; cv.setType(x.dataset.t); store.set('chartType', x.dataset.t); cv.renderForecast(); loadNewsMarkers(); close(); };
+    b.onclick = (e) => { const x = e.target.closest('[data-t]'); if (!x) return; cv.setType(x.dataset.t); store.set('chartType', x.dataset.t); cv.renderForecast(); close(); };
   });
 
   $('#t-ind', el).onclick = () => sheet('Indicators', (b) => {
@@ -256,6 +266,7 @@ export function chartScreen(el, app) {
     loadForecast().then(() => showFc && cv.revealFuture());
     haptic();
   };
+  $('#t-trades', el).onclick = () => { showTrades = !showTrades; store.set('tradeMarkers', showTrades); $('#t-trades', el).classList.toggle('active', showTrades); loadTradeMarkers(); haptic(); };
   $('#t-news', el).onclick = () => { showNews = !showNews; store.set('newsMarkers', showNews); $('#t-news', el).classList.toggle('active', showNews); loadNewsMarkers(); haptic(); };
   $('#t-full', el).onclick = () => { $('#ch-wrap', el).classList.toggle('full'); haptic(); };
 
@@ -296,6 +307,7 @@ export function chartScreen(el, app) {
         setInterval(refreshTicker, 4000),
         setInterval(() => { if (!document.hidden && (below === 'book' || below === 'trades')) loadBelow(); }, 1800),
         setInterval(() => showFc && loadForecast(), 120000),
+        setInterval(() => !document.hidden && loadTradeMarkers(), 15000),
       ];
     },
     hide() { timers.forEach(clearInterval); timers = []; clearInterval(tick); },

@@ -9,7 +9,7 @@ import { helpFor, STORY, ctxFor } from '/shared/fieldhelp.mjs';
 import { COINS, MAIN_COIN, presetFor } from '/shared/presets.mjs';
 import { $, esc, fmtPrice, fmtAmt, fmtPct, fmtUsd, cls, store, sheet, haptic, toast, confirmSheet, fieldsHtml, readFields, wireToggles, ago } from './ui.js';
 
-const ICONS = { newsbot: '📰', pumpgrid: '🚀', grid: '▦', dca: '⬇', stepgrid: '⟋', bb: '◎', emacross: '✕', rsi: '∿', gain: '⤓', supertrend: '⇗', macd: '≋' };
+const ICONS = { herd: '🐂', newsbot: '📰', pumpgrid: '🚀', grid: '▦', dca: '⬇', stepgrid: '⟋', bb: '◎', emacross: '✕', rsi: '∿', gain: '⤓', supertrend: '⇗', macd: '≋' };
 const tfSec = (tf) => parseInt(tf, 10) * ({ m: 60, h: 3600, d: 86400, w: 604800 }[tf.replace(/\d+/g, '')] || 60);
 
 export function botsScreen(el, app) {
@@ -621,6 +621,10 @@ export function botsScreen(el, app) {
     if (b.levels && $('#bd-edit', el).hidden) detailCv.setPriceLines(b.levels.map((l, i) => ({ price: l, color: b.slots?.[i] ? 'rgba(0,214,143,.55)' : 'rgba(255,59,92,.45)', style: 2, label: i === 0 || i === b.levels.length - 1 })));
     if (b.deal?.cost && b.deal?.amount) detailCv.setPriceLines([{ price: b.deal.cost / b.deal.amount, color: '#f5c542', title: 'Avg entry', style: 0 }]);
     if (b.type === 'pumpgrid') syncPumpLines(b);
+    if (!conn.demo && (!detailCv._fillsAt || Date.now() - detailCv._fillsAt > 10000)) {
+      detailCv._fillsAt = Date.now();
+      api(`/api/fills${qs({ bot: b.id })}`, { quiet: true }).then((f) => detailCv?.setMarkerSet('trades', detailCv.tradeMarkers(f))).catch(() => {});
+    }
     const trades = b.trades || [];
     $('#bd-body', el).innerHTML = `
       <div class="row between"><div><span class="pill ${b.status === 'running' ? 'up' : b.status === 'paused' ? 'warn' : ''}">${b.status}</span> <span class="pill ${b.mode === 'live' ? 'down' : 'warn'}">${b.mode}</span> <span class="dim" style="font-size:12px">${esc(b.label)} · ${s.runtimeH.toFixed(1)}h</span></div>

@@ -74,7 +74,27 @@ A CryptoPanic-style news feed with an AI trading agent on top (**News** tab).
   - **News guard** on the Pump Rider: bearish news switches it to "wait for the bottom", and strong bullish news makes it hold its lots for 30 minutes.
   - **Notifications** for strong news on ZEC, BTC, ETH, SOL, XRP and every token a bot is trading (`CT_NEWS_WATCH`).
 - **Chart:** 📰 arrows mark news on the chart (green bullish, red bearish). Tap one to read the articles and see the price then and now.
-- `CT_NEWS_EXCHANGE` (default `mexc`) is the exchange used to price news reactions.
+- **The news agent keeps learning:** every live signal is graded 4 hours later from real candles (did it hit the target before the stop?). Those results update how much it trusts each source, category and coin, which feeds back into future signal scores. Its track record is shown in the News tab.
+- `CT_NEWS_EXCHANGE` (default `mexc`) is the exchange used to price news reactions. `CT_HERD_EXCHANGE` / `CT_HERD_UNIVERSE` set the herd agent's exchange and how many coins it watches.
+
+## Herd agent: coins that pump and tank together
+
+Big players (funds, market makers, ETF flows, liquidation cascades) move baskets of tokens at the same moment. The agent can't see who is trading, but it detects the footprint and follows it (AI → Herd agent).
+
+- **Groups:** every 30 minutes it re-measures the most-traded ~45 tokens plus ZEC, BTC, ETH, SOL, XRP and every token a bot trades. It uses 7.5 days of 15-minute prices and finds:
+  - **Market groups:** coins that move with Bitcoin.
+  - **Hidden groups:** coins that still move together once Bitcoin's influence is removed, a sign of one player or theme pushing them. On 2026-11-25 these were a 24-coin altcoin pack (SOL, SUI, DOGE, LINK…), **HYPE + ZEC + LIT**, and ETH + BNB.
+- **Leaders:** which coins' moves predict the rest of their group's next 15 minutes.
+- **Pumps & dumps together:** every moment in the last week when a big share of the coins moved unusually in the same direction within 30 minutes. For each it records who moved first, the average move, what happened 1 h and 4 h later, and how many group members that hadn't moved yet followed.
+- **Live:** every minute it checks each group. When enough of a group moves together, it signals which members haven't moved yet (laggards that usually follow), with a learned confidence. You get a notification if the group contains ZEC, BTC, ETH, SOL, XRP or a bot's coin.
+- **It keeps learning:** it starts with a week of history, then grades every live call 60 minutes later (did the laggards follow?). The result updates the follow rate per group and direction and each leader's reliability, with older results slowly fading. It also raises or lowers how much of a group must move before it fires, depending on its recent hit rate.
+- **Herd Follower bot** (new bot type): buys a coin when its group starts pumping together and it hasn't moved yet, and sells at a target sized from the group move, on a trailing stop, after a time limit, or as soon as the group starts dumping together.
+- **Herd guard** on the Pump Rider: a group dump stops buying (and sells the bag if "sell the bag on a dump" is on); a group pump holds lots.
+- ⚡ markers on the chart show the group moves a coin took part in.
+
+## Buy / sell arrows
+
+The chart shows your real fills: green ▲ buys and red ▼ sells, with the arrow tip on the exact fill price, placed on the candle the trade happened in, on every timeframe. Fills come from bots, the paper account, and your exchange's trade history when an API key is saved. Each bot's chart shows its own trades. The ▲▼ button turns them off.
 
 ## Token profiles (any token)
 

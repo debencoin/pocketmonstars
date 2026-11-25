@@ -48,6 +48,10 @@ export const FEEDS = [
 ];
 
 const db = load('news', { articles: [], feeds: {} });
+db.track ||= {};   // signal id -> what the agent predicted (graded later)
+db.learn ||= { source: {}, category: {}, token: {}, graded: 0, wins: 0, history: [] };
+const rate = (c) => (c ? c.a / (c.a + c.b) : 0.5);
+const decay = (c, k = 0.99) => { c.a = 1 + (c.a - 1) * k; c.b = 1 + (c.b - 1) * k; };
 const persist = () => save('news', db);
 const byId = new Map(db.articles.map((a) => [a.id, a]));
 const parser = new XMLParser({ ignoreAttributes: false, attributeNamePrefix: '@' });
@@ -230,15 +234,24 @@ async function computeSignals({ maxAgeH = 6 } = {}) {
       const agree60 = ref?.m60 ? Math.sign(ref.m60.avg) === dir : null;
       const agree240 = ref?.m240?.n >= 5 ? Math.sign(ref.m240.avg) === dir : null;
       const historyAdj = agree60 == null ? 0 : agree60 || agree240 ? 0.1 : ref.m60.n >= 10 ? -0.2 : -0.1;
-      const score = +Math.max(0, Math.min(1, Math.abs(sent) * 0.45 + a.importance * 0.45 + (a.ai?.impact === 'high' ? 0.15 : a.ai?.impact === 'medium' ? 0.07 : 0) + historyAdj)).toFixed(2);
+      // learned trust: how often signals from this source / category / token worked before
+      const Ln = db.learn;
+      const trust = (rate(Ln.source[a.sourceId]) + rate(Ln.category[a.category]) + rate(Ln.token[t])) / 3;
+      const trustAdj = (trust - 0.5) * 0.4;
+      const score = +Math.max(0, Math.min(1, Math.abs(sent) * 0.45 + a.importance * 0.45 + (a.ai?.impact === 'high' ? 0.15 : a.ai?.impact === 'medium' ? 0.07 : 0) + historyAdj + trustAdj)).toFixed(2);
       const bestH = ref ? (agree240 && !agree60 ? 240 : 60) : 60;
       list.push({
         id: `${a.id}:${t}`, article: a.id, token: t, symbol: `${t}/USDT`, exchange: EX, side: bull ? 'buy' : 'avoid / sell',
         label: a.label, score, title: a.title, source: a.source, published: a.published, ageMin: +ageMin.toFixed(1), latencySec: a.backfill ? null : Math.max(0, Math.round((a.seen - a.published) / 1000)),
         movedSincePct: +moved.toFixed(2), tpPct: tp, slPct: sl, volPct: +vol.toFixed(2), pricedIn, status: pricedIn ? 'priced in' : ageMin < 30 ? 'fresh' : 'active',
         evidence: ref ? { basis: ref.key, n: ref.m60.n, avg15: ref.m15?.avg, avg60: ref.m60.avg, upShare60: ref.m60.upShare, avg240: ref.m240?.avg, upShare240: ref.m240?.upShare, spikeMedian: spike, agrees: agree60 || agree240 || false, bestHorizonMin: bestH } : null,
-        take: a.ai?.take || null,
+        take: a.ai?.take || null, trust: +trust.toFixed(2),
       });
+      // remember the prediction so it can be graded later (live news only, not startup backfill)
+      const sid = `${a.id}:${t}`;
+      if (!db.track[sid] && !a.backfill && !pricedIn && r?.p0) {
+        db.track[sid] = { at: now, token: t, dir: bull ? 1 : -1, entry: r.p0 * (1 + (r.now || 0) / 100), tp, sl, source: a.sourceId, category: a.category, title: a.title };
+      }
     }
   }
   list.sort((x, y) => (y.status === 'fresh') - (x.status === 'fresh') || y.score - x.score);
@@ -258,6 +271,33 @@ function onFresh(a) {
   if (watched.length && strong && a.label !== 'neutral') {
     newsEvents.emit('notify', { kind: 'news', title: `${a.label === 'bullish' ? '🟢' : '🔴'} ${watched.join(', ')} · ${a.label} news`, body: `${a.source}: ${a.title}`, tag: `news-${a.id}` });
   }
+}
+
+// ---------------- learning: grade every prediction 4 hours later ----------------
+async function gradeSignals() {
+  const now = Date.now(); const L = db.learn;
+  for (const [sid, p] of Object.entries(db.track)) {
+    if (p.done || now - p.at < 4 * 3600e3) continue;
+    let c; try { c = await candles5m(`${p.token}/USDT`); } catch { continue; }
+    const after = c.filter((k) => k.time * 1000 >= p.at && k.time * 1000 <= p.at + 4 * 3600e3);
+    if (!after.length) { p.done = true; continue; }
+    const up = p.entry * (1 + (p.dir > 0 ? p.tp : p.sl) / 100), down = p.entry * (1 - (p.dir > 0 ? p.sl : p.tp) / 100);
+    let win = null;
+    for (const k of after) { const hitUp = k.high >= up, hitDown = k.low <= down; if (hitUp && hitDown) { win = false; break; } if (hitUp) { win = p.dir > 0; break; } if (hitDown) { win = p.dir < 0; break; } }
+    if (win == null) win = Math.sign(after[after.length - 1].close - p.entry) === p.dir;
+    p.done = true; p.win = win;
+    for (const [bucket, key] of [['source', p.source], ['category', p.category], ['token', p.token]]) { const x = (L[bucket][key] ||= { a: 1, b: 1 }); decay(x); if (win) x.a += 1; else x.b += 1; }
+    L.graded++; if (win) L.wins++;
+    L.history.unshift({ t: now, token: p.token, dir: p.dir, win, title: p.title.slice(0, 90) }); L.history = L.history.slice(0, 100);
+  }
+  for (const [sid, p] of Object.entries(db.track)) if (p.done && now - p.at > 3 * 864e5) delete db.track[sid];
+  persist();
+}
+
+export function learning() {
+  const L = db.learn;
+  const top = (o) => Object.entries(o).map(([k, c]) => ({ k, rate: +rate(c).toFixed(2), n: Math.round(c.a + c.b - 2) })).filter((x) => x.n > 0).sort((a, b) => b.n - a.n).slice(0, 8);
+  return { graded: L.graded, wins: L.wins, precision: L.graded ? +(L.wins / L.graded).toFixed(3) : null, pending: Object.values(db.track).filter((p) => !p.done).length, bySource: top(L.source), byCategory: top(L.category), byToken: top(L.token), recent: L.history.slice(0, 10) };
 }
 
 // ---------------- Claude reads the headlines (optional) ----------------
@@ -379,6 +419,7 @@ export function start() {
   setInterval(() => updateReactions().catch(() => {}), 120e3);
   setInterval(() => aiEnrich().catch(() => {}), 180e3);
   setInterval(() => signals().catch(() => {}), 30e3);
+  setInterval(() => gradeSignals().catch(() => {}), 10 * 60e3);
   setInterval(() => refreshBases().catch(() => {}), 3600e3);
 }
 

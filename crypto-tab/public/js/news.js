@@ -111,6 +111,12 @@ export function newsScreen(el, app) {
         ${row('🟢 Bullish', pre + 'bullish')}${row('🔴 Bearish', pre + 'bearish')}${row('⚪ Neutral', pre + 'neutral')}${t ? '' : row('🔥 Strong bullish', 'strong:bullish') + row('🔥 Strong bearish', 'strong:bearish') + row('🏷 Listings', 'cat:listing:bullish') + row('🛡 Hacks', 'cat:hack:bearish') + row('⚖ Regulation (bearish)', 'cat:regulation:bearish')}
         <div class="dim" style="font-size:11px;margin-top:8px">The sample grows every day the server runs, so the agent's estimates keep getting sharper.</div></div>`;
     } catch { box.innerHTML = ''; }
+    try {
+      const L = await api('/api/news/learning');
+      box.insertAdjacentHTML('beforeend', `<div class="card" style="margin-top:10px"><b>🧠 News agent track record</b>
+        <div class="grid3" style="margin-top:8px"><div class="kv"><span>Signals graded</span><span>${L.graded}</span></div><div class="kv"><span>Worked</span><span class="${L.precision >= 0.5 ? 'up' : L.precision != null ? 'down' : ''}">${L.precision != null ? Math.round(L.precision * 100) + '%' : '—'}</span></div><div class="kv"><span>Waiting</span><span>${L.pending}</span></div></div>
+        <div class="dim" style="font-size:11px;margin-top:8px;line-height:1.45">Every live signal is graded 4 hours later from real candles (target before stop = worked). The results keep adjusting how much the agent trusts each source, kind of news and coin.${L.bySource.length ? ` Most reliable so far: ${L.bySource.slice().sort((a, b) => b.rate - a.rate).slice(0, 3).map((x) => `${esc(x.k)} ${Math.round(x.rate * 100)}%`).join(', ')}.` : ' The first grades arrive about 4 hours after the first live signals.'}</div></div>`);
+    } catch { /* ignore */ }
     try { const f = await api('/api/news/feeds'); const ok = f.filter((x) => !x.error && x.ok); $('#nw-feeds', el).textContent = `${ok.length}/${f.length} sources live: ${ok.map((x) => x.name).join(', ')}. Refreshed every 90 s.`; } catch { /* ignore */ }
   }
 

@@ -9,6 +9,7 @@ import * as Alerts from './alerts.mjs';
 import * as Paper from './paper.mjs';
 import * as AI from './ai.mjs';
 import * as News from './news.mjs';
+import * as Herd from './herd.mjs';
 import { accessToken, flushAll } from './store.mjs';
 import { STRATEGIES, backtest, normalizeParams, defaultsFor } from '../public/shared/strategies.mjs';
 
@@ -47,8 +48,14 @@ route('GET', '/api/news/stats', (q) => News.stats({ token: q.token }), { open: t
 route('GET', '/api/news/signals', () => News.signals(), { open: true });
 route('GET', '/api/news/markers', (q) => News.markers(String(q.token || '').toUpperCase(), Number(q.from) || 0), { open: true });
 route('GET', '/api/news/feeds', () => News.feedStatus(), { open: true });
+route('GET', '/api/news/learning', () => News.learning(), { open: true });
 route('GET', '/api/news/brief', (q) => News.tokenBrief(q.token || 'ZEC'), { open: true });
 route('POST', '/api/news/:id/vote', (q, body, p) => News.vote(p.id, body.kind));
+
+// ---------- herd / correlation agent ----------
+route('GET', '/api/herd', () => Herd.overview(), { open: true });
+route('GET', '/api/herd/events', (q) => Herd.events({ days: Number(q.days) || 7, token: q.token ? String(q.token).toUpperCase() : undefined }), { open: true });
+route('POST', '/api/herd/analyze', () => Herd.analyze());
 
 // ---------- keys / account ----------
 route('GET', '/api/keys', () => X.listKeys());
@@ -58,6 +65,20 @@ route('GET', '/api/balance', (q) => (q.ex === 'paper' ? Paper.account() : X.bala
 route('GET', '/api/orders', (q) => (q.ex === 'paper' ? Paper.account().orders : X.openOrders(q.ex, q.symbol)));
 route('POST', '/api/order', (q, body) => (body.mode === 'live' ? X.placeOrder(body.exchange, body) : Paper.order(body)));
 route('DELETE', '/api/order/:id', (q, body, p) => (q.ex === 'paper' ? Paper.cancel(p.id) : X.cancelOrder(q.ex, p.id, q.symbol)));
+// Fills for the buy/sell arrows: bots + paper account + real exchange trades (when a key is saved)
+route('GET', '/api/fills', async (q) => {
+  if (q.bot) return Bots.tradesFor({ bot: q.bot });
+  const out = Bots.tradesFor({ exchange: q.ex, symbol: q.symbol });
+  for (const f of Paper.account().fills) if (f.symbol === q.symbol && f.exchange === q.ex) out.push({ time: f.closedAt || f.time, side: f.side, price: f.average || f.price, amount: f.amount, pnl: null, tag: f.type, source: 'paper' });
+  if (X.listKeys().some((k) => k.exchange === q.ex)) {
+    try {
+      const ex = await X.privateClient(q.ex);
+      const mine = await ex.fetchMyTrades(q.symbol, Date.now() - 30 * 864e5, 500);
+      for (const t of mine) out.push({ time: t.timestamp, side: t.side, price: t.price, amount: t.amount, pnl: null, tag: t.takerOrMaker || '', source: 'exchange' });
+    } catch { /* exchange may not support it for this pair */ }
+  }
+  return out.sort((a, b) => a.time - b.time);
+});
 route('POST', '/api/paper/reset', (q, body) => Paper.reset(Number(body.amount) || 10000));
 
 // ---------- bots ----------
@@ -113,6 +134,8 @@ Bots.events.on('trade', (t) => broadcast('trade', t));
 Bots.events.on('bot', (b) => broadcast('bot', b));
 Bots.events.on('notify', (n) => broadcast('notify', n));
 News.newsEvents.on('article', (a) => broadcast('news', a));
+Herd.herdEvents.on('signal', (p) => broadcast('herd', p));
+Herd.herdEvents.on('notify', (n) => { broadcast('notify', n); Alerts.push(n).catch(() => {}); });
 News.newsEvents.on('notify', (n) => { broadcast('notify', n); Alerts.push(n).catch(() => {}); });
 setInterval(() => { for (const c of clients) c.write(': ping\n\n'); }, 20000);
 
@@ -173,6 +196,7 @@ Bots.start();
 Alerts.start();
 Paper.start();
 News.start();
+Herd.start();
 server.listen(PORT, () => {
   console.log(`Crypto Tab running on http://localhost:${PORT}`);
   console.log(`Passcode: ${TOKEN}   (set CT_TOKEN to choose your own)`);
