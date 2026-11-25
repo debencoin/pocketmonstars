@@ -1,5 +1,5 @@
 // PocketMonstars app service worker: the game shell and art work offline-fast; live data never comes from cache.
-const V = 'pm-v81', SHELL = ['/play', '/pvp-v4.css', '/game.js', '/arena-v2.js', '/monstars-v3.js', '/stake-client.js', '/pixel-arena.js', '/covo-rig.js', '/chosen-rig.js', '/girl-rig.js', '/elemental-rig.js', '/lock.js', '/pvp-v4.js', '/wild.js', '/v5.js', '/guild.js', '/targets.js', '/app.js', '/v6.js', '/manifest.webmanifest', '/app/icon-192.png'];
+const V = 'pm-v82', SHELL = ['/play', '/pvp-v4.css', '/game.js', '/arena-v2.js', '/monstars-v3.js', '/stake-client.js', '/pixel-arena.js', '/covo-rig.js', '/chosen-rig.js', '/girl-rig.js', '/elemental-rig.js', '/lock.js', '/pvp-v4.js', '/wild.js', '/v5.js', '/guild.js', '/targets.js', '/app.js', '/v6.js', '/manifest.webmanifest', '/app/icon-192.png'];
 self.addEventListener('install', e => { e.waitUntil(caches.open(V).then(c => c.addAll(SHELL)).catch(() => {})); self.skipWaiting(); });
 self.addEventListener('activate', e => { e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== V).map(k => caches.delete(k)))).then(() => self.clients.claim())); });
 self.addEventListener('fetch', e => {
@@ -9,6 +9,12 @@ self.addEventListener('fetch', e => {
     e.respondWith(caches.open(V).then(async c => (await c.match(e.request)) || fetch(e.request).then(r => { if (r.ok) c.put(e.request, r.clone()); return r; })));
     return;
   }
-  // game code and pages: network first so updates arrive at once, cache when offline
+  // the page itself and the versioned game code (?v=N never changes): shown from the cache at once and refreshed behind the scenes, so the game opens
+  // immediately even while the free server is still waking up
+  if (e.request.mode === 'navigate' || u.search.startsWith('?v=')) {
+    e.respondWith(caches.match(e.request).then(hit => { const net = fetch(e.request).then(r => { if (r.ok) { const cp = r.clone(); caches.open(V).then(c => c.put(e.request, cp)); } return r; }).catch(() => hit || caches.match('/play')); return hit || net; }));
+    return;
+  }
+  // everything else (models, data): network first so updates arrive at once, cache when offline
   e.respondWith(fetch(e.request).then(r => { if (r.ok) { const cp = r.clone(); caches.open(V).then(c => c.put(e.request, cp)); } return r; }).catch(() => caches.match(e.request, { ignoreSearch: true }).then(r => r || caches.match('/play'))));
 });
