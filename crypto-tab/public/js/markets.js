@@ -13,6 +13,7 @@ export function marketsView(el, app) {
   const favs = () => new Set(store.get('favs', COINS.map((c) => `mexc|${c}/USDT`)));
 
   el.innerHTML = `
+    <div class="seg" id="mk-view" style="margin:8px 12px 0"><button class="active">📋 List</button><button data-v="bubbles">🫧 Bubbles</button><button data-v="matrix">🔳 Matrix</button></div>
     <div class="chips" id="mk-ex"></div>
     <div class="search"><svg viewBox="0 0 24 24"><path d="M10 3a7 7 0 0 1 5.6 11.2l5.1 5.1-1.4 1.4-5.1-5.1A7 7 0 1 1 10 3m0 2a5 5 0 1 0 0 10 5 5 0 0 0 0-10"/></svg><input class="input" id="mk-q" placeholder="Search coins & tokenized stocks" autocomplete="off"></div>
     <div class="ticker-strip" id="mk-top"></div>
@@ -20,6 +21,7 @@ export function marketsView(el, app) {
     <div class="mk-head"><button data-k="b">Pair / Vol</button><button data-k="p">Price</button><button data-k="c">24h %</button></div>
     <div id="mk-list"><div class="empty"><span class="spinner"></span></div></div>`;
 
+  $('#mk-view', el).onclick = (e) => { const b = e.target.closest('[data-v]'); if (!b) return; haptic(); store.set('bbMode', b.dataset.v); app.go('bubbles'); };
   const exEl = $('#mk-ex', el), listEl = $('#mk-list', el), tabsEl = $('#mk-tabs', el), topEl = $('#mk-top', el);
 
   async function loadExchanges() {

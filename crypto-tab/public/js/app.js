@@ -9,6 +9,7 @@ import { aiScreen } from './ai.js';
 import { newsScreen } from './news.js';
 import { herdScreen } from './herd.js';
 import { clockScreen } from './clock.js';
+import { bubblesScreen } from './bubbles.js';
 import { alertsSheet, alarmOn, alarmOff, unlockAudio, startLocalChecker, activeCount, playOnce } from './alerts.js';
 import { settingsSheet } from './settings.js';
 
@@ -28,7 +29,7 @@ const app = {
     if (this.current && this.current !== name) this.views[this.current].hide?.();
     if (this.current && this.current !== name) this.prev = this.current;
     $$('.view').forEach((v) => v.classList.toggle('active', v.id === `view-${name}`));
-    $$('#tabbar button').forEach((b) => b.classList.toggle('active', b.dataset.go === name));
+    $$('#tabbar button').forEach((b) => b.classList.toggle('active', b.dataset.go === name || (name === 'bubbles' && b.dataset.go === 'markets') || ((name === 'herd' || name === 'clock') && b.dataset.go === 'ai')));
     this.current = name;
     if (this._symChanged && name === 'trade') opts.symbolChanged = true;
     if (name === 'trade') this._symChanged = false;
@@ -112,6 +113,7 @@ async function boot() {
   app.views.news = newsScreen($('#view-news'), app);
   app.views.herd = herdScreen($('#view-herd'), app);
   app.views.clock = clockScreen($('#view-clock'), app);
+  app.views.bubbles = bubblesScreen($('#view-bubbles'), app);
   app.toast = (m) => toast(m);
 
   $('#tabbar').onclick = (e) => { const b = e.target.closest('[data-go]'); if (b) { haptic(); app.go(b.dataset.go); } };
