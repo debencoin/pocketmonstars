@@ -637,6 +637,29 @@ Object.assign(CHK_SIG, {
       mega: { kind: 'barrage', name: 'Resonant Rings', note: 'Seven homing rings of light.', power: 1.6, size: 1.3 } }, names: ['Wide Ring', 'Twin Halo Disk', 'Resonant Form'], forms: ['Halo Spark', 'Halo Apprentice', 'Halo Slinger', 'Halo Adept', 'Halo Master', 'Resonant Form'] },
 });
 
+// ---- The Ancient Beings (3D): Sariel the Watcher (winged, flies), Nerath the Nephilim (a giant) and Enkar the Anunnaki (an ancient ruler). Strong from level 1
+// (Aura stats), hold-to-charge, a guard, a movement power and a mega each; they run, punch and guard like people. Sold in the market.
+Object.assign(CHK_SIG, {
+  'Sariel the Watcher': { type: 'ASTRAL', cls: 'mystic', title: 'Winged Watcher', female: false, motion: 'hover', main: '#8a6aff', market: 1.5,
+    sig: { basic: { name: 'Star Seal', look: 'ring', status: 'root', knock: 2, power: 1.55, note: 'Hold to charge: a ring of stars assembles, then flies out and binds the rival in place for a moment.' },
+      special: { name: 'Falling Star', style: 'bolt', status: 'mark', power: 1.55, note: 'A star drops from the night sky onto the rival and marks it.' },
+      dash: { kind: 'trail', name: 'Astral Step', note: 'Glides sideways on his wings, leaving a fading trail of stars that burns the rival.', dist: 1.9, cd: 0.72 },
+      guard: { kind: 'reflect', name: 'Night Mantle', note: 'Folds both wings forward: ranged hits bounce back.', time: 1.4, cd: 5.3 },
+      mega: { kind: 'hailstorm', name: 'Watchers\' Judgment', note: 'The sky opens and a rain of stars falls on the whole arena.', power: 1.7, size: 1.45 } }, names: ['Star Dart', 'Star Seal Twin', 'Astral Watcher'], forms: ['Fledgling Watcher', 'Star Watcher', 'Sariel the Watcher', 'Night Warden', 'Astral Warden', 'Celestial Watcher'] },
+  'Nerath the Nephilim': { type: 'STONE', cls: 'titan', title: 'Nephilim Giant', female: false, main: '#c87a3a', market: 1.5,
+    sig: { basic: { name: 'Fault Crown', look: 'boulder', status: 'daze', knock: 9, power: 1.6, note: 'Hold to build a ground charge, then stomp: a ridge of rock rolls across the arena.' },
+      special: { name: 'Titan Fist', style: 'strike', status: 'stun', power: 1.6, note: 'A giant fist smash that stuns the rival.' },
+      dash: { kind: 'charge', name: 'Colossus Rush', note: 'A short, heavy shoulder charge that nothing stops.', dist: 1.5, cd: 0.9 },
+      guard: { kind: 'fortress', name: 'Stonehide', note: 'Braces in place: hits barely move him.', time: 1.7, cd: 6.0 },
+      mega: { kind: 'pillars', name: 'Ridge of the Giants', note: 'Rock pillars burst out of the ground in a line across the arena.', power: 1.75, size: 1.5 } }, names: ['Ridge Break', 'Twin Fault', 'Titan Ascendant'], forms: ['Stone Child', 'Ridge Born', 'Nerath the Nephilim', 'Fault Giant', 'Colossus', 'Titan Ascendant'] },
+  'Enkar the Anunnaki': { type: 'EMBER', cls: 'deity', title: 'Dawn Ruler', female: false, main: '#ffb02a', market: 1.5,
+    sig: { basic: { name: 'Dawn Decree', look: 'ki', status: 'burn', knock: 5, power: 1.6, note: 'Hold to widen a rotating solar seal, then release a focused bronze-and-amber pulse.' },
+      special: { name: 'Crown of Dawn', style: 'cone', status: 'dazzle', power: 1.55, note: 'A ring of sunlight expands around him and blinds the rival.' },
+      dash: { kind: 'blink', name: 'Ziggurat Step', note: 'Steps up an invisible stair of light and appears far away.', dist: 1.9, cd: 0.74 },
+      guard: { kind: 'barrier', name: 'Lapis Ward', note: 'A low arc of tessellated blue shields.', time: 1.4, cd: 5.4 },
+      mega: { kind: 'nova', name: 'Dawn of the Gods', note: 'The sun rises over the arena and bursts in every direction.', power: 1.75, size: 1.5 } }, names: ['Dawn Spark', 'Twin Seal', 'Dawn Sovereign'], forms: ['Dawn Scribe', 'Seal Bearer', 'Enkar the Anunnaki', 'Ziggurat Lord', 'Solar King', 'Dawn Sovereign'] },
+});
+
 const chosenTiers = (k, names) => { // the same buttons get stronger powers at levels 10, 25 and 50
   const { basic: b, special: s, mega: m } = k.sig, up = (v, f) => +((v || 1) * f).toFixed(2);
   return [{ lv: 10, special: { name: names[0], power: up(s.power, 1.12), note: s.note.replace(/\.$/, '') + ', stronger.' } },
@@ -833,3 +856,6 @@ export const NEW_FIGHTERS = ['Dawnward', 'Verdant Crown', 'Suncrest Tide', 'Amet
 export const WEAVERS = ['Eclipse Sovereign', 'Tide Weaver', 'Ember Weaver', 'Volt Weaver', 'Stone Weaver', 'Halo Slinger'].map(n => { const b = CHK(n), sol = CHK_SIG[n].market;
   return { ...b, master: undefined, legendary: undefined, legendFor: undefined, bender: undefined, elite: undefined, aura: true, drop: { priceLamports: String(sol * 1_000_000_000), shop: true } }; });
 export const CHOSEN_ONES = ['AKENA', 'Azaelion Void', 'Azmara', 'Kaelion', 'Malakar', 'Nymara', 'Solarius', 'Zayron', 'Pyrelion', 'Glacion', 'Rosalis', 'Thalassa'].map(CHK);
+
+export const ANCIENTS = ['Sariel the Watcher', 'Nerath the Nephilim', 'Enkar the Anunnaki'].map(n => { const b = CHK(n), sol = CHK_SIG[n].market;
+  return { ...b, master: undefined, legendary: undefined, legendFor: undefined, bender: undefined, elite: undefined, aura: true, drop: { priceLamports: String(Math.round(sol * 1_000_000_000)), shop: true } }; });

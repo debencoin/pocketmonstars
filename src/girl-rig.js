@@ -18,6 +18,10 @@ const GIRLS = {
   voltweaver:  { glb: 'voltweaver', el: 'volt', c1: 0xffe23a, c2: 0xffffff },
   stoneweaver: { glb: 'stoneweaver', el: 'earth', c1: 0xb08a50, c2: 0x8bd04a },
   haloslinger: { glb: 'haloslinger', el: 'aether', c1: 0xffd23a, c2: 0xffffff },
+  // the Ancient Beings: a winged Watcher, a Nephilim giant and an Anunnaki ruler
+  sarielthewatcher: { glb: 'sarielwatcher', el: 'aether', c1: 0x8a6aff, c2: 0xffe9a0, turn: Math.PI / 2, wings: [0.2], jt: { neck: 0.7, top: 0.96 } },
+  neraththenephilim: { glb: 'nerathnephilim', el: 'earth', c1: 0xc87a3a, c2: 0xffb060, turn: Math.PI / 2, rs: 1.5, jt: { hip: 0.44, chest: 0.52, neck: 0.74, top: 0.98, sh: [0.76, 0.2], el: [0.52, 0.33], wr: [0.37, 0.37], hand: [0.28, 0.38], hj: [0.44, 0.09], kn: [0.22, 0.1], an: [0.05, 0.11] } },
+  enkartheanunnaki: { glb: 'enkaranunnaki', el: 'aether', c1: 0xffb02a, c2: 0x3a6aff, turn: Math.PI / 2, rs: 1.2, jt: { hip: 0.34, chest: 0.42, neck: 0.56, top: 0.98, sh: [0.62, 0.15], el: [0.47, 0.27], wr: [0.34, 0.33], hand: [0.28, 0.34], hj: [0.34, 0.07], kn: [0.18, 0.075], an: [0.04, 0.08] } },
 };
 const BASE = './girls/', SIZE = 320, H = 1.7;
 const inst = {}, fstate = {};
@@ -44,40 +48,46 @@ const sprite = (c, s, op = 1, additive = true) => { const m = new T.Sprite(new T
 // so the fighters run, punch, guard, crouch and fall like people instead of sliding along as one piece. A = the +Z side, B = the -Z side.
 const JT = { hip: 0.37, chest: 0.46, neck: 0.66, top: 0.97, sh: [0.64, 0.115], el: [0.52, 0.165], wr: [0.42, 0.195], hand: [0.35, 0.205], hj: [0.37, 0.055], kn: [0.20, 0.06], an: [0.045, 0.065], toe: 0.09 };
 const LT = JT.hj[0] - JT.kn[0], LS = JT.kn[0] - JT.an[0]; // thigh and shin length (fractions of the height)
-function rigBody(scene) {
+function rigBody(scene, cfg = {}) {
+  const J = { ...JT, ...(cfg.jt || {}) }, RS = cfg.rs || 1, LT = J.hj[0] - J.kn[0], LS = J.kn[0] - J.an[0];
   let mesh = null; scene.traverse(o => { if (o.isMesh && !mesh) mesh = o; }); if (!mesh) return null;
-  const g = mesh.geometry, pa = g.attributes.position, n = pa.count, P = new Float32Array(n * 3);
+  const g = mesh.geometry; if (cfg.turn) g.rotateY(cfg.turn); const pa = g.attributes.position, n = pa.count, P = new Float32Array(n * 3);
   for (let i = 0; i < n; i++) { P[i * 3] = pa.getX(i); P[i * 3 + 1] = pa.getY(i); P[i * 3 + 2] = pa.getZ(i); }
   g.setAttribute('position', new T.BufferAttribute(P, 3));
-  if (g.attributes.normal?.normalized || g.attributes.normal?.array.constructor !== Float32Array) { const na = g.attributes.normal, N = new Float32Array(n * 3); for (let i = 0; i < n; i++) { N[i * 3] = na.getX(i); N[i * 3 + 1] = na.getY(i); N[i * 3 + 2] = na.getZ(i); } g.setAttribute('normal', new T.BufferAttribute(N, 3)); }
+  if (!g.attributes.normal) g.computeVertexNormals();
+  else if (g.attributes.normal.normalized || g.attributes.normal.array.constructor !== Float32Array) { const na = g.attributes.normal, N = new Float32Array(n * 3); for (let i = 0; i < n; i++) { N[i * 3] = na.getX(i); N[i * 3 + 1] = na.getY(i); N[i * 3 + 2] = na.getZ(i); } g.setAttribute('normal', new T.BufferAttribute(N, 3)); }
   g.computeBoundingBox(); const bb = g.boundingBox, y0 = bb.min.y, h = bb.max.y - bb.min.y, cx = (bb.min.x + bb.max.x) / 2, cz = (bb.min.z + bb.max.z) / 2;
   const V = (t, z = 0, x = 0) => new T.Vector3(cx + x * h, y0 + t * h, cz + z * h);
   // bone segments: [bone index, from, to, radius]
-  const segs = [[0, V(JT.hip), V(JT.hip + 0.07), 0.12], [1, V(JT.chest), V(JT.neck - 0.02), 0.16], [2, V(JT.neck), V(JT.top - 0.1), 0.2]];
+  const segs = [[0, V(J.hip), V(J.hip + 0.07), 0.12 * RS], [1, V(J.chest), V(J.neck - 0.02), 0.16 * RS], [2, V(J.neck), V(J.top - 0.1), 0.2]];
   for (const sg of [1, -1]) { const A = sg > 0, b = A ? 3 : 5, t = A ? 7 : 9;
-    segs.push([b, V(JT.sh[0], sg * JT.sh[1]), V(JT.el[0], sg * JT.el[1]), 0.05], [b + 1, V(JT.el[0], sg * JT.el[1]), V(JT.wr[0], sg * JT.wr[1]), 0.048], [b + 1, V(JT.wr[0], sg * JT.wr[1]), V(JT.hand[0], sg * JT.hand[1]), 0.05],
-      [t, V(JT.hj[0] + 0.02, sg * JT.hj[1]), V(JT.kn[0], sg * JT.kn[1]), 0.1], [t + 1, V(JT.kn[0], sg * JT.kn[1]), V(JT.an[0], sg * JT.an[1]), 0.085], [A ? 11 : 12, V(JT.an[0], sg * JT.an[1]), V(JT.an[0] - 0.02, sg * JT.an[1], JT.toe), 0.06]); }
-  const SI = new Uint16Array(n * 4), SW = new Float32Array(n * 4), v = new T.Vector3(), ab = new T.Vector3(), ap = new T.Vector3(), ws = new Float32Array(13);
+    segs.push([b, V(J.sh[0], sg * J.sh[1]), V(J.el[0], sg * J.el[1]), 0.05 * RS], [b + 1, V(J.el[0], sg * J.el[1]), V(J.wr[0], sg * J.wr[1]), 0.048 * RS], [b + 1, V(J.wr[0], sg * J.wr[1]), V(J.hand[0], sg * J.hand[1]), 0.05 * RS],
+      [t, V(J.hj[0] + 0.02, sg * J.hj[1]), V(J.kn[0], sg * J.kn[1]), 0.1 * RS], [t + 1, V(J.kn[0], sg * J.kn[1]), V(J.an[0], sg * J.an[1]), 0.085 * RS], [A ? 11 : 12, V(J.an[0], sg * J.an[1]), V(J.an[0] - 0.02, sg * J.an[1], J.toe), 0.06 * RS]); }
+  const SI = new Uint16Array(n * 4), SW = new Float32Array(n * 4), v = new T.Vector3(), ab = new T.Vector3(), ap = new T.Vector3(), ws = new Float32Array(15);
   for (let i = 0; i < n; i++) { v.set(P[i * 3], P[i * 3 + 1], P[i * 3 + 2]); ws.fill(1e9);
     for (const [bi, a, b, r] of segs) { ab.subVectors(b, a); ap.subVectors(v, a); const k = clamp(ap.dot(ab) / ab.lengthSq(), 0, 1), d = ap.sub(ab.multiplyScalar(k)).length() / r; if (d < ws[bi]) ws[bi] = d; }
     const idx = Array.from(ws.keys()).sort((x, y) => ws[x] - ws[y]).slice(0, 4), w = idx.map(j => 1 / (Math.pow(ws[j], 3) + 0.02)), tot = w[0] + w[1] + w[2] + w[3];
     for (let j = 0; j < 4; j++) { SI[i * 4 + j] = idx[j]; SW[i * 4 + j] = w[j] / tot; } }
+  if (cfg.wings) { // wing vertices (far out to the sides, above the hips) follow their own wing bones: 13 = +Z wing, 14 = -Z wing
+    for (let i = 0; i < n; i++) { const z = P[i * 3 + 2] - cz, y = (P[i * 3 + 1] - y0) / h, a = Math.abs(z) / h, k = clamp((a - cfg.wings[0]) / 0.07, 0, 1) * (y > 0.28 ? 1 : 0); if (k <= 0) continue;
+      const wi = z > 0 ? 13 : 14; for (let j = 0; j < 4; j++) SW[i * 4 + j] *= 1 - k; SI[i * 4 + 3] = wi; SW[i * 4 + 3] = k + SW[i * 4 + 3] * (1 - k) * 0 + (SI[i * 4 + 3] === wi ? 0 : 0); const tot = SW[i * 4] + SW[i * 4 + 1] + SW[i * 4 + 2] + SW[i * 4 + 3]; for (let j = 0; j < 4; j++) SW[i * 4 + j] /= tot; } }
   g.setAttribute('skinIndex', new T.BufferAttribute(SI, 4)); g.setAttribute('skinWeight', new T.BufferAttribute(SW, 4));
   const bone = (abs, parent, pabs) => { const b = new T.Bone(); b.position.copy(abs).sub(pabs); (parent || null)?.add(b); return b; };
-  const hipsP = V(JT.hip), chestP = V(JT.chest), headP = V(JT.neck);
+  const hipsP = V(J.hip), chestP = V(J.chest), headP = V(J.neck);
   const hips = bone(hipsP, null, new T.Vector3()), chest = bone(chestP, hips, hipsP), head = bone(headP, chest, chestP), B = [hips, chest, head];
-  const leg = sg => { const th = bone(V(JT.hj[0], sg * JT.hj[1]), hips, hipsP), sh = bone(V(JT.kn[0], sg * JT.kn[1]), th, V(JT.hj[0], sg * JT.hj[1])); return [th, sh]; };
-  const arm = sg => { const ua = bone(V(JT.sh[0], sg * JT.sh[1]), chest, chestP), fa = bone(V(JT.el[0], sg * JT.el[1]), ua, V(JT.sh[0], sg * JT.sh[1])); return [ua, fa]; };
+  const leg = sg => { const th = bone(V(J.hj[0], sg * J.hj[1]), hips, hipsP), sh = bone(V(J.kn[0], sg * J.kn[1]), th, V(J.hj[0], sg * J.hj[1])); return [th, sh]; };
+  const arm = sg => { const ua = bone(V(J.sh[0], sg * J.sh[1]), chest, chestP), fa = bone(V(J.el[0], sg * J.el[1]), ua, V(J.sh[0], sg * J.sh[1])); return [ua, fa]; };
   const [uaA, faA] = arm(1), [uaB, faB] = arm(-1), [thA, shA] = leg(1), [thB, shB] = leg(-1); B.push(uaA, faA, uaB, faB, thA, shA, thB, shB);
-  const ft = (sh, sg) => bone(V(JT.an[0], sg * JT.an[1]), sh, V(JT.kn[0], sg * JT.kn[1])), ftA = ft(shA, 1), ftB = ft(shB, -1); B.push(ftA, ftB);
+  const ft = (sh, sg) => bone(V(J.an[0], sg * J.an[1]), sh, V(J.kn[0], sg * J.kn[1])), ftA = ft(shA, 1), ftB = ft(shB, -1); B.push(ftA, ftB);
+  if (cfg.wings) { const wb = sg => bone(V(J.sh[0] - 0.02, sg * 0.07, -0.03), chest, chestP); B.push(wb(1), wb(-1)); }
   const par = mesh.parent, sm = new T.SkinnedMesh(g, mesh.material); sm.name = mesh.name; sm.position.copy(mesh.position); sm.quaternion.copy(mesh.quaternion); sm.scale.copy(mesh.scale);
   par.add(sm); par.remove(mesh); sm.add(hips); par.updateMatrixWorld(true); sm.bind(new T.Skeleton(B)); sm.frustumCulled = false;
-  return { hips, chest, head, uaA, faA, uaB, faB, thA, shA, thB, shB, ftA, ftB, h };
+  return { hips, chest, head, uaA, faA, uaB, faB, thA, shA, thB, shB, ftA, ftB, wA: B[13], wB: B[14], lt: LT, ls: LS, h };
 }
 
 function build(name, gltf) {
   const cfg = GIRLS[name], scene = new T.Scene(), root = new T.Group(), body = new T.Group();
-  scene.add(root); root.add(body); body.add(gltf.scene); const bones = rigBody(gltf.scene);
+  scene.add(root); root.add(body); body.add(gltf.scene); const bones = rigBody(gltf.scene, cfg);
   const box = new T.Box3().setFromObject(gltf.scene), size = box.getSize(new T.Vector3()), ctr = box.getCenter(new T.Vector3()), k = H / size.y;
   gltf.scene.scale.multiplyScalar(k); gltf.scene.position.set(-ctr.x * k, -box.min.y * k, -ctr.z * k);
   const mats = [];
@@ -111,8 +121,9 @@ function stateOf(f, o) {
 
 // ---- Human motion: the angle of every joint (radians; + swings forward, knees and elbows bend by + flex) for what the fighter is doing now
 const ease = k => k * k * (3 - 2 * k), mix = (a, b, k) => a + (b - a) * k;
+const R_wings = o => !!GIRLS[o.name]?.wings;
 function limbs(f, o, t, S, u, casting, moving, fly) {
-  const L = { thA: 0, thB: 0, kA: 0, kB: 0, uaA: 0, uaB: 0, faA: 0.2, faB: 0.2, twist: 0, hipTw: 0, headY: 0, headZ: 0, chestX: 0, chestZ: 0, splay: 0.1, tsp: 0.04, ground: true, shake: 0 };
+  const L = { thA: 0, thB: 0, kA: 0, kB: 0, uaA: 0, uaB: 0, faA: 0.2, faB: 0.2, twist: 0, hipTw: 0, headY: 0, headZ: 0, chestX: 0, chestZ: 0, splay: 0.1, tsp: 0.04, ground: true, shake: 0, wf: 0, wy: 0 };
   const br = Math.sin(t * 2.4);
   if (fly) { // floating: legs hang loose and drift, arms float out
     L.ground = false; L.thA = 0.12 + Math.sin(t * 1.9) * 0.1; L.thB = -0.06 + Math.sin(t * 1.9 + 1.2) * 0.1; L.kA = 0.35; L.kB = 0.5; L.uaA = 0.25 + br * 0.08; L.uaB = 0.2 - br * 0.08; L.faA = 0.5; L.faB = 0.6; L.splay = 0.35;
@@ -148,10 +159,11 @@ function limbs(f, o, t, S, u, casting, moving, fly) {
   if (f.tr > 0) { L.ground = false; L.uaA = L.uaB = 2.3; L.faA = L.faB = 0.3; L.thA = 0.3; L.thB = -0.3; L.kA = L.kB = 0.5; }
   if (f.hu > 0) { const k = Math.min(1, f.hu / 0.25); L.uaA = -0.7 * k; L.uaB = -0.5 * k; L.faA = L.faB = 0.4; L.headZ = -0.35 * k; L.chestZ = -0.25 * k; L.kA += 0.5 * k; L.kB += 0.5 * k; L.thA = 0.2 * k; L.thB = -0.3 * k; L.splay = 0.4 * k; }
   if (f.st) { L.shake = 0.03; L.faA = L.faB = 0.5; }
+  { const wing = R_wings(o); if (wing) { L.wf = fly ? Math.sin(t * (moving ? 9 : 4.2)) * (moving ? 0.75 : 0.5) + 0.15 : 0.12 + br * 0.03; if (f.ck === 'mega') L.wf = -0.8 + Math.sin(t * 14) * 0.2; if (f.g) { L.wf = 0.1; L.wy = 1.25; } if (f.cg > 0) { L.wf = -0.3; L.wy = -0.3; } if (f.hu > 0) L.wf = 0.6; } }
   if (o.faint) { const k = Math.min(1, o.faint * 1.4); L.uaA = 0.3 * k; L.uaB = -0.2 * k; L.faA = L.faB = 0.2; L.thA = 0.1; L.thB = -0.1; L.kA = L.kB = 0.2; L.splay = 0.5 * k; L.ground = false; L.twist = 0; L.headY = 0; }
   return L;
 }
-const legReach = (th, k) => LT * Math.cos(th) + LS * Math.cos(th - k);
+const legReach = (R, th, k) => R.bones.lt * Math.cos(th) + R.bones.ls * Math.cos(th - k);
 function skeleton(R, L, out, t) {
   const b = R.bones; if (!b) return;
   const sh = L.shake ? (Math.sin(t * 61) * L.shake) : 0, sh2 = L.shake ? Math.cos(t * 53) * L.shake : 0;
@@ -162,7 +174,8 @@ function skeleton(R, L, out, t) {
   const fa = (th, k) => clamp(-(th - k) + (th - k < -0.2 ? -0.5 * (th - k + 0.2) * -1 * 0 : 0), -0.9, 0.9) * 0.85 - Math.max(0, k - th) * 0.0;
   b.ftA.rotation.set(0, 0, fa(L.thA, L.kA)); b.ftB.rotation.set(0, 0, fa(L.thB, L.kB));
   // keep the planted foot on the floor: the hips sink as the legs fold and rise as they straighten
-  out.legDrop = L.ground ? (LT + LS - Math.max(legReach(L.thA, L.kA), legReach(L.thB, L.kB))) * H : 0;
+  out.legDrop = L.ground ? (b.lt + b.ls - Math.max(legReach(R, L.thA, L.kA), legReach(R, L.thB, L.kB))) * H : 0;
+  if (b.wA) { b.wA.rotation.set(-L.wf, L.wy, 0); b.wB.rotation.set(L.wf, -L.wy, 0); }
 }
 
 // The pose: everything the static body can do (offsets in model units; lean > 0 leans forward)

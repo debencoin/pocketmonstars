@@ -52,3 +52,11 @@ test('Weavers and the Eclipse Sovereign: all six are in the market, strong from 
   for (let i = 0; i < 160 && !shot; i++) { a.input = S.sanitizeInput({ atk: i < 60 }); S.step(m); m.fighters[1].hp = m.fighters[1].maxHp; shot = m.projectiles.find(p => p.owner === 0 && p.kind === 'basic') || null; }
   assert.ok(shot && shot.chg >= 0.99 && shot.pw >= S.STYLES?.projectile?.power * 1.79 - 0.001 || shot.chg >= 0.99, 'a full charge');
 });
+
+test('Ancient Beings: Sariel (flies), Nerath and Enkar are strong from level 1, charge shots, sold in the market, six forms each', async () => {
+  const { Monstar, SPECIES, SHOP_IDS } = await import('../shared/monstars.mjs'), names = ['Sariel the Watcher', 'Nerath the Nephilim', 'Enkar the Anunnaki'], as = names.map(n => SPECIES.find(s => s.name === n));
+  assert.ok(as.every(s => s && s.collection === 'ancients' && s.aura && SHOP_IDS.includes(s.id) && s.forms.length === 6 && !s.retired)); assert.equal(as[0].motion, 'hover');
+  const tot = sp => Object.values(new Monstar({ speciesId: sp.id, level: 1 }).stats).reduce((a, b) => a + b, 0), base = SPECIES.find(s => s.name === 'Pyreska');
+  assert.ok(as.every(s => tot(s) > tot(base)));
+  assert.equal(new Set(as.map(s => [s.kit.dash.kind, s.kit.guard.kind, s.kit.mega.kind].join())).size, 3);
+});
