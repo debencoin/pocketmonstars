@@ -1,0 +1,358 @@
+// Bots: list, create (with AI auto-fill + backtest), detail (chart, stats, trades),
+// pause / edit / resume, AI tune with one-tap apply, stop (keep or sell), duplicate.
+import { api, qs, conn } from './api.js';
+import { ChartView } from './chart.js';
+import { STRATEGIES, defaultsFor, backtest, normalizeParams } from '/shared/strategies.mjs';
+import { optimize, suggestGrid } from '/shared/optimizer.mjs';
+import { $, esc, fmtPrice, fmtAmt, fmtPct, fmtUsd, cls, store, sheet, haptic, toast, confirmSheet, fieldsHtml, readFields, wireToggles, ago } from './ui.js';
+
+const ICONS = { grid: '▦', dca: '⬇', stepgrid: '⟋', bb: '◎', emacross: '✕', rsi: '∿', gain: '⤓', supertrend: '⇗', macd: '≋' };
+const tfSec = (tf) => parseInt(tf, 10) * ({ m: 60, h: 3600, d: 86400, w: 604800 }[tf.replace(/\d+/g, '')] || 60);
+
+export function botsScreen(el, app) {
+  let bots = [], filter = 'all', timer = null, detailId = null, detailCv = null;
+
+  async function load() {
+    if (conn.demo) { bots = []; return renderList(); }
+    try { bots = await api('/api/bots'); } catch (e) { if (e.status !== 401) toast(e.message, 'err'); }
+    detailId ? renderDetail() : renderList();
+  }
+
+  function summary() {
+    const live = bots.filter((b) => b.status !== 'stopped');
+    const pnl = bots.reduce((s, b) => s + (b.stats.pnl || 0), 0);
+    const inv = live.reduce((s, b) => s + (b.stats.investment || 0), 0);
+    return { pnl, inv, running: bots.filter((b) => b.status === 'running').length };
+  }
+
+  function rangeBar(b) {
+    if (b.type !== 'grid' || !b.levels) return '';
+    const lo = b.levels[0], hi = b.levels[b.levels.length - 1], p = b.stats.price;
+    const pos = (v) => Math.max(0, Math.min(100, ((v - lo) / (hi - lo)) * 100));
+    const ticks = b.levels.map((l, i) => `<i class="tick ${b.slots?.[i] ? 'held' : ''}" style="left:${pos(l)}%"></i>`).join('');
+    return `<div class="range-bar"><div class="track"></div>${ticks}${p ? `<i class="now" style="left:${pos(p)}%"></i>` : ''}</div><div class="range-labels"><span>${fmtPrice(lo)}</span><span>${p < lo ? '⚠ below range' : p > hi ? '⚠ above range' : `${b.slots?.filter(Boolean).length || 0}/${b.levels.length - 1} filled`}</span><span>${fmtPrice(hi)}</span></div>`;
+  }
+
+  function card(b) {
+    const s = b.stats, q = b.symbol.split('/')[1];
+    return `<div class="bot-card ${b.status}" data-id="${b.id}">
+      <div class="bot-title"><div><b>${ICONS[b.type] || '◆'} ${esc(b.name)}</b><div class="sub">${esc(b.symbol)} · ${esc(b.exchange)} · <span class="pill ${b.mode === 'live' ? 'down' : 'warn'}">${b.mode === 'live' ? 'LIVE' : 'PAPER'}</span> <span class="pill ${b.status === 'running' ? 'up' : b.status === 'paused' ? 'warn' : ''}">${b.status}</span>${b.aiTuned ? ' <span class="pill accent">AI tuned</span>' : ''}</div></div>
+        <div class="bot-pnl"><b class="${cls(s.pnl)}">${s.pnl >= 0 ? '+' : ''}${fmtAmt(s.pnl)} <small>${esc(q)}</small></b><small class="${cls(s.pnl)}">${fmtPct(s.pnlPct)}</small></div></div>
+      ${rangeBar(b)}
+      <div class="bot-stats">
+        <div class="kv"><span>Invested</span><span>${fmtAmt(s.investment)}</span></div>
+        <div class="kv"><span>Realized</span><span class="${cls(s.realized)}">${fmtAmt(s.realized)}</span></div>
+        <div class="kv"><span>Trades</span><span>${s.trades}</span></div>
+        <div class="kv"><span>APR</span><span class="${cls(s.apr)}">${s.apr == null ? '—' : fmtPct(s.apr, 0)}</span></div>
+      </div>
+      ${b.error ? `<div class="pill down" style="height:auto;padding:6px 8px;margin-bottom:8px;white-space:normal">${esc(b.error)}</div>` : ''}
+      <div class="bot-actions">
+        ${b.status === 'running' ? `<button class="btn" data-act="pause">⏸ Pause</button>` : b.status === 'paused' ? `<button class="btn buy" data-act="resume">▶ Resume</button>` : `<button class="btn" data-act="duplicate">⧉ Copy</button>`}
+        <button class="btn" data-act="edit" ${b.status === 'stopped' ? 'disabled' : ''}>✎ Edit</button>
+        <button class="btn primary" data-act="ai">✦ AI</button>
+        <button class="btn" data-act="open">⋯</button>
+      </div></div>`;
+  }
+
+  function renderList() {
+    detailCv?.destroy(); detailCv = null;
+    const sm = summary();
+    const list = bots.filter((b) => filter === 'all' || b.status === filter);
+    el.innerHTML = `
+      <div class="ai-hero" style="margin-bottom:6px">
+        <div class="row between"><div><div class="label">Total bot profit</div><div class="num ${cls(sm.pnl)}" style="font-size:28px;font-weight:700">${sm.pnl >= 0 ? '+' : ''}${fmtAmt(sm.pnl)}</div><div class="muted" style="font-size:12px">${sm.running} running · ${fmtAmt(sm.inv)} allocated</div></div>
+        <button class="btn primary" id="bot-new">＋ New bot</button></div>
+      </div>
+      <div class="chips">${['all', 'running', 'paused', 'stopped'].map((f) => `<button class="chip ${f === filter ? 'active' : ''}" data-f="${f}">${f[0].toUpperCase() + f.slice(1)}</button>`).join('')}</div>
+      <div id="bot-list">${list.length ? list.map(card).join('') : `<div class="empty"><b>${conn.demo ? 'Connect your server to run bots' : 'No bots yet'}</b>${conn.demo ? 'Bots run 24/7 on your Crypto Tab server. You can still design and backtest one now.' : 'Start a grid, DCA, step grid or signal bot. You can run several grids on the same pair.'}<br><br><button class="btn primary" id="bot-new2">Create a bot</button></div>`}</div>`;
+    $('#bot-new', el).onclick = () => createFlow();
+    $('#bot-new2', el)?.addEventListener('click', () => createFlow());
+    el.querySelector('.chips').onclick = (e) => { const b = e.target.closest('[data-f]'); if (b) { filter = b.dataset.f; renderList(); } };
+    $('#bot-list', el).onclick = (e) => {
+      const c = e.target.closest('.bot-card'); if (!c) return;
+      const b = bots.find((x) => x.id === c.dataset.id);
+      const act = e.target.closest('[data-act]')?.dataset.act;
+      haptic();
+      if (!act || act === 'open') return openDetail(b.id);
+      action(b, act);
+    };
+  }
+
+  async function action(b, act) {
+    try {
+      if (act === 'pause') { await api(`/api/bots/${b.id}/pause`, { method: 'POST', body: {} }); toast('Bot paused. Edit it, then resume.', 'ok'); }
+      else if (act === 'resume') { await api(`/api/bots/${b.id}/resume`, { method: 'POST', body: {} }); toast('Bot resumed', 'ok'); }
+      else if (act === 'edit') return editSheet(b);
+      else if (act === 'ai') return aiTune(b);
+      else if (act === 'duplicate') { await api(`/api/bots/${b.id}/duplicate`, { method: 'POST', body: {} }); toast('Copy created (paper)', 'ok'); }
+      else if (act === 'stop') return stopSheet(b);
+      else if (act === 'delete') { if (await confirmSheet('Delete bot?', 'Its history is removed. Coins it holds are not sold.', 'Delete', true)) { await api(`/api/bots/${b.id}`, { method: 'DELETE', body: {} }); detailId = null; toast('Deleted'); } }
+      load();
+    } catch (e) { toast(e.message, 'err'); }
+  }
+
+  function stopSheet(b) {
+    sheet('Stop bot', (body, close) => {
+      body.innerHTML = `<p class="muted" style="line-height:1.5;margin-top:0">${esc(b.name)} holds <b class="num">${fmtAmt(b.stats.base)} ${esc(b.symbol.split('/')[0])}</b>. What should happen to it?</p>
+        <button class="btn sell block" data-s="1" style="margin-bottom:8px">Stop & sell coins to ${esc(b.symbol.split('/')[1])}</button>
+        <button class="btn block" data-s="0">Stop & keep coins</button>`;
+      body.onclick = async (e) => {
+        const x = e.target.closest('[data-s]'); if (!x) return;
+        try { await api(`/api/bots/${b.id}/stop`, { method: 'POST', body: { sell: x.dataset.s === '1' } }); toast('Bot stopped', 'ok'); close(); load(); } catch (er) { toast(er.message, 'err'); }
+      };
+    });
+  }
+
+  // ---------- edit (pause → change → resume) ----------
+  function editSheet(b) {
+    const s = STRATEGIES[b.type];
+    sheet(`Edit · ${b.name}`, (body, close) => {
+      body.innerHTML = `${b.status === 'running' ? '<div class="pill warn" style="margin-bottom:12px;height:auto;padding:8px 10px;white-space:normal">Tip: pause first if you want the bot to stay idle while you change it. Changes apply immediately either way.</div>' : ''}
+        <div class="field"><label>Name</label><input class="input" data-name value="${esc(b.name)}" style="font-family:var(--sans)"></div>
+        ${fieldsHtml(s.fields, b.params)}
+        ${b.type === 'grid' ? '<button class="btn block" id="ed-chart" style="margin-bottom:8px">↕ Drag the range on the chart</button>' : ''}
+        <div class="grid2"><button class="btn" id="ed-bt">Backtest</button><button class="btn primary" id="ed-save">${b.status === 'paused' ? 'Save & resume' : 'Save changes'}</button></div>
+        <div id="ed-out"></div>`;
+      wireToggles(body);
+      $('#ed-chart', body)?.addEventListener('click', () => { close(); openDetail(b.id, true); });
+      $('#ed-bt', body).onclick = () => runBacktest(body.querySelector('#ed-out'), b.exchange, b.symbol, b.type, readFields(body));
+      $('#ed-save', body).onclick = async () => {
+        try {
+          const params = readFields(body);
+          await api(`/api/bots/${b.id}`, { method: 'PATCH', body: { name: body.querySelector('[data-name]').value, params } });
+          if (b.status === 'paused') await api(`/api/bots/${b.id}/resume`, { method: 'POST', body: {} });
+          haptic(20); toast('Bot updated', 'ok'); close(); load();
+        } catch (e) { toast(e.message, 'err'); }
+      };
+    });
+  }
+
+  // ---------- AI tune ----------
+  async function aiTune(b) {
+    sheet(`AI review · ${b.name}`, async (body, close) => {
+      body.innerHTML = '<div class="empty"><span class="spinner"></span><br><br>Backtesting settings and reading the market…</div>';
+      try {
+        const r = await api(`/api/ai/bot/${b.id}`, { method: 'POST', body: {} });
+        const a = r.ai;
+        const best = r.evidence.optimizer?.best, cur = r.evidence.optimizer?.current;
+        body.innerHTML = `${verdictCard(a)}
+          ${best ? `<div class="grid2" style="margin:10px 0"><div class="bt-result"><div class="label">Current settings</div><div class="num ${cls(cur?.test?.pnlPct)}" style="font-size:18px">${cur ? fmtPct(cur.test.pnlPct) : 'n/a'}</div><div class="dim" style="font-size:11px">recent ${r.evidence.timeframe} test · DD ${cur ? cur.test.maxDrawdownPct.toFixed(1) : '—'}%</div></div>
+          <div class="bt-result"><div class="label">AI best</div><div class="num ${cls(best.test.pnlPct)}" style="font-size:18px">${fmtPct(best.test.pnlPct)}</div><div class="dim" style="font-size:11px">${r.evidence.optimizer.tested} combos · DD ${best.test.maxDrawdownPct.toFixed(1)}%</div></div></div>` : ''}
+          <div class="label" style="margin:10px 0 6px">Proposed changes</div>
+          ${a.changes.length ? a.changes.map((c) => `<div class="change-item"><code>${esc(c.key)}</code> ${esc(String(b.params[c.key] ?? '—'))} → <b class="num">${esc(c.value)}</b><div class="dim" style="font-size:12px;margin-top:3px">${esc(c.reason)}</div></div>`).join('') : '<div class="muted" style="font-size:13px">No changes: current settings are already the best tested.</div>'}
+          ${a.risks?.length ? `<div class="label" style="margin:12px 0 6px">Risks</div>${a.risks.map((x) => `<div class="muted" style="font-size:12px;margin-bottom:4px">• ${esc(x)}</div>`).join('')}` : ''}
+          <div class="grid2" style="margin-top:14px"><button class="btn" id="ai-close">Not now</button><button class="btn primary" id="ai-apply" ${a.changes.length ? '' : 'disabled'}>Apply ${a.changes.length} change${a.changes.length === 1 ? '' : 's'}</button></div>
+          ${a.verdict === 'pause' && b.status === 'running' ? '<button class="btn block" id="ai-pause" style="margin-top:8px">⏸ Pause bot as advised</button>' : ''}`;
+        $('#ai-close', body).onclick = close;
+        $('#ai-pause', body)?.addEventListener('click', async () => { await api(`/api/bots/${b.id}/pause`, { method: 'POST', body: {} }); toast('Paused'); close(); load(); });
+        $('#ai-apply', body).onclick = async () => {
+          const params = Object.fromEntries(a.changes.map((c) => [c.key, c.value === 'true' ? true : c.value === 'false' ? false : isNaN(Number(c.value)) ? c.value : Number(c.value)]));
+          try { await api(`/api/bots/${b.id}`, { method: 'PATCH', body: { params, aiTuned: a.headline } }); haptic(25); toast('AI settings applied', 'ok'); close(); load(); } catch (e) { toast(e.message, 'err'); }
+        };
+      } catch (e) { body.innerHTML = `<div class="empty"><b>AI review failed</b>${esc(e.message)}</div>`; }
+    });
+  }
+
+  // ---------- create ----------
+  function createFlow(preset = {}) {
+    let type = preset.type || 'grid';
+    let mode = 'paper';
+    sheet('New bot', (body, close) => {
+      const draw = () => {
+        const s = STRATEGIES[type];
+        const params = { ...defaultsFor(type), ...(preset.params || {}) };
+        body.innerHTML = `
+          <div class="strat-grid">${Object.entries(STRATEGIES).map(([k, x]) => `<button class="strat ${k === type ? 'active' : ''}" data-type="${k}"><span class="ico">${ICONS[k]}</span><b>${esc(x.label)}</b><span>${esc(x.desc.split('.')[0])}.</span></button>`).join('')}</div>
+          <hr class="sep">
+          <div class="row between" style="margin-bottom:12px"><button class="ch-pair" id="nb-pair">${esc(app.S.symbol)} <small>${esc(app.S.ex)}</small> <span class="dim">▾</span></button>
+            <div class="seg" id="nb-mode"><button data-m="paper" class="${mode === 'paper' ? 'active' : ''}">Paper</button><button data-m="live" class="${mode === 'live' ? 'active' : ''}">Live</button></div></div>
+          <p class="muted" style="font-size:12px;margin:0 0 12px;line-height:1.45">${esc(s.desc)}</p>
+          <div class="field"><label>Name</label><input class="input" id="nb-name" style="font-family:var(--sans)" placeholder="${esc(s.label)} ${esc(app.S.symbol)}"></div>
+          <div id="nb-fields">${fieldsHtml(s.fields, params)}</div>
+          <button class="btn block primary" id="nb-ai" style="margin-bottom:8px">✦ AI auto-fill best settings</button>
+          <div class="grid2"><button class="btn" id="nb-bt">Backtest</button><button class="btn buy" id="nb-go">Start bot</button></div>
+          <div id="nb-out"></div>`;
+        wireToggles(body);
+        body.querySelector('.strat-grid').onclick = (e) => { const b = e.target.closest('[data-type]'); if (b) { type = b.dataset.type; preset = {}; haptic(); draw(); } };
+        $('#nb-mode', body).onclick = (e) => { const b = e.target.closest('[data-m]'); if (!b) return; mode = b.dataset.m; body.querySelectorAll('#nb-mode button').forEach((x) => x.classList.toggle('active', x === b)); if (mode === 'live') toast('Live bots trade real funds with your API key', 'err'); };
+        $('#nb-pair', body).onclick = () => app.pickSymbol(() => draw());
+        if (type === 'grid' && params.lower == null) autoGrid(body);
+        $('#nb-ai', body).onclick = () => aiFill(body, type);
+        $('#nb-bt', body).onclick = () => runBacktest($('#nb-out', body), app.S.ex, app.S.symbol, type, readFields($('#nb-fields', body)));
+        $('#nb-go', body).onclick = async () => {
+          if (conn.demo) return toast('Connect your Crypto Tab server (Settings) to run bots 24/7', 'err');
+          const params = readFields($('#nb-fields', body));
+          if (mode === 'live' && !(await confirmSheet('Start LIVE bot?', `It will place real orders on <b>${esc(app.S.ex)}</b> using up to <b>${fmtAmt(params.investment)} ${esc(app.S.symbol.split('/')[1])}</b>.`, 'Start live', true))) return;
+          try {
+            await api('/api/bots', { method: 'POST', body: { name: $('#nb-name', body).value || undefined, type, exchange: app.S.ex, symbol: app.S.symbol, mode, params } });
+            haptic(30); toast('Bot started 🚀', 'ok'); close(); load();
+          } catch (e) { toast(e.message, 'err'); }
+        };
+      };
+      draw();
+    });
+  }
+
+  async function candlesFor(ex, symbol, tf) { return api(`/api/ohlcv${qs({ ex, symbol, tf, limit: 1000 })}`); }
+
+  async function autoGrid(body) {
+    try {
+      const c = await candlesFor(app.S.ex, app.S.symbol, '1h');
+      const inv = Number(body.querySelector('[data-key=investment]')?.value) || 500;
+      const g = suggestGrid(c, '1h', inv);
+      for (const k of ['lower', 'upper', 'grids']) { const i = body.querySelector(`[data-key=${k}]`); if (i && !i.value) i.value = g[k]; }
+    } catch { /* leave blank */ }
+  }
+
+  async function aiFill(body, type) {
+    const out = $('#nb-out', body);
+    out.innerHTML = '<div class="bt-result"><span class="spinner"></span> Testing settings on real history…</div>';
+    const params = readFields($('#nb-fields', body));
+    try {
+      let best, ai = null;
+      if (!conn.demo) {
+        const r = await api('/api/ai/draft', { method: 'POST', body: { exchange: app.S.ex, symbol: app.S.symbol, type, params } });
+        ai = r.ai; best = r.evidence.optimizer?.best;
+        for (const c of ai.changes || []) { const i = body.querySelector(`[data-key=${c.key}]`); if (i) i.value = c.value; }
+      } else {
+        const tf = params.timeframe || '1h';
+        const o = await optimize(type, params, await candlesFor(app.S.ex, app.S.symbol, tf), { tf });
+        best = o.best;
+      }
+      if (best && (!ai || !ai.changes?.length)) for (const [k, v] of Object.entries(best.params)) { const i = body.querySelector(`[data-key=${k}]`); if (i && k !== 'investment') { if (i.hasAttribute('data-bool')) i.classList.toggle('on', !!v); else i.value = v; } }
+      out.innerHTML = (ai ? verdictCard(ai) : '') + (best ? btCard(best.test, 'AI settings on recent data') : '<div class="bt-result">Not enough history to optimize.</div>');
+      haptic(20);
+    } catch (e) { out.innerHTML = `<div class="bt-result down">${esc(e.message)}</div>`; }
+  }
+
+  async function runBacktest(out, ex, symbol, type, params) {
+    out.innerHTML = '<div class="bt-result"><span class="spinner"></span> Backtesting…</div>';
+    try {
+      const tf = params.timeframe || '1h';
+      const c = await candlesFor(ex, symbol, tf);
+      const r = await backtest(type, normalizeParams(type, { ...defaultsFor(type), ...params }), c);
+      out.innerHTML = btCard(r, `${r.days.toFixed(0)} days of ${tf} candles`);
+    } catch (e) { out.innerHTML = `<div class="bt-result down">${esc(e.message)}</div>`; }
+  }
+
+  function btCard(r, title) {
+    return `<div class="bt-result"><div class="label">${esc(title)}</div>
+      <div class="grid3" style="margin-top:8px">
+        <div class="kv"><span>Return</span><span class="${cls(r.pnlPct)}">${fmtPct(r.pnlPct)}</span></div>
+        <div class="kv"><span>Buy & hold</span><span class="${cls(r.buyHoldPct)}">${fmtPct(r.buyHoldPct)}</span></div>
+        <div class="kv"><span>Max DD</span><span class="down">-${r.maxDrawdownPct.toFixed(1)}%</span></div>
+        <div class="kv"><span>Round trips</span><span>${r.roundTrips}</span></div>
+        <div class="kv"><span>Win rate</span><span>${r.winRate.toFixed(0)}%</span></div>
+        <div class="kv"><span>Fees</span><span>${fmtAmt(r.fees)}</span></div>
+      </div>${r.stopped ? `<div class="dim" style="font-size:11px;margin-top:6px">Stopped: ${esc(r.stopped)}</div>` : ''}</div>`;
+  }
+
+  // ---------- detail ----------
+  async function openDetail(id, editOnChart = false) {
+    detailId = id;
+    const b = bots.find((x) => x.id === id);
+    if (!b) return;
+    el.innerHTML = `
+      <div class="row between" style="padding:8px 12px"><button class="btn sm" id="bd-back">‹ Bots</button><b>${esc(b.name)}</b><button class="btn sm" id="bd-more">⋯</button></div>
+      <div class="ch-wrap" style="height:42vh;min-height:280px"><div class="chart-host" id="bd-chart"></div><div class="legend" id="bd-legend"></div></div>
+      <div id="bd-edit" class="pad" hidden></div>
+      <div id="bd-body" class="pad"></div>`;
+    $('#bd-back', el).onclick = () => { detailId = null; renderList(); };
+    $('#bd-more', el).onclick = () => sheet('Bot actions', (body, close) => {
+      body.innerHTML = ['pause:⏸ Pause', 'resume:▶ Resume', 'edit:✎ Edit settings', 'ai:✦ AI review & tune', 'duplicate:⧉ Duplicate as paper', 'stop:■ Stop', 'delete:🗑 Delete'].map((x) => { const [a, l] = x.split(':'); return `<button class="btn block" style="margin-bottom:8px" data-a="${a}">${l}</button>`; }).join('');
+      body.onclick = (e) => { const x = e.target.closest('[data-a]'); if (x) { close(); action(bots.find((y) => y.id === id), x.dataset.a); } };
+    });
+    detailCv = new ChartView($('#bd-chart', el), { onLegend: (h) => ($('#bd-legend', el).innerHTML = h) });
+    await detailCv.init();
+    const tf = b.params.timeframe || '1h';
+    try { detailCv.setData(await candlesFor(b.exchange, b.symbol, tf), tfSec(tf)); detailCv.fit(); } catch (e) { toast(e.message, 'err'); }
+    renderDetail();
+    if (editOnChart && b.type === 'grid') chartEdit(b);
+  }
+
+  // Edit a grid on the chart: drag the Upper / Lower lines, then save.
+  function chartEdit(b) {
+    const box = $('#bd-edit', el);
+    const vals = { upper: b.params.upper, lower: b.params.lower };
+    box.hidden = false;
+    box.innerHTML = `<div class="card" style="border-color:var(--accent)"><b>Drag the purple lines to set the range</b>
+      <div class="grid2" style="margin-top:10px"><div class="field"><label>Upper</label><input class="input" id="ce-up" inputmode="decimal" value="${vals.upper}"></div><div class="field"><label>Lower</label><input class="input" id="ce-lo" inputmode="decimal" value="${vals.lower}"></div></div>
+      <div class="field"><label>Grid lines</label><input class="input" id="ce-n" inputmode="numeric" value="${b.params.grids}"></div>
+      <div class="grid2"><button class="btn" id="ce-cancel">Cancel</button><button class="btn primary" id="ce-save">Save${b.status === 'paused' ? ' & resume' : ''}</button></div></div>`;
+    const set = () => detailCv.draw.setBotLines([
+      { key: 'upper', price: vals.upper, color: '#7c5cff', label: 'UPPER', onDrag: (p) => { vals.upper = +p.toPrecision(6); $('#ce-up', box).value = vals.upper; } },
+      { key: 'lower', price: vals.lower, color: '#7c5cff', label: 'LOWER', onDrag: (p) => { vals.lower = +p.toPrecision(6); $('#ce-lo', box).value = vals.lower; } },
+    ]);
+    set();
+    detailCv.setPriceLines([]);
+    $('#ce-up', box).onchange = (e) => { vals.upper = Number(e.target.value); set(); };
+    $('#ce-lo', box).onchange = (e) => { vals.lower = Number(e.target.value); set(); };
+    $('#ce-cancel', box).onclick = () => { box.hidden = true; detailCv.draw.setBotLines([]); renderDetail(); };
+    $('#ce-save', box).onclick = async () => {
+      try {
+        await api(`/api/bots/${b.id}`, { method: 'PATCH', body: { params: { upper: vals.upper, lower: vals.lower, grids: Number($('#ce-n', box).value) } } });
+        if (b.status === 'paused') await api(`/api/bots/${b.id}/resume`, { method: 'POST', body: {} });
+        box.hidden = true; detailCv.draw.setBotLines([]); toast('Grid updated', 'ok'); haptic(20); load();
+      } catch (e) { toast(e.message, 'err'); }
+    };
+    toast('Tap a purple line, then drag it');
+  }
+
+  function renderDetail() {
+    const b = bots.find((x) => x.id === detailId);
+    if (!b || !detailCv) return;
+    const s = b.stats, [bs, q] = b.symbol.split('/');
+    if (b.levels && $('#bd-edit', el).hidden) detailCv.setPriceLines(b.levels.map((l, i) => ({ price: l, color: b.slots?.[i] ? 'rgba(0,214,143,.55)' : 'rgba(255,59,92,.45)', style: 2, label: i === 0 || i === b.levels.length - 1 })));
+    if (b.deal?.cost && b.deal?.amount) detailCv.setPriceLines([{ price: b.deal.cost / b.deal.amount, color: '#f5c542', title: 'Avg entry', style: 0 }]);
+    const trades = b.trades || [];
+    $('#bd-body', el).innerHTML = `
+      <div class="row between"><div><span class="pill ${b.status === 'running' ? 'up' : b.status === 'paused' ? 'warn' : ''}">${b.status}</span> <span class="pill ${b.mode === 'live' ? 'down' : 'warn'}">${b.mode}</span> <span class="dim" style="font-size:12px">${esc(b.label)} · ${s.runtimeH.toFixed(1)}h</span></div>
+        <div class="bot-pnl"><b class="${cls(s.pnl)}">${s.pnl >= 0 ? '+' : ''}${fmtAmt(s.pnl)} ${esc(q)}</b><small class="${cls(s.pnl)}">${fmtPct(s.pnlPct)}</small></div></div>
+      ${b.type === 'grid' ? rangeBar(b) : ''}
+      <div class="grid3" style="margin:12px 0">
+        <div class="kv"><span>Equity</span><span>${fmtAmt(s.equity)}</span></div><div class="kv"><span>Realized</span><span class="${cls(s.realized)}">${fmtAmt(s.realized)}</span></div><div class="kv"><span>Fees</span><span>${fmtAmt(s.fees)}</span></div>
+        <div class="kv"><span>${esc(bs)} held</span><span>${fmtAmt(s.base)}</span></div><div class="kv"><span>${esc(q)} free</span><span>${fmtAmt(s.quote)}</span></div><div class="kv"><span>Max DD</span><span>${s.maxDrawdownPct.toFixed(2)}%</span></div>
+        <div class="kv"><span>Trades</span><span>${s.trades}</span></div><div class="kv"><span>Wins</span><span>${s.wins}</span></div><div class="kv"><span>APR</span><span class="${cls(s.apr)}">${s.apr == null ? '—' : fmtPct(s.apr, 0)}</span></div>
+      </div>
+      <div class="bot-actions" style="margin-bottom:14px">
+        ${b.status === 'running' ? '<button class="btn" data-a="pause">⏸ Pause</button>' : b.status === 'paused' ? '<button class="btn buy" data-a="resume">▶ Resume</button>' : '<button class="btn" data-a="duplicate">⧉ Copy</button>'}
+        <button class="btn" data-a="${b.type === 'grid' ? 'chart' : 'edit'}" ${b.status === 'stopped' ? 'disabled' : ''}>✎ Edit</button>
+        <button class="btn primary" data-a="ai">✦ AI</button>
+        <button class="btn sell" data-a="stop" ${b.status === 'stopped' ? 'disabled' : ''}>■ Stop</button>
+      </div>
+      ${b.type === 'grid' ? '<button class="btn block sm" data-a="edit" style="margin-bottom:12px">All settings</button>' : ''}
+      <div class="label">Settings</div>
+      <div class="grid2" style="margin:8px 0 14px">${Object.entries(b.params).filter(([, v]) => v != null && v !== '').map(([k, v]) => `<div class="kv"><span>${esc(k)}</span><span>${esc(typeof v === 'number' ? +v.toPrecision(8) : v)}</span></div>`).join('')}</div>
+      <div class="label">Trades</div>
+      ${trades.length ? trades.map((t) => `<div class="trade-row"><span class="side ${t.side === 'buy' ? 'up' : 'down'}">${t.side}</span><div><span class="num">${fmtAmt(t.amount)} @ ${fmtPrice(t.price)}</span><div class="dim">${esc(t.tag)} · ${ago(t.time)} ago</div></div><span class="num ${cls(t.pnl)}">${t.pnl != null ? (t.pnl >= 0 ? '+' : '') + fmtAmt(t.pnl) : ''}</span></div>`).join('') : '<div class="muted" style="font-size:13px;padding:12px 0">No trades yet</div>'}`;
+    $('#bd-body', el).onclick = (e) => {
+      const a = e.target.closest('[data-a]')?.dataset.a; if (!a) return;
+      haptic();
+      if (a === 'chart') return chartEdit(b);
+      action(b, a);
+    };
+  }
+
+  function verdictCard(a) {
+    const color = { keep: 'var(--up)', adjust: 'var(--accent)', start: 'var(--up)', wait: 'var(--warn)', pause: 'var(--warn)', stop: 'var(--down)' }[a.verdict] || 'var(--accent)';
+    return `<div class="card" style="border-color:${color}"><div class="verdict"><div class="score-ring" style="background:conic-gradient(${color} ${(a.confidence || 0) * 3.6}deg,var(--bg-3) 0)"><div style="width:44px;height:44px;border-radius:50%;background:var(--bg-1);display:grid;place-items:center;font-size:13px">${a.confidence ?? '—'}</div></div>
+      <div><div class="pill" style="color:${color}">${esc(a.verdict?.toUpperCase())}</div><div style="font-weight:700;margin-top:4px">${esc(a.headline)}</div></div></div>
+      <p style="margin:0;font-size:13px;line-height:1.5;color:var(--fg-2)">${esc(a.summary)}</p>
+      <div style="margin-top:10px;font-size:13px"><div class="zone buy"><span>Entry</span><span>${esc(a.entry_zone)}</span></div><div class="zone sell" style="margin:0"><span>Exit</span><span>${esc(a.exit_zone)}</span></div></div>
+      <div class="dim" style="font-size:10px;margin-top:8px">Analyst: ${esc(a.model || 'quant engine')}${a.error ? ` · Claude unavailable: ${esc(a.error)}` : ''}</div></div>`;
+  }
+
+  return {
+    async show(opts = {}) {
+      await load();
+      if (opts.create) createFlow(opts.create);
+      if (opts.review) { const b = bots.find((x) => x.id === opts.review); if (b) aiTune(b); }
+      clearInterval(timer);
+      timer = setInterval(() => !document.hidden && load(), 5000);
+    },
+    hide() { clearInterval(timer); },
+    onEvent(kind, data) { if (kind === 'bot' || kind === 'trade') load(); void data; },
+    verdictCard,
+    createFlow,
+  };
+}

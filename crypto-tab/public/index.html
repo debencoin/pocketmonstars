@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="theme-color" content="#000000">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Crypto Tab">
+<meta name="description" content="Crypto Tab: trading terminal with pro charts, order book, multi-grid and DCA bots, AI analyst and persistent price alarms.">
+<title>Crypto Tab</title>
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" href="/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+<div id="app">
+  <header class="topbar" id="topbar">
+    <button class="brand" data-go="markets" aria-label="Crypto Tab home">
+      <span class="logo">◆</span><span>Crypto<b>Tab</b></span>
+    </button>
+    <div class="topbar-actions">
+      <span class="conn" id="conn" title="Connection"></span>
+      <button class="icon-btn" id="btn-alerts" aria-label="Alerts">
+        <svg viewBox="0 0 24 24"><path d="M12 22a2.5 2.5 0 0 0 2.45-2h-4.9A2.5 2.5 0 0 0 12 22Zm7-6V11a7 7 0 0 0-5.5-6.84V3a1.5 1.5 0 0 0-3 0v1.16A7 7 0 0 0 5 11v5l-2 2v1h18v-1Z"/></svg>
+        <i class="badge" id="alert-badge" hidden></i>
+      </button>
+      <button class="icon-btn" id="btn-settings" aria-label="Settings">
+        <svg viewBox="0 0 24 24"><path d="M19.4 13a7.6 7.6 0 0 0 0-2l2.1-1.6-2-3.5-2.5 1a7.3 7.3 0 0 0-1.7-1L15 3.3h-4l-.4 2.6a7.3 7.3 0 0 0-1.7 1l-2.5-1-2 3.5L6.6 11a7.6 7.6 0 0 0 0 2l-2.1 1.6 2 3.5 2.5-1a7.3 7.3 0 0 0 1.7 1l.4 2.6h4l.4-2.6a7.3 7.3 0 0 0 1.7-1l2.5 1 2-3.5ZM13 15.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7Z" transform="translate(-1 0)"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <main id="views">
+    <section class="view" id="view-markets"></section>
+    <section class="view" id="view-chart"></section>
+    <section class="view" id="view-trade"></section>
+    <section class="view" id="view-bots"></section>
+    <section class="view" id="view-ai"></section>
+  </main>
+
+  <nav class="tabbar" id="tabbar">
+    <button data-go="markets"><svg viewBox="0 0 24 24"><path d="M4 19h16v2H4zM5 10h3v7H5zm5.5-5h3v12h-3zM16 13h3v4h-3z"/></svg><span>Markets</span></button>
+    <button data-go="chart"><svg viewBox="0 0 24 24"><path d="M7 3v3H5v10h2v5h1.5v-5h2V6h-2V3zm8.5 3v4h-2v7h2v4H17v-4h2v-7h-2V6z"/></svg><span>Chart</span></button>
+    <button data-go="trade" class="tab-trade"><svg viewBox="0 0 24 24"><path d="M7 7h11l-3-3 1.4-1.4L21.8 8l-5.4 5.4L15 12l3-3H7zm10 10H6l3 3-1.4 1.4L2.2 16l5.4-5.4L9 12l-3 3h11z"/></svg><span>Trade</span></button>
+    <button data-go="bots"><svg viewBox="0 0 24 24"><path d="M11 2h2v3h4a3 3 0 0 1 3 3v9a3 3 0 0 1-3 3H7a3 3 0 0 1-3-3V8a3 3 0 0 1 3-3h4zm-2 8a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3m6 0a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3m-6 5v1.5h6V15zM1 10h2v5H1zm20 0h2v5h-2z"/></svg><span>Bots</span></button>
+    <button data-go="ai"><svg viewBox="0 0 24 24"><path d="M10 2l1.8 5.2L17 9l-5.2 1.8L10 16l-1.8-5.2L3 9l5.2-1.8zm8 9 .9 2.6 2.6.9-2.6.9L18 18l-.9-2.6-2.6-.9 2.6-.9zM6 16l.7 1.8 1.8.7-1.8.7L6 21l-.7-1.8L3.5 18.5l1.8-.7z"/></svg><span>AI</span></button>
+  </nav>
+</div>
+
+<div id="sheet-root"></div>
+<div id="toast-root"></div>
+
+<div id="alarm" class="alarm" hidden>
+  <div class="alarm-pulse"></div>
+  <div class="alarm-body">
+    <div class="alarm-icon">⏰</div>
+    <div class="alarm-title" id="alarm-title">Price alert</div>
+    <div class="alarm-sub" id="alarm-sub"></div>
+    <div class="alarm-list" id="alarm-list"></div>
+    <button class="alarm-stop" id="alarm-stop">STOP ALARM</button>
+    <button class="alarm-view" id="alarm-view">Open chart</button>
+  </div>
+</div>
+
+<script type="module" src="/js/app.js"></script>
+</body>
+</html>

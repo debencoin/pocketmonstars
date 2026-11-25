@@ -1,0 +1,21 @@
+{
+  "name": "crypto-tab",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Crypto Tab: mobile-first trading terminal with charts, order book, multi-grid/DCA bots, AI analyst and persistent alarms",
+  "scripts": {
+    "start": "node server/index.mjs",
+    "dev": "node server/index.mjs",
+    "test": "node --test tests/*.test.mjs"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^1.14.0",
+    "ccxt": "^4.5.94",
+    "lightweight-charts": "^5.3.0",
+    "web-push": "^4.0.0"
+  }
+}
