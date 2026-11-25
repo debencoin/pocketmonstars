@@ -3,7 +3,7 @@
 // learning record.
 import { api, conn } from './api.js';
 import { MAIN_COIN, COINS } from '/shared/presets.mjs';
-import { $, esc, fmtPct, cls, ago, haptic, toast, sheet } from './ui.js';
+import { $, esc, fmtPct, cls, ago, haptic, toast, sheet, fmtDateTime, tzShort } from './ui.js';
 
 export function herdScreen(el, app) {
   let timer = null;
@@ -20,10 +20,10 @@ export function herdScreen(el, app) {
     const zecG = A.clusters.filter((c) => c.tokens.includes(MAIN_COIN));
     const hidden = A.clusters.filter((c) => c.hidden), market = A.clusters.filter((c) => !c.hidden);
     el.innerHTML = `
-      <div class="row between" style="padding:8px 12px"><button class="btn sm" id="hd-back">‹ AI</button><b>🔗 Herd agent</b><button class="btn sm" id="hd-re">Re-analyze</button></div>
+      <div class="row between" style="padding:8px 12px"><button class="btn sm" id="hd-back">‹ AI</button><b>🔗 Herd agent</b><button class="btn sm" id="hd-clock">🕐 Pump clock</button></div>
       <div class="ai-hero" style="margin-top:0"><h2 style="font-size:17px">Coins that move together</h2>
         <p>Big players (funds, market makers, ETF flows, liquidations) move whole baskets at once. The agent finds those baskets, who moves first, and when they pump or tank together. It watches every minute and learns from every move it predicts.</p>
-        <div class="dim" style="font-size:11px;margin-top:8px">${A.tokens} coins on ${esc(A.exchange)} · ${A.days} days of 15-minute prices · updated ${ago(A.at)} ago</div></div>
+        <div class="row between" style="margin-top:8px"><span class="dim" style="font-size:11px">${A.tokens} coins on ${esc(A.exchange)} · ${A.days} days of 15-minute prices · updated ${ago(A.at)} ago · times in ${esc(tzShort())}</span><button class="btn sm" id="hd-re">Re-analyze</button></div></div>
 
       <div class="section-title"><span>⚡ Right now</span></div>
       <div style="padding:0 12px">${(live.signals || []).length ? live.signals.map(sigCard).join('') : `<div class="card dim" style="font-size:13px">No group is moving together right now. ${(live.clusters || []).map((c) => `${esc(c.name)}: ${c.state}`).join(' · ')}</div>`}</div>
@@ -58,7 +58,8 @@ export function herdScreen(el, app) {
       if (act === 'trade') app.go('trade', { side: 'buy' }); else app.go('bots', { create: { type: 'herd' } });
     }));
     $('#hd-back', el).onclick = () => app.go('ai');
-    $('#hd-re', el).onclick = async () => { toast('Re-analyzing the last week…'); try { await api('/api/herd/analyze', { method: 'POST', body: {} }); render(); } catch (e) { toast(e.message, 'err'); } };
+    $('#hd-clock', el).onclick = () => app.go('clock');
+    el.querySelector('#hd-re')?.addEventListener('click', async () => { toast('Re-analyzing the last week…'); try { await api('/api/herd/analyze', { method: 'POST', body: {} }); render(); } catch (e) { toast(e.message, 'err'); } });
   }
 
   function sigCard(p) {
@@ -81,7 +82,7 @@ export function herdScreen(el, app) {
   function evRow(e) {
     const pump = e.dir === 'pump';
     return `<button class="scan-row" data-ev="${esc(e.id)}" style="width:100%;text-align:left;border-left:3px solid ${pump ? 'var(--up)' : 'var(--down)'};margin-bottom:6px;background:var(--bg-1);border-radius:10px">
-      <div><b>${pump ? '▲ Pump' : '▼ Dump'} together</b> <span class="dim" style="font-size:11px">${new Date(e.time).toLocaleString([], { weekday: 'short', hour: '2-digit', minute: '2-digit' })}${e.source === 'live' ? ' · live' : ''}</span>
+      <div><b>${pump ? '▲ Pump' : '▼ Dump'} together</b> <span class="dim" style="font-size:11px">${fmtDateTime(e.time, { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })} ${tzShort()}${e.source === 'live' ? ' · live' : ''}</span>
         <div class="dim" style="font-size:11px;margin-top:3px">${e.count} coins (${Math.round(e.breadth * 100)}%) · avg ${fmtPct(e.avgMove)}${e.leaders?.length ? ` · first: ${esc(e.leaders.slice(0, 3).join(', '))}` : ''}</div>
         <div style="font-size:11px;margin-top:2px">${e.tokens.slice(0, 8).map((x) => esc(x.t)).join(' · ')}</div></div>
       <div style="text-align:right;font-family:var(--mono);font-size:11px"><div class="${pctCol(e.after1h)}">1h ${e.after1h != null ? fmtPct(e.after1h) : '—'}</div><div class="${pctCol(e.after4h)}">4h ${e.after4h != null ? fmtPct(e.after4h) : '—'}</div>${e.laggardsFollow != null ? `<div class="dim">lag ${e.laggardsFollow}%</div>` : ''}</div></button>`;
@@ -89,7 +90,7 @@ export function herdScreen(el, app) {
 
   function openEvent(e) {
     if (!e) return;
-    sheet(`${e.dir === 'pump' ? '▲ Pump' : '▼ Dump'} together · ${new Date(e.time).toLocaleString()}`, (b) => {
+    sheet(`${e.dir === 'pump' ? '▲ Pump' : '▼ Dump'} together · ${fmtDateTime(e.time)} ${tzShort()}`, (b) => {
       b.innerHTML = `<p class="muted" style="margin-top:0;font-size:13px;line-height:1.5">${e.count} coins (${Math.round(e.breadth * 100)}% of the ones watched) moved unusually ${e.dir === 'pump' ? 'up' : 'down'} within the same 30 minutes, ${fmtPct(e.avgMove)} on average. ${e.after1h != null ? `One hour later they were ${fmtPct(e.after1h)} further, after 4 hours ${fmtPct(e.after4h)}.` : ''} ${e.laggardsFollow != null ? `${e.laggardsFollow}% of the group members that had not moved yet followed within the hour.` : ''}</p>
         ${e.leaders?.length ? `<div class="label">Moved first</div><div style="margin:6px 0 12px">${e.leaders.map((t) => tokChip(t)).join('')}</div>` : ''}
         <div class="label">Every coin in the move</div>

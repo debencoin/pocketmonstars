@@ -5,7 +5,7 @@ import { ChartView, CHART_TYPES } from './chart.js';
 import { TOOLS, COLORS } from './drawings.js';
 import { INDICATORS } from '/shared/indicators.mjs';
 import { renderBook, renderTrades } from './book.js';
-import { $, esc, fmtPrice, fmtAmt, fmtPct, store, sheet, haptic, toast } from './ui.js';
+import { $, esc, fmtPrice, fmtAmt, fmtPct, store, sheet, haptic, toast, fmtDateTime, tzShort } from './ui.js';
 
 const TFS = ['1m', '5m', '15m', '30m', '1h', '4h', '1d', '1w'];
 const tfSec = (tf) => parseInt(tf, 10) * ({ m: 60, h: 3600, d: 86400, w: 604800, M: 2592000 }[tf.replace(/\d+/g, '')] || 60);
@@ -73,7 +73,7 @@ export function chartScreen(el, app) {
       const bar = cv.candles.find((k) => k.time === p.time);
       const lastC = cv.candles[cv.candles.length - 1].close;
       sheet(`${here.length} news · ${app.S.symbol.split('/')[0]}`, (b) => {
-        b.innerHTML = here.map((n) => `<div class="news-item" style="margin:0 0 8px;border-left-color:${n.label === 'bullish' ? 'var(--up)' : n.label === 'bearish' ? 'var(--down)' : 'var(--line-2)'}"><div class="dim" style="font-size:11px">${esc(n.source)} · ${new Date(n.time * 1000).toLocaleString()}</div><a class="news-title" href="${esc(n.url)}" target="_blank" rel="noopener">${esc(n.title)}</a></div>`).join('')
+        b.innerHTML = here.map((n) => `<div class="news-item" style="margin:0 0 8px;border-left-color:${n.label === 'bullish' ? 'var(--up)' : n.label === 'bearish' ? 'var(--down)' : 'var(--line-2)'}"><div class="dim" style="font-size:11px">${esc(n.source)} · ${fmtDateTime(n.time * 1000)} ${tzShort()}</div><a class="news-title" href="${esc(n.url)}" target="_blank" rel="noopener">${esc(n.title)}</a></div>`).join('')
           + (bar ? `<div class="card" style="font-size:13px">Price at that candle ${fmtPrice(bar.close)} → now ${fmtPrice(lastC)} (<span class="${lastC >= bar.close ? 'up' : 'down'}">${fmtPct(((lastC - bar.close) / bar.close) * 100)}</span>)</div>` : '');
       });
     });

@@ -16,6 +16,7 @@ export function aiScreen(el, app) {
       <p id="ai-who">A technical analyst, a risk manager and a head trader review every idea. It backtests settings on real history before suggesting them, and gives you ranges to get in and get out.</p>
     </div>
     <div style="padding:0 12px 12px"><button class="card" id="ai-herd" style="width:100%;text-align:left;border-color:rgba(167,139,250,.5)"><div class="row between"><b>🔗 Herd agent: coins moving together</b><span class="dim">›</span></div><div id="ai-herd-sum" class="dim" style="font-size:12px;margin-top:6px;line-height:1.45">Which coins pump and tank together, who moves first, and what to follow.</div></button></div>
+    <div style="padding:0 12px 12px"><button class="card" id="ai-clock" style="width:100%;text-align:left;border-color:rgba(255,176,32,.45)"><div class="row between"><b>🕐 Pump clock: when do pumps happen?</b><span class="dim">›</span></div><div class="dim" style="font-size:12px;margin-top:6px;line-height:1.45">2 years of hourly prices by hour and weekday in your time zone, next to when world markets open.</div></button></div>
     <div class="pad" style="padding-top:0">
       <div class="row between" style="margin-bottom:10px"><button class="ch-pair" id="ai-pair"></button>
         <div class="seg" id="ai-tf">${['15m', '1h', '4h', '1d'].map((t) => `<button data-tf="${t}" class="${t === tf ? 'active' : ''}">${t}</button>`).join('')}</div></div>
@@ -38,6 +39,7 @@ export function aiScreen(el, app) {
   $('#ai-go', el).onclick = analyze;
   $('#ai-scan', el).onclick = scan;
   $('#ai-herd', el).onclick = () => app.go('herd');
+  $('#ai-clock', el).onclick = () => app.go('clock');
   const herdSummary = async () => { if (conn.demo) return; try { const o = await api('/api/herd'); const live = o.live?.signals || []; $('#ai-herd-sum', el).innerHTML = live.length ? `<span class="${live[0].dir === 'pump' ? 'up' : 'down'}">⚡ ${esc(live[0].name)} ${live[0].dir}ing together now</span> (${Math.round(live[0].breadth * 100)}% of the group)` : `${o.analysis?.clusters.filter((c) => c.hidden).length || 0} hidden groups found · ${o.learning.learnedEvents} moves learned${o.learning.precision != null ? ` · ${Math.round(o.learning.precision * 100)}% of calls followed` : ''}`; } catch { /* ignore */ } };
   $('#ai-prof', el).onclick = profile;
   $('#ai-gscan', el).onclick = gridScan;

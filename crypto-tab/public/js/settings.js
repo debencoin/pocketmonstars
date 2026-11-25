@@ -1,6 +1,7 @@
 // Settings: server connection + passcode, exchange API keys, notifications, preferences.
 import { api, conn, probe } from './api.js';
-import { $, esc, store, sheet, toast, confirmSheet } from './ui.js';
+import { $, esc, store, sheet, toast, confirmSheet, tz, tzPicker } from './ui.js';
+import { label as tzLabel } from '/shared/tz.mjs';
 import { enablePush } from './alerts.js';
 
 export function settingsSheet(app) {
@@ -33,6 +34,9 @@ export function settingsSheet(app) {
           <button class="btn block" id="st-push">🔔 Enable notifications (alarms & profitable trades)</button>
           <div class="dim" style="font-size:12px;margin-top:8px;line-height:1.5">iPhone: open Safari → Share → <b>Add to Home Screen</b>, launch Crypto Tab from the icon, then tap this button (iOS 16.4+). Android: Chrome asks for permission directly.</div>
         </div>
+        <div class="label">Time zone</div>
+        <div class="card" style="margin:8px 0 16px"><button class="btn block" id="st-tz" style="justify-content:space-between"><span>🕐 ${esc(tzLabel(tz()))}</span><span class="dim">Change ›</span></button>
+          <div class="dim" style="font-size:12px;margin-top:8px">Used for every time in the app. Phoenix = Mountain Standard Time all year.</div></div>
         <div class="label">Preferences</div>
         <div class="card" style="margin:8px 0 16px">
           <div class="row between" style="margin-bottom:10px"><span style="font-size:13px">Keep drawing tool after placing</span><button class="toggle ${store.get('stayInDraw', false) ? 'on' : ''}" id="p-stay"></button></div>
@@ -62,6 +66,7 @@ export function settingsSheet(app) {
       };
       body.querySelectorAll('[data-delkey]').forEach((b) => (b.onclick = async () => { if (await confirmSheet('Remove key?', 'Live bots on this exchange will pause.', 'Remove', true)) { await api(`/api/keys/${b.dataset.delkey}`, { method: 'DELETE', body: {} }); draw(); } }));
       $('#st-push', body).onclick = async () => { try { await enablePush(); await api('/api/push/test', { method: 'POST', body: {} }); toast('Notifications on. A test was sent.', 'ok'); } catch (e) { toast(e.message, 'err'); } };
+      $('#st-tz', body).onclick = () => tzPicker(() => { toast('Time zone saved', 'ok'); location.reload(); });
       $('#p-stay', body).onclick = (e) => { e.target.classList.toggle('on'); store.set('stayInDraw', e.target.classList.contains('on')); };
       $('#p-ps', body).onclick = (e) => { e.target.classList.toggle('on'); store.set('profitSound', e.target.classList.contains('on')); };
     };

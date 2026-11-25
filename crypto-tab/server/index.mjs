@@ -10,6 +10,7 @@ import * as Paper from './paper.mjs';
 import * as AI from './ai.mjs';
 import * as News from './news.mjs';
 import * as Herd from './herd.mjs';
+import { pumpClock } from './clock.mjs';
 import { accessToken, flushAll } from './store.mjs';
 import { STRATEGIES, backtest, normalizeParams, defaultsFor } from '../public/shared/strategies.mjs';
 
@@ -56,6 +57,7 @@ route('POST', '/api/news/:id/vote', (q, body, p) => News.vote(p.id, body.kind));
 route('GET', '/api/herd', () => Herd.overview(), { open: true });
 route('GET', '/api/herd/events', (q) => Herd.events({ days: Number(q.days) || 7, token: q.token ? String(q.token).toUpperCase() : undefined }), { open: true });
 route('POST', '/api/herd/analyze', () => Herd.analyze());
+route('GET', '/api/clock', (q) => pumpClock({ token: String(q.token || 'ZEC').toUpperCase(), months: q.months, tz: q.tz || 'America/Phoenix' }), { open: true });
 
 // ---------- keys / account ----------
 route('GET', '/api/keys', () => X.listKeys());

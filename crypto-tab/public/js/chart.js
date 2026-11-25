@@ -2,7 +2,8 @@
 // Built on TradingView Lightweight Charts (Apache-2.0).
 import * as I from '/shared/indicators.mjs';
 import { DrawingLayer } from './drawings.js';
-import { decimalsFor, fmtPrice, fmtAmt } from './ui.js';
+import { decimalsFor, fmtPrice, fmtAmt, tz } from './ui.js';
+import { fmtTime } from '/shared/tz.mjs';
 
 let LW = null;
 export async function loadLW() {
@@ -53,9 +54,9 @@ export class ChartView {
       layout: { attributionLogo: false, background: { type: 'solid', color: '#000000' }, textColor: C.text, fontFamily: "'JetBrains Mono', monospace", fontSize: 10, panes: { separatorColor: C.line, separatorHoverColor: '#2a2f39', enableResize: true } },
       grid: { vertLines: { color: C.grid }, horzLines: { color: C.grid } },
       rightPriceScale: { borderColor: C.line, scaleMargins: { top: 0.1, bottom: 0.08 } },
-      timeScale: { borderColor: C.line, timeVisible: true, secondsVisible: false, rightOffset: 12, barSpacing: 7, minBarSpacing: 1.5, fixLeftEdge: false, rightBarStaysOnScroll: true },
+      timeScale: { tickMarkFormatter: (t, type) => fmtTime(t * 1000, tz(), type === 0 ? { year: 'numeric' } : type === 1 ? { month: 'short' } : type === 2 ? { month: 'short', day: 'numeric' } : { hour: 'numeric', minute: '2-digit' }), borderColor: C.line, timeVisible: true, secondsVisible: false, rightOffset: 12, barSpacing: 7, minBarSpacing: 1.5, fixLeftEdge: false, rightBarStaysOnScroll: true },
       crosshair: { mode: 0, vertLine: { color: '#5a606c', labelBackgroundColor: '#2a2f39' }, horzLine: { color: '#5a606c', labelBackgroundColor: '#2a2f39' } },
-      localization: { priceFormatter: (p) => fmtPrice(p, this.refPrice) },
+      localization: { priceFormatter: (p) => fmtPrice(p, this.refPrice), timeFormatter: (t) => fmtTime(t * 1000, tz(), { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) },
       handleScale: { axisPressedMouseMove: { time: true, price: true }, pinch: true, mouseWheel: true },
       handleScroll: { horzTouchDrag: true, vertTouchDrag: false, pressedMouseMove: true, mouseWheel: true },
       kineticScroll: { touch: true, mouse: false },

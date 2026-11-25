@@ -1,3 +1,4 @@
+import { fmtTime as tzFormat, COMMON_ZONES, label as tzLabel } from '/shared/tz.mjs';
 // Small UI toolkit: formatting, storage, toasts, bottom sheets, haptics.
 
 export const store = {
@@ -93,4 +94,23 @@ export function readFields(root) {
 
 export function wireToggles(root) {
   root.querySelectorAll('.toggle').forEach((t) => (t.onclick = () => { t.classList.toggle('on'); haptic(); }));
+}
+
+// ---------- time zone (Settings → Time zone). Default: the phone's own zone. ----------
+export const tz = () => store.get('tz') || Intl.DateTimeFormat().resolvedOptions().timeZone || 'America/Phoenix';
+export const fmtDateTime = (ms, opts) => tzFormat(ms, tz(), opts || { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+export const tzShort = () => { try { return new Intl.DateTimeFormat('en-US', { timeZone: tz(), timeZoneName: 'short' }).formatToParts(new Date()).find((p) => p.type === 'timeZoneName').value; } catch { return ''; } };
+export function tzPicker(onPick) {
+  sheet('Time zone', (b, close) => {
+    const all = (Intl.supportedValuesOf ? Intl.supportedValuesOf('timeZone') : COMMON_ZONES.map((z) => z[0]));
+    const cur = tz();
+    const device = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    b.innerHTML = `<p class="muted" style="margin-top:0;font-size:13px">All times in the app (charts, news, herd moves, the pump clock) use this zone. Phoenix is Mountain Standard Time all year (no daylight saving).</p>
+      <button class="btn block ${!store.get('tz') ? 'primary' : ''}" data-z="" style="margin-bottom:6px">Phone's zone · ${esc(tzLabel(device))}</button>
+      ${COMMON_ZONES.map(([z, n]) => `<button class="btn block ${z === cur && store.get('tz') ? 'primary' : ''}" data-z="${z}" style="margin-bottom:6px;justify-content:flex-start">${esc(n)}</button>`).join('')}
+      <input class="input" id="tz-q" placeholder="Search any zone (e.g. Paris, Lagos, Manila)" style="font-family:var(--sans);margin:8px 0"><div id="tz-list"></div>`;
+    const list = b.querySelector('#tz-list');
+    b.querySelector('#tz-q').oninput = (e) => { const q = e.target.value.toLowerCase(); list.innerHTML = q.length < 2 ? '' : all.filter((z) => z.toLowerCase().includes(q)).slice(0, 30).map((z) => `<button class="btn block sm" data-z="${z}" style="margin-bottom:4px;justify-content:flex-start">${esc(tzLabel(z))}</button>`).join(''); };
+    b.onclick = (e) => { const x = e.target.closest('[data-z]'); if (!x) return; store.set('tz', x.dataset.z || null); close(); onPick?.(); };
+  });
 }

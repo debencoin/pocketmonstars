@@ -8,6 +8,7 @@ import { botsScreen } from './bots.js';
 import { aiScreen } from './ai.js';
 import { newsScreen } from './news.js';
 import { herdScreen } from './herd.js';
+import { clockScreen } from './clock.js';
 import { alertsSheet, alarmOn, alarmOff, unlockAudio, startLocalChecker, activeCount, playOnce } from './alerts.js';
 import { settingsSheet } from './settings.js';
 
@@ -25,6 +26,7 @@ const app = {
   },
   go(name, opts = {}) {
     if (this.current && this.current !== name) this.views[this.current].hide?.();
+    if (this.current && this.current !== name) this.prev = this.current;
     $$('.view').forEach((v) => v.classList.toggle('active', v.id === `view-${name}`));
     $$('#tabbar button').forEach((b) => b.classList.toggle('active', b.dataset.go === name));
     this.current = name;
@@ -109,6 +111,8 @@ async function boot() {
   app.views.ai = aiScreen($('#view-ai'), app);
   app.views.news = newsScreen($('#view-news'), app);
   app.views.herd = herdScreen($('#view-herd'), app);
+  app.views.clock = clockScreen($('#view-clock'), app);
+  app.toast = (m) => toast(m);
 
   $('#tabbar').onclick = (e) => { const b = e.target.closest('[data-go]'); if (b) { haptic(); app.go(b.dataset.go); } };
   $('.brand').onclick = () => app.go('markets');
