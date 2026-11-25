@@ -46,6 +46,15 @@ const GIRLS = {
   nerin: { glb: 'nerin', el: 'water', c1: 0x35c8ff, c2: 0xaee9ff, turn: Math.PI / 2, gait: { cad: 11.5, amp: 1.08 } },
   zuri: { glb: 'zuri', el: 'water', c1: 0x35c8ff, c2: 0xaee9ff, turn: Math.PI / 2, gait: { cad: 11.5, amp: 1.08 } },
   verdex: { glb: 'verdex', el: 'earth', c1: 0xb08a50, c2: 0xdfd0b9, turn: Math.PI / 2, gait: { cad: 13, amp: 1.1 } },
+  // Aura Warriors with usable 3D models (Verdo's and Tigo's are paper-thin, so they stay 2D)
+  dashi: { glb: 'dashi', el: 'air', c1: 0xc8a46a, c2: 0xe8d6b0, turn: Math.PI / 2, gait: { cad: 12, amp: 1.1 } },
+  bolo: { glb: 'bolo', el: 'aether', c1: 0x3a8ad8, c2: 0xa9d0f2, turn: Math.PI / 2, gait: { cad: 11.5, amp: 1.08 } },
+  swish: { glb: 'swish', el: 'earth', c1: 0x9aa0aa, c2: 0xd0d4da, turn: Math.PI / 2, gait: { cad: 9.2, amp: 1.0 } },
+  kapri: { glb: 'kapri', el: 'fire', c1: 0xe8508a, c2: 0xf5b0cb, gait: { cad: 12, amp: 1.1 } },
+  nyla: { glb: 'nyla', el: 'aether', c1: 0xa8e0f0, c2: 0xe0f6fb, turn: Math.PI / 2, gait: { cad: 11.5, amp: 1.08 } },
+  bunzo: { glb: 'bunzo', el: 'earth', c1: 0xff5a1a, c2: 0xffbda3, gait: { cad: 9.2, amp: 1.0 } },
+  vikko: { glb: 'vikko', el: 'water', c1: 0x2aa84a, c2: 0xa9e6bd, turn: Math.PI / 2, gait: { cad: 9.2, amp: 1.0 } },
+  noxx: { glb: 'noxx', el: 'aether', c1: 0x2a3a34, c2: 0x8aa099, turn: Math.PI / 2, gait: { cad: 13, amp: 1.1 } },
   // the Ancient Beings: a winged Watcher, a Nephilim giant and an Anunnaki ruler
   sarielthewatcher: { glb: 'sarielwatcher', el: 'aether', c1: 0x8a6aff, c2: 0xffe9a0, turn: Math.PI / 2, wings: [0.2], jt: { neck: 0.7, top: 0.96 } },
   neraththenephilim: { glb: 'nerathnephilim', el: 'earth', c1: 0xc87a3a, c2: 0xffb060, turn: Math.PI / 2, rs: 1.5, gait: { cad: 8.5, amp: 0.95 }, jt: { hip: 0.44, chest: 0.52, neck: 0.74, top: 0.98, sh: [0.76, 0.2], el: [0.52, 0.33], wr: [0.37, 0.37], hand: [0.28, 0.38], hj: [0.44, 0.09], kn: [0.22, 0.1], an: [0.05, 0.11] } },
