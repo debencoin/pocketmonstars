@@ -2,7 +2,7 @@
 // Built on TradingView Lightweight Charts (Apache-2.0).
 import * as I from '/shared/indicators.mjs';
 import { DrawingLayer } from './drawings.js';
-import { decimalsFor, fmtPrice, fmtAmt, tz } from './ui.js';
+import { decimalsFor, fmtPrice, fmtAmt, tz, haptic } from './ui.js';
 import { fmtTime } from '/shared/tz.mjs';
 
 let LW = null;
@@ -51,7 +51,7 @@ export class ChartView {
     this.L = L;
     this.chart = L.createChart(this.host, {
       autoSize: true,
-      layout: { attributionLogo: false, background: { type: 'solid', color: '#000000' }, textColor: C.text, fontFamily: "'JetBrains Mono', monospace", fontSize: 10, panes: { separatorColor: C.line, separatorHoverColor: '#2a2f39', enableResize: true } },
+      layout: { attributionLogo: false, background: { type: 'solid', color: '#000000' }, textColor: C.text, fontFamily: "'JetBrains Mono', monospace", fontSize: 11, panes: { separatorColor: C.line, separatorHoverColor: '#2a2f39', enableResize: true } },
       grid: { vertLines: { color: C.grid }, horzLines: { color: C.grid } },
       rightPriceScale: { borderColor: C.line, scaleMargins: { top: 0.1, bottom: 0.08 } },
       timeScale: { tickMarkFormatter: (t, type) => fmtTime(t * 1000, tz(), type === 0 ? { year: 'numeric' } : type === 1 ? { month: 'short' } : type === 2 ? { month: 'short', day: 'numeric' } : { hour: 'numeric', minute: '2-digit' }), borderColor: C.line, timeVisible: true, secondsVisible: false, rightOffset: 12, barSpacing: 7, minBarSpacing: 1.5, fixLeftEdge: false, rightBarStaysOnScroll: true },
@@ -65,7 +65,49 @@ export class ChartView {
     this.chart.subscribeCrosshairMove((p) => this.legend(p));
     if (this.wantDrawings) this.draw = new DrawingLayer(this, this.host);
     this.gestures();
+    this.bindPick();
     return this;
+  }
+
+  // Tap a candle: it lights up, the crosshair parks on it and its full date & time show on the
+  // time axis and in the legend. Tap it again (or double-tap / AUTO) to let go.
+  bindPick() {
+    const band = document.createElement('div');
+    band.className = 'candle-pick'; band.hidden = true;
+    this.host.appendChild(band);
+    this.pickBand = band;
+    this.chart.subscribeClick((p) => {
+      if (this.draw?.tool || this.draw?.botDrag) return;
+      // phones often report no time on a tap, so work it out from where the finger landed
+      let idx = p?.logical ?? (p?.point ? this.chart.timeScale().coordinateToLogical(p.point.x) : null);
+      idx = idx == null ? -1 : Math.round(idx);
+      const bar = (p?.time && this.candles.find((c) => c.time === p.time)) || this.candles[idx];
+      if (!bar || this.picked === bar.time) return this.unpick();
+      if (!bar) return this.unpick();
+      this.picked = bar.time;
+      haptic(8);
+      requestAnimationFrame(() => { this.chart.setCrosshairPosition(bar.close, bar.time, this.main); this.placePick(); this.legend({ time: bar.time }); });
+    });
+    this.chart.timeScale().subscribeVisibleLogicalRangeChange(() => this.placePick());
+    new ResizeObserver(() => this.placePick()).observe(this.host);
+  }
+
+  placePick() {
+    const band = this.pickBand; if (!band) return;
+    if (this.picked == null) { band.hidden = true; return; }
+    const ts = this.chart.timeScale(), i = this.candles.findIndex((c) => c.time === this.picked);
+    const x = i < 0 ? null : ts.logicalToCoordinate(i);
+    if (x == null) { band.hidden = true; return; }
+    const w = Math.max(4, Math.abs((ts.logicalToCoordinate(i + 1) ?? x + 7) - x));
+    Object.assign(band.style, { left: `${x - w / 2}px`, width: `${w}px`, bottom: `${ts.height()}px` });
+    band.hidden = false;
+  }
+
+  unpick() {
+    this.picked = null;
+    this.chart.clearCrosshairPosition();
+    this.placePick();
+    this.legend(null);
   }
 
   // Thumb control, like TradingView mobile:
@@ -127,6 +169,7 @@ export class ChartView {
   }
 
   autoFit() {
+    if (this.picked != null) this.unpick();
     this.chart.priceScale('right').applyOptions({ autoScale: true });
     this.chart.timeScale().applyOptions({ barSpacing: 7 });
     this.chart.timeScale().scrollToRealTime();
@@ -358,13 +401,14 @@ export class ChartView {
   legend(param) {
     if (!this.onLegend || !this.candles.length) return;
     let bar = null;
-    if (param?.time) bar = this.candles.find((x) => x.time === param.time);
+    const t = param?.time ?? this.picked;
+    if (t != null) bar = this.candles.find((x) => x.time === t);
     if (!bar) bar = this.candles[this.candles.length - 1];
     const i = this.candles.indexOf(bar);
     const prev = this.candles[i - 1] || bar;
     const ch = ((bar.close - prev.close) / prev.close) * 100;
     const f = (v) => fmtPrice(v, this.refPrice);
-    this.onLegend(`<b>O</b> ${f(bar.open)} <b>H</b> ${f(bar.high)} <b>L</b> ${f(bar.low)} <b>C</b> <span class="${ch >= 0 ? 'up' : 'down'}">${f(bar.close)} ${ch >= 0 ? '+' : ''}${ch.toFixed(2)}%</span><br><b>V</b> ${fmtAmt(bar.volume)}`);
+    this.onLegend(`<b>O</b> ${f(bar.open)} <b>H</b> ${f(bar.high)} <b>L</b> ${f(bar.low)} <b>C</b> <span class="${ch >= 0 ? 'up' : 'down'}">${f(bar.close)} ${ch >= 0 ? '+' : ''}${ch.toFixed(2)}%</span><br><b>V</b> ${fmtAmt(bar.volume)} <span class="${this.picked === bar.time ? 'pick-time' : 'dim'}">· ${fmtTime(bar.time * 1000, tz(), { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' })}</span>`);
   }
 
   // coordinate helpers used by the drawing layer (time may lie in the future)

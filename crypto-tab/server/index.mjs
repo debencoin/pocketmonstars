@@ -11,7 +11,7 @@ import * as AI from './ai.mjs';
 import * as News from './news.mjs';
 import * as Herd from './herd.mjs';
 import { pumpClock } from './clock.mjs';
-import { bubbles } from './bubbles.mjs';
+import { bubbles, topCoins } from './bubbles.mjs';
 import * as TG from './telegram.mjs';
 import * as Acc from './accounts.mjs';
 import * as Bill from './billing.mjs';
@@ -43,7 +43,11 @@ route('GET', '/api/book', (q) => X.orderbook(q.ex, q.symbol, Number(q.depth || 4
 route('GET', '/api/trades', (q) => X.trades(q.ex, q.symbol), { open: true });
 route('GET', '/api/timeframes', (q) => X.timeframes(q.ex), { open: true });
 route('GET', '/api/forecast', (q) => AI.forecastFor(q.ex, q.symbol, q.tf || '1h', Math.min(120, Number(q.h || 30))), { open: true });
-route('GET', '/api/bubbles', (q) => bubbles({ exchange: q.ex || 'mexc', quote: q.quote || 'USDT', page: Number(q.page) || 1 }), { open: true });
+route('GET', '/api/bubbles', async (q) => {
+  const page = Number(q.page) || 1;
+  if (q.source !== 'exchange') { try { return await topCoins({ page }); } catch { /* CoinGecko down: fall back to the exchange */ } }
+  return bubbles({ exchange: q.ex || 'mexc', quote: q.quote || 'USDT', page });
+}, { open: true });
 route('GET', '/api/strategies', () => Object.fromEntries(Object.entries(STRATEGIES).map(([k, s]) => [k, { label: s.label, desc: s.desc, fields: s.fields, needsCandles: s.needsCandles }])), { open: true });
 route('GET', '/api/push/key', () => ({ key: Alerts.vapidPublicKey() }), { open: true });
 route('POST', '/api/login', (q, body) => { if (body.token !== TOKEN) throw X.httpError(401, 'Wrong passcode'); return { ok: true, token: TOKEN, user: Acc.view(Acc.OWNER) }; }, { open: true });

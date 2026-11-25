@@ -337,3 +337,5 @@ hr.sep { border: 0; border-top: 1px solid var(--line); margin: 12px 0; }
 .pro-tag { font-size: 9px; font-weight: 800; letter-spacing: .5px; padding: 1px 5px; border-radius: 5px; background: linear-gradient(90deg,#f5b300,#ff7a00); color: #000; vertical-align: 2px; }
 a.btn { text-decoration: none; }
 .chart-auto { position: absolute; z-index: 5; right: 66px; bottom: 34px; height: 26px; padding: 0 10px; border-radius: 8px; background: #1a1d24ee; border: 1px solid var(--line-2); color: var(--fg); font: 700 11px var(--mono, monospace); letter-spacing: .5px; }
+.candle-pick { position: absolute; top: 0; z-index: 2; pointer-events: none; background: rgba(124,92,255,.18); border-left: 1px solid rgba(124,92,255,.7); border-right: 1px solid rgba(124,92,255,.7); }
+.pick-time { color: #b9a6ff; font-weight: 700; }
