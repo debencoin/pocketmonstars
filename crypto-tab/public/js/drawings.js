@@ -45,6 +45,7 @@ export class DrawingLayer {
     this.ctx = this.canvas.getContext('2d');
     this.sig = '';
     this.bindEvents();
+    this.bindBotDrag();
     this.loop = this.loop.bind(this);
     this.raf = requestAnimationFrame(this.loop);
     view.chart.subscribeClick((p) => this.onChartClick(p));
@@ -130,6 +131,70 @@ export class DrawingLayer {
     };
     c.addEventListener('pointerup', up);
     c.addEventListener('pointercancel', up);
+  }
+
+  // Bot lines (grid levels, ranges) can be grabbed directly with one finger while the chart
+  // keeps panning and zooming everywhere else. Listeners run in the capture phase so a touch
+  // that lands on a line never reaches the chart.
+  bindBotDrag() {
+    const host = this.host;
+    const pos = (e) => {
+      const t = e.touches?.[0] || e.changedTouches?.[0] || e;
+      const r = host.getBoundingClientRect();
+      return { x: t.clientX - r.left, y: t.clientY - r.top };
+    };
+    const down = (e) => {
+      if (this.tool || !this.items.some((d) => d.bot)) return;
+      const { x, y } = pos(e);
+      const hit = this.botDrag ? this.botDrag.d : this.pickBot(x, y);
+      if (!hit) return;
+      e.stopPropagation();
+      if (e.cancelable) e.preventDefault();
+      if (e.type === 'pointerdown' || (e.type === 'touchstart' && !this.botDrag)) {
+        this.botDrag = { d: hit };
+        this.sel = hit; this.dirty();
+        haptic(10);
+      }
+    };
+    const move = (e) => {
+      if (!this.botDrag) return;
+      e.stopPropagation();
+      if (e.cancelable) e.preventDefault();
+      const { y } = pos(e);
+      const p = this.v.yToPrice(y);
+      if (p == null || !(p > 0)) return;
+      const d = this.botDrag.d;
+      d.pts[0].p = p;
+      d.onDrag?.(p, d);
+      this.dirty();
+    };
+    const up = (e) => {
+      if (!this.botDrag) return;
+      e.stopPropagation();
+      const d = this.botDrag.d;
+      this.botDrag = null; this.sel = null; this.dirty();
+      d.onDrop?.(d.pts[0].p, d);
+      haptic(15);
+    };
+    for (const ev of ['pointerdown', 'mousedown']) host.addEventListener(ev, down, true);
+    host.addEventListener('touchstart', down, { capture: true, passive: false });
+    for (const ev of ['pointermove', 'mousemove']) window.addEventListener(ev, move, true);
+    window.addEventListener('touchmove', move, { capture: true, passive: false });
+    for (const ev of ['pointerup', 'pointercancel', 'mouseup', 'touchend', 'touchcancel']) window.addEventListener(ev, up, true);
+  }
+
+  pickBot(x, y) {
+    const axisW = this.v.chart.priceScale('right').width();
+    if (x > this.host.clientWidth - axisW + 40) return null; // allow grabbing the price label too
+    let best = null;
+    for (const d of this.items) {
+      if (!d.bot) continue;
+      const yy = this.v.priceToY(d.pts[0].p);
+      if (yy == null) continue;
+      const dist = Math.abs(yy - y);
+      if (dist < 16 && (!best || dist < best.dist)) best = { d, dist };
+    }
+    return best?.d || null;
   }
 
   startDraw(x, y) {
@@ -225,10 +290,17 @@ export class DrawingLayer {
   toggleMagnet() { this.magnet = !this.magnet; store.set('magnet', this.magnet); this.emit(); }
 
   // Draggable horizontal lines for editing bots on the chart (grid bounds, TP, SL).
+  // move existing bot lines without recreating them (keeps an in-progress drag alive)
+  moveBotLines(prices) {
+    for (const d of this.items) if (d.bot && prices[d.key] != null && d !== this.botDrag?.d) d.pts[0].p = prices[d.key];
+    this.dirty();
+  }
+
   setBotLines(lines) {
     this.items = this.items.filter((d) => !d.bot);
     const t = this.v.candles.length ? this.v.candles[this.v.candles.length - 1].time : 0;
     for (const l of lines) this.items.push({ id: `bot-${l.key}`, bot: true, key: l.key, type: 'hline', color: l.color, label: l.label, pts: [{ t, p: l.price }], onDrag: l.onDrag, onDrop: l.onDrop });
+    this.sel = null;
     this.dirty();
   }
 
@@ -241,7 +313,7 @@ export class DrawingLayer {
     const ts = this.v.chart.timeScale();
     const ref = this.v.candles[this.v.candles.length - 1].close;
     const sig = [w, h, ts.logicalToCoordinate(0), ts.logicalToCoordinate(100), this.v.priceToY(ref), this.v.priceToY(ref * 1.01), this.items.length, this.sel?.id, !!this.draft].join('|');
-    if (sig === this.sig && !this.draft && !this.drag) return;
+    if (sig === this.sig && !this.draft && !this.drag && !this.botDrag) return;
     this.sig = sig;
     if (c.width !== Math.round(w * dpr) || c.height !== Math.round(h * dpr)) { c.width = Math.round(w * dpr); c.height = Math.round(h * dpr); c.style.width = w + 'px'; c.style.height = h + 'px'; }
     const g = this.ctx;
@@ -257,7 +329,7 @@ export class DrawingLayer {
     if (this.draft) this.paint(g, this.draft, true, w - axisW);
     g.restore();
     // axis labels for bot lines
-    for (const d of this.items.filter((x) => x.bot)) {
+    for (const d of this.items.filter((x) => x.bot && (x.label || x === this.sel))) {
       const y = this.v.priceToY(d.pts[0].p);
       if (y == null) continue;
       g.fillStyle = d.color; g.fillRect(w - axisW, y - 9, axisW, 18);
@@ -279,10 +351,10 @@ export class DrawingLayer {
       case 'ray': { const e = extend(P[0], P[1], W, false); ln(e[0], e[1]); break; }
       case 'ext': { const e = extend(P[0], P[1], W, true); ln(e[0], e[1]); break; }
       case 'hline':
-        if (d.bot) { g.setLineDash([6, 4]); g.lineWidth = 2; }
+        if (d.bot) { g.setLineDash(selected ? [] : [6, 4]); g.lineWidth = selected ? 3 : 1.5; }
         ln({ x: 0, y: P[0].y }, { x: W, y: P[0].y });
-        label(d.label ? `${d.label}  ${fmtPrice(d.pts[0].p, ref)}` : fmtPrice(d.pts[0].p, ref), 8, P[0].y - 3);
-        if (d.bot) { g.setLineDash([]); g.beginPath(); g.arc(W - 26, P[0].y, 9, 0, 7); g.fill(); g.fillStyle = '#000'; g.fillText('⇅', W - 30, P[0].y + 6); }
+        if (!d.bot || d.label || selected) label(d.label ? `${d.label}  ${fmtPrice(d.pts[0].p, ref)}` : fmtPrice(d.pts[0].p, ref), 8, P[0].y - 3);
+        if (d.bot) { g.setLineDash([]); g.beginPath(); g.arc(W - 22, P[0].y, selected ? 11 : 8, 0, 7); g.fill(); g.fillStyle = '#000'; g.font = '700 10px Inter'; g.fillText('⇅', W - 26, P[0].y + 5); }
         break;
       case 'hray': ln(P[0], { x: W, y: P[0].y }); label(fmtPrice(d.pts[0].p, ref), P[0].x + 4, P[0].y - 3); break;
       case 'vline': ln({ x: P[0].x, y: 0 }, { x: P[0].x, y: 4000 }); break;

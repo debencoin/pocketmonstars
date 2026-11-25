@@ -23,21 +23,64 @@ function tone(freq, start, dur, type = 'square', vol = 0.35) {
   return o;
 }
 
+// Metallic "ting": inharmonic partials with fast decay, like a coin or a register bell.
+function metal(freq, start, dur = 0.6, vol = 0.25) {
+  for (const [ratio, amp] of [[1, 1], [2.76, 0.55], [5.4, 0.3], [8.93, 0.15]]) {
+    const o = ctx.createOscillator(), g = ctx.createGain();
+    o.type = 'sine'; o.frequency.setValueAtTime(freq * ratio, start);
+    g.gain.setValueAtTime(0.0001, start); g.gain.exponentialRampToValueAtTime(vol * amp, start + 0.004);
+    g.gain.exponentialRampToValueAtTime(0.0001, start + dur / Math.sqrt(ratio));
+    o.connect(g); g.connect(ctx.destination); o.start(start); o.stop(start + dur + 0.05);
+  }
+}
+// Short filtered noise: the drawer / "cha" part of a cash register.
+function noise(start, dur, vol = 0.3, freq = 3000) {
+  const len = Math.floor(ctx.sampleRate * dur);
+  const buf = ctx.createBuffer(1, len, ctx.sampleRate);
+  const d = buf.getChannelData(0);
+  for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / len);
+  const src = ctx.createBufferSource(), f = ctx.createBiquadFilter(), g = ctx.createGain();
+  src.buffer = buf; f.type = 'bandpass'; f.frequency.value = freq; f.Q.value = 0.8;
+  g.gain.value = vol;
+  src.connect(f); f.connect(g); g.connect(ctx.destination); src.start(start);
+}
+// Coins dropping and bouncing on a counter: hits get quicker and quieter.
+function coins(t, count = 9) {
+  let at = t, gap = 0.16;
+  for (let i = 0; i < count; i++) {
+    metal(2600 + Math.random() * 1700, at, 0.35, 0.22 * Math.pow(0.86, i));
+    if (i % 3 === 0) metal(3400 + Math.random() * 1200, at + 0.012, 0.25, 0.12 * Math.pow(0.86, i));
+    at += gap; gap *= 0.78 + Math.random() * 0.08;
+  }
+  return at - t;
+}
+
 const SOUNDS = {
+  // default: register "cha-ching" + coins pouring = money coming in
+  cash(t) {
+    noise(t, 0.09, 0.35, 2500);            // "cha"
+    noise(t + 0.1, 0.06, 0.25, 4200);
+    metal(2093, t + 0.2, 1.1, 0.32);       // "ching"
+    metal(3136, t + 0.23, 1.0, 0.22);
+    const c = coins(t + 0.55, 10);
+    return 0.55 + c + 0.5;
+  },
+  coins(t) { return coins(t, 12) + 0.4; },
+  chaching(t) { noise(t, 0.09, 0.35, 2500); metal(2093, t + 0.12, 1.2, 0.35); metal(3136, t + 0.15, 1.1, 0.24); return 1.4; },
   siren(t) { for (let i = 0; i < 4; i++) { const o = tone(700, t + i * 0.5, 0.48, 'sawtooth', 0.3); o.frequency.linearRampToValueAtTime(1400, t + i * 0.5 + 0.45); } return 2; },
   beep(t) { for (let i = 0; i < 6; i++) tone(1046, t + i * 0.22, 0.12, 'square', 0.3); return 1.8; },
   chime(t) { [880, 1109, 1319, 1760].forEach((f, i) => tone(f, t + i * 0.18, 0.6, 'sine', 0.4)); return 1.6; },
   ping(t) { tone(1568, t, 0.25, 'sine', 0.35); tone(2093, t + 0.12, 0.3, 'sine', 0.25); return 0.6; },
 };
 
-export function playOnce(name = 'ping') {
+export function playOnce(name = 'chaching') {
   try { ctx = ctx || new (window.AudioContext || window.webkitAudioContext)(); ctx.resume(); SOUNDS[name](ctx.currentTime + 0.02); } catch { /* ignore */ }
 }
 
-function startRing(sound = 'siren') {
+function startRing(sound = 'cash') {
   if (ringTimer) return;
   const loop = () => {
-    try { ctx = ctx || new (window.AudioContext || window.webkitAudioContext)(); ctx.resume(); const d = (SOUNDS[sound] || SOUNDS.siren)(ctx.currentTime + 0.02); ringTimer = setTimeout(loop, d * 1000 + 250); } catch { ringTimer = setTimeout(loop, 2000); }
+    try { ctx = ctx || new (window.AudioContext || window.webkitAudioContext)(); ctx.resume(); const d = (SOUNDS[sound] || SOUNDS.cash)(ctx.currentTime + 0.02); ringTimer = setTimeout(loop, d * 1000 + 250); } catch { ringTimer = setTimeout(loop, 2000); }
   };
   loop();
   vibTimer = setInterval(() => { try { navigator.vibrate?.([700, 250, 700, 250]); } catch { /* unsupported */ } }, 1900);
@@ -60,6 +103,7 @@ export function alarmOn(a, app) {
   $('#alarm-title').textContent = list.length > 1 ? `${list.length} price alerts` : `${first.symbol} ${describe(first)}`;
   $('#alarm-sub').textContent = `Now ${fmtPrice(first.triggerPrice ?? first.lastPrice)}`;
   $('#alarm-list').innerHTML = list.map((x) => `<div>${esc(x.symbol)} · ${esc(x.exchange)} ${x.note ? '· ' + esc(x.note) : ''}</div>`).join('');
+  $('.alarm-icon').textContent = ['siren', 'beep'].includes(first.sound) ? '⏰' : '💰';
   startRing(first.sound);
   $('#alarm-stop').onclick = () => stopAll(app);
   $('#alarm-view').onclick = () => { stopAll(app); app.set({ ex: first.exchange, symbol: first.symbol }); app.go('chart'); };
@@ -151,6 +195,7 @@ export function alertsSheet(app, preset = {}) {
       setPh();
       $('#al-cond', body).onclick = (e) => { const b = e.target.closest('[data-c]'); if (!b) return; cond = b.dataset.c; body.querySelectorAll('#al-cond button').forEach((x) => x.classList.toggle('active', x === b)); if (cond.startsWith('pct')) priceIn.value = '5'; setPh(); };
       $('#al-rep', body).onclick = (e) => e.target.classList.toggle('on');
+      $('#al-sound', body).onchange = (e) => playOnce(e.target.value);
       $('#al-pair', body).onclick = () => app.pickSymbol(() => draw());
       $('#al-test', body).onclick = () => alarmOn({ id: 'Ltest', symbol: app.S.symbol, exchange: app.S.ex, condition: cond, price: Number(priceIn.value), pct: Number(priceIn.value), lastPrice: app.last?.p, sound: $('#al-sound', body).value, note: 'Test' }, app);
       $('#al-push', body).onclick = async () => { try { await enablePush(); await api('/api/push/test', { method: 'POST', body: {} }); toast('Notifications enabled', 'ok'); } catch (e) { toast(e.message, 'err'); } };

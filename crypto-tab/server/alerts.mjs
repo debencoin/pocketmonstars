@@ -30,7 +30,7 @@ export function subscribe(sub) {
   return { ok: true, count: subs.length };
 }
 
-export async function create({ exchange, symbol, condition, price, pct, note, repeat = false, sound = 'siren' }) {
+export async function create({ exchange, symbol, condition, price, pct, note, repeat = false, sound = 'cash' }) {
   if (!['above', 'below', 'cross', 'pctUp', 'pctDown'].includes(condition)) throw X.httpError(400, 'Bad condition');
   const t = await X.ticker(exchange, symbol);
   if (condition.startsWith('pct') && !(Number(pct) > 0)) throw X.httpError(400, 'Percent must be > 0');

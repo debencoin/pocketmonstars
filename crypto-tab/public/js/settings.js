@@ -36,7 +36,7 @@ export function settingsSheet(app) {
         <div class="label">Preferences</div>
         <div class="card" style="margin:8px 0 16px">
           <div class="row between" style="margin-bottom:10px"><span style="font-size:13px">Keep drawing tool after placing</span><button class="toggle ${store.get('stayInDraw', false) ? 'on' : ''}" id="p-stay"></button></div>
-          <div class="row between"><span style="font-size:13px">Sound on profitable bot trades</span><button class="toggle ${store.get('profitSound', true) ? 'on' : ''}" id="p-ps"></button></div>
+          <div class="row between"><span style="font-size:13px">💰 Cash sound on profitable bot trades</span><button class="toggle ${store.get('profitSound', true) ? 'on' : ''}" id="p-ps"></button></div>
         </div>
         <div class="dim" style="font-size:11px;text-align:center;line-height:1.5">Crypto Tab · trading involves risk of loss. Bots, AI suggestions and forecasts are tools, not guarantees.<br>Charts by <a href="https://www.tradingview.com/" target="_blank" rel="noopener" style="color:var(--fg-3)">TradingView</a> Lightweight Charts™ · market connectivity by CCXT.</div>`;
       $('#st-connect', body).onclick = async () => {

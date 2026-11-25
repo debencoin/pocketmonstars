@@ -71,7 +71,10 @@ export function update(id, { name, params, aiTuned }) {
   const b = get(id);
   if (name) b.name = name;
   if (params) {
-    const merged = normalizeParams(b.type, { ...b.params, ...params });
+    const next = { ...b.params, ...params };
+    // editing range / line count / spacing from the form rebuilds evenly spaced lines
+    if (!params.levels && ['lower', 'upper', 'grids', 'mode'].some((k) => k in params && params[k] != null && String(params[k]) !== String(b.params[k]))) delete next.levels;
+    const merged = normalizeParams(b.type, next);
     const oldInv = Number(b.params.investment);
     b.params = merged;
     // investment change tops up / withdraws quote from the bot wallet
@@ -94,7 +97,15 @@ function reconfigure(b) {
   const heldAmt = held.reduce((s, x) => s + x.amount, 0);
   const heldCost = held.reduce((s, x) => s + x.cost, 0);
   const avg = heldAmt ? heldCost / heldAmt : 0;
-  c.levels = gridLevels(p.lower, p.upper, p.grids, p.mode);
+  const newLevels = p.levels?.length >= 2 ? [...p.levels] : gridLevels(p.lower, p.upper, p.grids, p.mode);
+  // Same number of lines (lines dragged on the chart): keep every open slot where it is,
+  // the bot simply buys / sells at the new prices from the next tick on.
+  if (c.slots && c.slots.length === newLevels.length - 1) {
+    c.levels = newLevels;
+    c.perGrid = Number(p.investment) / (c.levels.length - 1);
+    return;
+  }
+  c.levels = newLevels;
   c.slots = new Array(c.levels.length - 1).fill(null);
   c.perGrid = Number(p.investment) / (c.levels.length - 1);
   const price = st.lastPrice ?? c.levels[0];

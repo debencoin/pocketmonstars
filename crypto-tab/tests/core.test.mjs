@@ -70,3 +70,14 @@ test('optimizer, zones, forecast', async () => {
   assert.equal(f.points.length, 30);
   assert.ok(f.points.every((p) => p.lower <= p.mid && p.mid <= p.upper));
 });
+
+test('custom grid lines (dragged on the chart) are kept and used', async () => {
+  const lv = [90, 97, 99, 104, 118, 125];
+  const p = normalizeParams('grid', { lower: 80, upper: 125, grids: 20, investment: 1000, levels: [125, 97, 90, 104, 99, 118] });
+  assert.deepEqual(p.levels, lv);
+  assert.equal(p.lower, 90); assert.equal(p.upper, 125); assert.equal(p.grids, 6);
+  const r = await backtest('grid', p, C);
+  assert.ok(Number.isFinite(r.finalEquity));
+  const evenly = normalizeParams('grid', { lower: 80, upper: 125, grids: 20, investment: 1000, levels: null });
+  assert.equal(evenly.levels, undefined);
+});

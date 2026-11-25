@@ -66,7 +66,7 @@ const app = {
       hello: (d) => (d.ringing || []).forEach((a) => alarmOn(a, this)),
       alarm: (a) => { alarmOn(a, this); this.refreshAlertBadge(); },
       'alarm-stop': (a) => { alarmOff(a.id); this.refreshAlertBadge(); },
-      trade: (t) => { this.views.bots.onEvent?.('trade', t); if (t.side === 'sell' && t.pnl > 0) { if (store.get('profitSound', true)) playOnce('chime'); toast(`💰 ${t.name}: +${t.pnl.toFixed(2)}`, 'ok'); } },
+      trade: (t) => { this.views.bots.onEvent?.('trade', t); if (t.side === 'sell' && t.pnl > 0) { if (store.get('profitSound', true)) playOnce('cash'); toast(`💰 ${t.name}: +${t.pnl.toFixed(2)}`, 'ok'); } },
       bot: (b) => this.views.bots.onEvent?.('bot', b),
       notify: (n) => { if (n.kind === 'bot') toast(`${n.title}: ${n.body}`); },
     });

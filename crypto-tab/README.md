@@ -7,9 +7,9 @@ A phone-first crypto trading terminal. Black theme, one-thumb controls, installa
 | **Markets** | 30+ exchanges, live prices, favorites, USDT/USDC/USD/BTC tabs, a **Stocks** tab for tokenized stocks (xStocks, Ondo `…ON`, `…X` tokens on Gate, MEXC, KuCoin, Bybit), sortable by volume, price and 24h change |
 | **Chart** | Pro candlestick chart: 7 chart types, 8 timeframes, 22 indicators, 17 drawing tools, and a **Future** layer that projects the next 30 bars with a probability band. Order book, trades, AI levels and one-tap Buy/Sell underneath |
 | **Trade** | Exchange-style split screen: order form on the left (limit / market / stop-limit, steppers, 25-50-75-Max), live order book with depth bars and grouping on the right. Paper trading by default, live trading with your API key |
-| **Bots** | Spot Grid (run **as many grids on the same pair as you like**, each with its own wallet), DCA, Step Grid (ATR), Bollinger Bounce, EMA Cross, RSI Reversal, Gain, SuperTrend, MACD. **Pause → edit → resume** at any time, drag a grid's range on the chart, duplicate, stop (keep or sell coins) |
+| **Bots** | Spot Grid (run **as many grids on the same pair as you like**, each with its own wallet), DCA, Step Grid (ATR), Bollinger Bounce, EMA Cross, RSI Reversal, Gain, SuperTrend, MACD. **Pause → edit → resume** at any time, **drag any grid line on the chart while the bot runs** (one line, stretch the range, or shift the whole grid), duplicate, stop (keep or sell coins) |
 | **AI** | Entry and exit ranges for any token, an opportunity scanner, and a bot reviewer that backtests alternatives and lets you apply better settings with one tap |
-| **Alerts** | Price above / below / cross / ±% alerts. A triggered alert **keeps ringing until you press STOP** |
+| **Alerts** | Price above / below / cross / ±% alerts. A triggered alert **keeps ringing until you press STOP**. The default sound is a synthesized "cha-ching + coins" money sound (also played on profitable bot trades). Siren, beep and chime are options |
 
 ## Run it
 
@@ -59,7 +59,7 @@ Supported (through CCXT): Binance, Binance.US, Coinbase Advanced, Kraken, OKX, B
 
 All strategies live in `public/shared/strategies.mjs`. The same code runs the live engine, the backtester and the AI optimizer, so a backtest behaves like the real bot.
 
-- **Spot Grid**: arithmetic or geometric levels, seeds the coin for the sell levels above the price, optional stop loss, take profit and trailing range. Each grid has its own wallet, so several grids on BTC/USDT never touch each other's funds. Editing the range keeps the coins it holds and only re-assigns them to sell levels above breakeven.
+- **Spot Grid**: arithmetic or geometric levels, seeds the coin for the sell levels above the price, optional stop loss, take profit and trailing range. Each grid has its own wallet, so several grids on BTC/USDT never touch each other's funds. Editing the range keeps the coins it holds and only re-assigns them to sell levels above breakeven. Dragging lines on the chart (same number of lines) keeps every open position on its slot. The bot simply buys and sells at the new prices from its next tick, without pausing.
 - **DCA**: base order, safety orders with step scale and volume scale, take profit with optional trailing, stop loss, RSI or Bollinger start condition. With "Restart after TP" on, each new deal is sized from the bot's current equity, so profits compound.
 - **Step Grid (ATR)**: a rangeless grid whose step follows volatility.
 - **Signal bots** (Bollinger, EMA cross, RSI, Gain, SuperTrend, MACD): one position at a time with take profit, stop loss and trailing stop.

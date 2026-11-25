@@ -109,7 +109,7 @@ export const STRATEGIES = {
     ],
     init(bot, price, st) {
       const p = bot.params;
-      const levels = gridLevels(p.lower, p.upper, p.grids, p.mode);
+      const levels = p.levels?.length >= 2 ? [...p.levels] : gridLevels(p.lower, p.upper, p.grids, p.mode);
       st.custom.levels = levels;
       st.custom.slots = new Array(levels.length - 1).fill(null); // slot i: bought at levels[i], sells at levels[i+1]
       st.custom.perGrid = (Number(p.investment) / (levels.length - 1));
@@ -158,6 +158,7 @@ export const STRATEGIES = {
         const step = c.levels[c.levels.length - 1] / c.levels[c.levels.length - 2];
         c.levels = c.levels.map((l) => (p.mode === 'geometric' ? l * step : l + (c.levels[1] - c.levels[0])));
         p.lower = c.levels[0]; p.upper = c.levels[c.levels.length - 1];
+        if (p.levels) p.levels = [...c.levels];
         const freed = c.slots.shift();
         c.slots.push(null);
         if (freed) c.slots[c.slots.length - 1] = freed;
@@ -366,6 +367,13 @@ export function normalizeParams(type, params) {
     out[k] = v;
   }
   if (type === 'grid') {
+    // Custom line positions (set by dragging lines on the chart) override even spacing.
+    const lv = Array.isArray(params?.levels) ? [...new Set(params.levels.map(Number))].filter((v) => v > 0).sort((a, b) => a - b) : null;
+    if (lv && lv.length >= 2) {
+      if (lv.length > 201) throw new Error('Too many grid lines');
+      out.levels = lv;
+      out.lower = lv[0]; out.upper = lv[lv.length - 1]; out.grids = lv.length;
+    }
     if (!(out.lower > 0 && out.upper > out.lower)) throw new Error('Grid needs lower > 0 and upper > lower');
     out.grids = Math.min(200, Math.max(2, out.grids || 20));
   }

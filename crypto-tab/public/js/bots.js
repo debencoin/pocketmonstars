@@ -110,7 +110,7 @@ export function botsScreen(el, app) {
       body.innerHTML = `${b.status === 'running' ? '<div class="pill warn" style="margin-bottom:12px;height:auto;padding:8px 10px;white-space:normal">Tip: pause first if you want the bot to stay idle while you change it. Changes apply immediately either way.</div>' : ''}
         <div class="field"><label>Name</label><input class="input" data-name value="${esc(b.name)}" style="font-family:var(--sans)"></div>
         ${fieldsHtml(s.fields, b.params)}
-        ${b.type === 'grid' ? '<button class="btn block" id="ed-chart" style="margin-bottom:8px">↕ Drag the range on the chart</button>' : ''}
+        ${b.type === 'grid' ? '<button class="btn block" id="ed-chart" style="margin-bottom:8px">↕ Move grid lines on the chart</button>' : ''}
         <div class="grid2"><button class="btn" id="ed-bt">Backtest</button><button class="btn primary" id="ed-save">${b.status === 'paused' ? 'Save & resume' : 'Save changes'}</button></div>
         <div id="ed-out"></div>`;
       wireToggles(body);
@@ -270,32 +270,87 @@ export function botsScreen(el, app) {
     if (editOnChart && b.type === 'grid') chartEdit(b);
   }
 
-  // Edit a grid on the chart: drag the Upper / Lower lines, then save.
+  // Edit a grid on the chart while it runs: drag any line. Each release is applied to the
+  // running bot immediately (no pause needed); open positions keep their place.
   function chartEdit(b) {
     const box = $('#bd-edit', el);
-    const vals = { upper: b.params.upper, lower: b.params.lower };
+    let lv = [...(b.levels || [])];
+    if (lv.length < 2) return toast('This bot has no grid lines yet', 'err');
+    let mode = store.get('gridDragMode', 'line');
+    let orig = null, saving = false;
+    const geo = b.params.mode === 'geometric';
     box.hidden = false;
-    box.innerHTML = `<div class="card" style="border-color:var(--accent)"><b>Drag the purple lines to set the range</b>
-      <div class="grid2" style="margin-top:10px"><div class="field"><label>Upper</label><input class="input" id="ce-up" inputmode="decimal" value="${vals.upper}"></div><div class="field"><label>Lower</label><input class="input" id="ce-lo" inputmode="decimal" value="${vals.lower}"></div></div>
-      <div class="field"><label>Grid lines</label><input class="input" id="ce-n" inputmode="numeric" value="${b.params.grids}"></div>
-      <div class="grid2"><button class="btn" id="ce-cancel">Cancel</button><button class="btn primary" id="ce-save">Save${b.status === 'paused' ? ' & resume' : ''}</button></div></div>`;
-    const set = () => detailCv.draw.setBotLines([
-      { key: 'upper', price: vals.upper, color: '#7c5cff', label: 'UPPER', onDrag: (p) => { vals.upper = +p.toPrecision(6); $('#ce-up', box).value = vals.upper; } },
-      { key: 'lower', price: vals.lower, color: '#7c5cff', label: 'LOWER', onDrag: (p) => { vals.lower = +p.toPrecision(6); $('#ce-lo', box).value = vals.lower; } },
-    ]);
-    set();
-    detailCv.setPriceLines([]);
-    $('#ce-up', box).onchange = (e) => { vals.upper = Number(e.target.value); set(); };
-    $('#ce-lo', box).onchange = (e) => { vals.lower = Number(e.target.value); set(); };
-    $('#ce-cancel', box).onclick = () => { box.hidden = true; detailCv.draw.setBotLines([]); renderDetail(); };
-    $('#ce-save', box).onclick = async () => {
+    box.innerHTML = `<div class="card" style="border-color:var(--accent)">
+      <div class="row between"><b>Drag any grid line</b><span class="pill ${b.status === 'running' ? 'up' : 'warn'}" id="ge-state">${b.status === 'running' ? 'LIVE · updates instantly' : 'paused'}</span></div>
+      <div class="seg" id="ge-mode" style="margin:10px 0"><button data-m="line">One line</button><button data-m="stretch">Stretch range</button><button data-m="shift">Shift all</button></div>
+      <div class="dim" id="ge-help" style="font-size:12px;line-height:1.45;margin-bottom:10px"></div>
+      <div class="grid3" id="ge-info" style="margin-bottom:10px"></div>
+      <div class="row" style="gap:8px"><input class="input" id="ge-n" inputmode="numeric" value="${lv.length}" style="width:90px"><button class="btn sm" id="ge-respace" style="flex:1;height:46px">Respace evenly</button></div>
+      <button class="btn primary block" id="ge-done" style="margin-top:10px">Done</button></div>`;
+    const help = { line: 'Move a single buy/sell level. The bot uses the new price on its next tick.', stretch: 'Drag the top or bottom (purple) line to widen or narrow the range. Every line in between rescales.', shift: 'Drag any line to slide the whole grid up or down. Spacing stays the same.' };
+    const paintMode = () => { box.querySelectorAll('#ge-mode button').forEach((x) => x.classList.toggle('active', x.dataset.m === mode)); $('#ge-help', box).textContent = help[mode]; };
+    const info = () => {
+      const s = [...lv].sort((x, y) => x - y);
+      const gaps = s.slice(1).map((v, i) => (v / s[i] - 1) * 100);
+      const minGap = Math.min(...gaps);
+      $('#ge-info', box).innerHTML = `<div class="kv"><span>Lower</span><span>${fmtPrice(s[0])}</span></div><div class="kv"><span>Upper</span><span>${fmtPrice(s[s.length - 1])}</span></div><div class="kv"><span>Min step</span><span class="${minGap < 0.25 ? 'down' : ''}">${minGap.toFixed(2)}%</span></div>${minGap < 0.25 ? '<div class="down" style="grid-column:1/-1;font-size:11px">Two lines are closer than ~0.25%: trades between them lose money to fees.</div>' : ''}`;
+    };
+    const color = (i) => (i === 0 || i === lv.length - 1 ? '#7c5cff' : b.slots?.[i] ? '#00d68f' : '#ff3b5c');
+    const setLines = () => {
+      detailCv.setPriceLines([]);
+      detailCv.draw.setBotLines(lv.map((price, i) => ({ key: i, price, color: color(i), label: i === lv.length - 1 ? 'UPPER' : i === 0 ? 'LOWER' : '', onDrag, onDrop })));
+      info();
+    };
+    const remap = (x, oLo, oHi, lo, hi) => (geo ? Math.exp(Math.log(lo) + ((Math.log(x) - Math.log(oLo)) * (Math.log(hi) - Math.log(lo))) / (Math.log(oHi) - Math.log(oLo))) : lo + ((x - oLo) * (hi - lo)) / (oHi - oLo));
+    function onDrag(p, d) {
+      if (!orig) orig = [...lv];
+      const i = d.key, n = orig.length - 1;
+      if (mode === 'shift') {
+        const r = p / orig[i];
+        lv = orig.map((x) => x * r);
+      } else if (mode === 'stretch' && (i === 0 || i === n)) {
+        const lo = i === 0 ? Math.min(p, orig[n] * 0.995) : orig[0];
+        const hi = i === n ? Math.max(p, orig[0] * 1.005) : orig[n];
+        lv = orig.map((x) => remap(x, orig[0], orig[n], lo, hi));
+      } else {
+        // one line: stay between its neighbours
+        const below = i > 0 ? lv[i - 1] * 1.0005 : 0, above = i < n ? lv[i + 1] * 0.9995 : Infinity;
+        lv[i] = Math.min(Math.max(p, below), above);
+      }
+      detailCv.draw.moveBotLines(Object.fromEntries(lv.map((v, k) => [k, v])));
+      info();
+    }
+    async function onDrop() {
+      orig = null;
+      lv = lv.map((v) => +v.toPrecision(8)).sort((x, y) => x - y);
+      setLines();
+      if (saving) return;
+      saving = true;
+      $('#ge-state', box).textContent = 'saving…';
       try {
-        await api(`/api/bots/${b.id}`, { method: 'PATCH', body: { params: { upper: vals.upper, lower: vals.lower, grids: Number($('#ce-n', box).value) } } });
-        if (b.status === 'paused') await api(`/api/bots/${b.id}/resume`, { method: 'POST', body: {} });
-        box.hidden = true; detailCv.draw.setBotLines([]); toast('Grid updated', 'ok'); haptic(20); load();
+        const nb = await api(`/api/bots/${b.id}`, { method: 'PATCH', body: { params: { levels: lv } } });
+        Object.assign(b, nb);
+        lv = [...nb.levels];
+        setLines();
+        $('#ge-state', box).textContent = b.status === 'running' ? 'LIVE · updated ✓' : 'saved ✓';
+        haptic(20);
+      } catch (e) { toast(e.message, 'err'); $('#ge-state', box).textContent = 'not saved'; }
+      saving = false;
+    }
+    $('#ge-mode', box).onclick = (e) => { const x = e.target.closest('[data-m]'); if (!x) return; mode = x.dataset.m; store.set('gridDragMode', mode); paintMode(); haptic(); };
+    $('#ge-respace', box).onclick = async () => {
+      const n = Math.max(2, Math.min(200, Number($('#ge-n', box).value) || lv.length));
+      try {
+        const nb = await api(`/api/bots/${b.id}`, { method: 'PATCH', body: { params: { levels: null, lower: lv[0], upper: lv[lv.length - 1], grids: n } } });
+        Object.assign(b, nb); lv = [...nb.levels]; setLines(); toast(`${n} evenly spaced lines applied`, 'ok');
       } catch (e) { toast(e.message, 'err'); }
     };
-    toast('Tap a purple line, then drag it');
+    $('#ge-done', box).onclick = () => { box.hidden = true; detailCv.draw.setBotLines([]); load(); };
+    paintMode();
+    setLines();
+    // frame the whole grid so every line can be reached
+    detailCv.main.applyOptions({ autoscaleInfoProvider: (base) => { const r = base(); if (!r || box.hidden) return r; return { priceRange: { minValue: Math.min(r.priceRange.minValue, lv[0] * 0.995), maxValue: Math.max(r.priceRange.maxValue, lv[lv.length - 1] * 1.005) } }; } });
+    toast('Touch a line and drag it. The bot updates when you let go.');
   }
 
   function renderDetail() {
@@ -354,5 +409,6 @@ export function botsScreen(el, app) {
     onEvent(kind, data) { if (kind === 'bot' || kind === 'trade') load(); void data; },
     verdictCard,
     createFlow,
+    get detailChart() { return detailCv; },
   };
 }
