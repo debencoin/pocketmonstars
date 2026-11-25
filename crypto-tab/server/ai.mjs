@@ -12,6 +12,7 @@ import { forecast } from '../public/shared/forecast.mjs';
 import { STRATEGIES, backtest, normalizeParams, defaultsFor } from '../public/shared/strategies.mjs';
 import { measureCandles, recommendStep, estimate, strip as stripStats, TF_SECONDS } from '../public/shared/candlemeter.mjs';
 import { tfSeconds } from '../public/shared/optimizer.mjs';
+import { load as loadStore, save as saveStore } from './store.mjs';
 import { helpFor, ctxFor } from '../public/shared/fieldhelp.mjs';
 import { presetFor } from '../public/shared/presets.mjs';
 
@@ -293,4 +294,78 @@ export async function explainSetting({ exchange, symbol, type, key, params }) {
   } catch (e) {
     return { ...base, suggested: sug?.value ?? null, reason: sug?.reason ?? null, model: 'quant engine', error: e.message };
   }
+}
+
+// ---------------- token profile: measured settings for ANY token ----------------
+// Every value comes from the token's own candles and its exchange's real fee:
+//   timeframe  = the timeframe whose backtest earned most per day (step just under its swing)
+//   dumpPct    = 7.5 typical candle swings (a move that size is a real dump, not noise), 3-12 %
+//   maxLots    = dumpPct / step, so the lots cover the drop before the dump guard stops buying
+//   resumeDrop = 5 typical swings, 2-8 %
+//   feePct     = the exchange's taker fee for that pair (the bot fills instantly)
+//   dumpSell   = whichever of hold / sell-the-bag earned more in the backtest
+const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+const profiles = loadStore('profiles', {});
+
+async function takerFee(exchange, symbol) {
+  try { const ex = X.publicClient(exchange); await ex.loadMarkets(); const m = ex.markets[symbol]; return m?.taker != null ? +(m.taker * 100).toFixed(4) : 0.1; } catch { return 0.1; }
+}
+
+export async function tokenProfile({ exchange, symbol, band = {}, fresh = false }) {
+  const key = `${exchange}|${symbol}|${band.stepMin ?? 0.39}|${band.stepMax ?? 0.79}`;
+  const hit = profiles[key];
+  if (hit && !fresh && Date.now() - hit.measuredAt < 6 * 3600e3) return hit;
+  const feePct = await takerFee(exchange, symbol);
+  const scan = await candleMeterScan({ exchange, symbol, params: { feePct, stepMin: band.stepMin ?? 0.39, stepMax: band.stepMax ?? 0.79 } });
+  if (!scan.best) throw X.httpError(400, `Not enough candle history for ${symbol} on ${exchange}`);
+  const best = scan.best, m = best.stats;
+  const step = best.rec.step;
+  const dumpPct = +clamp(m.medianRange * 7.5, 3, 12).toFixed(1);
+  const params = {
+    timeframe: best.timeframe, autoStep: true, stepPct: step, stepMin: band.stepMin ?? 0.39, stepMax: band.stepMax ?? 0.79,
+    maxLots: Math.round(clamp(dumpPct / step, 4, 30)), dumpPct, dumpSell: best.dumpSell,
+    resumeDrop: +clamp(m.medianRange * 5, 2, 8).toFixed(1), confirmCandles: 3, feePct, pumpPct: 0, trailPct: 0, holdRun: 2, rideAdd: 0, stopLoss: 0,
+  };
+  const candles = await X.ohlcv(exchange, symbol, best.timeframe, 1000);
+  const bt = await backtest('pumpgrid', normalizeParams('pumpgrid', { ...defaultsFor('pumpgrid'), ...params, investment: 1000 }), candles);
+  const fits = scan.rows.filter((r) => !r.rec.clamped).map((r) => r.timeframe);
+  const base = symbol.split('/')[0];
+  const verdict = bt.pnlPct > 0 && bt.pnlPct > bt.buyHoldPct ? 'good fit' : bt.pnlPct > bt.buyHoldPct ? 'beats holding, still negative' : 'weak fit right now';
+  const profile = {
+    exchange, symbol, measuredAt: Date.now(), feePct, verdict,
+    timeframe: best.timeframe, swing: { median: m.medianRange, avg: m.avgRange, p25: m.p25Range, p75: m.p75Range, greenShare: m.greenShare },
+    fitsBand: fits,
+    byTimeframe: scan.rows.map((r) => ({ timeframe: r.timeframe, median: r.stats.medianRange, step: r.rec.step, coverage: r.rec.coverage, clamped: r.rec.clamped, perDayPct: r.backtest.perDayPct, holdPct: r.backtest.buyHoldPct, dumpSell: r.dumpSell })),
+    params,
+    backtest: { pnlPct: bt.pnlPct, holdPct: bt.buyHoldPct, maxDrawdownPct: bt.maxDrawdownPct, roundTrips: bt.roundTrips, winRate: bt.winRate, days: bt.days },
+    note: `${base} ${best.timeframe} candles swing ${m.medianRange.toFixed(2)}% (median). Step ≈ ${step}%, ${params.maxLots} lots, dump guard ${dumpPct}%, ${params.dumpSell ? 'sells the bag on dumps' : 'holds lots through dumps'}, fee ${feePct}%. Backtest ${bt.pnlPct >= 0 ? '+' : ''}${bt.pnlPct.toFixed(2)}% vs hold ${bt.buyHoldPct.toFixed(2)}% over ${bt.days.toFixed(1)} days (${verdict}).${fits.length ? '' : ` Its candles do not fit your ${params.stepMin}-${params.stepMax}% band on any timeframe; consider a different band.`}`,
+  };
+  profiles[key] = profile;
+  saveStore('profiles', profiles);
+  return profile;
+}
+
+// Rank every liquid token on an exchange by how well it suits a Pump Rider Grid right now:
+// candle swing inside the step band (so the grid catches most candles), volume, and a
+// sideways regime (low ADX) where grids earn the most.
+export async function gridScan({ exchange, quote = 'USDT', top = 40, tf = '15m', band = {} }) {
+  const lo = band.stepMin ?? 0.39, hi = band.stepMax ?? 0.79, mid = (lo + hi) / 2;
+  const m = await X.markets(exchange);
+  const picks = m.markets.filter((r) => r.q === quote && !['USDC', 'USDT', 'FDUSD', 'DAI', 'TUSD', 'USD1', 'USDE', 'PYUSD'].includes(r.b)).slice(0, Math.min(80, top));
+  const rows = [];
+  for (let i = 0; i < picks.length; i += 6) {
+    const batch = await Promise.allSettled(picks.slice(i, i + 6).map(async (r) => {
+      const c = await X.ohlcv(exchange, r.s, tf, 300);
+      if (c.length < 120) return null;
+      const st = measureCandles(c, { recent: 200 });
+      const rec = recommendStep(st, { fee: 0.1, min: lo, max: hi });
+      const ms = marketStats(c, tf);
+      const inBand = st.medianRange >= lo && st.medianRange <= hi * 1.3;
+      const fit = Math.max(0, 100 - Math.abs(st.medianRange - mid) / mid * 60) * (ms.adx != null && ms.adx < 25 ? 1.1 : 0.85) + Math.log10(1 + (r.v || 0)) * 2;
+      return { symbol: r.s, price: r.p, change24h: r.c, volume: r.v, swing: st.medianRange, step: rec.step, coverage: rec.coverage, regime: ms.regime, adx: ms.adx, inBand, fit: +fit.toFixed(1) };
+    }));
+    for (const b of batch) if (b.status === 'fulfilled' && b.value) rows.push(b.value);
+  }
+  rows.sort((a, b) => b.inBand - a.inBand || b.fit - a.fit);
+  return { exchange, quote, timeframe: tf, band: { lo, hi }, time: Date.now(), results: rows };
 }

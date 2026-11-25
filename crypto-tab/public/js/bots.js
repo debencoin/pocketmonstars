@@ -217,6 +217,26 @@ export function botsScreen(el, app) {
     });
   }
 
+  // Measured profile for any token (server caches it 6 h). Falls back to the built-in presets.
+  const profileCache = new Map();
+  async function profileFor(exchange, symbol) {
+    const k = `${exchange}|${symbol}`;
+    if (profileCache.has(k)) return profileCache.get(k);
+    if (conn.demo) return null;
+    const p = api('/api/ai/profile', { method: 'POST', body: { exchange, symbol } }).catch(() => null);
+    profileCache.set(k, p);
+    return p;
+  }
+
+  function profileHtml(pr) {
+    if (!pr) return '';
+    const good = pr.verdict === 'good fit';
+    return `<div class="card" style="margin-bottom:12px;border-color:${good ? 'var(--up)' : 'var(--warn)'}">
+      <div class="row between"><b>📏 ${esc(pr.symbol.split('/')[0])} measured profile</b><span class="pill ${good ? 'up' : 'warn'}">${esc(pr.verdict)}</span></div>
+      <div style="font-size:13px;line-height:1.5;color:var(--fg-2);margin-top:6px">${esc(pr.note)}</div>
+      <div class="dim" style="font-size:11px;margin-top:6px">Settings below were filled from this profile. Change anything you like.</div></div>`;
+  }
+
   function storyHtml(type, symbol, params, px) {
     const st = STORY[type]; if (!st) return '';
     const x = ctxFor(px || 1, symbol, params);
@@ -229,7 +249,8 @@ export function botsScreen(el, app) {
 
   function coinRowHtml(symbol) {
     const cur = symbol.split('/')[0];
-    return `<div class="coin-row">${COINS.map((c) => `<button class="chip ${c === MAIN_COIN ? 'main' : ''} ${c === cur ? 'active' : ''}" data-coin="${c}">${c === MAIN_COIN ? '★ ' : ''}${c}</button>`).join('')}</div>`;
+    const other = !COINS.includes(cur) ? `<button class="chip active" data-any>${esc(cur)}</button>` : '';
+    return `<div class="coin-row">${COINS.map((c) => `<button class="chip ${c === MAIN_COIN ? 'main' : ''} ${c === cur ? 'active' : ''}" data-coin="${c}">${c === MAIN_COIN ? '★ ' : ''}${c}</button>`).join('')}${other}<button class="chip" data-any>＋ Any token</button></div>`;
   }
 
   async function switchCoin(ex, coin, currentSymbol) {
@@ -263,12 +284,21 @@ export function botsScreen(el, app) {
         wireToggles(body);
         const F = $('#df-fields', body);
         wireHelp(F, () => ({ type, exchange: b.exchange, symbol }));
+        const useSymbol = async (sym) => {
+          symbol = sym; haptic();
+          let pre = null;
+          if (type === 'pumpgrid') { toast(`Measuring ${sym.split('/')[0]}…`); pre = (await profileFor(b.exchange, sym))?.params || presetFor(sym)?.params; }
+          draw({ ...readFields(F), ...(pre || {}) });
+        };
         body.querySelector('.coin-row').onclick = async (e) => {
+          if (e.target.closest('[data-any]')) {
+            const keepS = app.S.symbol, keepE = app.S.ex;
+            app.set({ ex: b.exchange });
+            return app.pickSymbol(() => { const sym = app.S.symbol; app.set({ ex: keepE, symbol: keepS }); useSymbol(sym); });
+          }
           const c = e.target.closest('[data-coin]'); if (!c) return;
           const sym = await switchCoin(b.exchange, c.dataset.coin, symbol); if (!sym) return;
-          symbol = sym; haptic();
-          const pre = type === 'pumpgrid' ? presetFor(sym)?.params : null;
-          draw({ ...readFields(F), ...(pre || {}) });
+          useSymbol(sym);
         };
         $('#df-type', body).onchange = (e) => { type = e.target.value; draw({ ...defaultsFor(type), ...(type === 'pumpgrid' ? presetFor(symbol)?.params : {}) }); };
         $('#df-mode', body).onclick = (e) => { const x = e.target.closest('[data-m]'); if (!x) return; mode = x.dataset.m; body.querySelectorAll('#df-mode button').forEach((y) => y.classList.toggle('active', y === x)); };
@@ -328,6 +358,7 @@ export function botsScreen(el, app) {
           <div class="label" style="margin-bottom:8px">2 · Bot</div>
           <div class="strat-grid">${[['pumpgrid', STRATEGIES.pumpgrid], ...Object.entries(STRATEGIES).filter(([k]) => k !== 'pumpgrid')].map(([k, x]) => `<button class="strat ${k === type ? 'active' : ''}" data-type="${k}"><span class="ico">${ICONS[k]}</span><b>${esc(x.label)}</b><span>${esc(x.desc.split('.')[0])}.</span></button>`).join('')}</div>
           <hr class="sep">
+          <div id="nb-profile"></div>
           <div id="nb-story">${storyHtml(type, app.S.symbol, params, app.last?.s === app.S.symbol ? app.last.p : null)}</div>
           <div class="label" style="margin-bottom:8px">3 · Settings <span class="dim" style="text-transform:none;letter-spacing:0">(all editable, now and after saving)</span></div>
           <div class="field"><label>Name</label><input class="input" id="nb-name" style="font-family:var(--sans)" placeholder="${esc(s.label)} ${esc(app.S.symbol)}"></div>
@@ -340,9 +371,22 @@ export function botsScreen(el, app) {
         wireToggles(body);
         const F = $('#nb-fields', body);
         wireHelp(F, () => ({ type, exchange: app.S.ex, symbol: app.S.symbol }));
+        // measured profile for this token (any token): fills the settings once per coin
+        if (type === 'pumpgrid' && !keep && !preset.params) {
+          const box = $('#nb-profile', body);
+          box.innerHTML = `<div class="card" style="margin-bottom:12px"><span class="spinner"></span> Measuring ${esc(app.S.symbol.split('/')[0])} candles on every timeframe…</div>`;
+          const sym = app.S.symbol;
+          profileFor(app.S.ex, sym).then((pr) => {
+            if (!pr || app.S.symbol !== sym || !document.body.contains(box)) { if (box) box.innerHTML = ''; return; }
+            box.innerHTML = profileHtml(pr);
+            for (const [k, v] of Object.entries(pr.params)) setField(F, k, v);
+            const st = $('#nb-story', body); if (st) st.innerHTML = storyHtml(type, sym, readFields(F), app.last?.s === sym ? app.last.p : null);
+          });
+        }
         // live price for the story
         if (!(app.last?.s === app.S.symbol)) priceOf(app.S.ex, app.S.symbol).then((px) => { const st = $('#nb-story', body); if (px && st) st.innerHTML = storyHtml(type, app.S.symbol, readFields(F), px); });
         body.querySelector('.coin-row').onclick = async (e) => {
+          if (e.target.closest('[data-any]')) return app.pickSymbol(() => { preset = { type }; draw(); });
           const c = e.target.closest('[data-coin]'); if (!c) return;
           const sym = await switchCoin(app.S.ex, c.dataset.coin, app.S.symbol); if (!sym) return;
           app.set({ symbol: sym }); haptic(); preset = { type }; draw();
@@ -431,7 +475,7 @@ export function botsScreen(el, app) {
     if (!b) return;
     el.innerHTML = `
       <div class="row between" style="padding:8px 12px"><button class="btn sm" id="bd-back">‹ Bots</button><b>${esc(b.name)}</b><button class="btn sm" id="bd-more">⋯</button></div>
-      <div class="ch-wrap" style="height:42vh;min-height:280px"><div class="chart-host" id="bd-chart"></div><div class="legend" id="bd-legend"></div></div>
+      <div class="ch-wrap" style="height:42vh;min-height:280px"><div class="chart-host" id="bd-chart"></div><div class="legend" id="bd-legend"></div><button class="lock-btn" id="bd-lock"></button></div>
       <div id="bd-edit" class="pad" hidden></div>
       <div id="bd-body" class="pad"></div>`;
     $('#bd-back', el).onclick = () => { detailId = null; renderList(); };
@@ -441,6 +485,13 @@ export function botsScreen(el, app) {
     });
     detailCv = new ChartView($('#bd-chart', el), { onLegend: (h) => ($('#bd-legend', el).innerHTML = h) });
     await detailCv.init();
+    // Lock / unlock the bot's lines. Unlocked by default; remembered per bot once you lock it.
+    const lockKey = `lineLock:${id}`;
+    const paintLock = () => { const on = detailCv.draw.locked; const btn = $('#bd-lock', el); btn.className = `lock-btn ${on ? 'on' : ''}`; btn.innerHTML = on ? '🔒 Locked' : '🔓 Unlocked'; };
+    detailCv.draw.setLocked(store.get(lockKey, false));
+    detailCv.draw.onLockedTouch = () => toast('Lines are locked. Tap 🔒 to unlock and move them.');
+    paintLock();
+    $('#bd-lock', el).onclick = () => { const v = !detailCv.draw.locked; detailCv.draw.setLocked(v); store.set(lockKey, v); paintLock(); haptic(25); toast(v ? 'Lines locked: they cannot be moved by accident' : 'Lines unlocked: drag to move', 'ok'); };
     const tf = b.params.timeframe || '1h';
     try { detailCv.setData(await candlesFor(b.exchange, b.symbol, tf), tfSec(tf)); detailCv.fit(); } catch (e) { toast(e.message, 'err'); }
     renderDetail();

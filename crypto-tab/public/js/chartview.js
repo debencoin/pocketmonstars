@@ -60,6 +60,8 @@ export function chartScreen(el, app) {
     cv.type = store.get('chartType', 'candles'); cv.makeMain();
     cv.indicators = store.get('indicators', [{ id: 'MA' }, { id: 'VOL' }, { id: 'MACD' }]);
     cv.draw.onChange(() => renderDrawUI());
+    cv.draw.setLocked(store.get('drawLock', false));
+    cv.draw.onLockedTouch = () => toast('Drawings are locked (🔒 in the drawing bar)');
     return cv;
   }
 
@@ -220,7 +222,7 @@ export function chartScreen(el, app) {
     if (!cv) return;
     const d = cv.draw;
     drawBar.innerHTML = Object.entries(TOOLS).map(([k, [label, , path]]) => `<button data-tool="${k}" class="${d.tool === k ? 'active' : ''}" title="${label}">${ICON(path)}</button>`).join('')
-      + `<button data-act="magnet" class="${d.magnet ? 'active' : ''}" title="Magnet">🧲</button><button data-act="clear" title="Delete all">🗑</button>`;
+      + `<button data-act="magnet" class="${d.magnet ? 'active' : ''}" title="Magnet">🧲</button><button data-act="lockall" class="${d.locked ? 'active' : ''}" title="Lock all drawings">${d.locked ? '🔒' : '🔓'}</button><button data-act="clear" title="Delete all">🗑</button>`;
     selBar.hidden = !d.sel || d.sel.bot;
     if (d.sel && !d.sel.bot) {
       selBar.innerHTML = `${COLORS.map((c) => `<button data-color="${c}" style="color:${c}">●</button>`).join('')}<button data-act="lock">${d.sel.locked ? '🔒' : '🔓'}</button><button data-act="del">🗑</button><button data-act="done">✓</button>`;
@@ -230,6 +232,7 @@ export function chartScreen(el, app) {
     const t = e.target.closest('[data-tool]'), a = e.target.closest('[data-act]');
     if (t) { haptic(); cv.draw.setTool(cv.draw.tool === t.dataset.tool ? null : t.dataset.tool); if (cv.draw.tool) toast(`${TOOLS[t.dataset.tool][0]}: ${TOOLS[t.dataset.tool][1] === 3 ? 'drag, then tap the 3rd point' : TOOLS[t.dataset.tool][1] === 1 ? 'tap to place' : 'drag on the chart'}`); }
     if (a?.dataset.act === 'magnet') cv.draw.toggleMagnet();
+    if (a?.dataset.act === 'lockall') { cv.draw.setLocked(!cv.draw.locked); store.set('drawLock', cv.draw.locked); toast(cv.draw.locked ? 'Drawings locked' : 'Drawings unlocked', 'ok'); }
     if (a?.dataset.act === 'clear' && confirm('Delete all drawings on this chart?')) cv.draw.clear();
     renderDrawUI();
   };

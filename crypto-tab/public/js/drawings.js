@@ -37,6 +37,7 @@ export class DrawingLayer {
     this.sel = null;
     this.draft = null;
     this.magnet = store.get('magnet', true);
+    this.locked = false; // when locked nothing can be dragged (prevents accidental moves)
     this.color = COLORS[0];
     this.listeners = new Set();
     this.canvas = document.createElement('canvas');
@@ -97,6 +98,7 @@ export class DrawingLayer {
       c.setPointerCapture(e.pointerId);
       const { x, y } = pos(e);
       if (this.tool) return this.startDraw(x, y);
+      if (this.sel && this.locked) { this.onLockedTouch?.(); this.select(null); return; }
       if (this.sel) {
         const h = this.hitHandle(this.sel, x, y);
         if (h != null) { this.drag = { mode: 'handle', i: h }; return; }
@@ -149,6 +151,10 @@ export class DrawingLayer {
       const { x, y } = pos(e);
       const hit = this.botDrag ? this.botDrag.d : this.pickBot(x, y);
       if (!hit) return;
+      if (this.locked) { // touch passes through to the chart; remind once in a while
+        if (e.type === 'pointerdown' && Date.now() - (this._lockHint || 0) > 4000) { this._lockHint = Date.now(); this.onLockedTouch?.(); }
+        return;
+      }
       e.stopPropagation();
       if (e.cancelable) e.preventDefault();
       if (e.type === 'pointerdown' || (e.type === 'touchstart' && !this.botDrag)) {
@@ -236,8 +242,10 @@ export class DrawingLayer {
     this.dirty();
   }
 
+  setLocked(v) { this.locked = !!v; if (v) { this.botDrag = null; this.select(null); } this.dirty(); this.emit(); }
+
   onChartClick(p) {
-    if (this.tool || !p?.point) return;
+    if (this.tool || !p?.point || this.locked) return;
     const hit = this.pick(p.point.x, p.point.y);
     this.select(hit);
   }
@@ -313,7 +321,7 @@ export class DrawingLayer {
     if (!w || !h || !this.v.candles.length) return;
     const ts = this.v.chart.timeScale();
     const ref = this.v.candles[this.v.candles.length - 1].close;
-    const sig = [w, h, ts.logicalToCoordinate(0), ts.logicalToCoordinate(100), this.v.priceToY(ref), this.v.priceToY(ref * 1.01), this.items.length, this.sel?.id, !!this.draft].join('|');
+    const sig = [w, h, ts.logicalToCoordinate(0), ts.logicalToCoordinate(100), this.v.priceToY(ref), this.v.priceToY(ref * 1.01), this.items.length, this.sel?.id, !!this.draft, this.locked].join('|');
     if (sig === this.sig && !this.draft && !this.drag && !this.botDrag) return;
     this.sig = sig;
     if (c.width !== Math.round(w * dpr) || c.height !== Math.round(h * dpr)) { c.width = Math.round(w * dpr); c.height = Math.round(h * dpr); c.style.width = w + 'px'; c.style.height = h + 'px'; }
@@ -355,7 +363,8 @@ export class DrawingLayer {
         if (d.bot) { g.setLineDash(selected ? [] : [6, 4]); g.lineWidth = selected ? 3 : 1.5; }
         ln({ x: 0, y: P[0].y }, { x: W, y: P[0].y });
         if (!d.bot || d.label || selected) label(d.label ? `${d.label}  ${fmtPrice(d.pts[0].p, ref)}` : fmtPrice(d.pts[0].p, ref), 8, P[0].y - 3);
-        if (d.bot) { g.setLineDash([]); g.beginPath(); g.arc(W - 22, P[0].y, selected ? 11 : 8, 0, 7); g.fill(); g.fillStyle = '#000'; g.font = '700 10px Inter'; g.fillText('⇅', W - 26, P[0].y + 5); }
+        if (d.bot && !this.locked) { g.setLineDash([]); g.beginPath(); g.arc(W - 22, P[0].y, selected ? 11 : 8, 0, 7); g.fill(); g.fillStyle = '#000'; g.font = '700 10px Inter'; g.fillText('⇅', W - 26, P[0].y + 5); }
+        if (d.bot && this.locked) { g.setLineDash([]); g.font = '11px Inter'; g.fillText('🔒', W - 28, P[0].y + 4); }
         break;
       case 'hray': ln(P[0], { x: W, y: P[0].y }); label(fmtPrice(d.pts[0].p, ref), P[0].x + 4, P[0].y - 3); break;
       case 'vline': ln({ x: P[0].x, y: 0 }, { x: P[0].x, y: 4000 }); break;

@@ -15,6 +15,7 @@
   "dependencies": {
     "@anthropic-ai/sdk": "^1.14.0",
     "ccxt": "^4.5.94",
+    "fast-xml-parser": "^5.12.1",
     "lightweight-charts": "^5.3.0",
     "web-push": "^4.0.0"
   }
