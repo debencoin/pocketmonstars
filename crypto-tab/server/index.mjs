@@ -71,6 +71,7 @@ route('POST', '/api/ai/bot/:id', (q, b, p) => AI.analyzeBot(p.id));
 route('POST', '/api/ai/draft', (q, body) => AI.analyzeDraft(body));
 route('POST', '/api/ai/symbol', (q, body) => AI.analyzeSymbol(body));
 route('POST', '/api/ai/scan', (q, body) => AI.scan(body));
+route('POST', '/api/ai/candles', (q, body) => AI.candleMeterScan(body));
 
 // ---------- alerts ----------
 route('GET', '/api/alerts', () => Alerts.list());

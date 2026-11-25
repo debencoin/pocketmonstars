@@ -6,6 +6,7 @@
 // A strategy never talks to an exchange directly: it calls exec.buy / exec.sell.
 
 import * as I from './indicators.mjs';
+import { measureCandles, recommendStep } from './candlemeter.mjs';
 
 export const DEFAULT_FEE = 0.001; // 0.1% per fill
 
@@ -294,6 +295,191 @@ export const STRATEGIES = {
   }, []),
 };
 
+// ---------------------------------------------------------------------------------------
+// Pump Rider Grid: sideways FIFO grid -> rides pumps with the whole bag -> sells the top ->
+// waits through the dump -> restarts after the bottom is confirmed by green candles.
+// ---------------------------------------------------------------------------------------
+function pumpGridTick() {
+  return async function tick(bot, ctx, exec, st) {
+    const p = bot.params, c = st.custom, price = ctx.price, K = ctx.candles;
+    if (!K || K.length < 40) return;
+    const closed = K.slice(0, -1); // the last candle is still forming
+    const meter = measureCandles(closed, { recent: 120 });
+    const A = Math.max(0.02, meter.medianRange); // typical candle swing in %
+    const fee = (p.feePct ?? 0.1);
+    const note = (msg) => { c.events.unshift({ t: ctx.now, msg }); c.events.length = Math.min(c.events.length, 40); return msg; };
+    const out = {};
+    const notify = (title, body) => { out.notify = { title, body }; note(`${title}: ${body}`); };
+    const lotsAmt = () => c.lots.reduce((s, l) => s + l.amount, 0);
+    const lotsCost = () => c.lots.reduce((s, l) => s + l.cost, 0);
+    const cl = closed.map((k) => k.close);
+    const ema9 = last(I.ema(cl, 9)), ema20 = last(I.ema(cl, 20));
+
+    // step: measured from the candles (just under the median swing), inside the user's band
+    if (!c.step || (p.autoStep && c.mode === 'grid' && ctx.now - c.measuredAt > 3600e3)) {
+      const band = { fee, min: p.stepMin ?? 0.39, max: p.stepMax ?? 0.79 };
+      c.step = p.autoStep ? recommendStep(meter, band).step : Math.max(Number(p.stepPct) || 0.5, 2 * fee + 0.05);
+      c.measuredAt = ctx.now;
+      c.candlePct = A;
+    }
+    const step = c.step / 100;
+    const pumpPct = p.pumpPct > 0 ? p.pumpPct : Math.max(1.5, A * 5);
+    const trail = p.trailPct > 0 ? p.trailPct : Math.max(1.2, A * 3);
+
+    const sellBag = async (why) => {
+      if (st.base <= 1e-12) { c.lots = []; return null; }
+      const t = await exec.sell(st.base, price, why, c.lots.length ? lotsCost() : null);
+      c.lots = [];
+      return t;
+    };
+    const buyLot = async (tag) => {
+      const lotQuote = Math.min(st.quote, equity(st, price) / Math.max(1, p.maxLots)); // compounds with profits
+      if (lotQuote <= 0) return null;
+      const t = await exec.buy(lotQuote / price, price, tag);
+      if (t) c.lots.push({ price, amount: t.amount, cost: t.cost + t.fee });
+      return t;
+    };
+    const restartGrid = async (why) => {
+      c.mode = 'grid'; c.ref = price; c.gridHigh = price; c.top = null; c.low = null; c.peak = null; c.measuredAt = 0; c.upRun = 0; c.runBase = null;
+      if (c.lots.length < p.maxLots) await buyLot('restart lot');
+      notify('Grid restarted', why);
+    };
+    // FIFO: the oldest lot that is at least one step in profit is sold first
+    const sellFifo = async () => {
+      const lot = c.lots.find((l) => price >= l.price * (1 + step));
+      if (!lot) return null;
+      const t = await exec.sell(lot.amount, price, 'grid sell (FIFO)', lot.cost);
+      if (t) c.lots.splice(c.lots.indexOf(lot), 1);
+      return t;
+    };
+
+    if (!st.started) { st.started = true; c.ref = price; c.gridHigh = price; await buyLot('first lot'); note(`Started: step ${c.step}% (candles move ${A.toFixed(3)}%)`); return; }
+
+    // ---------------- GRID: sideways, high frequency ----------------
+    if (c.mode === 'grid') {
+      c.gridHigh = Math.max(c.gridHigh ?? price, price);
+      const avg = c.lots.length ? lotsCost() / lotsAmt() : null;
+      if (p.stopLoss > 0 && avg && price <= avg * (1 - p.stopLoss / 100)) {
+        await sellBag('stop loss');
+        c.mode = 'wait'; c.top = c.gridHigh; c.low = price;
+        notify('Stop loss', `Sold the bag at ${price}. Waiting for the bottom.`);
+        return out;
+      }
+      // pump: strong move off the recent low, green candle, above the fast averages
+      const look = closed.slice(-15);
+      const base = Math.min(...look.map((k) => k.low));
+      const k1 = closed[closed.length - 1];
+      const move = ((price - base) / base) * 100;
+      if (move >= pumpPct && k1.close > k1.open && price > ema9 && ema9 > ema20) {
+        c.mode = 'ride'; c.peak = price;
+        if (p.rideAdd > 0 && st.quote > 0) {
+          const t = await exec.buy((st.quote * Math.min(100, p.rideAdd)) / 100 / price, price, 'ride add');
+          if (t) c.lots.push({ price, amount: t.amount, cost: t.cost + t.fee });
+        }
+        notify('Pump detected', `+${move.toFixed(2)}% from the low. Holding ${c.lots.length} lots, trailing ${trail.toFixed(2)}% from the top.`);
+        return out;
+      }
+      // dump guard: stop buying all the way down; wait for the bottom instead.
+      // Fires on a set % drop from the grid high, or (auto) when every lot is used and
+      // price keeps falling 3 more steps under the last buy.
+      const lowestLot = c.lots.length ? Math.min(...c.lots.map((l) => l.price)) : null;
+      const pctHit = p.dumpPct > 0 && price < c.gridHigh * (1 - p.dumpPct / 100);
+      const fullHit = c.lots.length >= p.maxLots && lowestLot && price < lowestLot * (1 - 3 * step);
+      if ((pctHit || fullHit) && price < ema20) {
+        const why = pctHit ? `-${p.dumpPct}% from the grid high` : `all ${p.maxLots} lots used and still falling`;
+        c.mode = 'wait'; c.top = c.gridHigh; c.low = price;
+        if (p.dumpSell) { await sellBag('dump guard'); notify('Dump guard', `${why}. Sold the bag; waiting for the bottom.`); }
+        else notify('Dump guard', `${why}. Buying paused, holding ${c.lots.length} lots until the bottom is confirmed.`);
+        return out;
+      }
+      if (price <= c.ref * (1 - step)) {
+        if (c.lots.length < p.maxLots) await buyLot('grid buy');
+        c.ref = price; c.upRun = 0; c.runBase = null;
+      } else if (price >= c.ref * (1 + step)) {
+        // Price walking up step after step without a dip = a pump forming.
+        // Sell the first step (normal sideways scalp), then HOLD the remaining lots.
+        c.upRun = (c.upRun || 0) + 1;
+        if (c.upRun === 1) c.runBase = c.ref;
+        const holdFrom = Math.max(2, p.holdRun || 2);
+        const ripping = k1.close > k1.open && ((k1.close - k1.open) / k1.open) * 100 >= A * 1.5 && price > ema9;
+        if (c.upRun < holdFrom && !ripping) await sellFifo();
+        else if (c.upRun === holdFrom) note(`Up-run of ${c.upRun} steps: holding ${c.lots.length} lots instead of scalping`);
+        c.ref = price;
+        // a long enough run is a pump: switch to riding even before the candle-based trigger
+        if (c.lots.length && c.runBase && ((price - c.runBase) / c.runBase) * 100 >= pumpPct) {
+          c.mode = 'ride'; c.peak = price;
+          notify('Pump detected', `${c.upRun} steps up without a dip (+${(((price - c.runBase) / c.runBase) * 100).toFixed(2)}%). Riding ${c.lots.length} lots, trailing ${trail.toFixed(2)}% from the top.`);
+          return out;
+        }
+      }
+      if (!c.lots.length && price > c.ref) c.ref = price; // flat: follow price up, buy the next dip
+      return out.notify ? out : undefined;
+    }
+
+    // ---------------- RIDE: hold the whole bag, trail the top ----------------
+    if (c.mode === 'ride') {
+      c.peak = Math.max(c.peak, price);
+      const r = I.rsi(closed, 14);
+      const hot = r.slice(-4).some((v) => v != null && v > 78);
+      const k1 = closed[closed.length - 1];
+      const topCandle = hot && k1.close < k1.open && k1.close < ema9;
+      const off = ((c.peak - price) / c.peak) * 100;
+      if (off >= trail || topCandle) {
+        const cost = lotsCost();
+        const t = await sellBag(topCandle ? 'pump top (reversal candle)' : 'pump top (trailing)');
+        c.mode = 'wait'; c.top = c.peak; c.low = price;
+        const gain = t && cost ? t.cost - t.fee - cost : 0;
+        notify('Sold the top', `Bag sold at ${price} (${off.toFixed(2)}% under the ${c.peak} high)${gain ? `, ${gain >= 0 ? '+' : ''}${gain.toFixed(2)}` : ''}. Grid off until the bottom is confirmed.`);
+        return out;
+      }
+      return;
+    }
+
+    // ---------------- WAIT: no buying during the dump ----------------
+    if (c.mode === 'wait') {
+      c.low = Math.min(c.low ?? price, price);
+      if (c.lots.length && price >= c.ref * (1 + step)) { await sellFifo(); c.ref = price; } // lots kept by the dump guard still sell at profit
+      const n = Math.max(1, p.confirmCandles || 3);
+      const lastN = closed.slice(-n);
+      const greens = lastN.length === n && lastN.every((k, i) => k.close > k.open && (i === 0 || k.close > lastN[i - 1].close));
+      const dropped = c.top ? ((c.top - c.low) / c.top) * 100 : 0;
+      const bounced = price >= c.low * (1 + A / 100);
+      if (greens && price > ema9 && bounced && (dropped >= (p.resumeDrop ?? 3) || price > (c.top ?? Infinity))) {
+        await restartGrid(`Bottom ${c.low} confirmed by ${n} green candles (down ${dropped.toFixed(2)}% from the top).`);
+        return out;
+      }
+    }
+    return out.notify ? out : undefined;
+  };
+}
+
+STRATEGIES.pumpgrid = {
+  label: 'Pump Rider Grid',
+  desc: 'High-frequency FIFO grid with its step set just under the measured candle swing. Holds the whole bag when a pump starts, sells it at the top, skips the dump, and restarts after the bottom is confirmed by green candles.',
+  needsCandles: true,
+  fields: [
+    ['investment', 'Investment (quote)', 'number', 1000, 'Wallet for this bot; lots compound with profits'],
+    ['timeframe', 'Candle timeframe', 'select:1m,3m,5m,15m,30m,1h', '1m', 'Candles used to measure the step'],
+    ['autoStep', 'Auto step from candle %', 'bool', true, 'Re-measures hourly: sits just under the median candle swing'],
+    ['stepPct', 'Grid step % (when auto is off)', 'number', 0.5, ''],
+    ['stepMin', 'Step band min %', 'number', 0.39, ''],
+    ['stepMax', 'Step band max %', 'number', 0.79, ''],
+    ['maxLots', 'Max open lots', 'int', 12, 'Caps how far it can buy down'],
+    ['feePct', 'Fee per fill %', 'number', 0.1, 'Your maker fee (e.g. MEXC spot maker 0)'],
+    ['pumpPct', 'Pump trigger %', 'number', 0, '0 = auto (≈5 candle swings, min 1.5%)'],
+    ['trailPct', 'Sell the top: trail %', 'number', 0, '0 = auto (≈3 candle swings, min 1.2%)'],
+    ['holdRun', 'Hold lots after N up-steps in a row', 'int', 2, 'Stops scalping small lots when a pump starts'],
+    ['rideAdd', 'Add on pump (% of free cash)', 'number', 0, '0 = only ride what it holds'],
+    ['confirmCandles', 'Green candles to restart', 'int', 3, 'Bottom confirmation'],
+    ['resumeDrop', 'Min drop from top before restart %', 'number', 3, ''],
+    ['dumpPct', 'Dump guard %', 'number', 4, 'Stop buying after this drop from the grid high (also stops when all lots are used and price keeps falling)'],
+    ['dumpSell', 'Sell the bag on a dump', 'bool', false, 'Off = hold lots and sell them at profit after the bottom'],
+    ['stopLoss', 'Stop loss %', 'number', 0, 'From average lot cost; 0 = off'],
+  ],
+  init(bot, price, st) { Object.assign(st.custom, { mode: 'grid', lots: [], ref: price, gridHigh: price, peak: null, top: null, low: null, step: null, measuredAt: 0, events: [] }); },
+  tick: pumpGridTick(),
+};
+
 // Shared shape for single-position signal bots (one entry at a time, TP / SL / trailing).
 function signalStrategy(label, desc, signal, extraFields) {
   return {
@@ -383,7 +569,7 @@ export function normalizeParams(type, params) {
 
 // ---------- backtester ----------
 // Replays candles; each candle is walked open -> low -> high -> close (red candles: open -> high -> low -> close)
-export async function backtest(type, params, candles, { fee = DEFAULT_FEE, warmup = 60 } = {}) {
+export async function backtest(type, params, candles, { fee = params.feePct != null ? params.feePct / 100 : DEFAULT_FEE, warmup = 60 } = {}) {
   const strat = STRATEGIES[type];
   const bot = { type, params: { ...params } };
   const st = newState(bot);

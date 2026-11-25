@@ -9,7 +9,8 @@ import * as X from './exchanges.mjs';
 import * as Bots from './bots.mjs';
 import { optimize, zones, marketStats, suggestGrid } from '../public/shared/optimizer.mjs';
 import { forecast } from '../public/shared/forecast.mjs';
-import { STRATEGIES } from '../public/shared/strategies.mjs';
+import { STRATEGIES, backtest, normalizeParams, defaultsFor } from '../public/shared/strategies.mjs';
+import { measureCandles, recommendStep, estimate, strip as stripStats, TF_SECONDS } from '../public/shared/candlemeter.mjs';
 import { tfSeconds } from '../public/shared/optimizer.mjs';
 
 const MODEL = process.env.CT_AI_MODEL || 'claude-opus-5-5';
@@ -29,6 +30,7 @@ Rules:
 - Prefer the optimizer's walk-forward "best" parameters when its test result beats the current settings, but adjust them if the regime makes them risky.
 - Only propose keys that exist in the bot's parameter list. Values are strings of plain numbers, booleans or option names.
 - Compounding: for DCA and signal bots, keep "repeat" on so profits are reinvested; size orders as a fraction of the wallet.
+- Grid and Pump Rider Grid bots: the grid step should sit just under the measured median candle swing (evidence.candleMeter) so most candles complete a buy-low / sell-high, but never below the fee floor (2 x fee + 0.05%). Use candleMeter.byTimeframe to pick the timeframe whose backtest earned the most per day. For a classic grid, lines = ln(upper/lower) / ln(1 + step/100) + 1.
 - Be direct and brief. The user reads this on a phone. No hype, and remind them that results are not guaranteed only once, in "risks".`;
 
 const SCHEMA = {
@@ -93,9 +95,15 @@ async function evidenceFor(exchange, symbol, tf, type, params) {
   const z = zones(candles, tf);
   const fc = forecast(candles, tfSeconds(tf), 30);
   const opt = type ? await optimize(type, params, candles, { tf }) : null;
+  let candleMeter = null;
+  if (type === 'grid' || type === 'pumpgrid') {
+    const m = measureCandles(candles, { recent: 500 });
+    candleMeter = { timeframe: tf, ...stripStats(m), recommendation: recommendStep(m, { fee: params?.feePct ?? 0.1, min: params?.stepMin ?? 0.39, max: params?.stepMax ?? 0.79 }) };
+  }
   const strip = (r) => r && (({ trades_sample, ...rest }) => (void trades_sample, rest))(r);
   return {
     exchange, symbol, timeframe: tf, stats: z.stats, levels: z.levels,
+    candleMeter,
     zones: { buyZone: z.buyZone, sellZone: z.sellZone, stop: z.stop, riskReward: z.riskReward, score: z.score, verdict: z.verdict },
     forecast: { model: fc.model, horizon: fc.horizon, bias: fc.bias, expectedMovePct: fc.expectedMovePct, rangePct: fc.rangePct },
     optimizer: opt && {
@@ -174,4 +182,33 @@ export async function forecastFor(exchange, symbol, tf, horizon = 30) {
     } catch { /* fall through */ }
   }
   return forecast(candles, tfSeconds(tf), horizon);
+}
+
+// Candle meter across timeframes: measure the % each candle really moves, set the step just under
+// it, then backtest a Pump Rider Grid on every timeframe and rank them by profit per day.
+export async function candleMeterScan({ exchange, symbol, params = {} }) {
+  const supported = X.timeframes(exchange);
+  const tfs = ['1m', '3m', '5m', '15m', '30m', '1h'].filter((tf) => supported.includes(tf));
+  const fee = params.feePct ?? 0.1;
+  const band = { fee, min: params.stepMin ?? 0.39, max: params.stepMax ?? 0.79 };
+  const rows = [];
+  for (const tf of tfs) {
+    try {
+      const candles = await X.ohlcv(exchange, symbol, tf, 1000);
+      if (candles.length < 120) continue;
+      const m = measureCandles(candles, { recent: 500 });
+      const rec = recommendStep(m, band);
+      // test holding vs selling the bag on a dump, keep whichever earned more on this timeframe
+      let bt = null, dumpSell = false;
+      for (const ds of [false, true]) {
+        const p = normalizeParams('pumpgrid', { ...defaultsFor('pumpgrid'), ...params, timeframe: tf, autoStep: false, stepPct: rec.step, dumpSell: ds, investment: params.investment || 1000 });
+        const r = await backtest('pumpgrid', p, candles);
+        if (!bt || r.pnlPct > bt.pnlPct) { bt = r; dumpSell = ds; }
+      }
+      const days = Math.max(bt.days, 1 / 24);
+      rows.push({ timeframe: tf, dumpSell, stats: stripStats(m), rec, est: estimate(m, tf, rec), backtest: { pnlPct: bt.pnlPct, perDayPct: bt.pnlPct / days, days, roundTrips: bt.roundTrips, winRate: bt.winRate, maxDrawdownPct: bt.maxDrawdownPct, buyHoldPct: bt.buyHoldPct } });
+    } catch { /* timeframe not available */ }
+  }
+  const ranked = [...rows].sort((a, b) => b.backtest.perDayPct - a.backtest.perDayPct);
+  return { exchange, symbol, fee, band, rows, best: ranked[0] || null, note: 'Step = just under the median candle swing, clamped to your band and above the fee floor. Backtests use the most recent ~1000 candles of each timeframe.' };
 }

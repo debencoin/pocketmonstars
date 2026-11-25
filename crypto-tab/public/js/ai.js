@@ -2,6 +2,7 @@
 import { api, qs, conn } from './api.js';
 import { zones } from '/shared/optimizer.mjs';
 import { forecast } from '/shared/forecast.mjs';
+import { runMeter } from './meter.js';
 import { $, esc, fmtPrice, fmtPct, fmtAmt, cls, haptic, toast, store } from './ui.js';
 
 const tfSec = (tf) => parseInt(tf, 10) * ({ m: 60, h: 3600, d: 86400, w: 604800 }[tf.replace(/\d+/g, '')] || 60);
@@ -20,6 +21,8 @@ export function aiScreen(el, app) {
       <button class="btn primary block" id="ai-go" style="height:54px">✦ Analyze entry & exit</button>
       <div id="ai-out" style="margin-top:12px"></div>
     </div>
+    <div class="section-title"><span>📏 Candle meter</span><button class="btn sm" id="ai-meter">Measure</button></div>
+    <div id="ai-meter-out" class="muted" style="padding:0 12px;font-size:13px">Measures how many % each candle really moves on 1m to 1h, sets a grid step just under it, and backtests a Pump Rider Grid on each timeframe. Tap the winner to build the bot.</div>
     <div class="section-title"><span>Opportunity scanner</span><button class="btn sm" id="ai-scan">Scan ${esc(app.S.ex)}</button></div>
     <div id="ai-scan-out" class="muted" style="padding:0 12px;font-size:13px">Ranks the most liquid pairs by entry quality, risk/reward and forecast. Pairs marked GRID suit a grid bot.</div>
     <div class="section-title"><span>Bot reviews</span></div>
@@ -29,6 +32,7 @@ export function aiScreen(el, app) {
   $('#ai-pair', el).onclick = () => app.pickSymbol(() => paint());
   $('#ai-go', el).onclick = analyze;
   $('#ai-scan', el).onclick = scan;
+  $('#ai-meter', el).onclick = () => runMeter($('#ai-meter-out', el), app, { feePct: store.get('meterFee', 0.1) }, (row) => app.go('bots', { create: { type: 'pumpgrid', params: { timeframe: row.timeframe, stepPct: row.rec.step, dumpSell: row.dumpSell } } }));
 
   function paint() {
     $('#ai-pair', el).innerHTML = `${esc(app.S.symbol)} <small>${esc(app.S.ex)}</small> <span class="dim">▾</span>`;

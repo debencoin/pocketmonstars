@@ -5,6 +5,7 @@
 
 import * as I from './indicators.mjs';
 import { backtest, gridLevels, STRATEGIES } from './strategies.mjs';
+import { measureCandles } from './candlemeter.mjs';
 
 const last = (a) => { for (let i = a.length - 1; i >= 0; i--) if (a[i] != null) return a[i]; return null; };
 const quantile = (arr, q) => { const s = [...arr].sort((a, b) => a - b); const i = (s.length - 1) * q; const lo = Math.floor(i); return s[lo] + (s[Math.ceil(i)] - s[lo]) * (i - lo); };
@@ -122,6 +123,13 @@ function candidates(type, base, s, candles) {
         for (const maxSafety of [4, 6, 8])
           for (const volumeScale of [1.2, 1.5])
             out.push({ ...base, deviation, takeProfit, maxSafety, volumeScale, stepScale: base.stepScale || 1.3 });
+  } else if (type === 'pumpgrid') {
+    const med = measureCandles(candles, { recent: 500 }).medianRange;
+    const fee = base.feePct ?? 0.1;
+    const lo = Math.max(base.stepMin ?? 0.39, 2 * fee + 0.05), hi = Math.max(lo, base.stepMax ?? 0.79);
+    const steps = [...new Set([0.6, 0.75, 0.9, 1].map((k) => +Math.min(hi, Math.max(lo, med * k)).toFixed(3)))];
+    for (const stepPct of steps) for (const maxLots of [8, 12, 20]) for (const holdRun of [2, 3])
+      out.push({ ...base, autoStep: false, stepPct, maxLots, holdRun });
   } else if (type === 'stepgrid') {
     for (const atrMult of [0.6, 1, 1.5, 2.2]) for (const lots of [5, 10, 15]) for (const minProfit of [0.4, 0.8, 1.5])
       out.push({ ...base, atrMult, lots, minProfit });

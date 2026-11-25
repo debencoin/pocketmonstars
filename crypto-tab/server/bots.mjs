@@ -32,6 +32,7 @@ export function view(b) {
       apr: b.createdAt && now() - b.createdAt > 3.6e6 ? (((eq - inv) / inv) * 100 * 8760) / ((now() - b.createdAt) / 3.6e6) : null,
     },
     levels: b.type === 'grid' ? b.state.custom.levels : undefined,
+    phase: b.type === 'pumpgrid' ? { mode: b.state.custom.mode, step: b.state.custom.step, candlePct: b.state.custom.candlePct, lots: b.state.custom.lots?.length || 0, ref: b.state.custom.ref, peak: b.state.custom.peak, top: b.state.custom.top, low: b.state.custom.low, events: (b.state.custom.events || []).slice(0, 20) } : undefined,
     slots: b.type === 'grid' ? b.state.custom.slots?.map((s) => (s ? 1 : 0)) : undefined,
     deal: b.state.custom.deal || b.state.custom.pos || null,
     lots: b.state.custom.lots?.length,
@@ -149,7 +150,7 @@ export async function duplicate(id) {
 
 // ---------- execution ----------
 async function execFor(b) {
-  const paper = paperExec(b.state, DEFAULT_FEE);
+  const paper = paperExec(b.state, b.params.feePct != null ? b.params.feePct / 100 : DEFAULT_FEE);
   if (b.mode !== 'live') return paper;
   // Live: marketable limit orders at the strategy's price, then book what actually filled.
   const fill = async (side, amount, price, tag, basis) => {
@@ -173,7 +174,7 @@ async function candlesFor(b) {
   const tf = b.params.timeframe || '15m';
   const key = `${b.exchange}|${b.symbol}|${tf}`;
   const hit = candleCache.get(key);
-  if (hit && now() - hit.t < 30000) return hit.c;
+  if (hit && now() - hit.t < (tf === '1m' ? 10000 : 30000)) return hit.c;
   const c = await X.ohlcv(b.exchange, b.symbol, tf, 300);
   candleCache.set(key, { t: now(), c });
   return c;
@@ -194,6 +195,7 @@ async function tickBot(b) {
     const eq = equity(b.state, price);
     b.state.peakEquity = Math.max(b.state.peakEquity, eq);
     b.state.maxDrawdown = Math.max(b.state.maxDrawdown, (b.state.peakEquity - eq) / b.state.peakEquity);
+    if (r?.notify) events.emit('notify', { kind: 'bot', title: `${b.name}: ${r.notify.title}`, body: r.notify.body, tag: `bot-${b.id}-${Date.now()}` });
     if (r?.stop) {
       if (r.sellAll && b.state.base > 0) await exec.sell(b.state.base, price, r.stop);
       b.status = 'stopped'; b.stopReason = r.stop;

@@ -4,9 +4,10 @@ import { api, qs, conn } from './api.js';
 import { ChartView } from './chart.js';
 import { STRATEGIES, defaultsFor, backtest, normalizeParams } from '/shared/strategies.mjs';
 import { optimize, suggestGrid } from '/shared/optimizer.mjs';
+import { runMeter, gridLinesForStep } from './meter.js';
 import { $, esc, fmtPrice, fmtAmt, fmtPct, fmtUsd, cls, store, sheet, haptic, toast, confirmSheet, fieldsHtml, readFields, wireToggles, ago } from './ui.js';
 
-const ICONS = { grid: '▦', dca: '⬇', stepgrid: '⟋', bb: '◎', emacross: '✕', rsi: '∿', gain: '⤓', supertrend: '⇗', macd: '≋' };
+const ICONS = { pumpgrid: '🚀', grid: '▦', dca: '⬇', stepgrid: '⟋', bb: '◎', emacross: '✕', rsi: '∿', gain: '⤓', supertrend: '⇗', macd: '≋' };
 const tfSec = (tf) => parseInt(tf, 10) * ({ m: 60, h: 3600, d: 86400, w: 604800 }[tf.replace(/\d+/g, '')] || 60);
 
 export function botsScreen(el, app) {
@@ -33,10 +34,44 @@ export function botsScreen(el, app) {
     return `<div class="range-bar"><div class="track"></div>${ticks}${p ? `<i class="now" style="left:${pos(p)}%"></i>` : ''}</div><div class="range-labels"><span>${fmtPrice(lo)}</span><span>${p < lo ? '⚠ below range' : p > hi ? '⚠ above range' : `${b.slots?.filter(Boolean).length || 0}/${b.levels.length - 1} filled`}</span><span>${fmtPrice(hi)}</span></div>`;
   }
 
+  function phasePill(b) {
+    const ph = b.phase;
+    if (!ph) return '';
+    if (ph.mode === 'ride') return `<span class="pill up">🚀 RIDING PUMP · ${ph.lots} lots</span>`;
+    if (ph.mode === 'wait') return `<span class="pill warn">⏳ WAITING FOR BOTTOM</span>`;
+    return `<span class="pill accent">GRID · step ${ph.step ?? '…'}% · ${ph.lots} lots</span>`;
+  }
+
+  function phaseCard(b) {
+    const ph = b.phase; if (!ph) return '';
+    const what = { grid: 'Trading sideways: buys a lot every step down, sells the oldest profitable lot every step up (FIFO). Holds lots when price runs up step after step.', ride: 'Pump in progress: holding the whole bag and trailing the top. It sells everything when price drops the trail % from the high or a reversal candle prints.', wait: 'Sold the top (or dump guard). Not buying during the drop. Restarts after the bottom is confirmed by green candles.' }[ph.mode];
+    return `<div class="card" style="margin-bottom:12px;border-color:${ph.mode === 'ride' ? 'var(--up)' : ph.mode === 'wait' ? 'var(--warn)' : 'var(--accent)'}">
+      <div class="row between"><b>${ph.mode === 'ride' ? '🚀 Riding the pump' : ph.mode === 'wait' ? '⏳ Waiting for the bottom' : '▦ Sideways grid'}</b><span class="pill">${ph.lots} lots</span></div>
+      <div class="dim" style="font-size:12px;line-height:1.45;margin:6px 0 10px">${what}</div>
+      <div class="grid3"><div class="kv"><span>Step</span><span>${ph.step ?? '—'}%</span></div><div class="kv"><span>Candle swing</span><span>${ph.candlePct != null ? ph.candlePct.toFixed(3) + '%' : '—'}</span></div>
+      <div class="kv"><span>${ph.mode === 'ride' ? 'Peak' : ph.mode === 'wait' ? 'Low so far' : 'Next ref'}</span><span>${fmtPrice(ph.mode === 'ride' ? ph.peak : ph.mode === 'wait' ? ph.low : ph.ref)}</span></div></div>
+      ${ph.events?.length ? `<div class="label" style="margin:12px 0 4px">Bot log</div>${ph.events.slice(0, 8).map((e) => `<div style="font-size:12px;padding:5px 0;border-bottom:1px solid var(--line)"><span class="dim">${ago(e.t)} ago</span> · ${esc(e.msg)}</div>`).join('')}` : ''}
+    </div>`;
+  }
+
+  function applyMeter(root, type, row) {
+    const set = (k, v) => { const i = root.querySelector(`[data-key=${k}]`); if (!i) return; if (i.hasAttribute('data-bool')) i.classList.toggle('on', !!v); else i.value = v; };
+    if (type === 'pumpgrid') {
+      set('timeframe', row.timeframe); set('stepPct', row.rec.step); set('dumpSell', row.dumpSell);
+      toast(`Using ${row.timeframe} candles, step ${row.rec.step}%`, 'ok');
+    } else {
+      const lo = Number(root.querySelector('[data-key=lower]')?.value), up = Number(root.querySelector('[data-key=upper]')?.value);
+      if (!(lo > 0 && up > lo)) return toast('Set the lower and upper price first', 'err');
+      const n = gridLinesForStep(lo, up, row.rec.step);
+      set('grids', n); set('mode', 'geometric');
+      toast(`${n} lines ≈ ${row.rec.step}% apart (${row.timeframe} candle swing)`, 'ok');
+    }
+  }
+
   function card(b) {
     const s = b.stats, q = b.symbol.split('/')[1];
     return `<div class="bot-card ${b.status}" data-id="${b.id}">
-      <div class="bot-title"><div><b>${ICONS[b.type] || '◆'} ${esc(b.name)}</b><div class="sub">${esc(b.symbol)} · ${esc(b.exchange)} · <span class="pill ${b.mode === 'live' ? 'down' : 'warn'}">${b.mode === 'live' ? 'LIVE' : 'PAPER'}</span> <span class="pill ${b.status === 'running' ? 'up' : b.status === 'paused' ? 'warn' : ''}">${b.status}</span>${b.aiTuned ? ' <span class="pill accent">AI tuned</span>' : ''}</div></div>
+      <div class="bot-title"><div><b>${ICONS[b.type] || '◆'} ${esc(b.name)}</b><div class="sub">${esc(b.symbol)} · ${esc(b.exchange)} · <span class="pill ${b.mode === 'live' ? 'down' : 'warn'}">${b.mode === 'live' ? 'LIVE' : 'PAPER'}</span> <span class="pill ${b.status === 'running' ? 'up' : b.status === 'paused' ? 'warn' : ''}">${b.status}</span>${b.aiTuned ? ' <span class="pill accent">AI tuned</span>' : ''}${b.phase ? `<div style="margin-top:6px">${phasePill(b)}</div>` : ''}</div></div>
         <div class="bot-pnl"><b class="${cls(s.pnl)}">${s.pnl >= 0 ? '+' : ''}${fmtAmt(s.pnl)} <small>${esc(q)}</small></b><small class="${cls(s.pnl)}">${fmtPct(s.pnlPct)}</small></div></div>
       ${rangeBar(b)}
       <div class="bot-stats">
@@ -111,10 +146,12 @@ export function botsScreen(el, app) {
         <div class="field"><label>Name</label><input class="input" data-name value="${esc(b.name)}" style="font-family:var(--sans)"></div>
         ${fieldsHtml(s.fields, b.params)}
         ${b.type === 'grid' ? '<button class="btn block" id="ed-chart" style="margin-bottom:8px">↕ Move grid lines on the chart</button>' : ''}
+        ${['grid', 'pumpgrid'].includes(b.type) ? '<button class="btn block" id="ed-meter" style="margin-bottom:8px">📏 Measure candle % on every timeframe</button>' : ''}
         <div class="grid2"><button class="btn" id="ed-bt">Backtest</button><button class="btn primary" id="ed-save">${b.status === 'paused' ? 'Save & resume' : 'Save changes'}</button></div>
         <div id="ed-out"></div>`;
       wireToggles(body);
       $('#ed-chart', body)?.addEventListener('click', () => { close(); openDetail(b.id, true); });
+      $('#ed-meter', body)?.addEventListener('click', () => runMeter(body.querySelector('#ed-out'), { ...app, S: { ...app.S, ex: b.exchange, symbol: b.symbol } }, readFields(body), (row) => applyMeter(body, b.type, row)));
       $('#ed-bt', body).onclick = () => runBacktest(body.querySelector('#ed-out'), b.exchange, b.symbol, b.type, readFields(body));
       $('#ed-save', body).onclick = async () => {
         try {
@@ -155,20 +192,21 @@ export function botsScreen(el, app) {
 
   // ---------- create ----------
   function createFlow(preset = {}) {
-    let type = preset.type || 'grid';
+    let type = preset.type || 'pumpgrid';
     let mode = 'paper';
     sheet('New bot', (body, close) => {
       const draw = () => {
         const s = STRATEGIES[type];
         const params = { ...defaultsFor(type), ...(preset.params || {}) };
         body.innerHTML = `
-          <div class="strat-grid">${Object.entries(STRATEGIES).map(([k, x]) => `<button class="strat ${k === type ? 'active' : ''}" data-type="${k}"><span class="ico">${ICONS[k]}</span><b>${esc(x.label)}</b><span>${esc(x.desc.split('.')[0])}.</span></button>`).join('')}</div>
+          <div class="strat-grid">${[['pumpgrid', STRATEGIES.pumpgrid], ...Object.entries(STRATEGIES).filter(([k]) => k !== 'pumpgrid')].map(([k, x]) => `<button class="strat ${k === type ? 'active' : ''}" data-type="${k}"><span class="ico">${ICONS[k]}</span><b>${esc(x.label)}</b><span>${esc(x.desc.split('.')[0])}.</span></button>`).join('')}</div>
           <hr class="sep">
           <div class="row between" style="margin-bottom:12px"><button class="ch-pair" id="nb-pair">${esc(app.S.symbol)} <small>${esc(app.S.ex)}</small> <span class="dim">▾</span></button>
             <div class="seg" id="nb-mode"><button data-m="paper" class="${mode === 'paper' ? 'active' : ''}">Paper</button><button data-m="live" class="${mode === 'live' ? 'active' : ''}">Live</button></div></div>
           <p class="muted" style="font-size:12px;margin:0 0 12px;line-height:1.45">${esc(s.desc)}</p>
           <div class="field"><label>Name</label><input class="input" id="nb-name" style="font-family:var(--sans)" placeholder="${esc(s.label)} ${esc(app.S.symbol)}"></div>
           <div id="nb-fields">${fieldsHtml(s.fields, params)}</div>
+          ${['grid', 'pumpgrid'].includes(type) ? '<button class="btn block" id="nb-meter" style="margin-bottom:8px">📏 Measure candle % on every timeframe</button>' : ''}
           <button class="btn block primary" id="nb-ai" style="margin-bottom:8px">✦ AI auto-fill best settings</button>
           <div class="grid2"><button class="btn" id="nb-bt">Backtest</button><button class="btn buy" id="nb-go">Start bot</button></div>
           <div id="nb-out"></div>`;
@@ -178,6 +216,7 @@ export function botsScreen(el, app) {
         $('#nb-pair', body).onclick = () => app.pickSymbol(() => draw());
         if (type === 'grid' && params.lower == null) autoGrid(body);
         $('#nb-ai', body).onclick = () => aiFill(body, type);
+        $('#nb-meter', body)?.addEventListener('click', () => runMeter($('#nb-out', body), app, readFields($('#nb-fields', body)), (row) => applyMeter($('#nb-fields', body), type, row)));
         $('#nb-bt', body).onclick = () => runBacktest($('#nb-out', body), app.S.ex, app.S.symbol, type, readFields($('#nb-fields', body)));
         $('#nb-go', body).onclick = async () => {
           if (conn.demo) return toast('Connect your Crypto Tab server (Settings) to run bots 24/7', 'err');
@@ -364,6 +403,7 @@ export function botsScreen(el, app) {
       <div class="row between"><div><span class="pill ${b.status === 'running' ? 'up' : b.status === 'paused' ? 'warn' : ''}">${b.status}</span> <span class="pill ${b.mode === 'live' ? 'down' : 'warn'}">${b.mode}</span> <span class="dim" style="font-size:12px">${esc(b.label)} · ${s.runtimeH.toFixed(1)}h</span></div>
         <div class="bot-pnl"><b class="${cls(s.pnl)}">${s.pnl >= 0 ? '+' : ''}${fmtAmt(s.pnl)} ${esc(q)}</b><small class="${cls(s.pnl)}">${fmtPct(s.pnlPct)}</small></div></div>
       ${b.type === 'grid' ? rangeBar(b) : ''}
+      ${phaseCard(b)}
       <div class="grid3" style="margin:12px 0">
         <div class="kv"><span>Equity</span><span>${fmtAmt(s.equity)}</span></div><div class="kv"><span>Realized</span><span class="${cls(s.realized)}">${fmtAmt(s.realized)}</span></div><div class="kv"><span>Fees</span><span>${fmtAmt(s.fees)}</span></div>
         <div class="kv"><span>${esc(bs)} held</span><span>${fmtAmt(s.base)}</span></div><div class="kv"><span>${esc(q)} free</span><span>${fmtAmt(s.quote)}</span></div><div class="kv"><span>Max DD</span><span>${s.maxDrawdownPct.toFixed(2)}%</span></div>
