@@ -785,3 +785,109 @@ STRATEGIES.herd = {
     return { notify: { title: `Herd trade closed (${why})`, body: `${g >= 0 ? '+' : ''}${g.toFixed(2)}% · ${pos.why}` } };
   },
 };
+
+// ---------------------------------------------------------------------------------------
+// Phoenix Reversal (from the ZORA Zcash agent spec): catch a confirmed portion of sharp
+// rebounds without catching falling knives.
+// WAIT → WATCH (sharp ATR drop + weak RSI + heavy volume) → READY (higher low + closed candle
+// reclaims EMA20 + retest holds, BTC not dumping, healthy order book, positive reward:risk after
+// fees) → in trade (size from a fixed max loss, partial take profits, trailing) ; INVALIDATED on a
+// new low, EXPIRED after too long in WATCH. Every step is logged as a "call setup".
+// ---------------------------------------------------------------------------------------
+STRATEGIES.reversal = {
+  label: 'Phoenix Reversal',
+  desc: 'Waits for a sharp drop, then buys only after the bounce is confirmed (higher low, reclaim of EMA20, retest), with a stop under the low and a position sized from a fixed max loss.',
+  needsCandles: true,
+  usesBook: true,
+  fields: [
+    ['investment', 'Investment (quote)', 'number', 1000, 'Most the bot may put into one trade'],
+    ['maxLoss', 'Max loss per trade (quote)', 'number', 20, 'Position size is set so hitting the stop loses about this much'],
+    ['timeframe', 'Candles', 'select:3m,5m,15m', '5m', ''],
+    ['dropAtr', 'Drop to watch (× ATR)', 'number', 3, 'How sharp the fall must be'],
+    ['rsiMax', 'RSI at most', 'number', 32, ''],
+    ['volMult', 'Selling volume (× normal)', 'number', 1.5, ''],
+    ['maxSpread', 'Max spread %', 'number', 0.15, 'Skip thin or jumpy order books'],
+    ['btcMaxDrop', 'Skip if BTC fell more than % (1h)', 'number', 1, 'Avoid BTC-driven sell-offs'],
+    ['minRR', 'Min reward : risk', 'number', 1.2, 'After fees, to the +2% target'],
+    ['trail', 'Trail after +2% (%)', 'number', 0.6, ''],
+    ['holdMax', 'Max hold (min)', 'number', 240, ''],
+    ['expireBars', 'Give up watching after (candles)', 'int', 36, ''],
+    ['feePct', 'Fee per fill %', 'number', 0.1, ''],
+  ],
+  init(bot, price, st) { Object.assign(st.custom, { state: 'WAIT', watch: null, pos: null, calls: [] }); },
+  async tick(bot, ctx, exec, st) {
+    const p = bot.params, c = st.custom, price = ctx.price, K = ctx.candles;
+    if (!K || K.length < 60) return;
+    const closed = K.slice(0, -1), last = closed[closed.length - 1];
+    const cl = closed.map((k) => k.close);
+    const atr = (I.atr(closed, 14).filter((v) => v != null).pop()) || price * 0.005;
+    const ema20 = I.ema(cl, 20).filter((v) => v != null).pop();
+    const rsi = I.rsi(closed, 14).filter((v) => v != null).pop();
+    const out = {};
+    const call = (state, msg, extra = {}) => { c.state = state; c.calls.unshift({ t: ctx.now, state, msg, ...extra }); c.calls.length = Math.min(c.calls.length, 40); };
+    // data quality: order book and BTC (live only; backtests have neither)
+    const b = ctx.book;
+    const spread = b?.bids?.[0] && b?.asks?.[0] ? ((b.asks[0][0] - b.bids[0][0]) / price) * 100 : null;
+    const bookOk = spread == null || spread <= p.maxSpread;
+    const btcOk = ctx.btc1h == null || ctx.btc1h > -p.btcMaxDrop;
+    // ---- in a trade ----
+    if (c.pos) {
+      const pos = c.pos;
+      pos.peak = Math.max(pos.peak, price);
+      const g = ((price - pos.entry) / pos.entry) * 100;
+      const sellPart = async (frac, why) => { const amt = Math.min(st.base, pos.amount0 * frac); if (amt <= 0) return; const t = await exec.sell(amt, price, why, pos.costPer * amt); if (t) pos.left -= amt; };
+      if (price <= pos.stop) {
+        // a resting stop fills at its level (prices move continuously inside a candle), not at the candle's low
+        const fill = Math.max(price, pos.stop * 0.999);
+        const amt = Math.min(st.base, pos.left);
+        if (amt > 0) await exec.sell(amt, fill, 'stop under the low', pos.costPer * amt);
+        c.pos = null; call('WAIT', `Stopped at ${+price.toPrecision(6)}`); out.notify = { title: 'Reversal stopped', body: `Exit ${+price.toPrecision(6)} (${g.toFixed(2)}%)` }; return out; }
+      if (!pos.t1 && g >= 1) { pos.t1 = true; await sellPart(1 / 3, 'target +1%'); }
+      if (!pos.t2 && g >= 2) { pos.t2 = true; await sellPart(1 / 3, 'target +2%'); pos.stop = Math.max(pos.stop, pos.entry); }
+      const trailHit = pos.t2 && ((pos.peak - price) / pos.peak) * 100 >= p.trail;
+      if (g >= 3 || trailHit || ctx.now - pos.opened > p.holdMax * 60e3) {
+        await sellPart(pos.left / pos.amount0, g >= 3 ? 'target +3%' : trailHit ? 'trailing' : 'time limit');
+        c.pos = null; call('WAIT', `Closed at ${+price.toPrecision(6)} (${g.toFixed(2)}%)`);
+        out.notify = { title: 'Reversal closed', body: `${g >= 0 ? '+' : ''}${g.toFixed(2)}% from ${+pos.entry.toPrecision(6)}` };
+        return out;
+      }
+      return;
+    }
+    // ---- WAIT → WATCH ----
+    const hi = Math.max(...closed.slice(-24).map((k) => k.high));
+    const drop = hi - last.close;
+    const vol3 = (closed.slice(-3).reduce((s, k) => s + k.volume, 0) / 3), vol30 = closed.slice(-33, -3).reduce((s, k) => s + k.volume, 0) / 30 || 1;
+    if (c.state === 'WAIT' || c.state === 'INVALIDATED' || c.state === 'EXPIRED') {
+      if (drop >= p.dropAtr * atr && rsi <= p.rsiMax && vol3 >= p.volMult * vol30) {
+        c.watch = { low: Math.min(...closed.slice(-6).map((k) => k.low)), since: closed.length, at: ctx.now, high: hi };
+        call('WATCH', `Sharp drop ${(drop / atr).toFixed(1)}× ATR, RSI ${rsi.toFixed(0)}, volume ${(vol3 / vol30).toFixed(1)}×. Watching for a confirmed base above ${+c.watch.low.toPrecision(6)}.`);
+      }
+      return;
+    }
+    // ---- WATCH → READY → enter ----
+    if (c.state === 'WATCH') {
+      const w = c.watch;
+      if (last.low < w.low) { w.low = last.low; if (last.close < w.low * 1.001) { call('INVALIDATED', `New low ${+last.low.toPrecision(6)}: still falling.`); c.watch = null; return; } }
+      if (closed.length - w.since > p.expireBars || ctx.now - w.at > p.expireBars * 15 * 60e3) { call('EXPIRED', 'No confirmed base in time.'); c.watch = null; return; }
+      const lows3 = closed.slice(-3).map((k) => k.low);
+      const higherLow = Math.min(...lows3) > w.low * 1.0005;
+      const reclaim = last.close > ema20 && last.close > last.open;
+      const retest = last.low >= ema20 * 0.997 || closed[closed.length - 2].close > ema20;
+      if (!(higherLow && reclaim && retest)) return;
+      if (!btcOk) { call('WATCH', `Base confirmed but BTC fell ${ctx.btc1h.toFixed(2)}% in 1 h: waiting.`); return; }
+      if (!bookOk) { call('WATCH', `Base confirmed but the spread is ${spread.toFixed(3)}%: waiting for a healthier book.`); return; }
+      const entry = price, stop = Math.min(w.low - 0.3 * atr, entry - 0.8 * atr); // never a hair-trigger stop (it would size the position huge)
+      const riskPct = ((entry - stop) / entry) * 100 + 2 * (p.feePct ?? 0.1);
+      const rr = (2 - 2 * (p.feePct ?? 0.1)) / riskPct;
+      if (rr < p.minRR) { call('WATCH', `Base confirmed, but reward:risk to +2% is only ${rr.toFixed(2)} (stop ${riskPct.toFixed(2)}% away).`); return; }
+      const qty = Math.min(equity(st, price) / entry, Math.max(0, p.maxLoss) / ((entry - stop) + entry * 2 * (p.feePct ?? 0.1) / 100));
+      const t = await exec.buy(qty, entry, 'reversal entry');
+      if (!t) return;
+      st.started = true;
+      c.pos = { entry, stop, amount0: t.amount, left: t.amount, costPer: (t.cost + t.fee) / t.amount, peak: entry, opened: ctx.now };
+      call('READY', `Entry ${+entry.toPrecision(6)} · stop ${+stop.toPrecision(6)} (${riskPct.toFixed(2)}% incl. fees) · targets +1/+2/+3% · R:R ${rr.toFixed(2)}`, { entry, stop });
+      out.notify = { title: 'Reversal entry', body: `Bought ${+t.amount.toPrecision(5)} at ${+entry.toPrecision(6)}, stop ${+stop.toPrecision(6)}. Base confirmed after a ${(drop / atr).toFixed(1)}× ATR drop.` };
+      return out;
+    }
+  },
+};

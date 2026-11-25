@@ -32,7 +32,7 @@ export function tradeScreen(el, app) {
       <div>
         <div class="row between" style="margin-bottom:4px"><select class="input" id="tr-group" style="height:30px;font-size:11px;padding:0 22px 0 8px;width:auto;min-width:72px;background-position:calc(100% - 12px) 12px,calc(100% - 7px) 12px"></select>
           <div class="seg" id="tr-bmode" style="padding:2px"><button data-m="both" class="active" style="height:24px;padding:0 6px;font-size:10px">⇅</button><button data-m="bids" style="height:24px;padding:0 6px;font-size:10px;color:var(--up)">B</button><button data-m="asks" style="height:24px;padding:0 6px;font-size:10px;color:var(--down)">S</button></div></div>
-        <div id="tr-book"></div>
+        <div id="tr-health"></div><div id="tr-book"></div>
       </div>
     </div>
     <div class="seg" style="margin:14px 12px 4px" id="tr-tabs"><button data-t="orders" class="active">Open orders</button><button data-t="fills">History</button><button data-t="assets">Assets</button></div>
@@ -126,7 +126,17 @@ export function tradeScreen(el, app) {
     btn.disabled = false;
   };
 
+  function bookHealth() {
+    if (!ob?.bids?.[0] || !ob?.asks?.[0]) return '';
+    const mid = (ob.bids[0][0] + ob.asks[0][0]) / 2, spread = ((ob.asks[0][0] - ob.bids[0][0]) / mid) * 100;
+    const depth = (side, pct) => side.filter(([p]) => Math.abs(p - mid) / mid <= pct / 100).reduce((s, [p, a]) => s + p * a, 0);
+    const b1 = depth(ob.bids, 1), a1 = depth(ob.asks, 1);
+    const ok = spread <= 0.15;
+    return `<div style="font-size:10px;line-height:1.4;margin:4px 0;padding:6px;border-radius:8px;background:${ok ? 'var(--up-bg)' : 'rgba(255,176,32,.12)'}">${ok ? '✓' : '⚠'} spread ${spread.toFixed(3)}%<br>±1% depth: <span class="up">${fmtAmt(b1)}</span> / <span class="down">${fmtAmt(a1)}</span></div>`;
+  }
+
   function drawBook() {
+    const hb = $('#tr-health', el); if (hb) hb.innerHTML = bookHealth();
     renderBook($('#tr-book', el), ob, { rows: 8, last: app.last?.p, change: app.last?.c, grouping, mode: bookMode, onPrice: (p) => { P.value = p; priceTouched = true; if (type === 'market') { type = 'limit'; paint(); } calc(); haptic(); } });
   }
 

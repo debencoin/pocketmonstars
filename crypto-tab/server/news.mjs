@@ -44,6 +44,8 @@ export const FEEDS = [
   { id: 'binance', name: 'Binance Announcements', url: 'https://www.binance.com/bapi/composite/v1/public/cms/article/list/query?type=1&catalogId=48&pageNo=1&pageSize=20', kind: 'binance', boost: 0.35 },
   { id: 'ecc', name: 'Electric Coin Co (Zcash)', url: 'https://electriccoin.co/feed/', token: 'ZEC', boost: 0.15 },
   { id: 'zfnd', name: 'Zcash Foundation', url: 'https://zfnd.org/feed/', token: 'ZEC', boost: 0.1 },
+  { id: 'gnews-zec', name: 'Google News · Zcash', url: 'https://news.google.com/rss/search?q=Zcash%20OR%20%22ZEC%22%20crypto%20when%3A2d&hl=en-US&gl=US&ceid=US:en', token: 'ZEC', kind: 'gnews' },
+  { id: 'gnews-crypto', name: 'Google News · Crypto', url: 'https://news.google.com/rss/search?q=cryptocurrency%20when%3A1d&hl=en-US&gl=US&ceid=US:en', kind: 'gnews', boost: -0.05 },
   { id: 'zforum', name: 'Zcash Forum', url: 'https://forum.zcashcommunity.com/latest.rss', token: 'ZEC', boost: -0.1 },
 ];
 
@@ -75,7 +77,8 @@ function itemsFrom(feed, body) {
   return (Array.isArray(items) ? items : [items]).map((it) => {
     const link = typeof it.link === 'string' ? it.link : it.link?.['@href'] || (Array.isArray(it.link) ? it.link[0]?.['@href'] : '') || it.guid?.['#text'] || it.guid;
     const date = it.pubDate || it.published || it.updated || it['dc:date'];
-    return { title: stripHtml(typeof it.title === 'object' ? it.title['#text'] : it.title), link, published: date ? Date.parse(date) : Date.now(), summary: stripHtml(it.description || it.summary || it['content:encoded'] || '').slice(0, 400) };
+    const rawTitle = stripHtml(typeof it.title === 'object' ? it.title['#text'] : it.title);
+    return { title: feed.kind === 'gnews' ? rawTitle.replace(/ - [^-]+$/, '') : rawTitle, link, published: date ? Date.parse(date) : Date.now(), summary: stripHtml(it.description || it.summary || it['content:encoded'] || '').slice(0, 400) };
   });
 }
 

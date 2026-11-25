@@ -35,6 +35,7 @@ export function view(b) {
     },
     levels: b.type === 'grid' ? b.state.custom.levels : undefined,
     lines: b.type === 'pumpgrid' ? pumpLines(b) : undefined,
+    call: b.type === 'reversal' ? { state: b.state.custom.state, calls: (b.state.custom.calls || []).slice(0, 15), pos: b.state.custom.pos } : undefined,
     phase: b.type === 'pumpgrid' ? { mode: b.state.custom.mode, step: b.state.custom.step, candlePct: b.state.custom.candlePct, lots: b.state.custom.lots?.length || 0, ref: b.state.custom.ref, peak: b.state.custom.peak, top: b.state.custom.top, low: b.state.custom.low, events: (b.state.custom.events || []).slice(0, 20) } : undefined,
     slots: b.type === 'grid' ? b.state.custom.slots?.map((s) => (s ? 1 : 0)) : undefined,
     deal: b.state.custom.deal || b.state.custom.pos || null,
@@ -267,6 +268,13 @@ async function candlesFor(b) {
   return c;
 }
 
+let btcCache = { t: 0, v: null };
+async function btcMove(exchange) {
+  if (Date.now() - btcCache.t < 60e3) return btcCache.v;
+  try { const c = await X.ohlcv(exchange, 'BTC/USDT', '15m', 6); btcCache = { t: Date.now(), v: ((c[c.length - 1].close - c[c.length - 5].close) / c[c.length - 5].close) * 100 }; } catch { btcCache = { t: Date.now(), v: null }; }
+  return btcCache.v;
+}
+
 async function tickBot(b) {
   if (busy.has(b.id)) return;
   busy.add(b.id);
@@ -277,9 +285,11 @@ async function tickBot(b) {
     const candles = strat.needsCandles ? await candlesFor(b) : null;
     const news = strat.usesNews ? await News.signalsFor(b.symbol.split('/')[0]).catch(() => []) : undefined;
     const herd = strat.usesHerd ? Herd.signalsFor(b.symbol.split('/')[0]) : undefined;
+    const book = strat.usesBook ? await X.orderbook(b.exchange, b.symbol, 20).catch(() => null) : undefined;
+    const btc1h = strat.usesBook ? await btcMove(b.exchange) : undefined;
     const exec = await execFor(b);
     const before = b.state.tradeCount;
-    const r = await strat.tick(b, { price, candles, news, herd, now: now() }, exec, b.state);
+    const r = await strat.tick(b, { price, candles, news, herd, book, btc1h, now: now() }, exec, b.state);
     b.state.lastPrice = price;
     const eq = equity(b.state, price);
     b.state.peakEquity = Math.max(b.state.peakEquity, eq);

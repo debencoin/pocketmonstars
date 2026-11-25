@@ -11,6 +11,19 @@ A phone-first crypto trading terminal. Black theme, one-thumb controls, installa
 | **AI** | Entry and exit ranges for any token, an opportunity scanner, and a bot reviewer that backtests alternatives and lets you apply better settings with one tap |
 | **Alerts** | Price above / below / cross / ±% alerts. A triggered alert **keeps ringing until you press STOP**. The default sound is a synthesized "cha-ching + coins" money sound (also played on profitable bot trades). Siren, beep and chime are options |
 
+## Live deployment
+
+**https://crypto-tab.onrender.com** is a Render web service named `crypto-tab`.
+
+- **Source:** it deploys from this repo's `claude/crypto-trading-terminal-1wkcyx` branch, and every push redeploys it automatically.
+- **Commands:** build `cd crypto-tab && npm ci`, start `cd crypto-tab && node server/index.mjs`.
+- **Settings:** `CT_TOKEN` (the passcode), `CT_SECRET` (encrypts API keys and the Telegram token), `NODE_VERSION=22`, `CT_NEWS_WATCH`.
+- **Free plan limits:**
+  - The service sleeps after about 15 minutes with no visitors and wakes on the next visit, which takes about a minute. While asleep, bots, alarms and the news and herd agents pause.
+  - Saved data (bots, alerts, keys, learning) resets on every redeploy.
+  - For 24/7 bots and alarms, switch the service to the **Starter** plan and add a **persistent disk** mounted at `/opt/render/project/src/crypto-tab/data` (or set `CT_DATA_DIR` to the disk path).
+- **Region:** the service runs in Oregon (US), where Binance.com and Bybit block API access. MEXC, Coinbase, Kraken, OKX, KuCoin, Gate.io, Bitget and Binance.US work there.
+
 ## Run it
 
 ```bash
@@ -91,6 +104,42 @@ Big players (funds, market makers, ETF flows, liquidation cascades) move baskets
 - **Herd Follower bot** (new bot type): buys a coin when its group starts pumping together and it hasn't moved yet, and sells at a target sized from the group move, on a trailing stop, after a time limit, or as soon as the group starts dumping together.
 - **Herd guard** on the Pump Rider: a group dump stops buying (and sells the bag if "sell the bag on a dump" is on); a group pump holds lots.
 - ⚡ markers on the chart show the group moves a coin took part in.
+
+## Pump clock: when do pumps and dumps happen? (AI → Pump clock)
+
+- **Data:** up to 2 years of hourly candles per coin from Binance's public archive (data.binance.vision, cached), or a 12-coin market basket.
+- **When:** pumps and dumps (moves of 2× the normal size) by hour and weekday, in **your time zone**, next to when world markets open (Tokyo, Hong Kong, London, New York open and close, the UTC daily close, the CME reopen).
+- **Repeat check:** the first 70% of the history finds the pattern and the last 30% checks it. "Timing repeats" and "direction repeats" are reported separately.
+- **News:** two years of headlines per coin (Google News date-range search) matched to the biggest pump and dump days. It shows how price moved on bullish and bearish news days, and what hour news breaks.
+- **ZEC, measured on 2026-11-25 in Phoenix time:**
+  - The biggest moves, up and down, happen **6–9 AM MST**, around the US stock open at 7:30 AM.
+  - Nights from 11 PM to 2 AM are the quietest, and Saturday has about half the dumps of other days.
+  - Timing repeats on the unseen data; direction by hour does not, so no hour is a buy or sell signal on its own.
+  - 81% of ZEC's biggest-move days had news that day or the day before (63% of quiet days). On bullish-news days ZEC averaged +1.8%.
+
+## Time zone
+
+Settings → Time zone sets the zone used by every time in the app: chart axis, crosshair, news, herd moves, the pump clock and bot call logs. The default is the phone's own zone. Phoenix = Mountain Standard Time all year (Arizona has no daylight saving).
+
+## Bubbles, Matrix, List (Markets tab)
+
+- **Bubbles:** a live physics field of the top 200 coins on the exchange. Each bubble is sized by its move (or volume) and colored green or red by its hour, day, week, month or year performance. Drag and fling the bubbles, and tap one for details.
+- **Matrix:** tiles sized by trading volume, colored by performance.
+- **List:** a sortable performance table for all five periods.
+
+The coin detail sheet shows all the changes and a mini chart, with buttons for Chart, Trade, Alert, Pump Rider and Profile.
+
+## From the ZORA Zcash agent
+
+- **Phoenix Reversal bot:** the WAIT → WATCH → READY state machine from ZORA's strategy spec.
+  - **WATCH** after a sharp drop measured in ATR, with RSI weak and heavy volume.
+  - **READY** only after a higher low, a closed candle back above EMA20 and a retest that holds, with BTC not dumping and a tight order-book spread.
+  - **Risk:** the position is sized so the stop loses at most your max loss, with a minimum stop of 0.8× ATR. A third is sold at +1%, a third at +2% (stop moves to break-even), and the rest trails.
+  - **Call log:** every call is logged with time-zone timestamps.
+  - **Backtest (86 days of 5m candles, falling market):** ZEC −1.1% vs holding −19.8%. BTC and SOL took many small capped losses, roughly matching buy-and-hold. The live BTC and order-book filters, which a backtest cannot model, are meant to skip those, so try it on paper first.
+- **Telegram:** alerts (alarms repeat while ringing, plus profits, bot events, news and herd moves) and commands: `/price ZEC`, `/bots`, `/pause all`, `/resume all`, `/stop` (silences alarms), `/alerts`, `/news ZEC`, `/herd`. Set it up in Settings → Telegram, or with `TELEGRAM_BOT_TOKEN` / `TELEGRAM_CHAT_ID`. The token is stored encrypted, and only your chat is answered.
+- **Google News** for Zcash and for crypto in general, as live news sources.
+- **Order-book health** on the Trade screen: spread and ±1% depth.
 
 ## Buy / sell arrows
 

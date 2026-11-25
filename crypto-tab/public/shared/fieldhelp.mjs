@@ -231,6 +231,18 @@ export const HELP = {
   'herd.trailing': { what: 'Once in profit, sell if price falls this much from its best point.', example: (x) => `0.5% from the high.` },
   'herd.holdMax': { what: 'Group moves fade. Close the trade after this many minutes.', example: () => '120 = at most 2 hours.' },
   exitOnDump: { what: 'Sell right away if the coin’s group starts dumping together.', example: (x) => `Holding ${x.base} when the group turns down together, so the bot sells with it.` },
+
+  // ---------- Phoenix Reversal ----------
+  maxLoss: { what: 'The most you want to lose if the stop is hit. The bot sizes each trade so a stop-out costs about this much, including fees.', example: (x) => `20: entry ${x.px(x.price)}, stop 2% lower → the bot buys about ${(20 / (x.price * 0.022)).toFixed(3)} ${x.base}.` },
+  dropAtr: { what: 'How sharp the fall must be before the bot starts watching, measured in ATR (the coin’s normal candle range).', example: (x) => `3: if ${x.base} usually moves ${x.px(x.price * 0.004)} per candle, it must fall about ${x.px(x.price * 0.012)} from the recent high.` },
+  volMult: { what: 'Selling volume during the drop compared to normal. Real flushes come with heavy volume.', example: () => '1.5: the last candles traded at least 1.5× the usual volume.' },
+  maxSpread: { what: 'Skip the trade if the gap between the best buy and sell price is wider than this: thin books cause bad fills.', example: (x) => `0.15%: at ${x.px(x.price)} the gap must be under ${x.px(x.price * 0.0015)}.` },
+  btcMaxDrop: { what: 'Do not buy a bounce while Bitcoin is falling hard; most coins follow it.', example: () => '1: if BTC fell more than 1% in the last hour, the bot waits.' },
+  minRR: { what: 'Only trade if the possible gain to +2% is at least this many times the possible loss to the stop, after fees.', example: () => '1.2: stop 1.4% away → +2% target gives R:R 1.3, so it trades; stop 2% away → 0.9, so it skips.' },
+  'reversal.trail': { what: 'After +2%, sell the last third if price falls this much from its best point.', example: () => '0.6% from the high.' },
+  'reversal.rsiMax': { what: 'RSI must be this low (oversold) for the drop to count.', example: () => '32: a real flush, not a small dip.' },
+  'reversal.holdMax': { what: 'Close whatever is left after this many minutes.', example: () => '240 = 4 hours.' },
+  expireBars: { what: 'Stop watching if no confirmed base forms within this many candles.', example: () => '36 five-minute candles = 3 hours.' },
 };
 
 export function helpFor(type, key) { return HELP[`${type}.${key}`] || HELP[key] || null; }
@@ -260,6 +272,12 @@ export const STORY = {
   gain: (x) => [`Buys ${x.base} when it is a set % under its moving average, sells at a fixed gain.`],
   supertrend: (x) => [`Buys when SuperTrend flips green on ${x.base} and sells when it flips red.`],
   macd: (x) => [`Buys when MACD momentum turns up below zero and sells when it turns back down.`],
+  reversal: (x) => [
+    `${x.base} flushes hard: it falls 3× its normal candle range on heavy volume and RSI goes oversold. The bot starts WATCHING. It does not buy the falling knife.`,
+    `${x.base} stops making new lows, prints a higher low, and a candle closes back above its 20-period average, which then holds on a retest. The setup is READY.`,
+    `If BTC is not dumping and the order book is healthy, the bot buys at about ${x.px(x.price)} with a stop just under the low, sized so the stop loses at most your max loss.`,
+    `It sells a third at +1%, a third at +2% (and moves the stop to break-even), and trails the rest. Every step is logged with the time.`,
+  ],
   herd: (x) => [
     `The herd agent learns which coins move together, e.g. ${x.base} with its group, and who moves first.`,
     `Several coins in ${x.base}'s group suddenly jump together; ${x.base} has not moved yet.`,

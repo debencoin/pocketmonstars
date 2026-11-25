@@ -7,9 +7,9 @@ import { optimize, suggestGrid } from '/shared/optimizer.mjs';
 import { runMeter, gridLinesForStep } from './meter.js';
 import { helpFor, STORY, ctxFor } from '/shared/fieldhelp.mjs';
 import { COINS, MAIN_COIN, presetFor } from '/shared/presets.mjs';
-import { $, esc, fmtPrice, fmtAmt, fmtPct, fmtUsd, cls, store, sheet, haptic, toast, confirmSheet, fieldsHtml, readFields, wireToggles, ago } from './ui.js';
+import { $, esc, fmtPrice, fmtAmt, fmtPct, fmtUsd, cls, store, sheet, haptic, toast, confirmSheet, fieldsHtml, readFields, wireToggles, ago, fmtDateTime, tzShort } from './ui.js';
 
-const ICONS = { herd: '🐂', newsbot: '📰', pumpgrid: '🚀', grid: '▦', dca: '⬇', stepgrid: '⟋', bb: '◎', emacross: '✕', rsi: '∿', gain: '⤓', supertrend: '⇗', macd: '≋' };
+const ICONS = { reversal: '🐦‍🔥', herd: '🐂', newsbot: '📰', pumpgrid: '🚀', grid: '▦', dca: '⬇', stepgrid: '⟋', bb: '◎', emacross: '✕', rsi: '∿', gain: '⤓', supertrend: '⇗', macd: '≋' };
 const tfSec = (tf) => parseInt(tf, 10) * ({ m: 60, h: 3600, d: 86400, w: 604800 }[tf.replace(/\d+/g, '')] || 60);
 
 export function botsScreen(el, app) {
@@ -607,6 +607,14 @@ export function botsScreen(el, app) {
     draw.dirty();
   }
 
+  function callCard(b) {
+    const C = b.call; if (!C) return '';
+    const col = { WAIT: 'var(--fg-3)', WATCH: 'var(--warn)', READY: 'var(--up)', INVALIDATED: 'var(--down)', EXPIRED: 'var(--fg-4)' }[C.pos ? 'READY' : C.state] || 'var(--fg-3)';
+    return `<div class="card" style="margin-bottom:12px;border-color:${col}"><div class="row between"><b>🐦‍🔥 Call setup</b><span class="pill" style="color:${col}">${C.pos ? 'IN TRADE' : esc(C.state)}</span></div>
+      ${C.pos ? `<div class="num" style="font-size:12px;margin-top:6px">Entry ${fmtPrice(C.pos.entry)} · stop ${fmtPrice(C.pos.stop)}${C.pos.t1 ? ' · +1% taken' : ''}${C.pos.t2 ? ' · +2% taken' : ''}</div>` : ''}
+      ${C.calls.length ? C.calls.slice(0, 8).map((x) => `<div style="font-size:12px;padding:5px 0;border-bottom:1px solid var(--line)"><span class="dim">${fmtDateTime(x.t)} ${esc(tzShort())}</span> · <b style="color:${{ WATCH: 'var(--warn)', READY: 'var(--up)', INVALIDATED: 'var(--down)' }[x.state] || 'inherit'}">${esc(x.state)}</b> ${esc(x.msg)}</div>`).join('') : '<div class="dim" style="font-size:12px;margin-top:6px">WAIT: no sharp drop yet. The bot only acts on a confirmed bounce.</div>'}</div>`;
+  }
+
   function linesCard(b) {
     const L = b.lines; if (!L) return '';
     const manual = [L.nextBuy?.manual && 'next buy', L.nextSell?.manual && 'next sell', L.stop?.manual && 'sell bag', L.restart?.manual && 'restart', ...L.lots.filter((l) => l.manual).map((l, i) => `lot ${i + 1}`)].filter(Boolean);
@@ -631,6 +639,7 @@ export function botsScreen(el, app) {
         <div class="bot-pnl"><b class="${cls(s.pnl)}">${s.pnl >= 0 ? '+' : ''}${fmtAmt(s.pnl)} ${esc(q)}</b><small class="${cls(s.pnl)}">${fmtPct(s.pnlPct)}</small></div></div>
       ${b.type === 'grid' ? rangeBar(b) : ''}
       ${phaseCard(b)}
+      ${callCard(b)}
       ${linesCard(b)}
       <div class="grid3" style="margin:12px 0">
         <div class="kv"><span>Equity</span><span>${fmtAmt(s.equity)}</span></div><div class="kv"><span>Realized</span><span class="${cls(s.realized)}">${fmtAmt(s.realized)}</span></div><div class="kv"><span>Fees</span><span>${fmtAmt(s.fees)}</span></div>

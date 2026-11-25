@@ -77,7 +77,10 @@ function describe(a) {
   return c ? `${a.symbol} ${c} ${a.price}` : `${a.symbol} ${a.condition === 'pctUp' ? '+' : '-'}${a.pct}%`;
 }
 
+let extraSink = null;
+export const setSink = (fn) => { extraSink = fn; };
 export async function push(payload) {
+  try { extraSink?.(payload); } catch { /* ignore */ }
   const body = JSON.stringify(payload);
   const dead = [];
   await Promise.allSettled(subs.map((s) => webpush.sendNotification(s, body, { TTL: 120, urgency: 'high' }).catch((e) => { if (e.statusCode === 404 || e.statusCode === 410) dead.push(s.endpoint); })));

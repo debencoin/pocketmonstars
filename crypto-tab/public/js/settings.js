@@ -34,6 +34,12 @@ export function settingsSheet(app) {
           <button class="btn block" id="st-push">🔔 Enable notifications (alarms & profitable trades)</button>
           <div class="dim" style="font-size:12px;margin-top:8px;line-height:1.5">iPhone: open Safari → Share → <b>Add to Home Screen</b>, launch Crypto Tab from the icon, then tap this button (iOS 16.4+). Android: Chrome asks for permission directly.</div>
         </div>
+        <div class="label">Telegram</div>
+        <div class="card" style="margin:8px 0 16px" id="tg-card"><div class="dim" style="font-size:12px;line-height:1.5;margin-bottom:10px">Get alarms, profits, news and herd moves in Telegram, and control the app with commands (/price ZEC, /bots, /pause all, /stop…). 1) In Telegram, open @BotFather → /newbot and copy the token. 2) Paste it below and save. 3) Send your new bot /start: it replies with your chat id. 4) Paste the chat id and save again.</div>
+          <div class="field"><label>Bot token</label><input class="input" id="tg-token" type="password" autocomplete="off" placeholder="123456:ABC…"></div>
+          <div class="field"><label>Chat id</label><input class="input" id="tg-chat" inputmode="numeric" placeholder="from /start"></div>
+          <div class="grid2"><button class="btn" id="tg-save">Save</button><button class="btn primary" id="tg-test">Send test</button></div>
+          <div class="dim" id="tg-status" style="font-size:12px;margin-top:8px"></div></div>
         <div class="label">Time zone</div>
         <div class="card" style="margin:8px 0 16px"><button class="btn block" id="st-tz" style="justify-content:space-between"><span>🕐 ${esc(tzLabel(tz()))}</span><span class="dim">Change ›</span></button>
           <div class="dim" style="font-size:12px;margin-top:8px">Used for every time in the app. Phoenix = Mountain Standard Time all year.</div></div>
@@ -66,6 +72,9 @@ export function settingsSheet(app) {
       };
       body.querySelectorAll('[data-delkey]').forEach((b) => (b.onclick = async () => { if (await confirmSheet('Remove key?', 'Live bots on this exchange will pause.', 'Remove', true)) { await api(`/api/keys/${b.dataset.delkey}`, { method: 'DELETE', body: {} }); draw(); } }));
       $('#st-push', body).onclick = async () => { try { await enablePush(); await api('/api/push/test', { method: 'POST', body: {} }); toast('Notifications on. A test was sent.', 'ok'); } catch (e) { toast(e.message, 'err'); } };
+      api('/api/telegram', { quiet: true }).then((t) => { $('#tg-status', body).textContent = t.configured ? `Connected${t.chat ? ` · chat ${t.chat}` : ' · add your chat id'}${t.source === 'env' ? ' (server settings)' : ''}` : 'Not connected'; }).catch(() => {});
+      $('#tg-save', body).onclick = async () => { try { const t = await api('/api/telegram', { method: 'POST', body: { token: $('#tg-token', body).value.trim(), chatId: $('#tg-chat', body).value.trim() } }); $('#tg-status', body).textContent = t.configured ? `Saved${t.chat ? ` · chat ${t.chat}` : ' · now send your bot /start to get the chat id'}` : 'Removed'; toast('Telegram saved', 'ok'); } catch (e) { toast(e.message, 'err'); } };
+      $('#tg-test', body).onclick = async () => { try { await api('/api/telegram/test', { method: 'POST', body: {} }); toast('Test sent to Telegram', 'ok'); } catch (e) { toast(e.message, 'err'); } };
       $('#st-tz', body).onclick = () => tzPicker(() => { toast('Time zone saved', 'ok'); location.reload(); });
       $('#p-stay', body).onclick = (e) => { e.target.classList.toggle('on'); store.set('stayInDraw', e.target.classList.contains('on')); };
       $('#p-ps', body).onclick = (e) => { e.target.classList.toggle('on'); store.set('profitSound', e.target.classList.contains('on')); };

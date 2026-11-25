@@ -12,6 +12,7 @@ import * as News from './news.mjs';
 import * as Herd from './herd.mjs';
 import { pumpClock } from './clock.mjs';
 import { bubbles } from './bubbles.mjs';
+import * as TG from './telegram.mjs';
 import { accessToken, flushAll } from './store.mjs';
 import { STRATEGIES, backtest, normalizeParams, defaultsFor } from '../public/shared/strategies.mjs';
 
@@ -121,6 +122,9 @@ route('DELETE', '/api/alerts/:id', (q, b, p) => Alerts.remove(p.id));
 route('POST', '/api/alerts/:id/ack', (q, b, p) => Alerts.ack(p.id));
 route('POST', '/api/alerts/ack-all', () => Alerts.ackAll());
 route('POST', '/api/push/subscribe', (q, body) => Alerts.subscribe(body));
+route('GET', '/api/telegram', () => TG.status());
+route('POST', '/api/telegram', (q, body) => TG.configure(body));
+route('POST', '/api/telegram/test', async () => { const ok = await TG.send('✅ <b>Crypto Tab</b> is connected. Alerts, profits, news and herd moves will arrive here. Try /price ZEC'); if (!ok) throw X.httpError(400, 'Add your chat id first (message your bot /start to get it)'); return { ok }; });
 route('POST', '/api/push/test', async () => { await Alerts.push({ kind: 'test', title: 'Crypto Tab', body: 'Notifications are working', tag: 'test' }); return { ok: true }; });
 
 // ---------- server-sent events: alarms, trades, bot updates ----------
@@ -136,11 +140,11 @@ Bots.events.on('alarm', (a) => broadcast('alarm', a));
 Bots.events.on('alarm-stop', (a) => broadcast('alarm-stop', a));
 Bots.events.on('trade', (t) => broadcast('trade', t));
 Bots.events.on('bot', (b) => broadcast('bot', b));
-Bots.events.on('notify', (n) => broadcast('notify', n));
+Bots.events.on('notify', (n) => { broadcast('notify', n); TG.notify(n); });
 News.newsEvents.on('article', (a) => broadcast('news', a));
 Herd.herdEvents.on('signal', (p) => broadcast('herd', p));
-Herd.herdEvents.on('notify', (n) => { broadcast('notify', n); Alerts.push(n).catch(() => {}); });
-News.newsEvents.on('notify', (n) => { broadcast('notify', n); Alerts.push(n).catch(() => {}); });
+Herd.herdEvents.on('notify', (n) => { broadcast('notify', n); Alerts.push(n).catch(() => {}); TG.notify(n); });
+News.newsEvents.on('notify', (n) => { broadcast('notify', n); Alerts.push(n).catch(() => {}); TG.notify(n); });
 setInterval(() => { for (const c of clients) c.write(': ping\n\n'); }, 20000);
 
 // ---------- http plumbing ----------
@@ -201,6 +205,17 @@ Alerts.start();
 Paper.start();
 News.start();
 Herd.start();
+// Telegram commands
+TG.onCommand('price', async ([sym = 'ZEC']) => { const s = sym.toUpperCase().includes('/') ? sym.toUpperCase() : `${sym.toUpperCase()}/USDT`; const t = await X.ticker('mexc', s); return `<b>${s}</b> ${t.p} (${t.c > 0 ? '+' : ''}${(t.c ?? 0).toFixed(2)}% 24h)\nH ${t.h} · L ${t.l}`; });
+TG.onCommand('bots', async () => { const l = Bots.list(); return l.length ? l.map((b) => `${b.status === 'running' ? '🟢' : b.status === 'paused' ? '⏸' : '⚪'} <b>${TG.esc(b.name)}</b> ${b.symbol}\n   P&L ${b.stats.pnl >= 0 ? '+' : ''}${b.stats.pnl.toFixed(2)} (${b.stats.pnlPct.toFixed(2)}%) · ${b.stats.trades} trades`).join('\n') : 'No bots yet.'; });
+TG.onCommand('pause', async ([which = 'all']) => { const l = Bots.list().filter((b) => b.status === 'running' && (which === 'all' || b.id === which || b.symbol.startsWith(which.toUpperCase()))); l.forEach((b) => Bots.pause(b.id)); return `Paused ${l.length} bot(s).`; });
+TG.onCommand('resume', async ([which = 'all']) => { const l = Bots.list().filter((b) => b.status === 'paused' && (which === 'all' || b.id === which || b.symbol.startsWith(which.toUpperCase()))); l.forEach((b) => Bots.resume(b.id)); return `Resumed ${l.length} bot(s).`; });
+TG.onCommand('stop', async () => { const n = Alerts.ringing().length; Alerts.ackAll(); return n ? `🔕 Stopped ${n} alarm(s).` : 'No alarm is ringing.'; });
+TG.onCommand('alerts', async () => { const l = Alerts.list().filter((a) => a.status !== 'done'); return l.length ? l.map((a) => `${a.status === 'ringing' ? '⏰' : '•'} ${a.symbol} ${a.condition} ${a.price ?? a.pct + '%'}`).join('\n') : 'No active alerts.'; });
+TG.onCommand('news', async ([t = 'ZEC']) => { const b = await News.tokenBrief(t.toUpperCase()); return `📰 ${TG.esc(b.text)}\n\n${b.articles.slice(0, 4).map((a) => `• ${TG.esc(a.title)} (${TG.esc(a.source)})`).join('\n')}`; });
+TG.onCommand('herd', async () => { const o = Herd.overview(); const s = o.live?.signals || []; return s.length ? s.map((p) => `${p.dir === 'pump' ? '🚀' : '🩸'} ${TG.esc(p.name)} ${p.dir}ing (${Math.round(p.breadth * 100)}%) · not moved yet: ${p.laggards.slice(0, 5).map((l) => l.t).join(', ') || 'none'}`).join('\n') : `No group is moving together right now. ${o.learning.learnedEvents} moves learned.`; });
+TG.startPolling();
+Alerts.setSink((n) => { if (n.kind === 'alarm') TG.notify(n); });
 server.listen(PORT, () => {
   console.log(`Crypto Tab running on http://localhost:${PORT}`);
   console.log(`Passcode: ${TOKEN}   (set CT_TOKEN to choose your own)`);
