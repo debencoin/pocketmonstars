@@ -35,6 +35,17 @@ const GIRLS = {
   crownstreet: { glb: 'crownstreet', el: 'aether', c1: 0xf2c230, c2: 0xf9e6ac, turn: Math.PI / 2, gait: { cad: 10.5, amp: 1.05 } },
   halosentinel: { glb: 'halosentinel', el: 'aether', c1: 0xfff2b0, c2: 0xfff9df, turn: Math.PI / 2, gait: { cad: 13, amp: 1.1 }, wings: [0.22] },
   emberwarden: { glb: 'emberwarden', el: 'aether', c1: 0xff7a1a, c2: 0xffc9a3, turn: Math.PI / 2, gait: { cad: 9.2, amp: 1.0 } },
+  // the Elemental Masters of the founder's wallet: drawn from their 3D models with the human skeleton
+  terrok: { glb: 'terrok', el: 'earth', c1: 0xb08a50, c2: 0xdfd0b9, turn: Math.PI / 2, gait: { cad: 9.2, amp: 1.0 } },
+  zephar: { glb: 'zephar', el: 'air', c1: 0xc8f4ff, c2: 0xe9faff, turn: Math.PI / 2, gait: { cad: 11.5, amp: 1.08 } },
+  tydal: { glb: 'tydal', el: 'water', c1: 0x35c8ff, c2: 0xaee9ff, turn: Math.PI / 2, gait: { cad: 11.5, amp: 1.08 } },
+  ignar: { glb: 'ignar', el: 'fire', c1: 0xff5a1a, c2: 0xffbda3, turn: Math.PI / 2, gait: { cad: 13, amp: 1.1 } },
+  spira: { glb: 'spira', el: 'water', c1: 0x35c8ff, c2: 0xaee9ff, turn: Math.PI / 2, gait: { cad: 11.5, amp: 1.08 } },
+  aerix: { glb: 'aerix', el: 'air', c1: 0xc8f4ff, c2: 0xe9faff, turn: Math.PI / 2, gait: { cad: 11.5, amp: 1.08 } },
+  bouldar: { glb: 'bouldar', el: 'earth', c1: 0xb08a50, c2: 0xdfd0b9, turn: Math.PI / 2, gait: { cad: 9.2, amp: 1.0 } },
+  nerin: { glb: 'nerin', el: 'water', c1: 0x35c8ff, c2: 0xaee9ff, turn: Math.PI / 2, gait: { cad: 11.5, amp: 1.08 } },
+  zuri: { glb: 'zuri', el: 'water', c1: 0x35c8ff, c2: 0xaee9ff, turn: Math.PI / 2, gait: { cad: 11.5, amp: 1.08 } },
+  verdex: { glb: 'verdex', el: 'earth', c1: 0xb08a50, c2: 0xdfd0b9, turn: Math.PI / 2, gait: { cad: 13, amp: 1.1 } },
   // the Ancient Beings: a winged Watcher, a Nephilim giant and an Anunnaki ruler
   sarielthewatcher: { glb: 'sarielwatcher', el: 'aether', c1: 0x8a6aff, c2: 0xffe9a0, turn: Math.PI / 2, wings: [0.2], jt: { neck: 0.7, top: 0.96 } },
   neraththenephilim: { glb: 'nerathnephilim', el: 'earth', c1: 0xc87a3a, c2: 0xffb060, turn: Math.PI / 2, rs: 1.5, gait: { cad: 8.5, amp: 0.95 }, jt: { hip: 0.44, chest: 0.52, neck: 0.74, top: 0.98, sh: [0.76, 0.2], el: [0.52, 0.33], wr: [0.37, 0.37], hand: [0.28, 0.38], hj: [0.44, 0.09], kn: [0.22, 0.1], an: [0.05, 0.11] } },
@@ -68,7 +79,11 @@ const LT = JT.hj[0] - JT.kn[0], LS = JT.kn[0] - JT.an[0]; // thigh and shin leng
 function rigBody(scene, cfg = {}) {
   const J = { ...JT, ...(cfg.jt || {}) }, RS = cfg.rs || 1, LT = J.hj[0] - J.kn[0], LS = J.kn[0] - J.an[0];
   let mesh = null; scene.traverse(o => { if (o.isMesh && !mesh) mesh = o; }); if (!mesh) return null;
-  const g = mesh.geometry; if (cfg.turn) g.rotateY(cfg.turn); const pa = g.attributes.position, n = pa.count, P = new Float32Array(n * 3);
+  const g = mesh.geometry;
+  if (cfg.turn && !cfg.wings) { // some of the models were rebuilt from flat pictures and are paper thin from the side: give them a body's depth
+    g.computeBoundingBox(); const bx = g.boundingBox, hx = (bx.max.x - bx.min.x) / 2, hz = (bx.max.z - bx.min.z) / 2, k = clamp(0.52 * hx / Math.max(hz, 1e-3), 1, 2.6);
+    if (k > 1.08) { g.translate(0, 0, -(bx.max.z + bx.min.z) / 2); g.scale(1, 1, k); if (g.attributes.normal) g.deleteAttribute('normal'); } }
+  if (cfg.turn) g.rotateY(cfg.turn); const pa = g.attributes.position, n = pa.count, P = new Float32Array(n * 3);
   for (let i = 0; i < n; i++) { P[i * 3] = pa.getX(i); P[i * 3 + 1] = pa.getY(i); P[i * 3 + 2] = pa.getZ(i); }
   g.setAttribute('position', new T.BufferAttribute(P, 3));
   if (!g.attributes.normal) g.computeVertexNormals();
