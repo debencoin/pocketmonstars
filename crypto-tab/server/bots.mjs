@@ -2,7 +2,7 @@
 // Each bot has its own wallet slice, so any number of grid bots can share one pair.
 import crypto from 'node:crypto';
 import { EventEmitter } from 'node:events';
-import { STRATEGIES, newState, paperExec, normalizeParams, gridLevels, equity, DEFAULT_FEE } from '../public/shared/strategies.mjs';
+import { STRATEGIES, newState, paperExec, normalizeParams, gridLevels, equity, DEFAULT_FEE, defaultsFor } from '../public/shared/strategies.mjs';
 import * as X from './exchanges.mjs';
 import { load, save } from './store.mjs';
 
@@ -86,19 +86,34 @@ export function setLines(id, body) {
   return view(b);
 }
 
-export async function create({ name, type, exchange, symbol, mode = 'paper', params }) {
+export async function create({ name, type, exchange, symbol, mode = 'paper', params, start = true }) {
   if (!STRATEGIES[type]) throw X.httpError(400, `Unknown bot type ${type}`);
-  if (mode === 'live') await X.privateClient(exchange); // fails early if no key
+  if (mode === 'live' && start) await X.privateClient(exchange); // fails early if no key
   const t = await X.ticker(exchange, symbol);
   const p = normalizeParams(type, params);
   const b = {
     id: crypto.randomUUID().slice(0, 8), name: name || `${STRATEGIES[type].label} ${symbol}`, type, exchange, symbol, mode,
-    status: 'running', params: p, createdAt: now(), updatedAt: now(), error: null,
+    status: start ? 'running' : 'draft', params: p, createdAt: now(), updatedAt: now(), error: null,
   };
   b.state = newState(b);
-  STRATEGIES[type].init(b, t.p, b.state);
+  if (start) STRATEGIES[type].init(b, t.p, b.state);
   b.state.lastPrice = t.p;
   bots.push(b);
+  persist();
+  events.emit('bot', view(b));
+  return view(b);
+}
+
+// Start a draft: everything can be edited until this moment.
+export async function startDraft(id) {
+  const b = get(id);
+  if (b.status !== 'draft') throw X.httpError(400, 'This bot has already started');
+  if (b.mode === 'live') await X.privateClient(b.exchange);
+  const t = await X.ticker(b.exchange, b.symbol);
+  b.state = newState(b);
+  STRATEGIES[b.type].init(b, t.p, b.state);
+  b.state.lastPrice = t.p;
+  b.status = 'running'; b.createdAt = now(); b.updatedAt = now(); b.error = null;
   persist();
   events.emit('bot', view(b));
   return view(b);
@@ -109,14 +124,28 @@ export function pause(id) { const b = get(id); if (b.status === 'running') b.sta
 export function resume(id) {
   const b = get(id);
   if (b.status === 'stopped') throw X.httpError(400, 'Stopped bots cannot resume. Duplicate it instead.');
+  if (b.status === 'draft') throw X.httpError(400, 'This is a draft: press Start bot');
   b.status = 'running'; b.error = null; b.updatedAt = now(); persist();
   return view(b);
 }
 
 // Edit parameters. Works while running or paused; the bot keeps its wallet and open positions.
-export function update(id, { name, params, aiTuned }) {
+export async function update(id, { name, params, aiTuned, exchange, symbol, type, mode }) {
   const b = get(id);
   if (name) b.name = name;
+  if (b.status === 'draft') {
+    // drafts: anything can change, including the coin, exchange, bot type and paper/live
+    if (exchange || symbol) { const ex = exchange || b.exchange, sym = symbol || b.symbol; await X.ticker(ex, sym); b.exchange = ex; b.symbol = sym; }
+    const typeChanged = type && type !== b.type;
+    if (typeChanged) { if (!STRATEGIES[type]) throw X.httpError(400, `Unknown bot type ${type}`); b.type = type; }
+    if (mode === 'paper' || mode === 'live') b.mode = mode;
+    b.params = normalizeParams(b.type, { ...(typeChanged ? defaultsFor(b.type) : b.params), ...(params || {}) });
+    b.state = newState(b);
+    b.updatedAt = now();
+    persist();
+    events.emit('bot', view(b));
+    return view(b);
+  }
   if (params) {
     const next = { ...b.params, ...params };
     // editing range / line count / spacing from the form rebuilds evenly spaced lines

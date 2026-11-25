@@ -69,15 +69,16 @@ export function confirmSheet(title, text, okLabel = 'Confirm', danger = false) {
 }
 
 // Build a form from strategy field specs: [key, label, type, default, hint]
+const info = (k) => `<button type="button" class="info-btn" data-help="${k}" aria-label="What does this do?">i</button>`;
 export function fieldsHtml(fields, values = {}) {
-  return fields.map(([k, label, type, d, hint]) => {
+  return fields.map(([k, rawLabel, type, d, hint]) => {
     const v = values[k] ?? d ?? '';
-    if (type === 'bool') return `<div class="field"><div class="row between"><label>${esc(label)}</label><button type="button" class="toggle ${v ? 'on' : ''}" data-key="${k}" data-bool></button></div>${hint ? `<span class="hint">${esc(hint)}</span>` : ''}</div>`;
+    if (type === 'bool') return `<div class="field"><div class="row between"><label>${esc(rawLabel)} ${info(k)}</label><button type="button" class="toggle ${v ? 'on' : ''}" data-key="${k}" data-bool></button></div>${hint ? `<span class="hint">${esc(hint)}</span>` : ''}</div>`;
     if (type.startsWith('select:')) {
       const opts = type.slice(7).split(',');
-      return `<div class="field"><label>${esc(label)}</label><select class="input" data-key="${k}">${opts.map((o) => `<option ${o === v ? 'selected' : ''}>${o}</option>`).join('')}</select>${hint ? `<span class="hint">${esc(hint)}</span>` : ''}</div>`;
+      return `<div class="field"><label>${esc(rawLabel)} ${info(k)}</label><select class="input" data-key="${k}">${opts.map((o) => `<option ${o === v ? 'selected' : ''}>${o}</option>`).join('')}</select>${hint ? `<span class="hint">${esc(hint)}</span>` : ''}</div>`;
     }
-    return `<div class="field"><label>${esc(label)}</label><input class="input" data-key="${k}" inputmode="decimal" value="${v == null ? '' : esc(v)}" placeholder="${type === 'number' && d == null ? 'optional' : ''}">${hint ? `<span class="hint">${esc(hint)}</span>` : ''}</div>`;
+    return `<div class="field"><label>${esc(rawLabel)} ${info(k)}</label><input class="input" data-key="${k}" inputmode="decimal" value="${v == null ? '' : esc(v)}" placeholder="${type === 'number' && d == null ? 'optional' : ''}">${hint ? `<span class="hint">${esc(hint)}</span>` : ''}</div>`;
   }).join('');
 }
 

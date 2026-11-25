@@ -54,6 +54,7 @@ route('GET', '/api/bots', () => Bots.list());
 route('POST', '/api/bots', (q, body) => Bots.create(body));
 route('GET', '/api/bots/:id', (q, b, p) => Bots.view(Bots.get(p.id)));
 route('PATCH', '/api/bots/:id', (q, body, p) => Bots.update(p.id, body));
+route('POST', '/api/bots/:id/start', (q, b, p) => Bots.startDraft(p.id));
 route('POST', '/api/bots/:id/pause', (q, b, p) => Bots.pause(p.id));
 route('POST', '/api/bots/:id/resume', (q, b, p) => Bots.resume(p.id));
 route('POST', '/api/bots/:id/stop', (q, body, p) => Bots.stop(p.id, body));
@@ -73,6 +74,7 @@ route('POST', '/api/ai/draft', (q, body) => AI.analyzeDraft(body));
 route('POST', '/api/ai/symbol', (q, body) => AI.analyzeSymbol(body));
 route('POST', '/api/ai/scan', (q, body) => AI.scan(body));
 route('POST', '/api/ai/candles', (q, body) => AI.candleMeterScan(body));
+route('POST', '/api/ai/explain', (q, body) => AI.explainSetting(body));
 
 // ---------- alerts ----------
 route('GET', '/api/alerts', () => Alerts.list());

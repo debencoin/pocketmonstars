@@ -12,6 +12,8 @@ import { forecast } from '../public/shared/forecast.mjs';
 import { STRATEGIES, backtest, normalizeParams, defaultsFor } from '../public/shared/strategies.mjs';
 import { measureCandles, recommendStep, estimate, strip as stripStats, TF_SECONDS } from '../public/shared/candlemeter.mjs';
 import { tfSeconds } from '../public/shared/optimizer.mjs';
+import { helpFor, ctxFor } from '../public/shared/fieldhelp.mjs';
+import { presetFor } from '../public/shared/presets.mjs';
 
 const MODEL = process.env.CT_AI_MODEL || 'claude-opus-5-5';
 let client = null;
@@ -211,4 +213,84 @@ export async function candleMeterScan({ exchange, symbol, params = {} }) {
   }
   const ranked = [...rows].sort((a, b) => b.backtest.perDayPct - a.backtest.perDayPct);
   return { exchange, symbol, fee, band, rows, best: ranked[0] || null, note: 'Step = just under the median candle swing, clamped to your band and above the fee floor. Backtests use the most recent ~1000 candles of each timeframe.' };
+}
+
+// ---------------- explain one bot setting, with a suggested value for this coin ----------------
+const EXPLAIN_SCHEMA = {
+  type: 'object', additionalProperties: false,
+  required: ['explanation', 'example', 'recommended', 'reason'],
+  properties: {
+    explanation: { type: 'string', description: 'plain words, 1-3 short sentences, no jargon' },
+    example: { type: 'string', description: 'one concrete example with this coin and real prices' },
+    recommended: { type: 'string', description: 'the value to use, as it would be typed in the field' },
+    reason: { type: 'string', description: 'one sentence, based on the measured data' },
+  },
+};
+
+async function quantSuggestion({ exchange, symbol, type, key, params, price }) {
+  const p = { ...defaultsFor(type), ...(params || {}) };
+  const tf = p.timeframe || '15m';
+  const preset = presetFor(symbol)?.params || {};
+  const meter = async (t = tf) => { const c = await X.ohlcv(exchange, symbol, t, 1000); const m = measureCandles(c, { recent: 500 }); return { m, rec: recommendStep(m, { fee: p.feePct ?? 0.1, min: p.stepMin ?? 0.39, max: p.stepMax ?? 0.79 }), c }; };
+  const f = (v, d = 3) => String(+Number(v).toFixed(d));
+  switch (key) {
+    case 'stepPct': case 'autoStep': case 'stepMin': case 'stepMax': {
+      const { m, rec } = await meter();
+      if (key === 'autoStep') return { value: 'true', reason: `${symbol} ${tf} candles swing ${m.medianRange.toFixed(3)}% (median); auto keeps the step just under that as it changes.` };
+      if (key === 'stepMin') return { value: f(Math.max(rec.feeFloor, Math.min(0.39, m.p25Range))), reason: `Fee floor is ${rec.feeFloor}% and a quarter of ${tf} candles swing under ${m.p25Range.toFixed(3)}%.` };
+      if (key === 'stepMax') return { value: f(Math.max(0.39, m.p75Range * 0.9)), reason: `Three quarters of ${tf} candles swing less than ${m.p75Range.toFixed(3)}%.` };
+      return { value: f(rec.step), reason: `${tf} median swing ${m.medianRange.toFixed(3)}%: ${rec.step}% catches ${rec.coverage.toFixed(0)}% of candles and keeps ${rec.netPerTrip}% per trade after fees.` };
+    }
+    case 'timeframe': {
+      const r = await candleMeterScan({ exchange, symbol, params: p });
+      return r.best ? { value: r.best.timeframe, reason: `Backtested every timeframe: ${r.best.timeframe} at ${r.best.rec.step}% earned ${r.best.backtest.perDayPct.toFixed(2)}%/day recently.` } : null;
+    }
+    case 'maxLots': {
+      const { rec } = await meter();
+      const n = Math.max(4, Math.min(30, Math.round((p.dumpPct || 4) / rec.step)));
+      return { value: String(n), reason: `With a ${rec.step}% step, ${n} lots cover the ${p.dumpPct || 4}% drop before the dump guard stops buying.` };
+    }
+    case 'trailPct': { const { m } = await meter(); return { value: f(Math.max(1.2, m.medianRange * 3), 2), reason: `3 typical ${tf} candle swings (${m.medianRange.toFixed(3)}% each): small dips do not shake you out of a pump.` }; }
+    case 'pumpPct': { const { m } = await meter(); return { value: f(Math.max(1.5, m.medianRange * 5), 2), reason: `5 typical ${tf} candle swings in a row is unusual for ${symbol}.` }; }
+    case 'feePct': {
+      const ex = X.publicClient(exchange); await ex.loadMarkets(); const mk = ex.markets[symbol];
+      // live bots fill instantly (taker); the maker rate only applies to orders that wait on the book
+      if (mk?.taker != null) return { value: f(mk.taker * 100, 3), reason: `${exchange} lists ${(mk.taker * 100).toFixed(3)}% taker / ${((mk.maker ?? mk.taker) * 100).toFixed(3)}% maker for ${symbol}. The bot fills instantly, so it pays the taker fee (your VIP level may be lower).` };
+      return null;
+    }
+    case 'lower': case 'upper': case 'grids': {
+      const c = await X.ohlcv(exchange, symbol, '1h', 500);
+      const g = suggestGrid(c, '1h', p.investment || 500);
+      if (key === 'grids') { const { rec } = await meter(); const lo = p.lower || g.lower, hi = p.upper || g.upper; const n = Math.max(2, Math.min(200, Math.round(Math.log(hi / lo) / Math.log(1 + rec.step / 100)) + 1)); return { value: String(n), reason: `${n} lines are ~${rec.step}% apart, just under the ${tf} candle swing.` }; }
+      return { value: String(g[key]), reason: `From support/resistance and volatility of the last 500 hourly candles (now ${price}).` };
+    }
+    case 'deviation': { const { m } = await meter(); return { value: f(Math.max(0.8, m.medianRange * 2), 2), reason: `Two typical ${tf} candle swings, so safety orders do not fire on normal noise.` }; }
+    default:
+      if (preset[key] != null) return { value: String(preset[key]), reason: `Starting point for ${symbol.split('/')[0]} (measured preset).` };
+      return { value: String(p[key] ?? ''), reason: 'Default value; works for most coins.' };
+  }
+}
+
+export async function explainSetting({ exchange, symbol, type, key, params }) {
+  const h = helpFor(type, key);
+  if (!h) throw X.httpError(400, 'Unknown setting');
+  const label = STRATEGIES[type]?.fields.find((x) => x[0] === key)?.[1] || key;
+  const t = await X.ticker(exchange, symbol);
+  const x = ctxFor(t.p, symbol, params || {});
+  const base = { key, label, what: h.what, example: h.example(x) };
+  const sug = await quantSuggestion({ exchange, symbol, type, key, params, price: t.p }).catch(() => null);
+  if (!hasKey()) return { ...base, suggested: sug?.value ?? null, reason: sug?.reason ?? null, model: 'quant engine' };
+  try {
+    const res = await anthropic().beta.messages.create({
+      model: MODEL, max_tokens: 4000, betas: ['server-side-fallback-2026-07-01'], fallbacks: 'default',
+      output_config: { effort: 'low', format: { type: 'json_schema', schema: EXPLAIN_SCHEMA } },
+      system: 'You explain trading-bot settings inside a phone app to beginners. Use plain words, short sentences and real numbers from the data given. Never promise profit.',
+      messages: [{ role: 'user', content: JSON.stringify({ bot: STRATEGIES[type].label, setting: label, key, current_settings: params, coin: symbol, exchange, price: t.p, reference_explanation: h.what, data_based_suggestion: sug }) }],
+    });
+    if (res.stop_reason === 'refusal') throw new Error('declined');
+    const j = JSON.parse(res.content.filter((b) => b.type === 'text').map((b) => b.text).join(''));
+    return { ...base, what: j.explanation, example: j.example, suggested: j.recommended, reason: j.reason, model: res.model };
+  } catch (e) {
+    return { ...base, suggested: sug?.value ?? null, reason: sug?.reason ?? null, model: 'quant engine', error: e.message };
+  }
 }

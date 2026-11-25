@@ -10,7 +10,7 @@ import { alertsSheet, alarmOn, alarmOff, unlockAudio, startLocalChecker, activeC
 import { settingsSheet } from './settings.js';
 
 const app = {
-  S: { ex: 'mexc', symbol: 'BTC/USDT', tf: '1h', ...store.get('state', {}) },
+  S: { ex: 'mexc', symbol: 'ZEC/USDT', tf: '15m', ...store.get('state', {}) },
   views: {},
   current: null,
   exchanges: null,
@@ -86,7 +86,18 @@ function login() {
   });
 }
 
+// Zcash is the main coin: on first run after this update, open on ZEC and pin the five core coins.
+function zecFirstRun() {
+  if (store.get('zecMain')) return;
+  const favs = new Set(store.get('favs', []));
+  for (const c of ['ZEC', 'BTC', 'ETH', 'SOL', 'XRP']) favs.add(`mexc|${c}/USDT`);
+  store.set('favs', [...favs]);
+  if (app.S.ex === 'mexc' || !store.get('state')) app.set({ ex: 'mexc', symbol: 'ZEC/USDT', tf: '15m' });
+  store.set('zecMain', true);
+}
+
 async function boot() {
+  zecFirstRun();
   app.views.markets = marketsView($('#view-markets'), app);
   app.views.chart = chartScreen($('#view-chart'), app);
   app.views.trade = tradeScreen($('#view-trade'), app);

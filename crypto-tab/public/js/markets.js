@@ -1,6 +1,7 @@
 // Markets: exchange picker, quote tabs, favourites, tokenised stocks, sortable live list.
 import { api, qs } from './api.js';
 import { $, esc, fmtPrice, fmtAmt, fmtPct, store, haptic, toast } from './ui.js';
+import { COINS, MAIN_COIN } from '/shared/presets.mjs';
 
 const TABS = ['★', 'USDT', 'USDC', 'USD', 'BTC', 'Stocks', 'All'];
 
@@ -9,7 +10,7 @@ export function marketsView(el, app) {
   let tab = store.get('mkTab', 'USDT');
   let sort = store.get('mkSort', { k: 'v', d: -1 });
   let q = '';
-  const favs = () => new Set(store.get('favs', ['mexc|BTC/USDT', 'mexc|ETH/USDT', 'mexc|SOL/USDT']));
+  const favs = () => new Set(store.get('favs', COINS.map((c) => `mexc|${c}/USDT`)));
 
   el.innerHTML = `
     <div class="chips" id="mk-ex"></div>
@@ -77,9 +78,11 @@ export function marketsView(el, app) {
     if (q) list = list.filter((r) => r.b.includes(q) || r.s.includes(q));
     const k = sort.k;
     list = [...list].sort((a, b) => (k === 'b' ? a.b.localeCompare(b.b) * -sort.d : ((a[k] ?? -1e18) - (b[k] ?? -1e18)) * sort.d));
+    if (!q) { const i = list.findIndex((r) => r.b === MAIN_COIN); if (i > 0) list.unshift(...list.splice(i, 1)); } // main coin pinned on top
     el.querySelectorAll('.mk-head button').forEach((b) => b.classList.toggle('sorted', b.dataset.k === k || (b.dataset.k === 'b' && k === 'v')));
-    const top = rows.filter((r) => ['BTC', 'ETH', 'SOL', 'XRP', 'BNB'].includes(r.b) && (r.q === 'USDT' || r.q === 'USD')).slice(0, 5);
-    topEl.innerHTML = top.map((r) => `<div class="tk-card" data-s="${esc(r.s)}"><b>${esc(r.b)}</b> <span class="${r.c >= 0 ? 'up' : 'down'}" style="font-size:11px">${fmtPct(r.c)}</span><span class="num">${fmtPrice(r.p)}</span></div>`).join('');
+    const pick = (c) => rows.find((r) => r.b === c && r.q === 'USDT') || rows.find((r) => r.b === c && (r.q === 'USD' || r.q === 'USDC'));
+    const top = COINS.map(pick).filter(Boolean);
+    topEl.innerHTML = top.map((r) => `<div class="tk-card ${r.b === MAIN_COIN ? 'main' : ''}" data-s="${esc(r.s)}"><b>${r.b === MAIN_COIN ? '★ ' : ''}${esc(r.b)}</b> <span class="${r.c >= 0 ? 'up' : 'down'}" style="font-size:11px">${fmtPct(r.c)}</span><span class="num">${fmtPrice(r.p)}</span></div>`).join('');
     if (!list.length) {
       listEl.innerHTML = `<div class="empty"><b>${tab === '★' ? 'No favorites yet' : 'Nothing here'}</b>${tab === '★' ? 'Tap the ☆ next to any pair to pin it here.' : tab === 'Stocks' ? 'This exchange lists no tokenized stocks. Try Gate.io, MEXC, KuCoin or Bybit.' : 'Try another tab or exchange.'}</div>`;
       return;
@@ -89,9 +92,9 @@ export function marketsView(el, app) {
       const p0 = prev.get(r.s);
       const flash = p0 != null && p0 !== r.p ? (r.p > p0 ? 'flash-up' : 'flash-down') : '';
       const ch = r.c ?? 0;
-      html.push(`<div class="mk-row ${flash}" data-s="${esc(r.s)}">
+      html.push(`<div class="mk-row ${flash} ${r.b === MAIN_COIN ? 'main' : ''}" data-s="${esc(r.s)}">
         <div class="mk-pair"><span class="star ${f.has(`${app.S.ex}|${r.s}`) ? 'on' : ''}">${f.has(`${app.S.ex}|${r.s}`) ? '★' : '☆'}</span>
-          <div class="mk-name"><b>${esc(r.b)}</b><small>/${esc(r.q)}</small>${r.st ? ' <span class="pill accent" style="height:16px;font-size:9px">STOCK</span>' : ''}<div>Vol ${fmtAmt(r.v)}</div></div></div>
+          <div class="mk-name"><b>${esc(r.b)}</b><small>/${esc(r.q)}</small>${r.b === MAIN_COIN ? ' <span class="pill warn" style="height:16px;font-size:9px">★ MAIN</span>' : ''}${r.st ? ' <span class="pill accent" style="height:16px;font-size:9px">STOCK</span>' : ''}<div>Vol ${fmtAmt(r.v)}</div></div></div>
         <div class="mk-price">${fmtPrice(r.p)}<div>H ${fmtPrice(r.h, r.p)}</div></div>
         <div class="mk-chg ${ch > 0 ? 'up' : ch < 0 ? 'down' : 'flat'}">${fmtPct(r.c)}</div>
       </div>`);

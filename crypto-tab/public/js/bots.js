@@ -5,6 +5,8 @@ import { ChartView } from './chart.js';
 import { STRATEGIES, defaultsFor, backtest, normalizeParams } from '/shared/strategies.mjs';
 import { optimize, suggestGrid } from '/shared/optimizer.mjs';
 import { runMeter, gridLinesForStep } from './meter.js';
+import { helpFor, STORY, ctxFor } from '/shared/fieldhelp.mjs';
+import { COINS, MAIN_COIN, presetFor } from '/shared/presets.mjs';
 import { $, esc, fmtPrice, fmtAmt, fmtPct, fmtUsd, cls, store, sheet, haptic, toast, confirmSheet, fieldsHtml, readFields, wireToggles, ago } from './ui.js';
 
 const ICONS = { pumpgrid: '🚀', grid: '▦', dca: '⬇', stepgrid: '⟋', bb: '◎', emacross: '✕', rsi: '∿', gain: '⤓', supertrend: '⇗', macd: '≋' };
@@ -71,7 +73,7 @@ export function botsScreen(el, app) {
   function card(b) {
     const s = b.stats, q = b.symbol.split('/')[1];
     return `<div class="bot-card ${b.status}" data-id="${b.id}">
-      <div class="bot-title"><div><b>${ICONS[b.type] || '◆'} ${esc(b.name)}</b><div class="sub">${esc(b.symbol)} · ${esc(b.exchange)} · <span class="pill ${b.mode === 'live' ? 'down' : 'warn'}">${b.mode === 'live' ? 'LIVE' : 'PAPER'}</span> <span class="pill ${b.status === 'running' ? 'up' : b.status === 'paused' ? 'warn' : ''}">${b.status}</span>${b.aiTuned ? ' <span class="pill accent">AI tuned</span>' : ''}${b.phase ? `<div style="margin-top:6px">${phasePill(b)}</div>` : ''}</div></div>
+      <div class="bot-title"><div><b>${ICONS[b.type] || '◆'} ${esc(b.name)}</b><div class="sub">${esc(b.symbol)} · ${esc(b.exchange)} · <span class="pill ${b.mode === 'live' ? 'down' : 'warn'}">${b.mode === 'live' ? 'LIVE' : 'PAPER'}</span> <span class="pill ${b.status === 'running' ? 'up' : b.status === 'paused' ? 'warn' : b.status === 'draft' ? 'accent' : ''}">${b.status === 'draft' ? 'draft · not started' : b.status}</span>${b.aiTuned ? ' <span class="pill accent">AI tuned</span>' : ''}${b.phase && b.status !== 'draft' ? `<div style="margin-top:6px">${phasePill(b)}</div>` : ''}</div></div>
         <div class="bot-pnl"><b class="${cls(s.pnl)}">${s.pnl >= 0 ? '+' : ''}${fmtAmt(s.pnl)} <small>${esc(q)}</small></b><small class="${cls(s.pnl)}">${fmtPct(s.pnlPct)}</small></div></div>
       ${rangeBar(b)}
       <div class="bot-stats">
@@ -82,7 +84,7 @@ export function botsScreen(el, app) {
       </div>
       ${b.error ? `<div class="pill down" style="height:auto;padding:6px 8px;margin-bottom:8px;white-space:normal">${esc(b.error)}</div>` : ''}
       <div class="bot-actions">
-        ${b.status === 'running' ? `<button class="btn" data-act="pause">⏸ Pause</button>` : b.status === 'paused' ? `<button class="btn buy" data-act="resume">▶ Resume</button>` : `<button class="btn" data-act="duplicate">⧉ Copy</button>`}
+        ${b.status === 'running' ? `<button class="btn" data-act="pause">⏸ Pause</button>` : b.status === 'paused' ? `<button class="btn buy" data-act="resume">▶ Resume</button>` : b.status === 'draft' ? `<button class="btn buy" data-act="start">▶ Start</button>` : `<button class="btn" data-act="duplicate">⧉ Copy</button>`}
         <button class="btn" data-act="edit" ${b.status === 'stopped' ? 'disabled' : ''}>✎ Edit</button>
         <button class="btn primary" data-act="ai">✦ AI</button>
         <button class="btn" data-act="open">⋯</button>
@@ -98,7 +100,7 @@ export function botsScreen(el, app) {
         <div class="row between"><div><div class="label">Total bot profit</div><div class="num ${cls(sm.pnl)}" style="font-size:28px;font-weight:700">${sm.pnl >= 0 ? '+' : ''}${fmtAmt(sm.pnl)}</div><div class="muted" style="font-size:12px">${sm.running} running · ${fmtAmt(sm.inv)} allocated</div></div>
         <button class="btn primary" id="bot-new">＋ New bot</button></div>
       </div>
-      <div class="chips">${['all', 'running', 'paused', 'stopped'].map((f) => `<button class="chip ${f === filter ? 'active' : ''}" data-f="${f}">${f[0].toUpperCase() + f.slice(1)}</button>`).join('')}</div>
+      <div class="chips">${['all', 'running', 'paused', 'draft', 'stopped'].map((f) => `<button class="chip ${f === filter ? 'active' : ''}" data-f="${f}">${f[0].toUpperCase() + f.slice(1)}</button>`).join('')}</div>
       <div id="bot-list">${list.length ? list.map(card).join('') : `<div class="empty"><b>${conn.demo ? 'Connect your server to run bots' : 'No bots yet'}</b>${conn.demo ? 'Bots run 24/7 on your Crypto Tab server. You can still design and backtest one now.' : 'Start a grid, DCA, step grid or signal bot. You can run several grids on the same pair.'}<br><br><button class="btn primary" id="bot-new2">Create a bot</button></div>`}</div>`;
     $('#bot-new', el).onclick = () => createFlow();
     $('#bot-new2', el)?.addEventListener('click', () => createFlow());
@@ -116,9 +118,10 @@ export function botsScreen(el, app) {
   async function action(b, act) {
     try {
       if (act === 'pause') { await api(`/api/bots/${b.id}/pause`, { method: 'POST', body: {} }); toast('Bot paused. Edit it, then resume.', 'ok'); }
+      else if (act === 'start') { await api(`/api/bots/${b.id}/start`, { method: 'POST', body: {} }); toast('Bot started 🚀', 'ok'); }
       else if (act === 'resume') { await api(`/api/bots/${b.id}/resume`, { method: 'POST', body: {} }); toast('Bot resumed', 'ok'); }
       else if (act === 'edit') return editSheet(b);
-      else if (act === 'ai') return aiTune(b);
+      else if (act === 'ai') return b.status === 'draft' ? draftSheet(b) : aiTune(b);
       else if (act === 'duplicate') { await api(`/api/bots/${b.id}/duplicate`, { method: 'POST', body: {} }); toast('Copy created (paper)', 'ok'); }
       else if (act === 'stop') return stopSheet(b);
       else if (act === 'delete') { if (await confirmSheet('Delete bot?', 'Its history is removed. Coins it holds are not sold.', 'Delete', true)) { await api(`/api/bots/${b.id}`, { method: 'DELETE', body: {} }); detailId = null; toast('Deleted'); } }
@@ -140,27 +143,145 @@ export function botsScreen(el, app) {
 
   // ---------- edit (pause → change → resume) ----------
   function editSheet(b) {
+    if (b.status === 'draft') return draftSheet(b);
     const s = STRATEGIES[b.type];
     sheet(`Edit · ${b.name}`, (body, close) => {
       body.innerHTML = `${b.status === 'running' ? '<div class="pill warn" style="margin-bottom:12px;height:auto;padding:8px 10px;white-space:normal">Tip: pause first if you want the bot to stay idle while you change it. Changes apply immediately either way.</div>' : ''}
         <div class="field"><label>Name</label><input class="input" data-name value="${esc(b.name)}" style="font-family:var(--sans)"></div>
-        ${fieldsHtml(s.fields, b.params)}
+        <div id="ed-fields">${fieldsHtml(s.fields, b.params)}</div>
         ${b.type === 'grid' ? '<button class="btn block" id="ed-chart" style="margin-bottom:8px">↕ Move grid lines on the chart</button>' : ''}
         ${['grid', 'pumpgrid'].includes(b.type) ? '<button class="btn block" id="ed-meter" style="margin-bottom:8px">📏 Measure candle % on every timeframe</button>' : ''}
         <div class="grid2"><button class="btn" id="ed-bt">Backtest</button><button class="btn primary" id="ed-save">${b.status === 'paused' ? 'Save & resume' : 'Save changes'}</button></div>
         <div id="ed-out"></div>`;
       wireToggles(body);
+      wireHelp($('#ed-fields', body), () => ({ type: b.type, exchange: b.exchange, symbol: b.symbol }));
       $('#ed-chart', body)?.addEventListener('click', () => { close(); openDetail(b.id, true); });
       $('#ed-meter', body)?.addEventListener('click', () => runMeter(body.querySelector('#ed-out'), { ...app, S: { ...app.S, ex: b.exchange, symbol: b.symbol } }, readFields(body), (row) => applyMeter(body, b.type, row)));
-      $('#ed-bt', body).onclick = () => runBacktest(body.querySelector('#ed-out'), b.exchange, b.symbol, b.type, readFields(body));
+      $('#ed-bt', body).onclick = () => runBacktest(body.querySelector('#ed-out'), b.exchange, b.symbol, b.type, readFields($('#ed-fields', body)));
       $('#ed-save', body).onclick = async () => {
         try {
-          const params = readFields(body);
-          await api(`/api/bots/${b.id}`, { method: 'PATCH', body: { name: body.querySelector('[data-name]').value, params } });
+          await api(`/api/bots/${b.id}`, { method: 'PATCH', body: { name: body.querySelector('[data-name]').value, params: readFields($('#ed-fields', body)) } });
           if (b.status === 'paused') await api(`/api/bots/${b.id}/resume`, { method: 'POST', body: {} });
           haptic(20); toast('Bot updated', 'ok'); close(); load();
         } catch (e) { toast(e.message, 'err'); }
       };
+    });
+  }
+
+  // ---------- setting help: plain words + live example + ask the AI agent ----------
+  function wireHelp(root, ctx) {
+    root.addEventListener('click', (e) => {
+      const b = e.target.closest('[data-help]'); if (!b) return;
+      e.preventDefault(); e.stopPropagation(); haptic();
+      openHelp({ ...ctx(), key: b.dataset.help, formRoot: root });
+    });
+  }
+
+  async function priceOf(ex, symbol) {
+    if (app.last?.s === symbol && app.last?.p) return app.last.p;
+    try { return (await api(`/api/ticker${qs({ ex, symbol })}`)).p; } catch { return null; }
+  }
+
+  function setField(root, key, value) {
+    const i = root.querySelector(`[data-key="${key}"]`); if (!i) return;
+    if (i.hasAttribute('data-bool')) i.classList.toggle('on', value === true || value === 'true');
+    else i.value = value;
+  }
+
+  function openHelp({ type, key, exchange, symbol, formRoot }) {
+    const h = helpFor(type, key);
+    const label = STRATEGIES[type].fields.find((f) => f[0] === key)?.[1] || key;
+    if (!h) return;
+    sheet(label, async (body, close) => {
+      const px = (await priceOf(exchange, symbol)) || 1;
+      const x = ctxFor(px, symbol, readFields(formRoot));
+      const coin = symbol.split('/')[0];
+      body.innerHTML = `<p class="help-what">${esc(h.what)}</p>
+        <div class="help-ex"><b>EXAMPLE WITH ${esc(coin)} AT ${esc(x.px(px))}</b>${esc(h.example(x))}</div>
+        <div id="hp-ai"><button class="btn primary block" id="hp-ask">✦ Ask the AI agent what to use for ${esc(coin)}</button></div>`;
+      $('#hp-ask', body).onclick = async () => {
+        const box = $('#hp-ai', body);
+        if (conn.demo) { box.innerHTML = '<div class="help-ai dim">The AI agent needs your Crypto Tab server (Settings).</div>'; return; }
+        box.innerHTML = '<div class="help-ai"><span class="spinner"></span> Measuring ' + esc(coin) + ' candles and checking the numbers…</div>';
+        try {
+          const r = await api('/api/ai/explain', { method: 'POST', body: { exchange, symbol, type, key, params: readFields(formRoot) } });
+          box.innerHTML = `<div class="help-ai">
+            ${r.model !== 'quant engine' ? `<p style="margin:0 0 8px;font-size:14px;line-height:1.5">${esc(r.what)}</p><div class="help-ex" style="margin-bottom:10px">${esc(r.example)}</div>` : ''}
+            ${r.suggested != null && r.suggested !== '' ? `<div class="label">Suggested for ${esc(coin)}</div><div class="num" style="font-size:26px;font-weight:700;margin:2px 0 6px">${esc(r.suggested)}</div>` : ''}
+            ${r.reason ? `<div style="font-size:13px;line-height:1.5;color:var(--fg-2)">${esc(r.reason)}</div>` : ''}
+            ${r.suggested != null && r.suggested !== '' ? `<button class="btn primary block" id="hp-use" style="margin-top:12px">Use ${esc(r.suggested)}</button>` : ''}
+            <div class="dim" style="font-size:10px;margin-top:8px">Agent: ${esc(r.model)}</div></div>`;
+          $('#hp-use', box)?.addEventListener('click', () => { setField(formRoot, key, r.suggested); haptic(20); toast(`${label}: ${r.suggested}`, 'ok'); close(); });
+        } catch (e) { box.innerHTML = `<div class="help-ai down">${esc(e.message)}</div>`; }
+      };
+    });
+  }
+
+  function storyHtml(type, symbol, params, px) {
+    const st = STORY[type]; if (!st) return '';
+    const x = ctxFor(px || 1, symbol, params);
+    const pre = type === 'pumpgrid' ? presetFor(symbol) : null;
+    return `<div class="card story" style="margin-bottom:12px"><b>How it works with ${esc(x.base)}</b>${px ? '' : ' <span class="spinner" style="width:12px;height:12px"></span>'}
+      <ol>${st(x).map((t) => `<li>${esc(t)}</li>`).join('')}</ol>
+      ${pre ? `<div class="pill accent" style="height:auto;padding:8px 10px;white-space:normal;margin-top:10px;line-height:1.45;display:block">${x.base === MAIN_COIN ? '★ Main coin · ' : ''}${esc(pre.note)}</div>` : ''}
+      <div class="dim" style="font-size:11px;margin-top:8px">Tap <span class="info-btn" style="display:inline-block;width:18px;height:18px;line-height:18px;font-size:10px;text-align:center">i</span> next to any setting for a plain explanation and the agent's suggestion.</div></div>`;
+  }
+
+  function coinRowHtml(symbol) {
+    const cur = symbol.split('/')[0];
+    return `<div class="coin-row">${COINS.map((c) => `<button class="chip ${c === MAIN_COIN ? 'main' : ''} ${c === cur ? 'active' : ''}" data-coin="${c}">${c === MAIN_COIN ? '★ ' : ''}${c}</button>`).join('')}</div>`;
+  }
+
+  async function switchCoin(ex, coin, currentSymbol) {
+    const quote = currentSymbol.split('/')[1] || 'USDT';
+    for (const q of [quote, 'USDT', 'USD', 'USDC']) {
+      const sym = `${coin}/${q}`;
+      try { await api(`/api/ticker${qs({ ex, symbol: sym })}`); return sym; } catch { /* try next quote */ }
+    }
+    toast(`${coin} is not listed on ${ex}. Try MEXC, OKX, KuCoin or Gate.io.`, 'err');
+    return null;
+  }
+
+  // ---------- drafts: every setting (coin, exchange, bot type, paper/live) editable before start ----------
+  function draftSheet(b) {
+    let type = b.type, symbol = b.symbol, mode = b.mode;
+    sheet(`Draft · ${b.name}`, (body, close) => {
+      const draw = async (params = b.params) => {
+        const px = await priceOf(b.exchange, symbol);
+        body.innerHTML = `<div class="pill" style="margin-bottom:12px;height:auto;padding:8px 10px;white-space:normal;background:rgba(34,211,238,.12);color:var(--accent-2)">Not started yet: change anything, then press Start.</div>
+          ${coinRowHtml(symbol)}
+          <div class="row between" style="margin-bottom:12px"><span class="ch-pair">${esc(symbol)} <small>${esc(b.exchange)}</small></span>
+            <div class="seg" id="df-mode"><button data-m="paper" class="${mode === 'paper' ? 'active' : ''}">Paper</button><button data-m="live" class="${mode === 'live' ? 'active' : ''}">Live</button></div></div>
+          <div class="field"><label>Bot type</label><select class="input" id="df-type">${Object.entries(STRATEGIES).map(([k, x]) => `<option value="${k}" ${k === type ? 'selected' : ''}>${esc(x.label)}</option>`).join('')}</select></div>
+          ${storyHtml(type, symbol, params, px)}
+          <div class="field"><label>Name</label><input class="input" data-name value="${esc(b.name)}" style="font-family:var(--sans)"></div>
+          <div id="df-fields">${fieldsHtml(STRATEGIES[type].fields, params)}</div>
+          ${['grid', 'pumpgrid'].includes(type) ? '<button class="btn block" id="df-meter" style="margin-bottom:8px">📏 Measure candle % on every timeframe</button>' : ''}
+          <div class="grid2" style="margin-bottom:8px"><button class="btn" id="df-bt">Backtest</button><button class="btn" id="df-save">Save draft</button></div>
+          <button class="btn buy block" id="df-start" style="height:52px">▶ Save & start bot</button>
+          <div id="df-out"></div>`;
+        wireToggles(body);
+        const F = $('#df-fields', body);
+        wireHelp(F, () => ({ type, exchange: b.exchange, symbol }));
+        body.querySelector('.coin-row').onclick = async (e) => {
+          const c = e.target.closest('[data-coin]'); if (!c) return;
+          const sym = await switchCoin(b.exchange, c.dataset.coin, symbol); if (!sym) return;
+          symbol = sym; haptic();
+          const pre = type === 'pumpgrid' ? presetFor(sym)?.params : null;
+          draw({ ...readFields(F), ...(pre || {}) });
+        };
+        $('#df-type', body).onchange = (e) => { type = e.target.value; draw({ ...defaultsFor(type), ...(type === 'pumpgrid' ? presetFor(symbol)?.params : {}) }); };
+        $('#df-mode', body).onclick = (e) => { const x = e.target.closest('[data-m]'); if (!x) return; mode = x.dataset.m; body.querySelectorAll('#df-mode button').forEach((y) => y.classList.toggle('active', y === x)); };
+        $('#df-meter', body)?.addEventListener('click', () => runMeter($('#df-out', body), { ...app, S: { ...app.S, ex: b.exchange, symbol } }, readFields(F), (row) => applyMeter(F, type, row)));
+        $('#df-bt', body).onclick = () => runBacktest($('#df-out', body), b.exchange, symbol, type, readFields(F));
+        const save = () => api(`/api/bots/${b.id}`, { method: 'PATCH', body: { name: body.querySelector('[data-name]').value, symbol, type, mode, params: readFields(F) } });
+        $('#df-save', body).onclick = async () => { try { await save(); toast('Draft saved', 'ok'); close(); load(); } catch (e) { toast(e.message, 'err'); } };
+        $('#df-start', body).onclick = async () => {
+          if (mode === 'live' && !(await confirmSheet('Start LIVE bot?', `It will place real orders on <b>${esc(b.exchange)}</b> using up to <b>${fmtAmt(readFields(F).investment)} ${esc(symbol.split('/')[1])}</b>.`, 'Start live', true))) return;
+          try { await save(); await api(`/api/bots/${b.id}/start`, { method: 'POST', body: {} }); haptic(30); toast('Bot started 🚀', 'ok'); close(); load(); } catch (e) { toast(e.message, 'err'); }
+        };
+      };
+      draw();
     });
   }
 
@@ -195,38 +316,55 @@ export function botsScreen(el, app) {
     let type = preset.type || 'pumpgrid';
     let mode = 'paper';
     sheet('New bot', (body, close) => {
-      const draw = () => {
+      const draw = async (keep) => {
         const s = STRATEGIES[type];
-        const params = { ...defaultsFor(type), ...(preset.params || {}) };
+        const coinPreset = type === 'pumpgrid' ? presetFor(app.S.symbol)?.params : null;
+        const params = { ...defaultsFor(type), ...(coinPreset || {}), ...(preset.params || {}), ...(keep || {}) };
         body.innerHTML = `
+          <div class="label" style="margin-bottom:8px">1 · Coin</div>
+          ${coinRowHtml(app.S.symbol)}
+          <div class="row between" style="margin-bottom:14px"><button class="ch-pair" id="nb-pair">${esc(app.S.symbol)} <small>${esc(app.S.ex)}</small> <span class="dim">▾</span></button>
+            <div class="seg" id="nb-mode"><button data-m="paper" class="${mode === 'paper' ? 'active' : ''}">Paper</button><button data-m="live" class="${mode === 'live' ? 'active' : ''}">Live</button></div></div>
+          <div class="label" style="margin-bottom:8px">2 · Bot</div>
           <div class="strat-grid">${[['pumpgrid', STRATEGIES.pumpgrid], ...Object.entries(STRATEGIES).filter(([k]) => k !== 'pumpgrid')].map(([k, x]) => `<button class="strat ${k === type ? 'active' : ''}" data-type="${k}"><span class="ico">${ICONS[k]}</span><b>${esc(x.label)}</b><span>${esc(x.desc.split('.')[0])}.</span></button>`).join('')}</div>
           <hr class="sep">
-          <div class="row between" style="margin-bottom:12px"><button class="ch-pair" id="nb-pair">${esc(app.S.symbol)} <small>${esc(app.S.ex)}</small> <span class="dim">▾</span></button>
-            <div class="seg" id="nb-mode"><button data-m="paper" class="${mode === 'paper' ? 'active' : ''}">Paper</button><button data-m="live" class="${mode === 'live' ? 'active' : ''}">Live</button></div></div>
-          <p class="muted" style="font-size:12px;margin:0 0 12px;line-height:1.45">${esc(s.desc)}</p>
+          <div id="nb-story">${storyHtml(type, app.S.symbol, params, app.last?.s === app.S.symbol ? app.last.p : null)}</div>
+          <div class="label" style="margin-bottom:8px">3 · Settings <span class="dim" style="text-transform:none;letter-spacing:0">(all editable, now and after saving)</span></div>
           <div class="field"><label>Name</label><input class="input" id="nb-name" style="font-family:var(--sans)" placeholder="${esc(s.label)} ${esc(app.S.symbol)}"></div>
           <div id="nb-fields">${fieldsHtml(s.fields, params)}</div>
           ${['grid', 'pumpgrid'].includes(type) ? '<button class="btn block" id="nb-meter" style="margin-bottom:8px">📏 Measure candle % on every timeframe</button>' : ''}
           <button class="btn block primary" id="nb-ai" style="margin-bottom:8px">✦ AI auto-fill best settings</button>
-          <div class="grid2"><button class="btn" id="nb-bt">Backtest</button><button class="btn buy" id="nb-go">Start bot</button></div>
+          <div class="grid2" style="margin-bottom:8px"><button class="btn" id="nb-bt">Backtest</button><button class="btn" id="nb-draft">Save as draft</button></div>
+          <button class="btn buy block" id="nb-go" style="height:52px">▶ Start bot</button>
           <div id="nb-out"></div>`;
         wireToggles(body);
+        const F = $('#nb-fields', body);
+        wireHelp(F, () => ({ type, exchange: app.S.ex, symbol: app.S.symbol }));
+        // live price for the story
+        if (!(app.last?.s === app.S.symbol)) priceOf(app.S.ex, app.S.symbol).then((px) => { const st = $('#nb-story', body); if (px && st) st.innerHTML = storyHtml(type, app.S.symbol, readFields(F), px); });
+        body.querySelector('.coin-row').onclick = async (e) => {
+          const c = e.target.closest('[data-coin]'); if (!c) return;
+          const sym = await switchCoin(app.S.ex, c.dataset.coin, app.S.symbol); if (!sym) return;
+          app.set({ symbol: sym }); haptic(); preset = { type }; draw();
+        };
         body.querySelector('.strat-grid').onclick = (e) => { const b = e.target.closest('[data-type]'); if (b) { type = b.dataset.type; preset = {}; haptic(); draw(); } };
         $('#nb-mode', body).onclick = (e) => { const b = e.target.closest('[data-m]'); if (!b) return; mode = b.dataset.m; body.querySelectorAll('#nb-mode button').forEach((x) => x.classList.toggle('active', x === b)); if (mode === 'live') toast('Live bots trade real funds with your API key', 'err'); };
-        $('#nb-pair', body).onclick = () => app.pickSymbol(() => draw());
+        $('#nb-pair', body).onclick = () => app.pickSymbol(() => draw(readFields(F)));
         if (type === 'grid' && params.lower == null) autoGrid(body);
         $('#nb-ai', body).onclick = () => aiFill(body, type);
-        $('#nb-meter', body)?.addEventListener('click', () => runMeter($('#nb-out', body), app, readFields($('#nb-fields', body)), (row) => applyMeter($('#nb-fields', body), type, row)));
-        $('#nb-bt', body).onclick = () => runBacktest($('#nb-out', body), app.S.ex, app.S.symbol, type, readFields($('#nb-fields', body)));
-        $('#nb-go', body).onclick = async () => {
-          if (conn.demo) return toast('Connect your Crypto Tab server (Settings) to run bots 24/7', 'err');
-          const params = readFields($('#nb-fields', body));
-          if (mode === 'live' && !(await confirmSheet('Start LIVE bot?', `It will place real orders on <b>${esc(app.S.ex)}</b> using up to <b>${fmtAmt(params.investment)} ${esc(app.S.symbol.split('/')[1])}</b>.`, 'Start live', true))) return;
+        $('#nb-meter', body)?.addEventListener('click', () => runMeter($('#nb-out', body), app, readFields(F), (row) => applyMeter(F, type, row)));
+        $('#nb-bt', body).onclick = () => runBacktest($('#nb-out', body), app.S.ex, app.S.symbol, type, readFields(F));
+        const create = async (start) => {
+          if (conn.demo) return toast('Connect your Crypto Tab server (Settings) to save and run bots', 'err');
+          const params = readFields(F);
+          if (start && mode === 'live' && !(await confirmSheet('Start LIVE bot?', `It will place real orders on <b>${esc(app.S.ex)}</b> using up to <b>${fmtAmt(params.investment)} ${esc(app.S.symbol.split('/')[1])}</b>.`, 'Start live', true))) return;
           try {
-            await api('/api/bots', { method: 'POST', body: { name: $('#nb-name', body).value || undefined, type, exchange: app.S.ex, symbol: app.S.symbol, mode, params } });
-            haptic(30); toast('Bot started 🚀', 'ok'); close(); load();
+            await api('/api/bots', { method: 'POST', body: { name: $('#nb-name', body).value || undefined, type, exchange: app.S.ex, symbol: app.S.symbol, mode, params, start } });
+            haptic(30); toast(start ? 'Bot started 🚀' : 'Draft saved. Edit it any time, then press Start.', 'ok'); close(); load();
           } catch (e) { toast(e.message, 'err'); }
         };
+        $('#nb-go', body).onclick = () => create(true);
+        $('#nb-draft', body).onclick = () => create(false);
       };
       draw();
     });
@@ -445,10 +583,10 @@ export function botsScreen(el, app) {
         <div class="kv"><span>Trades</span><span>${s.trades}</span></div><div class="kv"><span>Wins</span><span>${s.wins}</span></div><div class="kv"><span>APR</span><span class="${cls(s.apr)}">${s.apr == null ? '—' : fmtPct(s.apr, 0)}</span></div>
       </div>
       <div class="bot-actions" style="margin-bottom:14px">
-        ${b.status === 'running' ? '<button class="btn" data-a="pause">⏸ Pause</button>' : b.status === 'paused' ? '<button class="btn buy" data-a="resume">▶ Resume</button>' : '<button class="btn" data-a="duplicate">⧉ Copy</button>'}
-        <button class="btn" data-a="${b.type === 'grid' ? 'chart' : 'edit'}" ${b.status === 'stopped' ? 'disabled' : ''}>✎ Edit</button>
+        ${b.status === 'running' ? '<button class="btn" data-a="pause">⏸ Pause</button>' : b.status === 'paused' ? '<button class="btn buy" data-a="resume">▶ Resume</button>' : b.status === 'draft' ? '<button class="btn buy" data-a="start">▶ Start</button>' : '<button class="btn" data-a="duplicate">⧉ Copy</button>'}
+        <button class="btn" data-a="${b.type === 'grid' && b.status !== 'draft' ? 'chart' : 'edit'}" ${b.status === 'stopped' ? 'disabled' : ''}>✎ Edit</button>
         <button class="btn primary" data-a="ai">✦ AI</button>
-        <button class="btn sell" data-a="stop" ${b.status === 'stopped' ? 'disabled' : ''}>■ Stop</button>
+        <button class="btn sell" data-a="${b.status === 'draft' ? 'delete' : 'stop'}" ${b.status === 'stopped' ? 'disabled' : ''}>${b.status === 'draft' ? '🗑 Delete' : '■ Stop'}</button>
       </div>
       ${b.type === 'grid' ? '<button class="btn block sm" data-a="edit" style="margin-bottom:12px">All settings</button>' : ''}
       <div class="label">Settings</div>
