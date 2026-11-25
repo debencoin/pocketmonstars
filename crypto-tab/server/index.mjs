@@ -57,6 +57,7 @@ route('PATCH', '/api/bots/:id', (q, body, p) => Bots.update(p.id, body));
 route('POST', '/api/bots/:id/pause', (q, b, p) => Bots.pause(p.id));
 route('POST', '/api/bots/:id/resume', (q, b, p) => Bots.resume(p.id));
 route('POST', '/api/bots/:id/stop', (q, body, p) => Bots.stop(p.id, body));
+route('POST', '/api/bots/:id/lines', (q, body, p) => Bots.setLines(p.id, body));
 route('POST', '/api/bots/:id/duplicate', (q, b, p) => Bots.duplicate(p.id));
 route('DELETE', '/api/bots/:id', (q, b, p) => Bots.remove(p.id));
 route('POST', '/api/backtest', async (q, body) => {

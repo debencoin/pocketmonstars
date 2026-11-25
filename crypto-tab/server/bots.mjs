@@ -32,12 +32,58 @@ export function view(b) {
       apr: b.createdAt && now() - b.createdAt > 3.6e6 ? (((eq - inv) / inv) * 100 * 8760) / ((now() - b.createdAt) / 3.6e6) : null,
     },
     levels: b.type === 'grid' ? b.state.custom.levels : undefined,
+    lines: b.type === 'pumpgrid' ? pumpLines(b) : undefined,
     phase: b.type === 'pumpgrid' ? { mode: b.state.custom.mode, step: b.state.custom.step, candlePct: b.state.custom.candlePct, lots: b.state.custom.lots?.length || 0, ref: b.state.custom.ref, peak: b.state.custom.peak, top: b.state.custom.top, low: b.state.custom.low, events: (b.state.custom.events || []).slice(0, 20) } : undefined,
     slots: b.type === 'grid' ? b.state.custom.slots?.map((s) => (s ? 1 : 0)) : undefined,
     deal: b.state.custom.deal || b.state.custom.pos || null,
     lots: b.state.custom.lots?.length,
     trades: b.state.trades.slice(0, 60),
   };
+}
+
+// Where each Pump Rider line sits right now (the ones you can drag on the chart).
+function pumpLines(b) {
+  const c = b.state.custom, step = (c.step || b.params.stepPct || 0.5) / 100;
+  if (c.ref == null) return null;
+  for (const l of c.lots || []) if (!l.id) l.id = Math.random().toString(36).slice(2, 8);
+  return {
+    mode: c.mode,
+    nextBuy: c.mode === 'grid' ? { price: c.nextBuy ?? c.ref * (1 - step), manual: c.nextBuy != null } : null,
+    nextSell: c.mode === 'grid' && c.lots?.length ? { price: c.nextSell ?? c.ref * (1 + step), manual: c.nextSell != null } : null,
+    lots: (c.lots || []).map((l) => ({ id: l.id, entry: l.price, target: l.target ?? l.price * (1 + step), manual: !!l.target })),
+    stop: c.mode === 'ride' && c.peak ? { price: c.stopPrice ?? c.peak * (1 - (c.trail || 1.2) / 100), manual: c.stopPrice != null } : null,
+    restart: c.mode === 'wait' ? { price: c.restart?.price ?? (c.low ?? b.state.lastPrice) * (1 + (c.candlePct || 0.3) / 100), manual: !!c.restart } : null,
+  };
+}
+
+// Move a Pump Rider line while it runs. null puts that line back on automatic.
+export function setLines(id, body) {
+  const b = get(id);
+  if (b.type !== 'pumpgrid') throw X.httpError(400, 'Only Pump Rider bots have movable lines here');
+  const c = b.state.custom, price = b.state.lastPrice;
+  const num = (v) => { const n = Number(v); if (!(n > 0)) throw X.httpError(400, 'Price must be above 0'); return n; };
+  const fmt = (v) => +Number(v).toPrecision(8);
+  const said = [];
+  if ('nextBuy' in body) { c.nextBuy = body.nextBuy == null ? null : num(body.nextBuy); said.push(c.nextBuy ? `next buy → ${fmt(c.nextBuy)}` : 'next buy → auto'); }
+  if ('nextSell' in body) { c.nextSell = body.nextSell == null ? null : num(body.nextSell); said.push(c.nextSell ? `next sell → ${fmt(c.nextSell)}` : 'next sell → auto'); }
+  if ('stopPrice' in body) { c.stopPrice = body.stopPrice == null ? null : num(body.stopPrice); said.push(c.stopPrice ? `sell bag at → ${fmt(c.stopPrice)}` : 'sell bag → trailing'); }
+  if ('restart' in body) {
+    c.restart = body.restart == null ? null : { price: num(body.restart), dir: num(body.restart) < price ? -1 : 1 };
+    said.push(c.restart ? `restart at → ${fmt(c.restart.price)}` : 'restart → auto');
+  }
+  if (body.lot) {
+    const l = c.lots.find((x) => x.id === body.lot.id);
+    if (!l) throw X.httpError(404, 'That lot was already sold');
+    l.target = body.lot.target == null ? null : num(body.lot.target);
+    said.push(l.target ? `lot sell → ${fmt(l.target)}` : 'lot sell → auto');
+  }
+  if (body.reset) { c.nextBuy = null; c.nextSell = null; c.stopPrice = null; c.restart = null; for (const l of c.lots) l.target = null; said.push('all lines back to automatic'); }
+  c.events = c.events || [];
+  c.events.unshift({ t: now(), msg: `You moved: ${said.join(', ')}` });
+  b.updatedAt = now();
+  persist();
+  events.emit('bot', view(b));
+  return view(b);
 }
 
 export async function create({ name, type, exchange, symbol, mode = 'paper', params }) {

@@ -323,8 +323,10 @@ function pumpGridTick() {
       c.candlePct = A;
     }
     const step = c.step / 100;
+    c.candlePct = A;
     const pumpPct = p.pumpPct > 0 ? p.pumpPct : Math.max(1.5, A * 5);
     const trail = p.trailPct > 0 ? p.trailPct : Math.max(1.2, A * 3);
+    c.trail = trail;
 
     const sellBag = async (why) => {
       if (st.base <= 1e-12) { c.lots = []; return null; }
@@ -336,11 +338,11 @@ function pumpGridTick() {
       const lotQuote = Math.min(st.quote, equity(st, price) / Math.max(1, p.maxLots)); // compounds with profits
       if (lotQuote <= 0) return null;
       const t = await exec.buy(lotQuote / price, price, tag);
-      if (t) c.lots.push({ price, amount: t.amount, cost: t.cost + t.fee });
+      if (t) c.lots.push({ id: Math.random().toString(36).slice(2, 8), price, amount: t.amount, cost: t.cost + t.fee });
       return t;
     };
     const restartGrid = async (why) => {
-      c.mode = 'grid'; c.ref = price; c.gridHigh = price; c.top = null; c.low = null; c.peak = null; c.measuredAt = 0; c.upRun = 0; c.runBase = null;
+      c.mode = 'grid'; c.ref = price; c.gridHigh = price; c.top = null; c.low = null; c.peak = null; c.measuredAt = 0; c.upRun = 0; c.runBase = null; c.stopPrice = null; c.restart = null;
       if (c.lots.length < p.maxLots) await buyLot('restart lot');
       notify('Grid restarted', why);
     };
@@ -354,6 +356,14 @@ function pumpGridTick() {
     };
 
     if (!st.started) { st.started = true; c.ref = price; c.gridHigh = price; await buyLot('first lot'); note(`Started: step ${c.step}% (candles move ${A.toFixed(3)}%)`); return; }
+
+    // Lines you dragged on the chart: a lot with your own sell price sells there, in any phase.
+    for (const lot of [...c.lots]) {
+      if (lot.target && price >= lot.target) {
+        const t = await exec.sell(lot.amount, price, 'your sell line', lot.cost);
+        if (t) { c.lots.splice(c.lots.indexOf(lot), 1); note(`Sold a lot at your line ${+lot.target.toPrecision(8)}`); }
+      }
+    }
 
     // ---------------- GRID: sideways, high frequency ----------------
     if (c.mode === 'grid') {
@@ -371,10 +381,10 @@ function pumpGridTick() {
       const k1 = closed[closed.length - 1];
       const move = ((price - base) / base) * 100;
       if (move >= pumpPct && k1.close > k1.open && price > ema9 && ema9 > ema20) {
-        c.mode = 'ride'; c.peak = price;
+        c.mode = 'ride'; c.peak = price; c.stopPrice = null; c.nextBuy = null; c.nextSell = null;
         if (p.rideAdd > 0 && st.quote > 0) {
           const t = await exec.buy((st.quote * Math.min(100, p.rideAdd)) / 100 / price, price, 'ride add');
-          if (t) c.lots.push({ price, amount: t.amount, cost: t.cost + t.fee });
+          if (t) c.lots.push({ id: Math.random().toString(36).slice(2, 8), price, amount: t.amount, cost: t.cost + t.fee });
         }
         notify('Pump detected', `+${move.toFixed(2)}% from the low. Holding ${c.lots.length} lots, trailing ${trail.toFixed(2)}% from the top.`);
         return out;
@@ -392,10 +402,20 @@ function pumpGridTick() {
         else notify('Dump guard', `${why}. Buying paused, holding ${c.lots.length} lots until the bottom is confirmed.`);
         return out;
       }
-      if (price <= c.ref * (1 - step)) {
-        if (c.lots.length < p.maxLots) await buyLot('grid buy');
-        c.ref = price; c.upRun = 0; c.runBase = null;
-      } else if (price >= c.ref * (1 + step)) {
+      const buyAt = c.nextBuy ?? c.ref * (1 - step);
+      const sellAt = c.nextSell ?? c.ref * (1 + step);
+      if (price <= buyAt) {
+        const manual = c.nextBuy != null;
+        if (c.lots.length < p.maxLots) await buyLot(manual ? 'your buy line' : 'grid buy');
+        if (manual) note(`Bought at your buy line ${+c.nextBuy.toPrecision(8)}`);
+        c.nextBuy = null; c.ref = price; c.upRun = 0; c.runBase = null;
+      } else if (c.nextSell != null && price >= sellAt) {
+        // your sell line: sell the oldest lot there (first in, first out), profit or not
+        const lot = c.lots[0];
+        if (lot) { const t = await exec.sell(lot.amount, price, 'your sell line', lot.cost); if (t) c.lots.shift(); }
+        note(`Sold at your sell line ${+c.nextSell.toPrecision(8)}`);
+        c.nextSell = null; c.ref = price; c.upRun = 0;
+      } else if (price >= sellAt) {
         // Price walking up step after step without a dip = a pump forming.
         // Sell the first step (normal sideways scalp), then HOLD the remaining lots.
         c.upRun = (c.upRun || 0) + 1;
@@ -407,7 +427,7 @@ function pumpGridTick() {
         c.ref = price;
         // a long enough run is a pump: switch to riding even before the candle-based trigger
         if (c.lots.length && c.runBase && ((price - c.runBase) / c.runBase) * 100 >= pumpPct) {
-          c.mode = 'ride'; c.peak = price;
+          c.mode = 'ride'; c.peak = price; c.stopPrice = null; c.nextBuy = null; c.nextSell = null;
           notify('Pump detected', `${c.upRun} steps up without a dip (+${(((price - c.runBase) / c.runBase) * 100).toFixed(2)}%). Riding ${c.lots.length} lots, trailing ${trail.toFixed(2)}% from the top.`);
           return out;
         }
@@ -424,10 +444,11 @@ function pumpGridTick() {
       const k1 = closed[closed.length - 1];
       const topCandle = hot && k1.close < k1.open && k1.close < ema9;
       const off = ((c.peak - price) / c.peak) * 100;
-      if (off >= trail || topCandle) {
+      const manualStop = c.stopPrice != null && price <= c.stopPrice;
+      if (off >= trail || topCandle || manualStop) {
         const cost = lotsCost();
-        const t = await sellBag(topCandle ? 'pump top (reversal candle)' : 'pump top (trailing)');
-        c.mode = 'wait'; c.top = c.peak; c.low = price;
+        const t = await sellBag(manualStop ? 'your sell-bag line' : topCandle ? 'pump top (reversal candle)' : 'pump top (trailing)');
+        c.mode = 'wait'; c.top = c.peak; c.low = price; c.stopPrice = null;
         const gain = t && cost ? t.cost - t.fee - cost : 0;
         notify('Sold the top', `Bag sold at ${price} (${off.toFixed(2)}% under the ${c.peak} high)${gain ? `, ${gain >= 0 ? '+' : ''}${gain.toFixed(2)}` : ''}. Grid off until the bottom is confirmed.`);
         return out;
@@ -439,6 +460,10 @@ function pumpGridTick() {
     if (c.mode === 'wait') {
       c.low = Math.min(c.low ?? price, price);
       if (c.lots.length && price >= c.ref * (1 + step)) { await sellFifo(); c.ref = price; } // lots kept by the dump guard still sell at profit
+      if (c.restart && ((c.restart.dir < 0 && price <= c.restart.price) || (c.restart.dir > 0 && price >= c.restart.price))) {
+        await restartGrid(`Your restart line ${+c.restart.price.toPrecision(8)} was reached.`);
+        return out;
+      }
       const n = Math.max(1, p.confirmCandles || 3);
       const lastN = closed.slice(-n);
       const greens = lastN.length === n && lastN.every((k, i) => k.close > k.open && (i === 0 || k.close > lastN[i - 1].close));

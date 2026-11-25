@@ -55,7 +55,8 @@ export class DrawingLayer {
   emit() { this.listeners.forEach((f) => f(this)); }
 
   key() { return this.v.storageKey ? `draw:${this.v.storageKey()}` : null; }
-  load() { const k = this.key(); this.items = k ? (store.get(k, []) || []).filter((d) => !d.bot) : []; this.sel = null; this.dirty(); }
+  // reload saved drawings for this market; bot lines are live state and are kept
+  load() { const k = this.key(); const bot = this.items.filter((d) => d.bot); this.items = [...(k ? (store.get(k, []) || []).filter((d) => !d.bot) : []), ...bot]; this.sel = null; this.dirty(); }
   save() { const k = this.key(); if (k) store.set(k, this.items.filter((d) => !d.bot)); this.emit(); }
 
   setTool(t) {

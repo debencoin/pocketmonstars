@@ -392,18 +392,53 @@ export function botsScreen(el, app) {
     toast('Touch a line and drag it. The bot updates when you let go.');
   }
 
+  // Pump Rider: its live lines sit on the chart and can be dragged at any time.
+  // Dropping a line tells the running bot to act at exactly that price.
+  function syncPumpLines(b) {
+    const L = b.lines, draw = detailCv?.draw;
+    if (!L || !draw || draw.botDrag) return;
+    const send = async (body, msg) => {
+      try { const nb = await api(`/api/bots/${b.id}/lines`, { method: 'POST', body }); Object.assign(b, nb); toast(msg, 'ok'); haptic(20); syncPumpLines(b); renderDetail(); }
+      catch (e) { toast(e.message, 'err'); load(); }
+    };
+    const mk = (key, price, color, label, onDrop) => ({ key, price, color, label, onDrop, onDrag: () => {} });
+    const P = () => b.stats.price;
+    const lines = [];
+    if (L.nextBuy) lines.push(mk('buy', L.nextBuy.price, '#00d68f', `${L.nextBuy.manual ? '✋ ' : ''}NEXT BUY`, (v) => send({ nextBuy: v }, v >= P() ? `Above the market: buys on the next tick at ≤ ${fmtPrice(v)}` : `Next buy set to ${fmtPrice(v)}`)));
+    if (L.nextSell) lines.push(mk('sell', L.nextSell.price, '#ff3b5c', `${L.nextSell.manual ? '✋ ' : ''}NEXT SELL`, (v) => send({ nextSell: v }, v <= P() ? `Below the market: sells the oldest lot on the next tick` : `Next sell set to ${fmtPrice(v)}`)));
+    L.lots.forEach((l, i) => lines.push(mk(`lot:${l.id}`, l.target, l.manual ? '#ffb020' : 'rgba(255,176,32,.55)', l.manual ? `✋ LOT ${i + 1}` : '', (v) => send({ lot: { id: l.id, target: v } }, `Lot ${i + 1} (bought ${fmtPrice(l.entry)}) will sell at ${fmtPrice(v)}${v < l.entry ? ' (below its cost)' : ''}`))));
+    if (L.stop) lines.push(mk('stop', L.stop.price, '#ff3b5c', `${L.stop.manual ? '✋ ' : ''}SELL BAG`, (v) => send({ stopPrice: v }, v >= P() ? 'Above the market: sells the bag on the next tick' : `Bag sells if price drops to ${fmtPrice(v)}`)));
+    if (L.restart) lines.push(mk('restart', L.restart.price, '#22d3ee', `${L.restart.manual ? '✋ ' : ''}RESTART`, (v) => send({ restart: v }, `Grid restarts when price ${v < P() ? 'drops' : 'rises'} to ${fmtPrice(v)}`)));
+    const keys = lines.map((l) => l.key).join('|');
+    const onChart = draw.items.filter((d) => d.bot).map((d) => d.key).join('|');
+    if (onChart === keys) draw.moveBotLines(Object.fromEntries(lines.map((l) => [l.key, l.price])));
+    else draw.setBotLines(lines);
+    // keep the labels/handlers current (manual flags change)
+    for (const d of draw.items) { const l = lines.find((x) => x.key === d.key); if (d.bot && l) { d.label = l.label; d.color = l.color; d.onDrop = l.onDrop; } }
+    draw.dirty();
+  }
+
+  function linesCard(b) {
+    const L = b.lines; if (!L) return '';
+    const manual = [L.nextBuy?.manual && 'next buy', L.nextSell?.manual && 'next sell', L.stop?.manual && 'sell bag', L.restart?.manual && 'restart', ...L.lots.filter((l) => l.manual).map((l, i) => `lot ${i + 1}`)].filter(Boolean);
+    return `<div class="card" style="margin-bottom:12px"><div class="row between"><b>↕ Move the lines on the chart</b>${manual.length ? '<button class="btn sm" data-a="resetlines">Reset to auto</button>' : ''}</div>
+      <div class="dim" style="font-size:12px;line-height:1.5;margin-top:6px">Touch a line and drag it up or down. The running bot then trades at exactly that price: <span class="up">NEXT BUY</span>, <span class="down">NEXT SELL</span>, <span style="color:var(--warn)">each lot's sell</span>${L.stop ? ', <span class="down">SELL BAG</span>' : ''}${L.restart ? ', <span style="color:var(--accent-2)">RESTART</span>' : ''}. ✋ marks lines you set${manual.length ? `: ${esc(manual.join(', '))}` : ''}.</div></div>`;
+  }
+
   function renderDetail() {
     const b = bots.find((x) => x.id === detailId);
     if (!b || !detailCv) return;
     const s = b.stats, [bs, q] = b.symbol.split('/');
     if (b.levels && $('#bd-edit', el).hidden) detailCv.setPriceLines(b.levels.map((l, i) => ({ price: l, color: b.slots?.[i] ? 'rgba(0,214,143,.55)' : 'rgba(255,59,92,.45)', style: 2, label: i === 0 || i === b.levels.length - 1 })));
     if (b.deal?.cost && b.deal?.amount) detailCv.setPriceLines([{ price: b.deal.cost / b.deal.amount, color: '#f5c542', title: 'Avg entry', style: 0 }]);
+    if (b.type === 'pumpgrid') syncPumpLines(b);
     const trades = b.trades || [];
     $('#bd-body', el).innerHTML = `
       <div class="row between"><div><span class="pill ${b.status === 'running' ? 'up' : b.status === 'paused' ? 'warn' : ''}">${b.status}</span> <span class="pill ${b.mode === 'live' ? 'down' : 'warn'}">${b.mode}</span> <span class="dim" style="font-size:12px">${esc(b.label)} · ${s.runtimeH.toFixed(1)}h</span></div>
         <div class="bot-pnl"><b class="${cls(s.pnl)}">${s.pnl >= 0 ? '+' : ''}${fmtAmt(s.pnl)} ${esc(q)}</b><small class="${cls(s.pnl)}">${fmtPct(s.pnlPct)}</small></div></div>
       ${b.type === 'grid' ? rangeBar(b) : ''}
       ${phaseCard(b)}
+      ${linesCard(b)}
       <div class="grid3" style="margin:12px 0">
         <div class="kv"><span>Equity</span><span>${fmtAmt(s.equity)}</span></div><div class="kv"><span>Realized</span><span class="${cls(s.realized)}">${fmtAmt(s.realized)}</span></div><div class="kv"><span>Fees</span><span>${fmtAmt(s.fees)}</span></div>
         <div class="kv"><span>${esc(bs)} held</span><span>${fmtAmt(s.base)}</span></div><div class="kv"><span>${esc(q)} free</span><span>${fmtAmt(s.quote)}</span></div><div class="kv"><span>Max DD</span><span>${s.maxDrawdownPct.toFixed(2)}%</span></div>
@@ -423,7 +458,8 @@ export function botsScreen(el, app) {
     $('#bd-body', el).onclick = (e) => {
       const a = e.target.closest('[data-a]')?.dataset.a; if (!a) return;
       haptic();
-      if (a === 'chart') return chartEdit(b);
+      if (a === 'chart') return b.type === 'pumpgrid' ? toast('Drag the lines on the chart above') : chartEdit(b);
+      if (a === 'resetlines') return api(`/api/bots/${b.id}/lines`, { method: 'POST', body: { reset: true } }).then(() => { toast('Lines back to automatic', 'ok'); load(); }).catch((e) => toast(e.message, 'err'));
       action(b, a);
     };
   }

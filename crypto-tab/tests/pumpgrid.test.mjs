@@ -64,3 +64,34 @@ test('pump rider beats a plain step grid through a pump and dump', async () => {
   console.log(`pump rider ${pr.pnlPct.toFixed(2)}% (DD ${pr.maxDrawdownPct.toFixed(1)}%) vs step grid ${sg.pnlPct.toFixed(2)}% (DD ${sg.maxDrawdownPct.toFixed(1)}%) vs hold ${pr.buyHoldPct.toFixed(2)}%`);
   assert.ok(pr.pnlPct > sg.pnlPct);
 });
+
+test('lines you move are traded at exactly where you put them', async () => {
+  const bot = { type: 'pumpgrid', params: normalizeParams('pumpgrid', { ...defaultsFor('pumpgrid'), investment: 1000, autoStep: false, stepPct: 0.5 }) };
+  const st = newState(bot); const exec = paperExec(st, 0.001, () => 0);
+  STRATEGIES.pumpgrid.init(bot, 100, st);
+  const flat = Array.from({ length: 80 }, (_, i) => ({ time: i * 60, open: 100, high: 100.05, low: 99.95, close: 100 + (i % 2 ? 0.01 : -0.01), volume: 1 }));
+  const tick = (price) => STRATEGIES.pumpgrid.tick(bot, { price, candles: flat, now: Date.now() }, exec, st);
+  await tick(100); // first lot
+  const c = st.custom;
+  assert.equal(c.lots.length, 1);
+  // move the next buy line from 99.5 up to 99.9: it must buy at 99.9, not 99.5
+  c.nextBuy = 99.9;
+  await tick(99.95); assert.equal(c.lots.length, 1);
+  await tick(99.9); assert.equal(c.lots.length, 2); assert.equal(st.trades[0].tag, 'your buy line'); assert.equal(c.nextBuy, null);
+  // move a lot's sell line to 100.2 (auto would be 100.4)
+  c.lots[0].target = 100.2;
+  await tick(100.2);
+  assert.equal(st.trades[0].tag, 'your sell line'); assert.equal(st.trades[0].price, 100.2);
+  // move the next sell line down to 100.05: oldest lot sells there
+  const before = c.lots.length;
+  c.nextSell = 100.05; c.ref = 99.9;
+  await tick(100.05); assert.equal(c.lots.length, before - 1); assert.equal(c.nextSell, null);
+  // ride: your sell-bag line beats the trailing stop
+  await tick(99.5); bot.params.trailPct = 5; c.mode = 'ride'; c.peak = 110; c.stopPrice = 108;
+  await tick(108.5); assert.equal(c.mode, 'ride');
+  await tick(108); assert.equal(c.mode, 'wait'); assert.equal(st.base < 1e-9, true);
+  // wait: your restart line restarts the grid when price gets there
+  c.restart = { price: 101, dir: -1 };
+  await tick(101.5); assert.equal(c.mode, 'wait');
+  await tick(101); assert.equal(c.mode, 'grid');
+});
