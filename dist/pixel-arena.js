@@ -383,6 +383,7 @@ function createRenderer(canvas, arena) {
     terra: { c: '#4aa83a', c2: '#e0c070', k: 'rock' }, pyra: { c: '#ff3a1a', c2: '#ffc040', k: 'flame' }, zephyria: { c: '#9ae8ff', c2: '#ffffff', k: 'blade' }, nexus: { c: '#a050ff', c2: '#ffffff', k: 'orb', five: true },
     vulkar: { c: '#ff5a10', c2: '#ffe060', k: 'flame' }, karnolith: { c: '#8a6a3a', c2: '#9adf4a', k: 'rock' }, aeralon: { c: '#bfefff', c2: '#ffffff', k: 'blade' }, obsidiannexus: { c: '#2a0a3a', c2: '#c080ff', k: 'shard', five: true, lance: true }, anu: { c: '#ff1a2a', c2: '#b050ff', k: 'bolt' } };
   const FIVE = ['#35b8ff', '#ff5a1a', '#c8a060', '#e8f8ff', '#b060ff']; // Nexus: water, fire, earth, wind, lightning
+  const RUN3D = new Set(['terra', 'pyra', 'zephyria', 'nexus', 'vulkar', 'karnolith', 'aeralon', 'obsidiannexus', 'enki', 'anu']);
   const RIG3D = n => !ANIM[n] && !!(window.PMBoss?.has(n) || window.PMChosen?.has(n) || window.PMGirl?.has(n) || (ELEM.has(n) && window.PMElemental));
   function draw3D(n, f, i, opt, now, x, y, h, col) {
     if (window.PMBoss?.has(n)) return window.PMBoss.ready(n) && window.PMBoss.draw(ctx, x, y, h, f, col, { name: n, i, now: opt.now, faint: opt.faint });
@@ -487,7 +488,10 @@ function createRenderer(canvas, arena) {
       const k = Math.min(1, (f.sg || 0) / 5 + (f.tr > 0 ? 0.5 : 0)); glowAt(X + ox, Y + oy - dh * 0.45, dw * (0.9 + 0.5 * k), '#b45aff', (0.25 + 0.45 * k) * (0.85 + 0.15 * Math.sin(now * 14)));
       if (Math.random() < 0.3 + 0.5 * k) part((X + ox + (Math.random() - 0.5) * dw) / Z, (Y + oy - Math.random() * dh * 0.9) / Z, 0, -30 - Math.random() * 30, 0.5, Math.random() < 0.5 ? '#d8a8ff' : '#ffd84a', 1);
       ctx.restore(); }
-    if (!(RIG3D(NAMES[f.s]) && draw3D(NAMES[f.s], f, i, opt, now, X + ox, Y + oy + dh * 0.06, dh * 0.9, SP?.col || pal[1])) && !(NAMES[f.s] === 'covo' && (window.PMCovoRig?.draw(ctx, X + ox, Y + oy + dh * 0.06, dh * 0.96, f, SP?.col || pal[1]) || (window.PMCovo3D?.ready && window.PMCovo3D.draw(ctx, X + ox, Y + oy, dh * 1.23, f, alpha))))) { blit(blinkW || grow[i] > 0.9 ? wh : spr, X + ox, Y + oy, dw, dh, flip, sx, sy, rot); }
+    // the video-animated warriors have no running in their videos: while they run or leap, their rigged 3D body does it (legs and arms moving), then the video takes over for their powers
+    const ready3D = RUN3D.has(NAMES[f.s]) && !!window.PMGirl?.ready(NAMES[f.s]); // (starts loading the body as soon as the fighter appears)
+    const run3D = ready3D && (f.mv || f.ds) && !(f.ck && f.ct < 0.85) && !(f.cg > 0) && !opt.faint && window.PMGirl?.has(NAMES[f.s]) && window.PMGirl.ready(NAMES[f.s]);
+    if (!((RIG3D(NAMES[f.s]) || run3D) && draw3D(NAMES[f.s], f, i, opt, now, X + ox, Y + oy + dh * 0.06, dh * 0.9, SP?.col || pal[1])) && !(NAMES[f.s] === 'covo' && (window.PMCovoRig?.draw(ctx, X + ox, Y + oy + dh * 0.06, dh * 0.96, f, SP?.col || pal[1]) || (window.PMCovo3D?.ready && window.PMCovo3D.draw(ctx, X + ox, Y + oy, dh * 1.23, f, alpha))))) { blit(blinkW || grow[i] > 0.9 ? wh : spr, X + ox, Y + oy, dw, dh, flip, sx, sy, rot); }
     { const wn = NAMES[f.s], dx0 = f.fx < 0 ? -1 : 1;
       if (f.cg > 0) { const im = WSP(wn, 'charge'); if (im) { const w = 30 + f.cg * 80, h = w * im.naturalHeight / im.naturalWidth, cx = X + ox + dx0 * dw * 0.3, cy = Y + oy - dh * 0.5; ctx.save(); ctx.imageSmoothingEnabled = true; ctx.globalAlpha = 0.7 + f.cg * 0.3; ctx.drawImage(im, cx - w / 2, cy - h / 2, w, h); ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = 0.35; ctx.drawImage(im, cx - w / 2, cy - h / 2, w, h); ctx.restore(); } }
       if (f.g) { const im = WSP(wn, 'guard'); if (im) { const w = 120, h = w * im.naturalHeight / im.naturalWidth; ctx.save(); ctx.imageSmoothingEnabled = true; ctx.globalAlpha = 0.8; ctx.drawImage(im, X + ox - w / 2 + dx0 * 14, Y + oy + dh * 0.08 - h, w, h); ctx.restore(); } } }
@@ -961,6 +965,15 @@ function createRenderer(canvas, arena) {
   }
   function effect(e, lt, now) {
     if (e.eb) { enkiBlast(e, lt, now); return; }
+    if (window.PMEnergy && e.st === 'strike' && !(e.fg || e.iw || e.hb || e.tw || e.ls || e.hs || e.bs)) { // a ground strike: a 3D eruption of the Monstar's element under the rival
+      const S2 = STY.strike, gx = (e.gx || e.x) * K * Z, gy = ((e.gy || e.y) * K + 6) * Z, r = (e.ra || S2.radius) * K * Z, pl = palFor(e.ty, e.sid), c1 = NEWCOL[NAMES[e.sid]] || pl[1];
+      FULL();
+      if (lt < S2.hitAt) { const u = lt / S2.hitAt; ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.strokeStyle = c1; ctx.lineWidth = 2 * U; ctx.globalAlpha = 0.5 + 0.3 * Math.sin(now / 60);
+        ctx.beginPath(); ctx.ellipse(gx, gy, r, r * 0.45, 0, 0, 7); ctx.stroke(); ctx.globalAlpha = 0.25; ctx.fillStyle = c1; ctx.beginPath(); ctx.ellipse(gx, gy, r * u, r * 0.45 * u, 0, 0, 7); ctx.fill(); ctx.restore(); }
+      else { const u = Math.min(1, (lt - S2.hitAt) / (S2.dur - S2.hitAt)); window.PMEnergy.ground(ctx, gx, gy, r, u, 1 - Math.max(0, (u - 0.6) / 0.4), c1, pl[2] || c1, e.ty, now, e.id || 0); }
+      LOG(); return; }
+    if (window.PMEnergy && e.st === 'bolt') { const S2 = STY.bolt, len = S2.range * K, u = Math.min(1, lt / S2.dur), pl = palFor(e.ty, e.sid); // the bolt lands with a 3D burst
+      FULL(); window.PMEnergy.burst(ctx, (e.x * K + e.dx * len) * Z, (e.y * K - 8 + e.dy * len) * Z, 110 * U, pl[1], pl[2] || '#ffffff', u, now); LOG(); }
     { const bn = NAMES[e.sid]; if (e.k === 'special' && window.PMBossFx?.has(bn) && bossEffect(e, lt, now, bn)) return; }
     const v = vidOf(e), pal = palFor(e.ty, e.sid), ox = e.x * K, oy = e.y * K - 8, dx = e.dx, dy = e.dy, S = STY[e.st];
     if (e.st === 'bolt') {

@@ -71,6 +71,9 @@ const GIRLS = {
   karnolith: { glb: 'karnolith', el: 'earth', c1: 0x8a6a3a, c2: 0x9adf4a, turn: Math.PI / 2, plant: true, rs: 1.25, gait: { cad: 9.5, amp: 1.0 } },
   aeralon: { glb: 'aeralon', el: 'air', c1: 0xbfefff, c2: 0xffffff, turn: Math.PI / 2, plant: true, gait: { cad: 13, amp: 1.12 } },
   obsidiannexus: { glb: 'obsidiannexus', el: 'aether', c1: 0xa050ff, c2: 0xffd23a, turn: Math.PI / 2, plant: true, rs: 1.2, gait: { cad: 14, amp: 1.15 } },
+  // Enki and ANU: their 3D bodies run between the video moves (robes over the legs)
+  enki: { glb: 'enki', el: 'air', c1: 0xbfe8ff, c2: 0xffffff, turn: Math.PI / 2, gait: { cad: 10.5, amp: 0.95 } },
+  anu: { glb: 'anu', el: 'aether', c1: 0xff1a2a, c2: 0xb050ff, turn: Math.PI / 2, gait: { cad: 10.5, amp: 0.95 } },
   // the Ancient Beings: a winged Watcher, a Nephilim giant and an Anunnaki ruler
   sarielthewatcher: { glb: 'sarielwatcher', el: 'aether', c1: 0x8a6aff, c2: 0xffe9a0, turn: Math.PI / 2, wings: [0.2], jt: { neck: 0.7, top: 0.96 } },
   neraththenephilim: { glb: 'nerathnephilim', el: 'earth', c1: 0xc87a3a, c2: 0xffb060, turn: Math.PI / 2, rs: 1.5, gait: { cad: 8.5, amp: 0.95 }, jt: { hip: 0.44, chest: 0.52, neck: 0.74, top: 0.98, sh: [0.76, 0.2], el: [0.52, 0.33], wr: [0.37, 0.37], hand: [0.28, 0.38], hj: [0.44, 0.09], kn: [0.22, 0.1], an: [0.05, 0.11] } },
@@ -251,6 +254,8 @@ function pose(R, f, o, t) {
   out.y = (f.fl ? 0.3 + Math.sin(t * 2.6) * 0.05 : 0); // an airbender hovers out.glow = 0.25 + stage * 0.06 + (f.fl ? 0.1 : 0);
   if (moving) { out.lean = f.ds ? 0.4 : 0.18; out.glow += 0.1; }
   if (f.ds) { out.lean = 0.42; out.fwd = 0.1; out.glow = 1; }
+  if (f.ds && !S.dsOn) S.ds0 = t; S.dsOn = !!f.ds; // a dash is a leap: up in an arc, knees tucked, landing on the feet
+  const jump = f.ds && !f.fl ? Math.sin(Math.PI * clamp((t - (S.ds0 ?? t)) / 0.42, 0, 1)) : 0; out.y += jump * 0.55;
   if (f.g) { out.shell = 0.35 + Math.sin(t * 8) * 0.06; out.glow = 0.7; }
   if (casting && f.ck === 'basic') { const k = Math.sin(Math.PI * u); out.lean = 0.1 + k * 0.3; out.fwd = k * 0.14; out.orb = k; out.glow = 0.5 + k; }
   if (casting && f.ck === 'special') { // wind up (rise, lean back), then strike (lean far forward, spin on every second cast)
@@ -262,6 +267,7 @@ function pose(R, f, o, t) {
   if (o.faint) { out.fall = Math.min(1, o.faint * 1.4); out.glow = 0; out.orb = 0; }
   if (f.st) out.flash = out.flash || 0.35;
   out.L = limbs(f, o, t, S, u, casting, moving, !!f.fl); out.sy = 1;
+  if (jump > 0.05 && !casting) { const L = out.L, k = jump; L.thA = 0.95 * k; L.thB = -0.15 * k; L.kA = 1.45 * k + 0.2; L.kB = 1.1 * k + 0.2; L.uaA = -0.9 * k; L.uaB = 0.6 * k; L.faA = 1.2; L.faB = 1.0; L.ground = false; }
   return out;
 }
 

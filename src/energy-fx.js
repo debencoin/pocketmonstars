@@ -102,4 +102,47 @@ function beam(ctx, x0, y0, x1, y1, width, col, col2, k, now) {
   return true;
 }
 
-window.PMEnergy = { ready: true, orb, burst, beam, KIND };
+
+// ---- ground powers (a ground strike lands under the rival): an element eruption in 3D, seen from the arena's aerial camera
+const gScene = new T.Scene(); lights(gScene);
+const gCam = new T.PerspectiveCamera(40, 1, 0.1, 40); gCam.position.set(0, 5.2, 3.0); gCam.lookAt(0, 0, 0); gCam.updateMatrixWorld(true);
+const gRoot = new T.Group(); gScene.add(gRoot);
+const gpj = (x, y, z) => { const v = new T.Vector3(x, y, z).project(gCam); return [(v.x + 1) / 2 * S, (1 - v.y) / 2 * S]; };
+const GG = { cone: new T.ConeGeometry(0.5, 1, 8), oct: new T.OctahedronGeometry(0.5, 0), dode: new T.DodecahedronGeometry(0.5, 0), sph: new T.SphereGeometry(0.5, 12, 8), tor: new T.TorusGeometry(0.5, 0.07, 8, 40), ring: new T.RingGeometry(0.92, 1, 64), box: new T.BoxGeometry(1, 1, 1) };
+const gPool = {}; let gUsed = {};
+const gGet = (geo, add, key) => { const k = geo + key, arr = gPool[k] || (gPool[k] = []), i = gUsed[k] = (gUsed[k] || 0) + 1;
+  if (!arr[i - 1]) { const m = new T.Mesh(GG[geo], add ? new T.MeshBasicMaterial({ transparent: true, blending: T.AdditiveBlending, depthWrite: false, side: T.DoubleSide }) : new T.MeshStandardMaterial({ metalness: 0.2, roughness: 0.5, flatShading: true, transparent: true })); gRoot.add(m); arr.push(m); }
+  const m = arr[i - 1]; m.visible = true; return m; };
+// element looks (by Monstar type): shape, how they rise, colours
+const GKIND = { EMBER: 'flame', DRACO: 'flame', TIDE: 'water', STONE: 'rock', STEEL: 'rock', ANCIENT: 'rock', FROST: 'ice', SPARK: 'storm', GROVE: 'vine', VENOM: 'vine', GALE: 'wind', SHADE: 'arcane', PSYCHIC: 'arcane', ASTRAL: 'arcane' };
+function ground(ctx, x, y, r, u, fade, col, col2, type, now, seed = 0) {
+  const t = now / 1000, c1 = hex(col), c2 = hex(col2 || col), kind = GKIND[type] || 'arcane'; gUsed = {}; for (const k in gPool) for (const m of gPool[k]) m.visible = false;
+  let R = seed * 9301 + 49297; const rnd = () => ((R = (R * 9301 + 49297) % 233280) / 233280);
+  const rise = d => { const k = Math.max(0, Math.min(1, u * 1.7 - d * 0.5)); return 1 - (1 - k) * (1 - k); };
+  const solid = (geo, key, c, e, ei, op = 1) => { const m = gGet(geo, false, key); m.material.color.setHex(c); m.material.emissive.setHex(e); m.material.emissiveIntensity = ei; m.material.opacity = op * fade; return m; };
+  const glow = (geo, key, c, op) => { const m = gGet(geo, true, key); m.material.color.setHex(c); m.material.opacity = op * fade; return m; };
+  const ring = glow('ring', 'r', c2, 0.85); ring.rotation.set(-Math.PI / 2, 0, 0); ring.position.y = 0.02; ring.scale.setScalar(0.3 + u * 1.3);
+  if (kind === 'flame') for (let i = 0; i < 9; i++) { const an = rnd() * 6.283, d = Math.sqrt(rnd()) * 1.1, h = (0.8 + rnd()) * rise(d) * (0.85 + Math.sin(t * 18 + i) * 0.15);
+    const m = solid('cone', 'f', 0xff6a1a, 0xff4a00, 1.6, 0.92); m.position.set(Math.cos(an) * d, h / 2, Math.sin(an) * d); m.scale.set(0.35, h, 0.35); m.rotation.set(0, t * 3 + i, 0);
+    const g2 = glow('sph', 'fg', i % 2 ? 0xffd040 : 0xff5a1a, 0.6); g2.position.set(m.position.x, h * 0.9, m.position.z); g2.scale.setScalar(0.3); }
+  else if (kind === 'water') { for (let i = 0; i < 3; i++) { const m = solid('tor', 'w', 0x2a8ae0, 0x35c8ff, 0.7, 0.75); const k = 0.4 + u * 1.2 + i * 0.25; m.rotation.set(-Math.PI / 2, 0, 0); m.position.y = 0.15 + i * 0.25 * (1 - u); m.scale.set(k, k, 2.4); }
+    for (let i = 0; i < 16; i++) { const an = i / 16 * 6.283, d = 0.3 + u * 1.3, m = solid('sph', 'd', 0x9ae8ff, 0x35c8ff, 0.8, 0.85); m.position.set(Math.cos(an) * d, 0.2 + Math.sin(Math.PI * u) * 0.9 * (0.6 + (i % 3) * 0.2), Math.sin(an) * d); m.scale.setScalar(0.12); } }
+  else if (kind === 'rock') for (let i = 0; i < 10; i++) { const an = rnd() * 6.283, d = Math.sqrt(rnd()) * 1.2, h = (0.5 + rnd() * 0.8) * rise(d);
+    const m = solid(i % 2 ? 'box' : 'dode', 'k', 0x8a7458, 0x3a2410, 0.25); m.position.set(Math.cos(an) * d, h / 2 - 0.05, Math.sin(an) * d); m.scale.set(0.32, h, 0.32); m.rotation.set((rnd() - 0.5) * 0.4, rnd() * 3, (rnd() - 0.5) * 0.4); }
+  else if (kind === 'ice') for (let i = 0; i < 12; i++) { const an = rnd() * 6.283, d = Math.sqrt(rnd()) * 1.2, h = (0.5 + rnd() * 0.9) * rise(d);
+    const m = solid('oct', 'i', 0xd8f6ff, 0x3a9aff, 0.45, 0.9); m.position.set(Math.cos(an) * d, h / 2, Math.sin(an) * d); m.scale.set(0.22, h, 0.22); m.rotation.set((rnd() - 0.5) * 0.5, rnd() * 3, (rnd() - 0.5) * 0.5); }
+  else if (kind === 'storm') { const sp = glow('sph', 'core', 0xfff6b0, 0.7); sp.position.y = 0.6; sp.scale.setScalar(0.4 + u * 1.2);
+    for (let i = 0; i < 10; i++) { const an = i / 10 * 6.283 + t * 2, L = 0.4 + u * 1.2, m = solid('box', 'b', 0xffe24a, 0xffe24a, 2.2); m.position.set(Math.cos(an) * L * 0.5, 0.6 + Math.sin(t * 30 + i) * 0.15, Math.sin(an) * L * 0.5); m.scale.set(L, 0.04, 0.04); m.rotation.set(0, -an, (rnd() - 0.5) * 0.8); } }
+  else if (kind === 'vine') for (let i = 0; i < 12; i++) { const an = i / 12 * 6.283 + rnd() * 0.3, d = 0.3 + rnd() * 0.9, h = (0.6 + rnd() * 0.7) * rise(d);
+    const m = solid('cone', 'v', type === 'VENOM' ? 0x7a2aa8 : 0x2a8a2a, type === 'VENOM' ? 0xb05aff : 0x4aff4a, 0.5); m.position.set(Math.cos(an) * d, h / 2, Math.sin(an) * d); m.scale.set(0.12, h, 0.12); m.rotation.set(Math.sin(an) * 0.4, 0, -Math.cos(an) * 0.4); }
+  else if (kind === 'wind') for (let i = 0; i < 6; i++) { const m = glow('tor', 't', i % 2 ? 0xffffff : 0xbfefff, 0.5); const k = (0.35 + i * 0.16) * (0.6 + u * 0.6); m.rotation.set(-Math.PI / 2, 0, t * (6 - i)); m.position.y = 0.1 + i * 0.28 * (0.4 + u); m.scale.set(k, k, 1.5); }
+  else { for (let i = 0; i < 3; i++) { const m = glow('tor', 'a', i % 2 ? c1 : c2, 0.8); const k = 0.5 + i * 0.35; m.rotation.set(-Math.PI / 2, 0, t * (i % 2 ? -2 : 2)); m.position.y = 0.05 + i * 0.02; m.scale.set(k, k, 1); }
+    for (let i = 0; i < 6; i++) { const an = i / 6 * 6.283 + t, m = solid('sph', 'o', c1, c2, 1.4); m.position.set(Math.cos(an) * 0.8, 0.3 + Math.sin(Math.PI * u) * 0.8, Math.sin(an) * 0.8); m.scale.setScalar(0.18); }
+    const col2 = glow('sph', 'pillar', c2, 0.35); col2.position.y = 0.8; col2.scale.set(0.6, 2.2 * Math.sin(Math.PI * u), 0.6); }
+  renderer.render(gScene, gCam);
+  const o0 = gpj(0, 0, 0), o1 = gpj(1.3, 0, 0), D = r * S / Math.max(1, o1[0] - o0[0]);
+  ctx.save(); ctx.globalAlpha = Math.min(1, fade * 1.4); ctx.imageSmoothingEnabled = true; ctx.drawImage(renderer.domElement, x - o0[0] * D / S, y - o0[1] * D / S, D, D); ctx.restore();
+  return true;
+}
+
+window.PMEnergy = { ready: true, orb, burst, beam, ground, KIND };
