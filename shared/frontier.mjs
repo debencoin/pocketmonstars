@@ -875,6 +875,26 @@ Object.assign(CHK_SIG, {
     names: ['Crimson Storm Blade', 'Soul Devourer', 'ANU, King of Heaven'], forms: ['ANU', 'ANU', 'ANU', 'Ascended ANU', 'Elder ANU', 'ANU, King of Heaven'] },
 });
 
+// Jachin and Boaz: fallen angel brothers of the Anunnaki age, as strong as Enki and ANU. Four wings each: they fly, never run.
+// They glow on their own (no aura). Boaz holds a rival in a trance while he attacks; Jachin rises again once when he falls.
+Object.assign(CHK_SIG, {
+  'Jachin': { type: 'ASTRAL', cls: 'deity', title: 'Pillar of Heaven', female: false, main: '#bff6ff', el2: 'light', motion: 'hover',
+    sig: { basic: { name: 'Seraph Feather', look: 'jachin_feather', homing: true, power: 1.65, note: 'Tap: gold-edged feathers of hard light. Hold: the light gathers between his four wings into a white sun, then flies out twice.' },
+      special: { name: 'Halo Lance', style: 'beam', look: 'jachin_halo', status: 'dazzle', power: 1.8, note: 'A spear of white and cyan light from the halo over his head. It blinds the rival.' },
+      dash: { kind: 'blink', name: 'Wingflash', note: 'One beat of the four wings: he vanishes in a burst of feathers and appears further on.', dist: 1.7, cd: 0.6 },
+      guard: { kind: 'barrier', name: 'Fourfold Ward', note: 'The four wings fold around him into a shell of light that throws the rival back.', time: 1.3, cd: 4.9 },
+      mega: { kind: 'skybreak', name: 'Skybreak Edict', note: 'A cyan-white storm of wind and gold feathers bursts out of him and hurls every rival away, blinded.', power: 2.1, size: 1.6 },
+      rise: { name: 'Second Rising', heal: 0.5, note: 'A power no other Monstar has: the first time he falls in a battle, a pillar of light raises him again with half his HP.' } },
+    names: ['Halo Lance II', 'Feather Tempest', 'Edict of Heaven'], forms: ['Jachin', 'Jachin', 'Jachin', 'Risen Jachin', 'Elder Jachin', 'Jachin, Pillar of Heaven'] },
+  'Boaz': { type: 'SHADE', cls: 'deity', title: 'Pillar of Strength', female: false, main: '#8a2aff', el2: 'gravity', motion: 'hover',
+    sig: { basic: { name: 'Gravefeather', look: 'boaz_feather', homing: true, power: 1.7, note: 'Tap: black and violet feathers edged in gold. Hold: a violet star of gravity grows in his hands, then flies out twice.' },
+      special: { name: 'Trance Eye', style: 'projectile', look: 'boaz_eye', homing: true, status: 'trance', power: 1.7, note: 'The violet eye on his brow opens: its ray holds the rival in a trance, floating and helpless, while he attacks.' },
+      dash: { kind: 'shadow', name: 'Eclipse Glide', note: 'Glides through the dark and appears right beside the rival.', dist: 1.6, cd: 0.68 },
+      guard: { kind: 'absorb', name: 'Gravewing Shroud', note: 'The black wings close over him and drink in the blows as power.', time: 1.3, cd: 5.1 },
+      mega: { kind: 'gravestar', name: 'Gravestar Dominion', note: 'A violet-gold star pulls every rival in and holds them in a trance while he attacks, then collapses into a shockwave.', power: 2.1, size: 1.5 } },
+    names: ['Trance Eye II', 'Gravefeather Storm', 'Dominion of Night'], forms: ['Boaz', 'Boaz', 'Boaz', 'Risen Boaz', 'Elder Boaz', 'Boaz, Pillar of Strength'] },
+});
+
 const CHK = name => {
   const k0 = CHK_SIG[name], ix = Object.keys(CHK_SIG).indexOf(name), tw = (o, ...f) => { const r = { ...o }; for (const x of f) r[x] = +(r[x] + ix * 0.004).toFixed(3); return r; }; // every Chosen One has its own dash and guard numbers
   const k = { ...k0, sig: { ...k0.sig, dash: tw(k0.sig.dash, 'dist', 'cd'), guard: tw(k0.sig.guard, 'time', 'cd') } };
@@ -1090,3 +1110,6 @@ export const ULTIMATE_MEN = ['Vulkar', 'Karnolith', 'Aeralon', 'Obsidian Nexus']
 
 // Enki and ANU: in the founder's wallet, never wild, only the founder may sell them
 export const ELDERS = ['Enki', 'ANU'].map(n => ({ ...CHK(n), master: undefined, legendary: undefined, legendFor: undefined, bender: undefined, elite: undefined, aura: true, boost: n === 'ANU' ? 1.38 : 1.3 }));
+
+// Jachin and Boaz: in the founder's wallet, never wild, only the founder may sell them. No aura: they already glow.
+export const FALLEN = ['Jachin', 'Boaz'].map(n => ({ ...CHK(n), master: undefined, legendary: undefined, legendFor: undefined, bender: undefined, elite: undefined, aura: undefined, boost: 1.36 }));

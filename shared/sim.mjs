@@ -117,7 +117,7 @@ export const ARENA_COUNT = 5; // 0 Thunderstorm Citadel (lightning), 1 Inferno R
 // What a power does to the Monstar it hits (special moves always, basic moves 15% of the time).
 // stop = can't move, act = can't attack, slow = speed multiplier, dot = % max HP per second, lift = carried around in the air.
 // The four starter Element Masters: a charged blast (held at least 30% of the way) fires twice as many shots
-const TWIN_CHARGE = new Set(['Terrok', 'Zephar', 'Tydal', 'Ignar', 'Terra', 'Pyra', 'Zephyria', 'Nexus', 'Vulkar', 'Karnolith', 'Aeralon', 'Obsidian Nexus', 'ANU']); // + the Quartet and the Ultimate Warriors
+const TWIN_CHARGE = new Set(['Terrok', 'Zephar', 'Tydal', 'Ignar', 'Terra', 'Pyra', 'Zephyria', 'Nexus', 'Vulkar', 'Karnolith', 'Aeralon', 'Obsidian Nexus', 'ANU', 'Jachin', 'Boaz']); // + the Quartet and the Ultimate Warriors
 export const STATUS = Object.freeze({
   paralyze: { label: 'PARALYZED', dur: 1.8, slow: 0.35, fail: 0.4 },
   freeze: { label: 'FROZEN', dur: 1.3, stop: true, act: true },
@@ -133,6 +133,7 @@ export const STATUS = Object.freeze({
   dazzle: { label: 'DAZZLED', dur: 2.0, slow: 0.7, fail: 0.25 },
   weaken: { label: 'CURSED', dur: 3.5, out: 0.65 },     // Anunnaki curse: deals 35% less damage
   mark: { label: 'WATCHED', dur: 3.5, in: 1.25 },       // Watcher's gaze: takes 25% more damage
+  trance: { label: 'ENTRANCED', dur: 2.2, stop: true, act: true, in: 1.2 }, // Boaz: held floating in a trance, helpless, takes 20% more damage
 });
 export const TYPE_STATUS = Object.freeze({ SPARK: 'paralyze', FROST: 'freeze', EMBER: 'burn', DRACO: 'burn', VENOM: 'poison', GROVE: 'root',
   STONE: 'stun', STEEL: 'stun', SHADE: 'confuse', PSYCHIC: 'lift', TIDE: 'soak', GALE: 'soak', ASTRAL: 'dazzle', ANCIENT: 'weaken', WATCHER: 'mark' });
@@ -318,6 +319,16 @@ function megaShot(m, f, foe, events) {
     gx: clamp(x, 40, ARENA.w - 40), gy: clamp(y, BOUNDS.y0, BOUNDS.y1), t: 0, dur: S.dur, hit: false, nextTick: 0, thrown: 0, bolted: false, pw: P, mega: true, ...extra }); };
   if (k === 'barrage') { for (let i = 0; i < 7; i++) { const a = Math.atan2(f.fy, f.fx) + (i - 3) * 0.16, sp = STYLES.projectile.speed * 1.1;
     m.projectiles.push({ id: m.nextId++, owner: f.side, by: f, kind: 'special', style: 'projectile', type: f.type, sid: f.speciesId, x: f.x + Math.cos(a) * 36, y: f.y + Math.sin(a) * 36, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, r: 16, life: 1.4, hitDone: false, missDone: false, pw: P * 0.38, homing: true }); } }
+  else if (k === 'skybreak') { // Jachin's Skybreak Edict: a storm of wind and gold feathers bursts out of him and hurls every rival away, blinded
+    events.push({ type: 'skybreak', side: f.side, x: Math.round(f.x), y: Math.round(f.y) });
+    for (const v of rivalsOf(m, f.side)) { const d = Math.hypot(v.x - f.x, v.y - f.y); if (d > 380 * sz) continue;
+      const [nx, ny] = norm(v.x - f.x || 1, v.y - f.y); if (land(m, f, v, 'special', 'strike', events, nx, ny, 720, P * (1.05 - d / (380 * sz) * 0.35)) && v.hp > 0) applyStatus(m, v, 'dazzle', f, events, 1.3); } }
+  else if (k === 'gravestar') { // Boaz's Gravestar Dominion: a violet-gold star pulls every rival in and holds them in a trance while he attacks, then collapses into a shockwave
+    const sx = clamp(f.x + f.fx * 120, 60, ARENA.w - 60), sy = clamp(f.y + f.fy * 70, BOUNDS.y0, BOUNDS.y1);
+    events.push({ type: 'gravestar', side: f.side, x: Math.round(sx), y: Math.round(sy) });
+    for (const v of rivalsOf(m, f.side)) { if (v.iframes > 0 || Math.hypot(v.x - sx, v.y - sy) > 460 * sz) continue;
+      v.tranceImm = 0; applyStatus(m, v, 'trance', f, events, 1.2); if (v.status?.k === 'trance') Object.assign(v.status, { px: sx, py: sy }); }
+    fx(sx, sy, 'strike', { t: -1.95, rad: 150 * sz, pw: P * 0.85, gs: 1 }); }
   else if (k === 'summon') { // ANU calls up a titan: it walks the arena beside him and attacks the rival while he keeps fighting
     (m.summons ||= []).push({ side: f.side, by: f, sid: g.summonSid ?? f.speciesId, x: clamp(f.x - f.fx * 70, 60, ARENA.w - 60), y: clamp(f.y + 60, BOUNDS.y0, BOUNDS.y1), fx: f.fx || 1, fy: 0, mv: false, ct: 9, cd: 0.8, life: g.time || 12, pw: P * (g.each || 0.4) });
     events.push({ type: 'summon', side: f.side }); }
@@ -427,6 +438,8 @@ function damageFor(att, vic, kind, style, powerOverride) {
 
 function applyStatus(m, vic, k, att, events, mult = 1) {
   const S = STATUS[k];
+  if (k !== 'trance' && vic.status?.k === 'trance' && vic.status.t > 0.2) return; // the trance holds until it ends
+  if (k === 'trance') { if ((vic.tranceImm || 0) > m.t) return; vic.tranceImm = m.t + S.dur * mult + 2.5; } // never held in a trance back to back
   if (vic.status && vic.status.t > 0.4 && vic.status.k === k) { vic.status.t = Math.max(vic.status.t, S.dur * mult * 0.6); return; }
   vic.status = { k, t: S.dur * mult, max: S.dur * mult, src: att.side, ax: vic.x, ay: vic.y, ph: Math.random() * 6, acc: 0 };
   events.push({ type: 'status', side: vic.side, k, label: S.label });
@@ -604,7 +617,7 @@ export const INTRO_SECONDS = 1.3;
 export const AURA_FORMS = Object.freeze([null,
   { name: 'Aura I', col: '#ffd23f', lv: 3, dmg: 1.2, spd: 1.12, dur: 10 }, { name: 'Aura II', col: '#b45aff', lv: 10, dmg: 1.32, spd: 1.16, dur: 11 },
   { name: 'Aura III', col: '#3aff7a', lv: 25, dmg: 1.45, spd: 1.2, dur: 12 }, { name: 'Aura IV', col: '#ff3b3b', lv: 50, dmg: 1.6, spd: 1.25, dur: 13 },
-  { name: 'Aura V', col: '#f4fbff', lv: 80, dmg: 1.8, spd: 1.32, dur: 14 }]);
+  { name: 'Aura V', col: '#f4fbff', lv: 80, dmg: 1.8, spd: 1.32, dur: 14 }, 'Jachin', 'Boaz']);
 export const auraTier = level => AURA_FORMS.reduce((t, f, i) => (f && level >= f.lv ? i : t), 0);
 function ascend(m, f, events) {
   const tier = auraTier(f.level);
@@ -636,6 +649,7 @@ export function step(m, realDt = TICK) {
       st.t -= dt;
       if (SS.dot) { st.acc += f.maxHp * SS.dot * dt; if (st.acc >= 2) { const dmg = Math.min(Math.floor(st.acc), Math.ceil(f.hp)); st.acc -= Math.floor(st.acc); // burn/poison can finish a Monstar off
         if (dmg > 0) { f.hp -= dmg; const src = m.fighters[st.src]; events.push({ type: 'hit', attacker: st.src, victim: f.side, damage: dmg, kind: 'status', style: st.k, eff: 1, crit: false, exp: 0, victimMaxHp: f.teamMax || f.maxHp, lvl: src?.level || 1, atk: src?.stats.spAttack || 80, pw: 6 }); if (src) src.ult = Math.min(100, src.ult + dmg * 0.5); } } }
+      if (st.k === 'trance' && st.px != null) { const k2 = Math.min(1, dt * 4); f.x += (st.px - f.x) * k2; f.y += (st.py - f.y) * k2; f.vx = f.vy = 0; collide(f); } // drawn to Boaz's star
       if (SS.lift) { // carried around in the air by psychic force, can't do anything
         st.ph += dt * (st.noHold ? 9 : 4.2); const holder = st.noHold ? null : m.fighters[st.src];
         const cx = holder ? (st.ax + (holder.x + holder.fx * 160 - st.ax) * Math.min(1, (st.max - st.t) * 0.8)) : st.ax;
@@ -723,6 +737,9 @@ export function step(m, realDt = TICK) {
   for (const e of m.effects) runEffect(m, e, dt, events);
   m.effects = m.effects.filter(e => e.t < e.dur);
   hazards(m, dt, events);
+  for (const f of (m.squad ? m.roster.flat() : m.fighters)) if (f.hp <= 0 && f.kit?.rise && !f.rose && !f.down) { // Jachin's Second Rising: once per battle, a pillar of light raises him again
+    f.rose = true; f.hp = Math.max(1, Math.round(f.maxHp * (f.kit.rise.heal || 0.5))); f.iframes = 1.6; f.status = null; f.recT = 0;
+    events.push({ type: 'rise', side: f.side, x: Math.round(f.x), y: Math.round(f.y), label: f.kit.rise.name }); events.push({ type: 'status', side: f.side, k: 'mark', label: 'SECOND RISING!' }); }
   const out = [false, false];
   for (const side of [0, 1]) if (m.fighters[side].hp <= 0) { // fainted: send in the next team member (squad: take control of one still standing)
     const next = m.teams[side].findIndex((_, i) => i !== m.slot[side] && alive(m, side, i));
@@ -772,7 +789,7 @@ export function snapshot(m) {
     sq: m.squad ? 1 : 0, lim: m.limit, pk: m.pickups.map(q => ({ id: q.id, x: r(q.x), y: r(q.y), k: q.k, l: r(q.life) })), gs: GAME_SPEED * (m.pace || 1),
     p: m.projectiles.map(p => ({ id: p.id, o: p.owner, k: p.kind, st: p.style, ty: p.type, sid: p.sid, x: r(p.x), y: r(p.y), vx: Math.round(p.vx), vy: Math.round(p.vy), r: p.r, lt: p.lt ? 1 : 0, w: p.wait > 0 ? 1 : 0, lk: p.look || null, cg: p.chg || 0 })),
     e: m.effects.map(e => ({ id: e.id, o: e.owner, k: e.kind, st: e.style, ty: e.type, sid: e.sid, x: r(e.x), y: r(e.y), dx: r(e.dx * 100) / 100, dy: r(e.dy * 100) / 100,
-      gx: r(e.gx), gy: r(e.gy), t: Math.round(e.t * 100) / 100, d: e.dur, ra: e.rad || 0, wd: e.wid || 0, mg: e.mega ? 1 : 0, ls: e.ls ? 1 : 0, tw: e.tw ? 1 : 0, hs: e.hs ? 1 : 0, bs: e.bs ? 1 : 0, fg: e.fg ? 1 : 0, iw: e.iw ? 1 : 0, hb: e.hb ? 1 : 0, eb: e.eb ? 1 : 0 })),
+      gx: r(e.gx), gy: r(e.gy), t: Math.round(e.t * 100) / 100, d: e.dur, ra: e.rad || 0, wd: e.wid || 0, mg: e.mega ? 1 : 0, ls: e.ls ? 1 : 0, tw: e.tw ? 1 : 0, hs: e.hs ? 1 : 0, bs: e.bs ? 1 : 0, fg: e.fg ? 1 : 0, iw: e.iw ? 1 : 0, hb: e.hb ? 1 : 0, eb: e.eb ? 1 : 0, gv: e.gs ? 1 : 0 })),
     sm: (m.summons || []).map(q => ({ sd: q.side, s: q.sid, x: r(q.x), y: r(q.y), fx: r(q.fx * 100) / 100, fy: r(q.fy * 100) / 100, mv: q.mv ? 1 : 0, ct: Math.round(q.ct * 100) / 100, l: Math.round(q.life * 10) / 10 })) };
 }
 

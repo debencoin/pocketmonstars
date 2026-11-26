@@ -108,3 +108,25 @@ test('the paper-thin wild Monstars are deleted: never met in the wild, and unmin
   db.prepare('UPDATE monstars SET species=? WHERE serial=?').run(ids[0], m.serial); db.prepare("DELETE FROM meta WHERE k='delete-thin-v1'").run();
   new Registry(db); assert.equal(db.prepare('SELECT COUNT(*) n FROM monstars WHERE species=?').get(ids[0]).n, 0, 'the unminted copy is gone');
 });
+
+test('Jachin and Boaz: fallen angel brothers that fly; Boaz holds the rival in a trance while he attacks, Jachin rises once when he falls', async () => {
+  const S = await import('../shared/sim.mjs'), M = await import('../shared/monstars.mjs'), id = n => M.SPECIES.find(s => s.name === n).id;
+  for (const n of ['Jachin', 'Boaz']) { const sp = M.SPECIES[id(n)]; assert.equal(sp.motion, 'hover'); assert.ok(!sp.aura, 'no aura: they already glow'); assert.ok(!M.WILD_IDS.includes(sp.id)); assert.ok(CONFIG.masterOnly[sp.id]); }
+  // Gravestar Dominion: the rival is pulled to the star and entranced; it can't act, then the star collapses on it
+  const b = S.createMatch(new M.Monstar({ speciesId: id('Boaz'), level: 10 }), new M.Monstar({ speciesId: M.STARTER_IDS[0], level: 10 }), { auto: false });
+  b.fighters[0].ult = 100; b.fighters[0].input = S.sanitizeInput({ mega: true, ax: 1 }); b.fighters[1].input = S.sanitizeInput({});
+  const ev = S.step(b); assert.ok(ev.some(e => e.type === 'gravestar')); const foe = b.fighters[1]; assert.equal(foe.status?.k, 'trance');
+  b.fighters[0].input = S.sanitizeInput({}); const hp0 = foe.hp; let held = 0;
+  for (let i = 0; i < 400 && foe.status?.k === 'trance'; i++) { foe.input = S.sanitizeInput({ mx: 1, atk: true }); S.step(b); if (foe.status?.k === 'trance') held++; }
+  assert.ok(held > 100, 'held in the trance'); assert.ok(foe.hp < hp0, 'the star collapses on it');
+  // Trance Eye: a special that entrances, never back to back
+  const t = S.createMatch(new M.Monstar({ speciesId: id('Boaz'), level: 10 }), new M.Monstar({ speciesId: M.STARTER_IDS[0], level: 10 }), { auto: false });
+  assert.equal(t.fighters[0].kit.special.status, 'trance');
+  // Jachin: Skybreak Edict throws the rival away; Second Rising brings him back once
+  const j = S.createMatch(new M.Monstar({ speciesId: id('Jachin'), level: 10 }), new M.Monstar({ speciesId: M.WILD_IDS[0], level: 10 }), { auto: false });
+  const J = j.fighters[0], R = j.fighters[1]; R.x = J.x + 120; R.y = J.y; const d0 = Math.hypot(R.x - J.x, R.y - J.y);
+  J.ult = 100; J.input = S.sanitizeInput({ mega: true, ax: 1 }); R.input = S.sanitizeInput({}); const e2 = S.step(j); J.input = S.sanitizeInput({});
+  assert.ok(e2.some(e => e.type === 'skybreak')); for (let i = 0; i < 10; i++) S.step(j); assert.ok(Math.hypot(R.x - J.x, R.y - J.y) > d0 + 60, 'hurled away');
+  J.hp = 0; const e3 = S.step(j); assert.ok(e3.some(e => e.type === 'rise')); assert.ok(J.hp >= J.maxHp * 0.45 && !j.over, 'he rises with half his HP');
+  J.hp = 0; S.step(j); assert.ok(j.over, 'only once per battle');
+});
