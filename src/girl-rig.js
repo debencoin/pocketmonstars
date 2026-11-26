@@ -66,6 +66,11 @@ const GIRLS = {
   pyra: { glb: 'pyra', el: 'fire', c1: 0xff3a1a, c2: 0xffc040, turn: Math.PI / 2, plant: true, gait: { cad: 12.5, amp: 1.1 }, jt: CHIBI },
   zephyria: { glb: 'zephyria', el: 'air', c1: 0x9ae8ff, c2: 0xffffff, turn: Math.PI / 2, plant: true, gait: { cad: 12, amp: 1.1 }, jt: CHIBI },
   nexus: { glb: 'nexus', el: 'aether', c1: 0xa050ff, c2: 0xffd23a, turn: Math.PI / 2, plant: true, gait: { cad: 11.5, amp: 1.08 }, jt: CHIBI },
+  // the Ultimate Warriors (male, long gold spikes)
+  vulkar: { glb: 'vulkar', el: 'fire', c1: 0xff5a10, c2: 0xffd040, turn: Math.PI / 2, plant: true, gait: { cad: 12.5, amp: 1.1 } },
+  karnolith: { glb: 'karnolith', el: 'earth', c1: 0x8a6a3a, c2: 0x9adf4a, turn: Math.PI / 2, plant: true, rs: 1.25, gait: { cad: 9.5, amp: 1.0 } },
+  aeralon: { glb: 'aeralon', el: 'air', c1: 0xbfefff, c2: 0xffffff, turn: Math.PI / 2, plant: true, gait: { cad: 13, amp: 1.12 } },
+  obsidiannexus: { glb: 'obsidiannexus', el: 'aether', c1: 0xa050ff, c2: 0xffd23a, turn: Math.PI / 2, plant: true, rs: 1.2, gait: { cad: 14, amp: 1.15 } },
   // the Ancient Beings: a winged Watcher, a Nephilim giant and an Anunnaki ruler
   sarielthewatcher: { glb: 'sarielwatcher', el: 'aether', c1: 0x8a6aff, c2: 0xffe9a0, turn: Math.PI / 2, wings: [0.2], jt: { neck: 0.7, top: 0.96 } },
   neraththenephilim: { glb: 'nerathnephilim', el: 'earth', c1: 0xc87a3a, c2: 0xffb060, turn: Math.PI / 2, rs: 1.5, gait: { cad: 8.5, amp: 0.95 }, jt: { hip: 0.44, chest: 0.52, neck: 0.74, top: 0.98, sh: [0.76, 0.2], el: [0.52, 0.33], wr: [0.37, 0.37], hand: [0.28, 0.38], hj: [0.44, 0.09], kn: [0.22, 0.1], an: [0.05, 0.11] } },

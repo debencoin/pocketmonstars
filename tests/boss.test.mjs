@@ -69,3 +69,17 @@ test('the four starter Masters and Rikkolo charge; the Masters\' charged blast f
     void m;
   }
 });
+
+test('Ultimate Warriors: Obsidian Nexus is the strongest and fastest, teleports, and his Legion is five of him (5x the damage)', async () => {
+  const S = await import('../shared/sim.mjs'), M = await import('../shared/monstars.mjs');
+  const id = n => M.SPECIES.find(s => s.name === n).id, ob = M.SPECIES[id('Obsidian Nexus')];
+  assert.equal(ob.kit.dash.kind, 'shadow'); assert.equal(ob.kit.mega.count, 4);
+  const stats = n => new M.Monstar({ speciesId: id(n), level: 20, dna: '7'.repeat(64) }).stats, total = o => Object.values(o).reduce((a, b) => a + b, 0);
+  for (const n of ['Vulkar', 'Karnolith', 'Aeralon', 'COVO', 'Nexus']) assert.ok(total(stats('Obsidian Nexus')) > total(stats(n)), 'stronger than ' + n);
+  const m = S.createMatch(new M.Monstar({ speciesId: ob.id, level: 10 }), new M.Monstar({ speciesId: M.STARTER_IDS[0], level: 10 }), { auto: false });
+  m.fighters[0].ult = 100; m.fighters[0].input = S.sanitizeInput({ mega: true, ax: 1 }); m.fighters[1].input = S.sanitizeInput({}); const ev = S.step(m);
+  const cl = ev.find(e => e.type === 'clones'); assert.equal(cl?.pts.length, 4, 'four copies');
+  const shots = m.projectiles.filter(p => p.owner === 0), pw = shots.reduce((n, p) => n + p.pw, 0);
+  assert.equal(shots.length, 10); assert.ok(Math.abs(pw / (shots[0].pw / 0.5) - 5) < 1e-6, 'all together: five times a power attack');
+  for (const n of ['Vulkar', 'Karnolith', 'Aeralon', 'Obsidian Nexus', 'Terra', 'Pyra', 'Zephyria', 'Nexus']) assert.ok(m && M.SPECIES[id(n)].aura, n);
+});

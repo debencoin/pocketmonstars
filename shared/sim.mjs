@@ -117,7 +117,7 @@ export const ARENA_COUNT = 5; // 0 Thunderstorm Citadel (lightning), 1 Inferno R
 // What a power does to the Monstar it hits (special moves always, basic moves 15% of the time).
 // stop = can't move, act = can't attack, slow = speed multiplier, dot = % max HP per second, lift = carried around in the air.
 // The four starter Element Masters: a charged blast (held at least 30% of the way) fires twice as many shots
-const TWIN_CHARGE = new Set(['Terrok', 'Zephar', 'Tydal', 'Ignar']);
+const TWIN_CHARGE = new Set(['Terrok', 'Zephar', 'Tydal', 'Ignar', 'Terra', 'Pyra', 'Zephyria', 'Nexus', 'Vulkar', 'Karnolith', 'Aeralon', 'Obsidian Nexus']); // + the Quartet and the Ultimate Warriors
 export const STATUS = Object.freeze({
   paralyze: { label: 'PARALYZED', dur: 1.8, slow: 0.35, fail: 0.4 },
   freeze: { label: 'FROZEN', dur: 1.3, stop: true, act: true },
@@ -319,12 +319,12 @@ function megaShot(m, f, foe, events) {
   if (k === 'barrage') { for (let i = 0; i < 7; i++) { const a = Math.atan2(f.fy, f.fx) + (i - 3) * 0.16, sp = STYLES.projectile.speed * 1.1;
     m.projectiles.push({ id: m.nextId++, owner: f.side, by: f, kind: 'special', style: 'projectile', type: f.type, sid: f.speciesId, x: f.x + Math.cos(a) * 36, y: f.y + Math.sin(a) * 36, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, r: 16, life: 1.4, hitDone: false, missDone: false, pw: P * 0.38, homing: true }); } }
   else if (k === 'clones') { // Replicator Protocol: three duplicates appear around the caster; all four attack with a power attack at the same time
-    const base = Math.atan2(f.fy, f.fx), spots = [{ x: f.x, y: f.y }], offs = [[-70, -85], [-70, 85], [-120, 0]];
+    const base = Math.atan2(f.fy, f.fx), spots = [{ x: f.x, y: f.y }], offs = [[-70, -85], [-70, 85], [-120, 0], [-150, -150], [-150, 150]].slice(0, f.kit?.mega?.count || 3); // Obsidian Legion: four copies
     for (const [ox, oy] of offs) { const c = Math.cos(base), sn = Math.sin(base); spots.push({ x: clamp(f.x + ox * c - oy * sn, 40, ARENA.w - 40), y: clamp(f.y + ox * sn + oy * c, BOUNDS.y0, BOUNDS.y1) }); }
     events.push({ type: 'clones', side: f.side, sid: f.speciesId, pts: spots.slice(1).map(q => ({ x: Math.round(q.x), y: Math.round(q.y) })) });
     const look = f.kit?.special?.look || f.kit?.basic?.look, grp = m.nextId++;
     spots.forEach((q, n) => { for (let i = 0; i < 2; i++) { const a = Math.atan2(foe.y - q.y, foe.x - q.x) + (i - 0.5) * 0.22, sp = STYLES.projectile.speed * 1.05;
-      m.projectiles.push({ id: m.nextId++, owner: f.side, by: f, kind: 'special', style: 'projectile', type: f.type, sid: f.speciesId, x: q.x + Math.cos(a) * 30, y: q.y + Math.sin(a) * 30, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, r: 17, life: 1.6, hitDone: false, missDone: false, pw: P * 0.3, homing: true, turn: 3.4, look, onHit: f.kit?.basic?.status, grp }); } }); }
+      m.projectiles.push({ id: m.nextId++, owner: f.side, by: f, kind: 'special', style: 'projectile', type: f.type, sid: f.speciesId, x: q.x + Math.cos(a) * 30, y: q.y + Math.sin(a) * 30, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, r: 17, life: 1.6, hitDone: false, missDone: false, pw: P * (f.kit?.mega?.each || 0.3), homing: true, turn: 3.4, look, onHit: f.kit?.basic?.status, grp }); } }); }
   else if (k === 'lightning') { // Storm Orbs: 7 homing lightning balls, launched one after another; the first hit stuns
     const grp = m.nextId++;
     for (let i = 0; i < 7; i++) { const a = Math.atan2(f.fy, f.fx) + (i - 3) * 0.3, sp = STYLES.projectile.speed * 0.95;
@@ -466,7 +466,7 @@ function land(m, att, vic, kind, style, events, dirx, diry, knock = 90, power, f
 }
 
 // Elemental benders hold the shot button to charge: let go and a bigger blast leaves with up to double the damage. A quick tap fires the normal shot.
-const CHARGERS = new Set(['Aquari', 'Rokko', 'Blazen', 'Gusti', 'Eclipse Sovereign', 'Tide Weaver', 'Ember Weaver', 'Volt Weaver', 'Stone Weaver', 'Halo Slinger', 'Sariel the Watcher', 'Nerath the Nephilim', 'Enkar the Anunnaki', 'Rikkolo', 'Terrok', 'Zephar', 'Tydal', 'Ignar', 'Voltz', 'Terra', 'Pyra', 'Zephyria', 'Nexus']), CHARGE_MAX = 1.5, CHARGE_TAP = 0.25; // seconds of real time
+const CHARGERS = new Set(['Aquari', 'Rokko', 'Blazen', 'Gusti', 'Eclipse Sovereign', 'Tide Weaver', 'Ember Weaver', 'Volt Weaver', 'Stone Weaver', 'Halo Slinger', 'Sariel the Watcher', 'Nerath the Nephilim', 'Enkar the Anunnaki', 'Rikkolo', 'Terrok', 'Zephar', 'Tydal', 'Ignar', 'Voltz', 'Terra', 'Pyra', 'Zephyria', 'Nexus', 'Vulkar', 'Karnolith', 'Aeralon', 'Obsidian Nexus']), CHARGE_MAX = 1.5, CHARGE_TAP = 0.25; // seconds of real time
 function cast(m, f, kind, lvl = 0) {
   const style = f.styles[kind], S = STYLES[style];
   f.energy -= S.cost; f.cd[kind] = S.cd * (kind === 'special' ? f.mods.specialCd : 1) * (f.kit?.[kind]?.cd ?? 1); f.actions++;

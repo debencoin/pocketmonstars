@@ -127,7 +127,7 @@ function renderShop() {
   const list = dropData?.shop; if (!list) { shopBox.hidden = true; return; } shopBox.hidden = false;
   const me = S.session()?.wallet, sold = list.filter(h => h.sold).length, star = list.find(h => h.unique), rest = list.filter(h => !h.unique && !h.aura && !h.weaver), aura = list.filter(h => h.aura), weavers = list.filter(h => h.weaver);
   const card = h => { const sp = SPECIES[h.speciesId], K = sp.kit;
-    if (h.weaver) return `<div class="dr-card top${h.sold ? ' sold' : ''}"><span class="dr-badge">${h.quartet ? 'ELEMENTAL QUARTET' : sp.motion === 'hover' ? 'HOVERING SOVEREIGN' : h.ancient ? 'ANCIENT BEING' : 'WEAVER'}</span>
+    if (h.weaver) return `<div class="dr-card top${h.sold ? ' sold' : ''}"><span class="dr-badge">${h.ultimate ? 'ULTIMATE WARRIOR' : h.quartet ? 'ELEMENTAL QUARTET' : sp.motion === 'hover' ? 'HOVERING SOVEREIGN' : h.ancient ? 'ANCIENT BEING' : 'WEAVER'}</span>
       <img src="art/hd/${sp.art}_s2.png" alt="${esc(sp.name)}" loading="lazy"><div class="dr-evo">${h.ancient ? [0, 3, 5].map(st => `<img src="art/hd/${sp.art}_s${st}.png" alt="" loading="lazy">`).join('') : ['charge', 'projectile', 'guard'].map(k => `<img src="art/fx/w/${sp.art}_${k}.png" alt="" loading="lazy">`).join('')}</div>
       <b>${esc(sp.name)}</b><small>${esc(sp.type)} · ${esc(sp.cls.label)} · Lv1 · strong from the start · evolves to ${esc(sp.forms[5])}</small>
       <small class="sb-kit"><b>Hold to charge</b> ${esc(K.basic.name)} (up to 1.8x) · <b>Guard</b> ${esc(K.guard.name)}<br><b>Secondary</b> ${esc(K.special.name)} · <b>Mega Shot</b> ${esc(K.mega.name)}</small>${attrHtml(sp, 1, true)}
@@ -150,7 +150,7 @@ function renderShop() {
      <p class="pv-note">25 one-of-one air benders, boys and girls. Each also bends a second element: water, earth, fire or thunder (or pure air). Strong from level 1 and they evolve into six forms. Buying needs Phantom.</p></div>
      <div class="dr-clock"><small>Sold</small><b>${sold} / ${list.length}</b><small>no time limit</small></div></div>
     ${godsHtml()}
-    ${weavers.length ? `<h3 class="dr-sub">Weavers, Ancient Beings, the Elemental Quartet & the Eclipse Sovereign · hold the shot button to charge, strong from level 1</h3><div class="dr-grid">${weavers.map(card).join('')}</div>` : ''}
+    ${weavers.length ? `<h3 class="dr-sub">Weavers, Ancient Beings, the Elemental Quartet, the Ultimate Warriors & the Eclipse Sovereign · hold the shot button to charge, strong from level 1</h3><div class="dr-grid">${weavers.map(card).join('')}</div>` : ''}
     ${aura.length ? `<h3 class="dr-sub">Aura Warriors · ${sol(aura[0].priceLamports)} SOL · stronger than benders, five Aura forms in battle</h3><div class="dr-grid">${aura.map(card).join('')}</div>` : ''}
     ${star ? `<h3 class="dr-sub">The final air bender · ${sol(star.priceLamports)} SOL</h3><div class="dr-grid sb-star">${card(star)}</div>` : ''}
     <div class="dx-chips sb-chips">${[['all', 'All'], ['air', 'Air'], ['water', 'Water'], ['earth', 'Earth'], ['fire', 'Fire'], ['thunder', 'Thunder']].map(([k, n]) => `<button class="smallbtn" data-sel="${k}" aria-pressed="${k === shopEl}">${n}</button>`).join('')}</div>

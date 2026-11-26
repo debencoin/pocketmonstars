@@ -821,6 +821,40 @@ Object.assign(CHK_SIG, {
     names: ['Fire Burst', 'Earth Rise', 'Nexus Sovereign'], forms: ['Nexus', 'Nexus Initiate', 'Nexus', 'Ascended Nexus', 'Master Nexus', 'Ultimate Nexus'] },
 });
 
+
+// The Ultimate Warriors (male): Vulkar (fire), Karnolith (earth), Aeralon (wind) and Obsidian Nexus (all five elements, black),
+// the strongest and fastest of all: he teleports behind the rival and his Mega Shot splits him into five who all attack at once.
+Object.assign(CHK_SIG, {
+  'Vulkar': { type: 'EMBER', cls: 'striker', title: 'Ultimate Fire Warrior', female: false, main: '#ff5a10', market: 1.5,
+    sig: { basic: { name: 'Solar Forge', look: 'um_vulkar', status: 'burn', power: 1.55, note: 'Tap: a burning fireball. Hold: he raises both hands overhead and forges a solar fireball that keeps growing, then hurls it down on the rival.' },
+      special: { name: 'Kiln Breaker', style: 'cone', status: 'burn', power: 1.65, note: 'A heel stomp sends a jet of sparks and flame forward.' },
+      dash: { kind: 'trail', name: 'Ember Step', note: 'A rapid sidestep out of a fiery afterimage that burns the rival.', dist: 1.9, cd: 0.68 },
+      guard: { kind: 'counter', name: 'Furnace Uppercut', note: 'Blocks, then answers with a rising flame-hook uppercut.', time: 1.15, cd: 5.0 },
+      mega: { kind: 'meteors', name: 'Sunfall Forge', note: 'Solar fireballs rain down across the arena.', power: 1.8, size: 1.45 } },
+    names: ['Twin Solar Forge', 'Kiln Inferno', 'Forge King'], forms: ['Vulkar', 'Vulkar Initiate', 'Vulkar', 'Ascended Vulkar', 'Master Vulkar', 'Ultimate Vulkar'] },
+  'Karnolith': { type: 'STONE', cls: 'titan', title: 'Ultimate Earth Warrior', female: false, main: '#8a6a3a', market: 1.5,
+    sig: { basic: { name: 'Shard Volley', look: 'um_karnolith', shots: 3, status: 'stun', power: 1.5, note: 'Tap: tosses a spread of basalt spikes. Hold: a glowing stone orb grows between his fists, then he hurls it.' },
+      special: { name: 'Quarry Hammer', style: 'strike', status: 'stun', power: 1.75, note: 'A two-fist overhead slam that cracks the ground under the rival.' },
+      dash: { kind: 'charge', name: 'Bedrock Rush', note: 'A shoulder charge behind a moving wall of stone.', dist: 1.7, cd: 0.8 },
+      guard: { kind: 'fortress', name: 'Bedrock Wall', note: 'A wall of bedrock rises in front of him.', time: 1.6, cd: 5.6 },
+      mega: { kind: 'pillars', name: 'Monolith Drop', note: 'He raises a monolith and drops it forward; pillars burst up across the arena.', power: 1.85, size: 1.5 } },
+    names: ['Basalt Storm', 'Quarry Quake', 'Mountain King'], forms: ['Karnolith', 'Karnolith Initiate', 'Karnolith', 'Ascended Karnolith', 'Master Karnolith', 'Ultimate Karnolith'] },
+  'Aeralon': { type: 'GALE', cls: 'skirmisher', title: 'Ultimate Wind Warrior', female: false, main: '#bfefff', market: 1.5, motion: 'hover',
+    sig: { basic: { name: 'Shear Blade', look: 'um_aeralon', shots: 2, status: 'soak', power: 1.5, note: 'Crossed arms launch two narrow air crescents. Hold: a bright air orb spins up, then he releases it.' },
+      special: { name: 'Jetstream Lunge', style: 'beam', status: 'soak', power: 1.65, note: 'A rapid low punch carried forward by a jet of compressed wind.' },
+      dash: { kind: 'blink', name: 'Skystep Feint', note: 'A quick aerial sidestep with a white slipstream.', dist: 2.0, cd: 0.62 },
+      guard: { kind: 'evade', name: 'Slipstream', note: 'Rides the wind out of reach.', time: 1.15, cd: 5.0 },
+      mega: { kind: 'tornado', name: 'Tempest Ladder', note: 'A rising ladder of three air rings becomes a storm.', power: 1.8, size: 1.45 } },
+    names: ['Twin Shear Storm', 'Jetstream Fury', 'Sky King'], forms: ['Aeralon', 'Aeralon Initiate', 'Aeralon', 'Ascended Aeralon', 'Master Aeralon', 'Ultimate Aeralon'] },
+  'Obsidian Nexus': { type: 'ANCIENT', cls: 'deity', title: 'Ultimate Warrior of All Elements', female: false, main: '#1a1024', market: 3,
+    sig: { basic: { name: 'Fivefold Lance', look: 'um_obsidian', status: 'mark', power: 1.7, note: 'Hold: blue water, orange fire, amber earth, white wind and purple lightning gather into a two-handed orb, then he releases a focused five-colour lance.' },
+      special: { name: 'Steam Collider', style: 'cone', status: 'burn', power: 1.85, note: 'Water and fire collide into a forward burst of scalding steam.' },
+      dash: { kind: 'shadow', name: 'Obsidian Teleport', note: 'Vanishes and reappears right behind the rival.', dist: 2.2, cd: 0.55 },
+      guard: { kind: 'barrier', name: 'Pressure Lock', note: 'A white spiralling wind cage compresses around him.', time: 1.6, cd: 5.0 },
+      mega: { kind: 'clones', count: 4, each: 0.5, name: 'Obsidian Legion', note: 'Splits into five (himself and four copies) and all five fire his attack at once: five times the damage.', power: 2.0, size: 1.5 } },
+    names: ['Storm Shrapnel', 'Steam Cataclysm', 'Obsidian Sovereign'], forms: ['Obsidian Nexus', 'Obsidian Initiate', 'Obsidian Nexus', 'Ascended Obsidian Nexus', 'Master Obsidian Nexus', 'Ultimate Obsidian Nexus'] },
+});
+
 const CHK = name => {
   const k0 = CHK_SIG[name], ix = Object.keys(CHK_SIG).indexOf(name), tw = (o, ...f) => { const r = { ...o }; for (const x of f) r[x] = +(r[x] + ix * 0.004).toFixed(3); return r; }; // every Chosen One has its own dash and guard numbers
   const k = { ...k0, sig: { ...k0.sig, dash: tw(k0.sig.dash, 'dist', 'cd'), guard: tw(k0.sig.guard, 'time', 'cd') } };
@@ -1027,4 +1061,9 @@ export const RIKKOLO = ['Rikkolo'].map(n => ({ ...CHK(n), master: undefined, leg
 
 // The Elemental Quartet: in the founder's wallet and sold once each in the market (like the Weavers)
 export const QUARTET = ['Terra', 'Pyra', 'Zephyria', 'Nexus'].map(n => { const b = CHK(n), sol = CHK_SIG[n].market;
-  return { ...b, master: undefined, legendary: undefined, legendFor: undefined, bender: undefined, elite: undefined, aura: true, drop: { priceLamports: String(Math.round(sol * 1_000_000_000)), shop: true } }; });
+  return { ...b, master: undefined, legendary: undefined, legendFor: undefined, bender: undefined, elite: undefined, aura: true, boost: 1.15, drop: { priceLamports: String(Math.round(sol * 1_000_000_000)), shop: true } }; });
+
+// The Ultimate Warriors: founder's wallet + sold once each in the market. Obsidian Nexus is the strongest and fastest of all.
+export const ULTIMATE_MEN = ['Vulkar', 'Karnolith', 'Aeralon', 'Obsidian Nexus'].map(n => { const b = CHK(n), sol = CHK_SIG[n].market;
+  return { ...b, master: undefined, legendary: undefined, legendFor: undefined, bender: undefined, elite: undefined, aura: true, boost: n === 'Obsidian Nexus' ? 1.4 : 1.25, speedBoost: n === 'Obsidian Nexus' ? 1.6 : undefined,
+    drop: { priceLamports: String(Math.round(sol * 1_000_000_000)), shop: true } }; });
