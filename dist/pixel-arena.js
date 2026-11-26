@@ -67,7 +67,9 @@ const POSES = {
 };
 // Full frame-by-frame animation drawn straight from a character's complete sprite sheet (scripts/make_chosen_anim.py):
 // an atlas of frames, each with its foot anchor, so the character always stands on the same spot at the same size.
-const ANIM = { azaelion: 'art/anim/azaelion', covo: 'art/anim/covo', cova: 'art/anim/cova', kena: 'art/anim/kena' };
+const ANIM = { azaelion: 'art/anim/azaelion', covo: 'art/anim/covo', cova: 'art/anim/cova', kena: 'art/anim/kena',
+  // cut frame by frame from their Higgsfield combat videos (scripts/make_video_anim.py): they look and move exactly like the videos
+  vulkar: 'art/anim/vulkar', karnolith: 'art/anim/karnolith', aeralon: 'art/anim/aeralon', obsidiannexus: 'art/anim/obsidiannexus', pyra: 'art/anim/pyra', terra: 'art/anim/terra', zephyria: 'art/anim/zephyria', nexus: 'art/anim/nexus' };
 // 360 degrees: the frame where the 8-view turnaround starts (front, front-right, right, back-right, back, back-left, left, front-left)
 const DIRS = { covo: 16, cova: 16, kena: 16 }; // (their frame-by-frame atlases carry the 8 views in seqs.dirs)
 function dirIdx(f) { const deg = Math.atan2(f.fy || 0, f.fx || 1) * 180 / Math.PI; return (((Math.round((90 - deg) / 45) % 8) + 8) % 8); }
@@ -110,11 +112,15 @@ function animPick(d, f, i, opt, now, dirI = -1) {
   const at = (seq, u, loop) => { const q = S[seq] || S.idle; const k = Math.floor(u * q.length); return q[loop ? ((k % q.length) + q.length) % q.length : Math.max(0, Math.min(q.length - 1, k))]; };
   if (f.ck && f.ct < st.lastCt - 0.05 && f.ct < 0.2) { if (f.ck === 'special') st.el = (st.el + 1) % ELEMS.length; if (f.ck === 'basic') st.combo++; } // a new cast began
   st.lastCt = f.ck ? f.ct : 9;
+  if (f.ck === 'basic' && f.ct < 0.05 && (st.cg || 0) > 0.25) st.rel = true; else if (f.ck !== 'basic' || f.ct > 0.7) st.rel = false; // a charged blast was just released
+  st.cg = f.cg || 0;
   if (f.g && !st.gOn) st.g = now; st.gOn = !!f.g;
   if (opt.faint) return at('knock', opt.faint * 1.3);
   if (f.tr > 0) { const u = 1 - f.tr / 0.9; return u < 0.34 ? at('powerup', 0) : u < 0.67 ? at('auraon', 0) : at('transform', 0); }
   if ((f.uo || f.ck === 'mega') && f.ct < 1.3) return at('mega', f.ct / 1.3);
   if (f.ck === 'special' && f.ct < 0.85) return at(ELEMS[st.el], f.ct / 0.75);
+  if (f.cg > 0 && S.charge) return at('charge', Math.min(0.999, f.cg)); // holding the button: the video's charge-up
+  if (f.ck === 'basic' && st.rel && S.release && f.ct < 0.6) return at('release', f.ct / 0.55);
   if (f.ck === 'basic' && f.ct < 0.45) return at(st.combo % 2 ? 'heavy' : 'light', f.ct / 0.42);
   if (f.bk > 0) return at('teleport', 0);
   if (f.g) return at('guard', (now - st.g) / 0.28);
@@ -376,7 +382,7 @@ function createRenderer(canvas, arena) {
     terra: { c: '#4aa83a', c2: '#e0c070', k: 'rock' }, pyra: { c: '#ff3a1a', c2: '#ffc040', k: 'flame' }, zephyria: { c: '#9ae8ff', c2: '#ffffff', k: 'blade' }, nexus: { c: '#a050ff', c2: '#ffffff', k: 'orb', five: true },
     vulkar: { c: '#ff5a10', c2: '#ffe060', k: 'flame' }, karnolith: { c: '#8a6a3a', c2: '#9adf4a', k: 'rock' }, aeralon: { c: '#bfefff', c2: '#ffffff', k: 'blade' }, obsidiannexus: { c: '#2a0a3a', c2: '#c080ff', k: 'shard', five: true, lance: true } };
   const FIVE = ['#35b8ff', '#ff5a1a', '#c8a060', '#e8f8ff', '#b060ff']; // Nexus: water, fire, earth, wind, lightning
-  const RIG3D = n => !!(window.PMBoss?.has(n) || window.PMChosen?.has(n) || window.PMGirl?.has(n) || (ELEM.has(n) && window.PMElemental));
+  const RIG3D = n => !ANIM[n] && !!(window.PMBoss?.has(n) || window.PMChosen?.has(n) || window.PMGirl?.has(n) || (ELEM.has(n) && window.PMElemental));
   function draw3D(n, f, i, opt, now, x, y, h, col) {
     if (window.PMBoss?.has(n)) return window.PMBoss.ready(n) && window.PMBoss.draw(ctx, x, y, h, f, col, { name: n, i, now: opt.now, faint: opt.faint });
     if (window.PMGirl?.has(n)) return window.PMGirl.ready(n) && window.PMGirl.draw(ctx, x, y, h, f, col, { name: n, i, now: opt.now, faint: opt.faint });
@@ -387,7 +393,7 @@ function createRenderer(canvas, arena) {
     const now = opt.now / 1000;
     const wx = prev ? prev.x + (f.x - prev.x) * t : f.x, wy = prev ? prev.y + (f.y - prev.y) * t : f.y;
     const pal = palFor(opt.type, f.s), stage = f.as > 0 ? 5 + f.as : f.sg ?? 0, scaleStage = Math.min(5, f.as > 0 ? Math.max(3, f.sg ?? 0) : f.sg ?? 0);
-    const walker = WALKERS.has(f.s), ph0 = now + i * 0.37;
+    const walker = WALKERS.has(f.s) || !!ANIM[NAMES[f.s]], ph0 = now + i * 0.37;
     const DB = WALKERS.has(f.s) ? DIRS[NAMES[f.s]] : undefined, dI = DB != null ? dirIdx(f) : 2;
     // walk cycle: run frames while moving (faster when dashing), breathing idle otherwise
     const pf = poseFrame(f, ph0), useDir = DB != null && pf < 0 && !f.ds && !(f.ct < 0.3 && f.ck) && !f.fl && dI !== 2 && dI !== 6; // facing up, down or diagonally: the turnaround view
@@ -484,7 +490,7 @@ function createRenderer(canvas, arena) {
     { const wn = NAMES[f.s], dx0 = f.fx < 0 ? -1 : 1;
       if (f.cg > 0) { const im = WSP(wn, 'charge'); if (im) { const w = 30 + f.cg * 80, h = w * im.naturalHeight / im.naturalWidth, cx = X + ox + dx0 * dw * 0.3, cy = Y + oy - dh * 0.5; ctx.save(); ctx.imageSmoothingEnabled = true; ctx.globalAlpha = 0.7 + f.cg * 0.3; ctx.drawImage(im, cx - w / 2, cy - h / 2, w, h); ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = 0.35; ctx.drawImage(im, cx - w / 2, cy - h / 2, w, h); ctx.restore(); } }
       if (f.g) { const im = WSP(wn, 'guard'); if (im) { const w = 120, h = w * im.naturalHeight / im.naturalWidth; ctx.save(); ctx.imageSmoothingEnabled = true; ctx.globalAlpha = 0.8; ctx.drawImage(im, X + ox - w / 2 + dx0 * 14, Y + oy + dh * 0.08 - h, w, h); ctx.restore(); } } }
-    if (f.cg > 0 && DISC[NAMES[f.s]] && window.PMEnergy) { // the charge disc: an element disc hovers by the planted hand and charges into a ball that keeps growing (Rikkolo gold, Tydal water, Terrok stone, Ignar fire, Zephar wind)
+    if (f.cg > 0 && DISC[NAMES[f.s]] && !AN && window.PMEnergy) { // the charge disc: an element disc hovers by the planted hand and charges into a ball that keeps growing (Rikkolo gold, Tydal water, Terrok stone, Ignar fire, Zephar wind)
       const DC = DISC[NAMES[f.s]], d = f.fx < 0 ? -1 : 1, c = f.cg, hx = X + ox + d * dw * 0.42, gy = Y + oy - dh * 0.06, by = gy - dh * (0.22 + c * 0.38), t2 = now * 6;
       ctx.save(); ctx.globalCompositeOperation = 'lighter'; const rw = dw * (0.34 + c * 0.25), rh = rw * 0.32; // the disc spins flat over the ground
       for (let k = 0; k < 3; k++) { ctx.globalAlpha = (0.9 - k * 0.25) * (1 - c * 0.35); ctx.strokeStyle = k ? DC.c : DC.c2; ctx.lineWidth = (3 - k) * U; ctx.beginPath(); ctx.ellipse(hx, gy - dh * 0.1 - k * 2 * U, rw * (1 - k * 0.18), rh * (1 - k * 0.18), 0, t2 + k, t2 + k + 5.2); ctx.stroke(); }
