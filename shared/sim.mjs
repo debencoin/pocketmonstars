@@ -116,6 +116,8 @@ export const DAMAGE_SCALE = 0.7;
 export const ARENA_COUNT = 5; // 0 Thunderstorm Citadel (lightning), 1 Inferno Rift (lava), 2 Earthquake Dominion (quakes), 3 Frozen Abyss (ice spikes), 4 Tempest Coast (tornado)
 // What a power does to the Monstar it hits (special moves always, basic moves 15% of the time).
 // stop = can't move, act = can't attack, slow = speed multiplier, dot = % max HP per second, lift = carried around in the air.
+// The four starter Element Masters: a charged blast (held at least 30% of the way) fires twice as many shots
+const TWIN_CHARGE = new Set(['Terrok', 'Zephar', 'Tydal', 'Ignar']);
 export const STATUS = Object.freeze({
   paralyze: { label: 'PARALYZED', dur: 1.8, slow: 0.35, fail: 0.4 },
   freeze: { label: 'FROZEN', dur: 1.3, stop: true, act: true },
@@ -464,7 +466,7 @@ function land(m, att, vic, kind, style, events, dirx, diry, knock = 90, power, f
 }
 
 // Elemental benders hold the shot button to charge: let go and a bigger blast leaves with up to double the damage. A quick tap fires the normal shot.
-const CHARGERS = new Set(['Aquari', 'Rokko', 'Blazen', 'Gusti', 'Eclipse Sovereign', 'Tide Weaver', 'Ember Weaver', 'Volt Weaver', 'Stone Weaver', 'Halo Slinger', 'Sariel the Watcher', 'Nerath the Nephilim', 'Enkar the Anunnaki', 'Rikkolo']), CHARGE_MAX = 1.5, CHARGE_TAP = 0.25; // seconds of real time
+const CHARGERS = new Set(['Aquari', 'Rokko', 'Blazen', 'Gusti', 'Eclipse Sovereign', 'Tide Weaver', 'Ember Weaver', 'Volt Weaver', 'Stone Weaver', 'Halo Slinger', 'Sariel the Watcher', 'Nerath the Nephilim', 'Enkar the Anunnaki', 'Rikkolo', 'Terrok', 'Zephar', 'Tydal', 'Ignar']), CHARGE_MAX = 1.5, CHARGE_TAP = 0.25; // seconds of real time
 function cast(m, f, kind, lvl = 0) {
   const style = f.styles[kind], S = STYLES[style];
   f.energy -= S.cost; f.cd[kind] = S.cd * (kind === 'special' ? f.mods.specialCd : 1) * (f.kit?.[kind]?.cd ?? 1); f.actions++;
@@ -472,7 +474,7 @@ function cast(m, f, kind, lvl = 0) {
   const id = m.nextId++;
   if (style === 'projectile') {
     const sp = S.speed * f.mods.projectileSpeed * (kind === 'basic' ? f.kit?.basic.speed ?? 1 : 1);
-    const shots = kind === 'basic' ? f.kit?.basic.shots ?? 1 : f.kit?.special.shots ? f.kit.special.shots + (Math.random() < 0.5 ? 1 : 0) : 1; // Gust Volley: 3 or 4 balls
+    const shots = (kind === 'basic' ? f.kit?.basic.shots ?? 1 : f.kit?.special.shots ? f.kit.special.shots + (Math.random() < 0.5 ? 1 : 0) : 1) * (kind === 'basic' && lvl >= 0.3 && TWIN_CHARGE.has(f.mon?.species?.name) ? 2 : 1); // Gust Volley: 3 or 4 balls; the four starter Masters' charged blast fires twice as many
     for (let k = 0; k < shots; k++) {
       const look = f.kit?.[kind]?.look, spread = look === 'boulder' ? 0.3 : 0.22, vary = look === 'boulder' ? 0.75 + Math.random() * 0.5 : 1; // slabs come out differently
       const a = Math.atan2(f.fy, f.fx) + (shots > 1 ? (k - (shots - 1) / 2) * spread + (look === 'boulder' ? (Math.random() - 0.5) * 0.12 : 0) : 0), dx = Math.cos(a) * vary, dy = Math.sin(a) * vary;

@@ -56,3 +56,16 @@ test('online raid: Phantom only, players join with one Monstar each and drive th
   for (const f of room.sim.roster[1]) f.hp = 0; mm.tick(TICK);
   for (const w of [a, b, c]) assert.deepEqual(mm.badges(w).map(x => x.stage), [2]);
 });
+
+test('the four starter Masters and Rikkolo charge; the Masters\' charged blast fires twice as many shots', async () => {
+  const S = await import('../shared/sim.mjs'), M = await import('../shared/monstars.mjs');
+  for (const n of ['Terrok', 'Zephar', 'Tydal', 'Ignar', 'Rikkolo']) {
+    const id = M.SPECIES.find(s => s.name === n).id, m = S.createMatch(new M.Monstar({ speciesId: id, level: 5 }), new M.Monstar({ speciesId: M.STARTER_IDS[0], level: 5 }), { auto: false });
+    const shotsFor = holdTicks => { const mm = S.createMatch(new M.Monstar({ speciesId: id, level: 5 }), new M.Monstar({ speciesId: M.STARTER_IDS[0], level: 5 }), { auto: false });
+      let n2 = 0; for (let i = 0; i < holdTicks + 3; i++) { mm.fighters[0].input = S.sanitizeInput({ atk: i < holdTicks, ax: 1 }); mm.fighters[1].input = S.sanitizeInput({}); S.step(mm); n2 = Math.max(n2, mm.projectiles.filter(p => p.owner === 0).length); } return n2; };
+    const tap = shotsFor(2), held = shotsFor(Math.round(1.4 / S.TICK));
+    assert.ok(held >= 1 && tap >= 1, n + ' fires');
+    if (n !== 'Rikkolo') assert.equal(held, tap * 2, n + ': a charged blast fires twice as many'); else assert.equal(held, tap);
+    void m;
+  }
+});

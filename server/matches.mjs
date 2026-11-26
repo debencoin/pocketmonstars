@@ -1,7 +1,7 @@
 // 1v1 Stake Duel rooms: lobby, escrow deposits, authoritative 30 Hz simulation, live per-hit pot shares, settlement.
 import { randomBytes } from 'node:crypto';
 import { createMatch, step, snapshot, sanitizeInput, forfeit, aiInput, TICK, ARENA_COUNT } from '../shared/sim.mjs';
-import { Monstar, GENESIS_IDS, SPECIES, TIERS, rollWild, stageFor, wildLevel } from '../shared/monstars.mjs';
+import { Monstar, GENESIS_IDS, STARTER_IDS, SPECIES, TIERS, rollWild, stageFor, wildLevel } from '../shared/monstars.mjs';
 import { stageOf, bossLevel, BOSS_COOP } from '../shared/bosses.mjs';
 
 export const WILD_ZONE_MIN = [1, 6, 14, 26];
@@ -43,7 +43,7 @@ export class MatchManager {
     }
     if (staked) throw Error('Staked duels need one of your own registered Monstars.');
     const sid = Number(speciesId) || 0;
-    if (!GENESIS_IDS.includes(sid)) throw Error('Pick one of your own Monstars for that species.');
+    if (!GENESIS_IDS.includes(sid) && !STARTER_IDS.includes(sid)) throw Error('Pick one of your own Monstars for that species.'); // free play: the Genesis nine and the four starters
     return new Monstar({ speciesId: sid }); // free play: plain species stats
   }
 

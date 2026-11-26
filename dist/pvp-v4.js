@@ -489,12 +489,9 @@ function renderTeamPick() {
 // Every player starts with three Monstars (a wallet's three are picked from its address; a guest gets three at random).
 // Everything else is caught in the Wild Expedition.
 const STARTER_KEY = 'pm-guest-starters-v2';
-function guestStarters() { // a guest practises with one random Starter Bender (like a new account) plus two of the original nine for 3v3
-  try { const v = JSON.parse(localStorage.getItem(STARTER_KEY) || 'null'); if (Array.isArray(v) && v.length === 3) return v; } catch {}
-  const ids = Monstars.STARTER_IDS, v = [ids[Math.floor(Math.random() * ids.length)], ...Monstars.GENESIS_IDS.slice().sort(() => Math.random() - 0.5).slice(0, 2)];
-  try { localStorage.setItem(STARTER_KEY, JSON.stringify(v)); } catch {} return v;
-}
-const usableSpecies = sp => (S.session() && mine.length ? mine.some(m => m.speciesId === sp.id) : guestStarters().includes(sp.id));
+function guestStarters() { return Monstars.STARTER_IDS.slice(); } // free players pick from the four starter Element Masters
+// Signed in: every Monstar you own (bought, caught or gifted: the founder sees all of theirs) plus the four starters; free players: the four starters
+const usableSpecies = sp => (S.session() && mine.length ? mine.some(m => m.speciesId === sp.id) || Monstars.STARTER_IDS.includes(sp.id) : guestStarters().includes(sp.id));
 function ensurePick() { if (!usableSpecies(Monstars.SPECIES[pickedSpecies])) pickedSpecies = (S.session() && mine[0]?.speciesId) ?? guestStarters()[0]; teamPick = teamPick.filter(id => usableSpecies(Monstars.SPECIES[id])); }
 function renderPicker() {
   const box = q('pvPicker'); if (!box) return; box.innerHTML = ''; ensurePick(); renderTeamPick();

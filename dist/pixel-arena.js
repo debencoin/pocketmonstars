@@ -372,6 +372,7 @@ function createRenderer(canvas, arena) {
   // 3D saber-bearers and elemental benders: drawn from their own models at the same size as COVO's (head to feet = 0.9 of the old sprite box). Falls back to the flat picture while the model loads.
   const NEWCOL = {"dawnward": "#58b8ff", "verdantcrown": "#f2c230", "suncresttide": "#5aa8ff", "amethystlynx": "#a050ff", "cinderblade": "#d83a2a", "verdantfang": "#3adf5a", "lionregent": "#e8b030", "cyanshade": "#28e0ff", "sunpharaoh": "#ffd23a", "orbitranger": "#ff9a3a", "reactoralchemist": "#76ff2a", "stormcaller": "#8ae0ff", "crimsonronin": "#d82a3a", "crownstreet": "#f2c230", "halosentinel": "#fff2b0", "emberwarden": "#ff7a1a"}; // main colours of the Covo-style fighters (their shot looks)
   const ELEM = new Set(['aquari', 'rokko', 'blazen', 'gusti']);
+  const DISC = { rikkolo: { c: '#ffd23a', c2: '#fff6b0', k: 'orb' }, tydal: { c: '#35c8ff', c2: '#dff8ff', k: 'orb' }, terrok: { c: '#b08a50', c2: '#f0d8a8', k: 'rock' }, ignar: { c: '#ff5a1a', c2: '#ffd040', k: 'flame' }, zephar: { c: '#c8f4ff', c2: '#ffffff', k: 'blade' } };
   const RIG3D = n => !!(window.PMBoss?.has(n) || window.PMChosen?.has(n) || window.PMGirl?.has(n) || (ELEM.has(n) && window.PMElemental));
   function draw3D(n, f, i, opt, now, x, y, h, col) {
     if (window.PMBoss?.has(n)) return window.PMBoss.ready(n) && window.PMBoss.draw(ctx, x, y, h, f, col, { name: n, i, now: opt.now, faint: opt.faint });
@@ -480,14 +481,14 @@ function createRenderer(canvas, arena) {
     { const wn = NAMES[f.s], dx0 = f.fx < 0 ? -1 : 1;
       if (f.cg > 0) { const im = WSP(wn, 'charge'); if (im) { const w = 30 + f.cg * 80, h = w * im.naturalHeight / im.naturalWidth, cx = X + ox + dx0 * dw * 0.3, cy = Y + oy - dh * 0.5; ctx.save(); ctx.imageSmoothingEnabled = true; ctx.globalAlpha = 0.7 + f.cg * 0.3; ctx.drawImage(im, cx - w / 2, cy - h / 2, w, h); ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = 0.35; ctx.drawImage(im, cx - w / 2, cy - h / 2, w, h); ctx.restore(); } }
       if (f.g) { const im = WSP(wn, 'guard'); if (im) { const w = 120, h = w * im.naturalHeight / im.naturalWidth; ctx.save(); ctx.imageSmoothingEnabled = true; ctx.globalAlpha = 0.8; ctx.drawImage(im, X + ox - w / 2 + dx0 * 14, Y + oy + dh * 0.08 - h, w, h); ctx.restore(); } } }
-    if (f.cg > 0 && NAMES[f.s] === 'rikkolo' && window.PMEnergy) { // Rikkolo's Solar Disc: a golden disc hovers by his planted hand and charges into a yellow ball that keeps growing
-      const d = f.fx < 0 ? -1 : 1, c = f.cg, hx = X + ox + d * dw * 0.42, gy = Y + oy - dh * 0.06, by = gy - dh * (0.22 + c * 0.38), t2 = now * 6;
+    if (f.cg > 0 && DISC[NAMES[f.s]] && window.PMEnergy) { // the charge disc: an element disc hovers by the planted hand and charges into a ball that keeps growing (Rikkolo gold, Tydal water, Terrok stone, Ignar fire, Zephar wind)
+      const DC = DISC[NAMES[f.s]], d = f.fx < 0 ? -1 : 1, c = f.cg, hx = X + ox + d * dw * 0.42, gy = Y + oy - dh * 0.06, by = gy - dh * (0.22 + c * 0.38), t2 = now * 6;
       ctx.save(); ctx.globalCompositeOperation = 'lighter'; const rw = dw * (0.34 + c * 0.25), rh = rw * 0.32; // the disc spins flat over the ground
-      for (let k = 0; k < 3; k++) { ctx.globalAlpha = (0.9 - k * 0.25) * (1 - c * 0.35); ctx.strokeStyle = k ? '#ffd23a' : '#fff6b0'; ctx.lineWidth = (3 - k) * U; ctx.beginPath(); ctx.ellipse(hx, gy - dh * 0.1 - k * 2 * U, rw * (1 - k * 0.18), rh * (1 - k * 0.18), 0, t2 + k, t2 + k + 5.2); ctx.stroke(); }
-      const gr = ctx.createRadialGradient(hx, gy - dh * 0.1, 1, hx, gy - dh * 0.1, rw); gr.addColorStop(0, '#fff6b0aa'); gr.addColorStop(1, 'rgba(0,0,0,0)'); ctx.globalAlpha = 0.8; ctx.fillStyle = gr; ctx.beginPath(); ctx.ellipse(hx, gy - dh * 0.1, rw, rh, 0, 0, 7); ctx.fill();
-      ctx.globalAlpha = 0.5 + c * 0.5; ctx.strokeStyle = '#ffe680'; ctx.lineWidth = 2 * U; ctx.beginPath(); ctx.moveTo(hx, gy - dh * 0.1); ctx.lineTo(hx, by); ctx.stroke(); ctx.restore(); // the ki rises from the disc into the ball
-      window.PMEnergy.orb(ctx, hx, by, 0, (16 + c * c * 150) * U, '#ffd23a', '#fff6b0', 'orb', now * 1000, i); // bigger and bigger the longer the button is held
-      if (Math.random() < 0.7) part((hx + (Math.random() - 0.5) * rw * 2) / Z, (gy - dh * 0.1) / Z, 0, -40 - c * 60, 0.4, Math.random() < 0.5 ? '#ffd23a' : '#fff6b0', 1, 0);
+      for (let k = 0; k < 3; k++) { ctx.globalAlpha = (0.9 - k * 0.25) * (1 - c * 0.35); ctx.strokeStyle = k ? DC.c : DC.c2; ctx.lineWidth = (3 - k) * U; ctx.beginPath(); ctx.ellipse(hx, gy - dh * 0.1 - k * 2 * U, rw * (1 - k * 0.18), rh * (1 - k * 0.18), 0, t2 + k, t2 + k + 5.2); ctx.stroke(); }
+      const gr = ctx.createRadialGradient(hx, gy - dh * 0.1, 1, hx, gy - dh * 0.1, rw); gr.addColorStop(0, DC.c2 + 'aa'); gr.addColorStop(1, 'rgba(0,0,0,0)'); ctx.globalAlpha = 0.8; ctx.fillStyle = gr; ctx.beginPath(); ctx.ellipse(hx, gy - dh * 0.1, rw, rh, 0, 0, 7); ctx.fill();
+      ctx.globalAlpha = 0.5 + c * 0.5; ctx.strokeStyle = DC.c2; ctx.lineWidth = 2 * U; ctx.beginPath(); ctx.moveTo(hx, gy - dh * 0.1); ctx.lineTo(hx, by); ctx.stroke(); ctx.restore(); // the ki rises from the disc into the ball
+      window.PMEnergy.orb(ctx, hx, by, 0, (16 + c * c * 150) * U, DC.c, DC.c2, DC.k, now * 1000, i); // bigger and bigger the longer the button is held
+      if (Math.random() < 0.7) part((hx + (Math.random() - 0.5) * rw * 2) / Z, (gy - dh * 0.1) / Z, 0, -40 - c * 60, 0.4, Math.random() < 0.5 ? DC.c : DC.c2, 1, 0);
     }
     else if (f.cg > 0 && window.PMEnergy) { const d = f.fx < 0 ? -1 : 1, cc = NEWCOL[NAMES[f.s]] || SP?.col || pal[1]; window.PMEnergy.orb(ctx, X + ox + d * dw * 0.3, Y + oy - dh * 0.5, 0, (30 + f.cg * 70) * U, cc, pal[2] || cc, 'orb', now * 1000, i); }
     else if (f.cg > 0 && !WSP(NAMES[f.s], 'charge')) { // charging a shot: energy gathers in front of the fighter and swells
@@ -725,8 +726,9 @@ function createRenderer(canvas, arena) {
     const pal = palFor(p.ty, p.sid), a = Math.atan2(p.vy, p.vx), fl = Math.floor(now * 20) % 2, v = vidOf(p);
     y -= 8;
     if (NAMES[p.sid] === 'covo' && window.PMCovoRig?.projectile(ctx, x, y, a, p, now)) return;
-    if (NAMES[p.sid] === 'rikkolo' && window.PMEnergy) { // Rikkolo: a charged shot is the big yellow Solar ball, a tap is a ki laser
-      if (p.cg >= 0.12 && p.k === 'basic') { window.PMEnergy.orb(ctx, x, y, a, 40 + p.cg * 90, '#ffd23a', '#fff6b0', 'orb', now, p.id || 0); if (Math.random() < 0.8) part(x - Math.cos(a) * 20, y - Math.sin(a) * 20, -Math.cos(a) * 20, -6, 0.5, '#ffe680', 1, 60); return; }
+    if (DISC[NAMES[p.sid]] && p.cg >= 0.12 && p.k === 'basic' && window.PMEnergy) { const DC = DISC[NAMES[p.sid]]; // a charged blast: the big element ball (water, stone, fire, wind or gold)
+      window.PMEnergy.orb(ctx, x, y, a, NAMES[p.sid] === 'rikkolo' ? 40 + p.cg * 90 : 34 + p.cg * 56, DC.c, DC.c2, DC.k, now, p.id || 0); if (Math.random() < 0.8) part(x - Math.cos(a) * 20, y - Math.sin(a) * 20, -Math.cos(a) * 20, -6, 0.5, DC.c2, 1, 60); return; }
+    if (NAMES[p.sid] === 'rikkolo' && window.PMEnergy) { // Rikkolo: a tap is a ki laser
       ctx.save(); ctx.translate(x, y); ctx.rotate(a); ctx.globalCompositeOperation = 'lighter'; const L2 = 46;
       const lg = ctx.createLinearGradient(-L2, 0, 8, 0); lg.addColorStop(0, 'rgba(255,210,58,0)'); lg.addColorStop(1, '#ffd23a'); ctx.fillStyle = lg; ctx.fillRect(-L2, -3.5, L2 + 8, 7);
       ctx.fillStyle = '#ffffff'; ctx.fillRect(-L2 * 0.7, -1.2, L2 * 0.7 + 8, 2.4); ctx.restore();
