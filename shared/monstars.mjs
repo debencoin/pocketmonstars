@@ -232,8 +232,12 @@ for (const n of ['COVO', 'Azaelion']) { const c = SPECIES.find(s => s.name === n
   let f = sp.forms || stageForms(sp.name), n = 0;
   while ((seen.has(f[0]) || seen.has(f[1]) || names.has(f[0]) || names.has(f[1])) && n++ < 6) { const r = sp.name.slice(0, f[0].length - 3 + 1); f = [r + 'kit', r + 'ling', ...f.slice(2)]; }
   sp.forms = f; f.forEach(x => seen.add(x)); } }
+// The wild Monstars whose 3D models came out paper thin were deleted from the game: never met in the wild again, and their
+// unminted copies leave every wallet (server/registry.mjs). Their ids stay so old records still read.
+export const DELETED_THIN = ['Magmole', 'Bubblyn', 'Clawtide', 'Abyssquid', 'Fernling', 'Acornaut', 'Hexmask', 'Quarrox', 'Cragcrab', 'Snowpuff', 'Rivetbot'];
+for (const s of SPECIES) if (DELETED_THIN.includes(s.name)) { s.retired = true; s.deleted = true; s.drop = undefined; }
 export const GENESIS_IDS = SPECIES.filter(s => s.collection === 'genesis').map(s => s.id);
-export const FRONTIER_IDS = SPECIES.filter(s => s.collection === 'frontier').map(s => s.id);
+export const FRONTIER_IDS = SPECIES.filter(s => s.collection === 'frontier' && !s.retired).map(s => s.id);
 export const MYTHIC_IDS = SPECIES.filter(s => s.collection === 'mythic').map(s => s.id);
 export const ANUNNAKI_IDS = SPECIES.filter(s => s.collection === 'anunnaki' && !s.replaced).map(s => s.id);
 export const WATCHER_IDS = SPECIES.filter(s => s.collection === 'watchers' && !s.replaced).map(s => s.id);

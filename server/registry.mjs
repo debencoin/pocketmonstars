@@ -39,6 +39,12 @@ export class Registry {
       db.exec(`UPDATE monstars SET exp=0 WHERE genesis=1 AND species IN (${ids}) AND exp>=${expForLevel(80)}`);
       db.prepare("INSERT INTO meta(k,v) VALUES('legend-infants-v1','done')").run();
     }
+    // the paper-thin wild Monstars were deleted from the game: unminted copies leave every wallet (minted NFTs stay on chain)
+    if (!db.prepare("SELECT 1 FROM meta WHERE k='delete-thin-v1'").get()) {
+      const gone = SPECIES.filter(s => s.deleted).map(s => s.id).join(',') || '-1';
+      try { const r = db.prepare(`DELETE FROM monstars WHERE species IN (${gone}) AND asset IS NULL`).run(); if (r.changes) console.log(`deleted ${r.changes} paper-thin Monstar(s)`); } catch (e) { console.error('delete thin:', e.message); }
+      db.prepare("INSERT INTO meta(k,v) VALUES('delete-thin-v1','done')").run();
+    }
     // the old benders were retired (the Element Masters replace them): unminted ones leave every wallet
     if (!db.prepare("SELECT 1 FROM meta WHERE k='retire-benders-v1'").get()) {
       const gone = SPECIES.filter(s => s.retired).map(s => s.id).join(',') || '-1';

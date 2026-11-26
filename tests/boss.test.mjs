@@ -97,3 +97,14 @@ test('Enki: a charged Storm Crown detonates right in front of the rival; ANU: So
   let shots = 0; for (let i = 0; i < Math.round(4 / S.TICK); i++) { S.step(a); shots = Math.max(shots, a.projectiles.filter(p => p.sid === a.summons[0]?.sid).length); }
   assert.ok(shots >= 1, 'the titan attacks the rival'); assert.ok(S.snapshot(a).sm.length === 1);
 });
+
+test('the paper-thin wild Monstars are deleted: never met in the wild, and unminted copies leave every wallet', async () => {
+  const M = await import('../shared/monstars.mjs');
+  const ids = M.DELETED_THIN.map(n => M.SPECIES.find(s => s.name === n).id);
+  assert.equal(ids.length, 11);
+  for (const id of ids) { assert.ok(M.SPECIES[id].retired && !M.WILD_IDS.includes(id)); }
+  for (let i = 0; i < 3000; i++) assert.ok(!ids.includes(M.rollWild(Math.random())));
+  const db = openDb(':memory:'), reg0 = new Registry(db), w = wallet(); const m = reg0.claimAll(w)[0];
+  db.prepare('UPDATE monstars SET species=? WHERE serial=?').run(ids[0], m.serial); db.prepare("DELETE FROM meta WHERE k='delete-thin-v1'").run();
+  new Registry(db); assert.equal(db.prepare('SELECT COUNT(*) n FROM monstars WHERE species=?').get(ids[0]).n, 0, 'the unminted copy is gone');
+});
