@@ -774,6 +774,19 @@ Object.assign(CHK_SIG, {
     { kind: 'nova', name: 'Black Sun', note: 'A dark sun explodes over the arena.', power: 1.75, size: 1.45 }, ['Chimera Cub', 'Golden Dread Chimera']),
 });
 
+
+// Rikkolo: the founder's amber ki warrior. Tap to fire a ki laser; hold and a golden disc hovers in front of him and charges
+// into a yellow ball that keeps growing (one hand planted on the ground), then he throws it.
+Object.assign(CHK_SIG, {
+  'Rikkolo': { type: 'ASTRAL', cls: 'striker', title: 'Amber Ki Warrior', female: false, main: '#ffd23a',
+    sig: { basic: { name: 'Solar Disc Blast', look: 'solar', status: 'burn', power: 1.5, note: 'Tap: a fast ki laser shot. Hold: a golden disc hovers and charges into a yellow ball that grows bigger and bigger while one hand stays planted on the ground, then he throws it.' },
+      special: { name: 'Piercing Ki Laser', style: 'beam', status: 'stun', power: 1.6, reach: 1.2, note: 'A thin, drilling ki laser fired from two fingers that stuns.' },
+      dash: { kind: 'blink', name: 'Afterimage Step', note: 'Moves so fast he leaves an afterimage behind.', dist: 1.9, cd: 0.7 },
+      guard: { kind: 'reflect', name: 'Ki Deflect', note: 'Slaps shots back with a burst of ki.', time: 1.2, cd: 5.1 },
+      mega: { kind: 'nova', name: 'Solar Supernova', note: 'A sun of ki explodes over the arena.', power: 1.7, size: 1.4 } },
+    names: ['Twin Ki Laser', 'Drill Ki Laser', 'Solar Sovereign'], forms: ['Amber Initiate', 'Amber Warden', 'Rikkolo', 'Rikkolo Ascendant', 'Solar Rikkolo', 'Rikkolo, the Amber Sun'] },
+});
+
 const CHK = name => {
   const k0 = CHK_SIG[name], ix = Object.keys(CHK_SIG).indexOf(name), tw = (o, ...f) => { const r = { ...o }; for (const x of f) r[x] = +(r[x] + ix * 0.004).toFixed(3); return r; }; // every Chosen One has its own dash and guard numbers
   const k = { ...k0, sig: { ...k0.sig, dash: tw(k0.sig.dash, 'dist', 'cd'), guard: tw(k0.sig.guard, 'time', 'cd') } };
@@ -974,3 +987,6 @@ export const BOSS_NAMES = ['Thornmaw', 'Cinderwing', 'Crimson Harrow', 'Briarcoi
 export const BOSSES = BOSS_NAMES.map(n => { const b = CHK(n), k = CHK_SIG[n];
   return { ...b, master: undefined, legendary: undefined, legendFor: undefined, bender: undefined, elite: undefined, aura: true, boss: true, serpent: k.motion === 'glide' || undefined,
     forms: [n, n, n, n + ' Ascendant', 'Elder ' + n, 'Dread ' + n], /* a boss is always shown by its own name */ lore: { pronounce: n, ancientTitle: n + ', Boss Monster', meaning: 'A boss of the Boss Arena.' } }; });
+
+// Rikkolo (founder only, never wild, only the founder may sell him)
+export const RIKKOLO = ['Rikkolo'].map(n => ({ ...CHK(n), master: undefined, legendary: undefined, legendFor: undefined, bender: undefined, elite: undefined, aura: true }));

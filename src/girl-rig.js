@@ -55,12 +55,15 @@ const GIRLS = {
   bunzo: { glb: 'bunzo', el: 'earth', c1: 0xff5a1a, c2: 0xffbda3, gait: { cad: 9.2, amp: 1.0 } },
   vikko: { glb: 'vikko', el: 'water', c1: 0x2aa84a, c2: 0xa9e6bd, turn: Math.PI / 2, gait: { cad: 9.2, amp: 1.0 } },
   noxx: { glb: 'noxx', el: 'aether', c1: 0x2a3a34, c2: 0x8aa099, turn: Math.PI / 2, gait: { cad: 13, amp: 1.1 } },
+  // Rikkolo: the founder's ki warrior (hold to charge the Solar Disc into a giant yellow ball)
+  rikkolo: { glb: 'rikkolo', el: 'aether', c1: 0xffd23a, c2: 0xfff6b0, turn: Math.PI / 2, plant: true, gait: { cad: 11.5, amp: 1.08 } },
   // the Ancient Beings: a winged Watcher, a Nephilim giant and an Anunnaki ruler
   sarielthewatcher: { glb: 'sarielwatcher', el: 'aether', c1: 0x8a6aff, c2: 0xffe9a0, turn: Math.PI / 2, wings: [0.2], jt: { neck: 0.7, top: 0.96 } },
   neraththenephilim: { glb: 'nerathnephilim', el: 'earth', c1: 0xc87a3a, c2: 0xffb060, turn: Math.PI / 2, rs: 1.5, gait: { cad: 8.5, amp: 0.95 }, jt: { hip: 0.44, chest: 0.52, neck: 0.74, top: 0.98, sh: [0.76, 0.2], el: [0.52, 0.33], wr: [0.37, 0.37], hand: [0.28, 0.38], hj: [0.44, 0.09], kn: [0.22, 0.1], an: [0.05, 0.11] } },
   enkartheanunnaki: { glb: 'enkaranunnaki', el: 'aether', c1: 0xffb02a, c2: 0x3a6aff, turn: Math.PI / 2, rs: 1.2, gait: { cad: 10, amp: 1.0 }, jt: { hip: 0.34, chest: 0.42, neck: 0.56, top: 0.98, sh: [0.62, 0.15], el: [0.47, 0.27], wr: [0.34, 0.33], hand: [0.28, 0.34], hj: [0.34, 0.07], kn: [0.18, 0.075], an: [0.04, 0.08] } },
 };
 const BASE = './girls/', SIZE = 320, H = 1.7;
+const R_plant = o => !!GIRLS[o?.name]?.plant;
 const inst = {}, fstate = {};
 let renderer = null, camera = null, glowTex = null, view = null;
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -180,6 +183,8 @@ function limbs(f, o, t, S, u, casting, moving, fly) {
   }
   if (f.cg > 0 && !fly) { // charging: a wide crouch, both arms drawn back to the hip, shaking harder as the energy builds
     const c = f.cg; L.thA = 0.55; L.thB = -0.45; L.kA = 1.0 + c * 0.25; L.kB = 0.85 + c * 0.2; L.uaA = -0.45 - c * 0.25; L.uaB = -0.55 - c * 0.25; L.faA = 1.5; L.faB = 1.5; L.twist = 0.25; L.chestZ = 0.18 + c * 0.1; L.chestX = 0; L.headY = -0.2; L.shake = 0.01 + c * 0.035; L.splay = 0.2;
+    if (R_plant(o)) { const c = f.cg; L.kA = 1.6 + c * 0.2; L.kB = 1.3; L.thA = 1.0; L.thB = -0.25; L.chestZ = -0.75; L.headY = 0.25; // Rikkolo: deep crouch, one hand planted on the ground, the other held up feeding the Solar Disc
+      L.uaA = 0.1; L.faA = 0.0; L.uaB = 1.5 + c * 0.2; L.faB = 0.3; L.twist = 0.1; }
   } else if (f.cg > 0) { L.uaA = L.uaB = -0.5; L.faA = L.faB = 1.3; L.shake = 0.02 * f.cg; }
   if (f.g) { // guard: knees bent, both forearms crossed up in front of the face, head tucked
     L.thA = 0.35; L.thB = -0.2; L.kA = 0.75; L.kB = 0.6; L.uaA = 1.15; L.uaB = 1.05; L.faA = 2.05; L.faB = 2.15; L.twist = 0.3; L.chestZ = 0.12; L.headZ = 0.12; L.headY = -0.2; L.splay = -0.2; L.chestX = 0;
