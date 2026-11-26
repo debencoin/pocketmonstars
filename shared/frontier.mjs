@@ -787,6 +787,40 @@ Object.assign(CHK_SIG, {
     names: ['Twin Ki Laser', 'Drill Ki Laser', 'Solar Sovereign'], forms: ['Amber Initiate', 'Amber Warden', 'Rikkolo', 'Rikkolo Ascendant', 'Solar Rikkolo', 'Rikkolo, the Amber Sun'] },
 });
 
+
+// The Elemental Quartet: Terra (earth), Pyra (fire), Zephyria (wind) and Nexus (all five elements, in black). Each charges a
+// blast (hold to gather, release to fire); Nexus draws water, fire, earth, wind and lightning into one orb. Founder's wallet + market.
+Object.assign(CHK_SIG, {
+  'Terra': { type: 'STONE', cls: 'warden', title: 'Earth Bender', female: true, main: '#3a8a3a', market: 1,
+    sig: { basic: { name: 'Granite Palm', look: 'qt_terra', status: 'stun', power: 1.45, note: 'A palm strike that hurls a slab of granite. Hold to charge: rock and green earth-light gather into a boulder that grows, then she throws it.' },
+      special: { name: 'Faultline Kick', style: 'strike', status: 'stun', power: 1.55, note: 'A kick splits the ground: golden rock crystals burst up under the rival.' },
+      dash: { kind: 'leap', name: 'Stone Step', note: 'Springs off a rising stone.', dist: 1.7, cd: 0.78 },
+      guard: { kind: 'fortress', name: 'Basalt Guard', note: 'A dome of basalt rises around her.', time: 1.5, cd: 5.5 },
+      mega: { kind: 'pillars', name: 'Titan Rise', note: 'Giant crystal pillars erupt across the arena.', power: 1.6, size: 1.35 } },
+    names: ['Granite Twin Palm', 'Faultline Fury', 'Titan Crown'], forms: ['Terra', 'Terra Initiate', 'Terra', 'Ascended Terra', 'Master Terra', 'Ultimate Terra'] },
+  'Pyra': { type: 'EMBER', cls: 'striker', title: 'Fire Bender', female: true, main: '#ff3a1a', market: 1,
+    sig: { basic: { name: 'Ember Palm', look: 'qt_pyra', status: 'burn', power: 1.45, note: 'A focused heat strike. Hold to charge: a fireball swells between her hands, then she fires it.' },
+      special: { name: 'Flame Whip', style: 'whip', status: 'burn', power: 1.55, note: 'A long lash of fire.' },
+      dash: { kind: 'burst', name: 'Cinder Spin', note: 'A spinning flame kick that carries her forward.', dist: 1.8, cd: 0.72 },
+      guard: { kind: 'absorb', name: 'Heat Veil', note: 'A veil of heat swallows hits.', time: 1.3, cd: 5.3 },
+      mega: { kind: 'nova', name: 'Phoenix Rise', note: 'She rises on phoenix wings and the arena bursts into flame.', power: 1.65, size: 1.4 } },
+    names: ['Twin Ember Palm', 'Inferno Whip', 'Phoenix Queen'], forms: ['Pyra', 'Pyra Initiate', 'Pyra', 'Ascended Pyra', 'Master Pyra', 'Ultimate Pyra'] },
+  'Zephyria': { type: 'GALE', cls: 'skirmisher', title: 'Wind Bender', female: true, main: '#9ae8ff', market: 1, motion: 'hover',
+    sig: { basic: { name: 'Gale Palm', look: 'qt_zephyria', status: 'soak', power: 1.4, note: 'A palm of wind. Hold to charge: a spinning sphere of wind grows, then she blows it out.' },
+      special: { name: 'Cyclone Kick', style: 'cone', status: 'soak', power: 1.55, note: 'A spinning kick that throws a cone of cyclone wind.' },
+      dash: { kind: 'leap', name: 'Sky Updraft', note: 'An updraft lifts her up and over.', dist: 1.9, cd: 0.7 },
+      guard: { kind: 'reflect', name: 'Wind Shield', note: 'A ring of wind turns shots back.', time: 1.3, cd: 5.2 },
+      mega: { kind: 'tornado', name: 'Sky Cyclone', note: 'A huge cyclone tears across the arena.', power: 1.6, size: 1.35 } },
+    names: ['Twin Gale Palm', 'Cyclone Storm', 'Sky Sovereign'], forms: ['Zephyria', 'Zephyria Initiate', 'Zephyria', 'Ascended Zephyria', 'Master Zephyria', 'Ultimate Zephyria'] },
+  'Nexus': { type: 'ANCIENT', cls: 'mystic', title: 'All-Element Bender', female: true, main: '#a050ff', market: 1.5,
+    sig: { basic: { name: 'Nexus Blast', look: 'qt_nexus', status: 'mark', power: 1.5, note: 'Hold to charge: water, fire, earth, wind and lightning trails gather into one orb, then she releases the combined Nexus Blast.' },
+      special: { name: 'Lightning Arc', style: 'beam', status: 'paralyze', power: 1.6, note: 'A violet arc of lightning.' },
+      dash: { kind: 'phase', name: 'Wind Vortex', note: 'Spins away inside a vortex of wind.', dist: 1.8, cd: 0.72 },
+      guard: { kind: 'barrier', name: 'Water Spiral', note: 'A spiral of water wraps around her.', time: 1.4, cd: 5.4 },
+      mega: { kind: 'omnistorm', name: 'Five Elements Unified', note: 'Water, fire, earth, wind and lightning crash down together.', power: 1.7, size: 1.45 } },
+    names: ['Fire Burst', 'Earth Rise', 'Nexus Sovereign'], forms: ['Nexus', 'Nexus Initiate', 'Nexus', 'Ascended Nexus', 'Master Nexus', 'Ultimate Nexus'] },
+});
+
 const CHK = name => {
   const k0 = CHK_SIG[name], ix = Object.keys(CHK_SIG).indexOf(name), tw = (o, ...f) => { const r = { ...o }; for (const x of f) r[x] = +(r[x] + ix * 0.004).toFixed(3); return r; }; // every Chosen One has its own dash and guard numbers
   const k = { ...k0, sig: { ...k0.sig, dash: tw(k0.sig.dash, 'dist', 'cd'), guard: tw(k0.sig.guard, 'time', 'cd') } };
@@ -990,3 +1024,7 @@ export const BOSSES = BOSS_NAMES.map(n => { const b = CHK(n), k = CHK_SIG[n];
 
 // Rikkolo (founder only, never wild, only the founder may sell him)
 export const RIKKOLO = ['Rikkolo'].map(n => ({ ...CHK(n), master: undefined, legendary: undefined, legendFor: undefined, bender: undefined, elite: undefined, aura: true }));
+
+// The Elemental Quartet: in the founder's wallet and sold once each in the market (like the Weavers)
+export const QUARTET = ['Terra', 'Pyra', 'Zephyria', 'Nexus'].map(n => { const b = CHK(n), sol = CHK_SIG[n].market;
+  return { ...b, master: undefined, legendary: undefined, legendFor: undefined, bender: undefined, elite: undefined, aura: true, drop: { priceLamports: String(Math.round(sol * 1_000_000_000)), shop: true } }; });

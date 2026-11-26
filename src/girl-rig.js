@@ -5,6 +5,8 @@ import * as T from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 
 // el: 'water' | 'fire' | 'earth' | 'air' | 'aether' (picks the look of the energy around her)
+// chibi body: the head takes the top third, legs are short
+const CHIBI = { hip: 0.33, chest: 0.42, neck: 0.6, top: 0.98, sh: [0.57, 0.15], el: [0.47, 0.2], wr: [0.39, 0.23], hand: [0.34, 0.24], hj: [0.32, 0.07], kn: [0.17, 0.075], an: [0.04, 0.075], toe: 0.08 };
 const GIRLS = {
   nerida:  { glb: 'water',  el: 'water',  c1: 0x35c8ff, c2: 0xcff6ff },
   ignessa: { glb: 'fire',   el: 'fire',   c1: 0xff5a1a, c2: 0xffd23a },
@@ -59,6 +61,11 @@ const GIRLS = {
   rikkolo: { glb: 'rikkolo', el: 'aether', c1: 0xffd23a, c2: 0xfff6b0, turn: Math.PI / 2, plant: true, gait: { cad: 11.5, amp: 1.08 } },
   // Voltz: six 3D models, one per evolution stage (Storm Initiate → Storm Apex); the body swaps as he evolves
   voltz: { glb: 'voltz_s1', stages: ['voltz_s1', 'voltz_s2', 'voltz_s3', 'voltz_s4', 'voltz_s5', 'voltz_s6'], el: 'aether', c1: 0xffd23f, c2: 0x6ab8ff, turn: Math.PI / 2, plant: true, gait: { cad: 12, amp: 1.1 } },
+  // the Elemental Quartet (chibi proportions: big head, short legs)
+  terra: { glb: 'terra', el: 'earth', c1: 0x3a8a3a, c2: 0xd8b060, turn: Math.PI / 2, plant: true, gait: { cad: 11, amp: 1.05 }, jt: CHIBI },
+  pyra: { glb: 'pyra', el: 'fire', c1: 0xff3a1a, c2: 0xffc040, turn: Math.PI / 2, plant: true, gait: { cad: 12.5, amp: 1.1 }, jt: CHIBI },
+  zephyria: { glb: 'zephyria', el: 'air', c1: 0x9ae8ff, c2: 0xffffff, turn: Math.PI / 2, plant: true, gait: { cad: 12, amp: 1.1 }, jt: CHIBI },
+  nexus: { glb: 'nexus', el: 'aether', c1: 0xa050ff, c2: 0xffd23a, turn: Math.PI / 2, plant: true, gait: { cad: 11.5, amp: 1.08 }, jt: CHIBI },
   // the Ancient Beings: a winged Watcher, a Nephilim giant and an Anunnaki ruler
   sarielthewatcher: { glb: 'sarielwatcher', el: 'aether', c1: 0x8a6aff, c2: 0xffe9a0, turn: Math.PI / 2, wings: [0.2], jt: { neck: 0.7, top: 0.96 } },
   neraththenephilim: { glb: 'nerathnephilim', el: 'earth', c1: 0xc87a3a, c2: 0xffb060, turn: Math.PI / 2, rs: 1.5, gait: { cad: 8.5, amp: 0.95 }, jt: { hip: 0.44, chest: 0.52, neck: 0.74, top: 0.98, sh: [0.76, 0.2], el: [0.52, 0.33], wr: [0.37, 0.37], hand: [0.28, 0.38], hj: [0.44, 0.09], kn: [0.22, 0.1], an: [0.05, 0.11] } },
