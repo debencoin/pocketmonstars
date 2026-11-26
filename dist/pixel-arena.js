@@ -372,7 +372,7 @@ function createRenderer(canvas, arena) {
   // 3D saber-bearers and elemental benders: drawn from their own models at the same size as COVO's (head to feet = 0.9 of the old sprite box). Falls back to the flat picture while the model loads.
   const NEWCOL = {"dawnward": "#58b8ff", "verdantcrown": "#f2c230", "suncresttide": "#5aa8ff", "amethystlynx": "#a050ff", "cinderblade": "#d83a2a", "verdantfang": "#3adf5a", "lionregent": "#e8b030", "cyanshade": "#28e0ff", "sunpharaoh": "#ffd23a", "orbitranger": "#ff9a3a", "reactoralchemist": "#76ff2a", "stormcaller": "#8ae0ff", "crimsonronin": "#d82a3a", "crownstreet": "#f2c230", "halosentinel": "#fff2b0", "emberwarden": "#ff7a1a"}; // main colours of the Covo-style fighters (their shot looks)
   const ELEM = new Set(['aquari', 'rokko', 'blazen', 'gusti']);
-  const DISC = { rikkolo: { c: '#ffd23a', c2: '#fff6b0', k: 'orb' }, tydal: { c: '#35c8ff', c2: '#dff8ff', k: 'orb' }, terrok: { c: '#b08a50', c2: '#f0d8a8', k: 'rock' }, ignar: { c: '#ff5a1a', c2: '#ffd040', k: 'flame' }, zephar: { c: '#c8f4ff', c2: '#ffffff', k: 'blade' } };
+  const DISC = { rikkolo: { c: '#ffd23a', c2: '#fff6b0', k: 'orb' }, tydal: { c: '#35c8ff', c2: '#dff8ff', k: 'orb' }, terrok: { c: '#b08a50', c2: '#f0d8a8', k: 'rock' }, ignar: { c: '#ff5a1a', c2: '#ffd040', k: 'flame' }, zephar: { c: '#c8f4ff', c2: '#ffffff', k: 'blade' }, voltz: { c: '#ffd23f', c2: '#6ab8ff', k: 'bolt' } };
   const RIG3D = n => !!(window.PMBoss?.has(n) || window.PMChosen?.has(n) || window.PMGirl?.has(n) || (ELEM.has(n) && window.PMElemental));
   function draw3D(n, f, i, opt, now, x, y, h, col) {
     if (window.PMBoss?.has(n)) return window.PMBoss.ready(n) && window.PMBoss.draw(ctx, x, y, h, f, col, { name: n, i, now: opt.now, faint: opt.faint });

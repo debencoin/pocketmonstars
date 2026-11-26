@@ -466,7 +466,7 @@ function land(m, att, vic, kind, style, events, dirx, diry, knock = 90, power, f
 }
 
 // Elemental benders hold the shot button to charge: let go and a bigger blast leaves with up to double the damage. A quick tap fires the normal shot.
-const CHARGERS = new Set(['Aquari', 'Rokko', 'Blazen', 'Gusti', 'Eclipse Sovereign', 'Tide Weaver', 'Ember Weaver', 'Volt Weaver', 'Stone Weaver', 'Halo Slinger', 'Sariel the Watcher', 'Nerath the Nephilim', 'Enkar the Anunnaki', 'Rikkolo', 'Terrok', 'Zephar', 'Tydal', 'Ignar']), CHARGE_MAX = 1.5, CHARGE_TAP = 0.25; // seconds of real time
+const CHARGERS = new Set(['Aquari', 'Rokko', 'Blazen', 'Gusti', 'Eclipse Sovereign', 'Tide Weaver', 'Ember Weaver', 'Volt Weaver', 'Stone Weaver', 'Halo Slinger', 'Sariel the Watcher', 'Nerath the Nephilim', 'Enkar the Anunnaki', 'Rikkolo', 'Terrok', 'Zephar', 'Tydal', 'Ignar', 'Voltz']), CHARGE_MAX = 1.5, CHARGE_TAP = 0.25; // seconds of real time
 function cast(m, f, kind, lvl = 0) {
   const style = f.styles[kind], S = STYLES[style];
   f.energy -= S.cost; f.cd[kind] = S.cd * (kind === 'special' ? f.mods.specialCd : 1) * (f.kit?.[kind]?.cd ?? 1); f.actions++;

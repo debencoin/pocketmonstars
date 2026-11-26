@@ -165,7 +165,7 @@ for (const s of SPECIES) if (s.el2 === 'air') s.motion = 'hover';
 for (const s of SPECIES) if (['anunnaki', 'watchers'].includes(s.collection)) s.replaced = true;
 // Every earlier bender is retired: the Element Masters replace them. Retired species keep their id (old records still
 // read correctly) but are never given, sold, met in the wild or chosen as a starter.
-for (const s of SPECIES) if (['benders', 'skybenders', 'starters'].includes(s.collection) && !s.master) { s.retired = true; s.drop = undefined; s.legendary = undefined; s.legendFor = undefined; }
+for (const s of SPECIES) if (['benders', 'skybenders', 'starters'].includes(s.collection) && !s.master && s.name !== 'Voltz') { /* Voltz came back in 3D (six stage models) */ s.retired = true; s.drop = undefined; s.legendary = undefined; s.legendFor = undefined; }
 /** The kit a Monstar uses at a level: Element Masters swap in stronger powers on the same buttons as they level up. */
 export function kitAt(sp, level = 1) {
   if (!sp.tiers) return sp.kit;

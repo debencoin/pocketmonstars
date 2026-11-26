@@ -57,6 +57,8 @@ const GIRLS = {
   noxx: { glb: 'noxx', el: 'aether', c1: 0x2a3a34, c2: 0x8aa099, turn: Math.PI / 2, gait: { cad: 13, amp: 1.1 } },
   // Rikkolo: the founder's ki warrior (hold to charge the Solar Disc into a giant yellow ball)
   rikkolo: { glb: 'rikkolo', el: 'aether', c1: 0xffd23a, c2: 0xfff6b0, turn: Math.PI / 2, plant: true, gait: { cad: 11.5, amp: 1.08 } },
+  // Voltz: six 3D models, one per evolution stage (Storm Initiate → Storm Apex); the body swaps as he evolves
+  voltz: { glb: 'voltz_s1', stages: ['voltz_s1', 'voltz_s2', 'voltz_s3', 'voltz_s4', 'voltz_s5', 'voltz_s6'], el: 'aether', c1: 0xffd23f, c2: 0x6ab8ff, turn: Math.PI / 2, plant: true, gait: { cad: 12, amp: 1.1 } },
   // the Ancient Beings: a winged Watcher, a Nephilim giant and an Anunnaki ruler
   sarielthewatcher: { glb: 'sarielwatcher', el: 'aether', c1: 0x8a6aff, c2: 0xffe9a0, turn: Math.PI / 2, wings: [0.2], jt: { neck: 0.7, top: 0.96 } },
   neraththenephilim: { glb: 'nerathnephilim', el: 'earth', c1: 0xc87a3a, c2: 0xffb060, turn: Math.PI / 2, rs: 1.5, gait: { cad: 8.5, amp: 0.95 }, jt: { hip: 0.44, chest: 0.52, neck: 0.74, top: 0.98, sh: [0.76, 0.2], el: [0.52, 0.33], wr: [0.37, 0.37], hand: [0.28, 0.38], hj: [0.44, 0.09], kn: [0.22, 0.1], an: [0.05, 0.11] } },
@@ -152,9 +154,13 @@ function build(name, gltf) {
   return { name, cfg, scene, root, body, bones, mats, el, motes, ring, ring2, orb, core, shell, trail, ready: true };
 }
 function load(name) {
-  if (inst[name]) return inst[name];
-  const r = inst[name] = { ready: false };
-  new GLTFLoader().loadAsync(BASE + GIRLS[name].glb + '.glb').then(g => { getRenderer(); Object.assign(r, build(name, g)); }).catch(e => console.warn('girl load failed', name, e));
+  return loadAt(name, 0);
+}
+const keyOf = (name, sg) => (GIRLS[name]?.stages ? name + '#' + Math.max(0, Math.min(GIRLS[name].stages.length - 1, sg | 0)) : name);
+function loadAt(name, sg) {
+  const k = keyOf(name, sg); if (inst[k]) return inst[k];
+  const r = inst[k] = { ready: false }, file = GIRLS[name].stages ? GIRLS[name].stages[Number(k.split('#')[1])] : GIRLS[name].glb;
+  new GLTFLoader().loadAsync(BASE + file + '.glb').then(g => { getRenderer(); Object.assign(r, build(name, g)); }).catch(e => console.warn('girl load failed', name, e));
   return r;
 }
 function stateOf(f, o) {
@@ -273,7 +279,9 @@ function apply(R, out, f, now, yaw) {
 }
 
 function draw(ctx, x, y, h, f, col, o = {}) {
-  const name = o.name, R = inst[name]; if (!R?.ready) return false;
+  const name = o.name; let R = loadAt(name, f.sg); // a staged fighter shows the body for its evolution stage
+  if (!R?.ready && GIRLS[name]?.stages) R = Object.keys(inst).filter(k => k.startsWith(name + '#')).map(k => inst[k]).find(x => x.ready); // while it loads, keep the last body
+  if (!R?.ready) return false;
   const now = (o.now ?? performance.now()) / 1000 + (o.i || 0) * 0.37;
   const out = pose(R, f, o, now);
   let fxx = f.fx || 0, fyy = f.fy || 0; if (!fxx && !fyy) fxx = 1; const yaw = Math.atan2(-fyy, fxx);
@@ -285,7 +293,7 @@ function draw(ctx, x, y, h, f, col, o = {}) {
 }
 // A still picture (cards, the home page): `px` square, turned `yaw` radians (0 = facing right, -PI/2 = facing the viewer)
 function snapshot(name, px = 512, yaw = -0.75, hh = 0.74, act = null, tt = 1.0) {
-  const R = inst[name]; if (!R?.ready) return null;
+  const R = loadAt(name, act?.sg ?? 0); if (!R?.ready) return null;
   const f = { fx: Math.cos(yaw), fy: -Math.sin(yaw), ...(act || {}) }, out = pose(R, f, { name, i: 9, ...(act?.o || {}) }, tt); if (act?.nospin) out.spin = 0; out.glow = 0.7; out.ring = 0.3;
   apply(R, out, f, tt, yaw); energy(R, out, f, tt, null); R.shell.material.opacity = 0;
   const rd = getRenderer(), cam = new T.PerspectiveCamera(24, 1, 0.1, 50), dist = H / hh / (2 * Math.tan(12 * Math.PI / 180));
