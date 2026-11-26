@@ -668,7 +668,8 @@ export function step(m, realDt = TICK) {
     if (inp.asc && f.aura && !noAct && !(f.ascT > 0) && !(f.cd.asc > 0)) ascend(m, f, events);
     let released = 0; // elemental benders: hold the shot button to charge, let go to fire
     if (f.charger) {
-      if (inp.atk && !noAct && f.rootT === 0 && f.cd.basic === 0 && f.energy >= STYLES[f.styles.basic].cost) f.chg = Math.min(CHARGE_MAX, f.chg + realDt); // charge runs in real time, not game speed
+      if (inp.atk && !noAct && f.rootT === 0 && f.cd.basic === 0 && f.energy >= STYLES[f.styles.basic].cost) { f.chg = Math.min(CHARGE_MAX, f.chg + realDt); // charge runs in real time, not game speed
+        if (f.chg >= CHARGE_MAX) { released = f.chg; f.chg = 0; } } // fully charged: it fires by itself
       else if (!inp.atk && f.chg > 0) { released = f.chg; f.chg = 0; }
       else if (!inp.atk || noAct || f.rootT > 0) f.chg = 0;
     }
