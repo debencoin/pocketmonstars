@@ -9,3 +9,4 @@ await build({...common,entryPoints:['src/girl-rig.js'],outfile:'dist/girl-rig.js
 await build({...common,entryPoints:['src/energy-fx.js'],outfile:'dist/energy-fx.js'});
 await build({...common,entryPoints:['src/monster-rig.js'],outfile:'dist/monster-rig.js'});
 await build({...common,entryPoints:['src/boss-fx.js'],outfile:'dist/boss-fx.js'});
+await build({...common,entryPoints:['src/creature-rig.js'],outfile:'dist/creature-rig.js'});

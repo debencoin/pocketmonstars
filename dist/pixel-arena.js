@@ -384,8 +384,9 @@ function createRenderer(canvas, arena) {
     vulkar: { c: '#ff5a10', c2: '#ffe060', k: 'flame' }, karnolith: { c: '#8a6a3a', c2: '#9adf4a', k: 'rock' }, aeralon: { c: '#bfefff', c2: '#ffffff', k: 'blade' }, obsidiannexus: { c: '#2a0a3a', c2: '#c080ff', k: 'shard', five: true, lance: true }, anu: { c: '#ff1a2a', c2: '#b050ff', k: 'bolt' } };
   const FIVE = ['#35b8ff', '#ff5a1a', '#c8a060', '#e8f8ff', '#b060ff']; // Nexus: water, fire, earth, wind, lightning
   const RUN3D = new Set(['terra', 'pyra', 'zephyria', 'nexus', 'vulkar', 'karnolith', 'aeralon', 'obsidiannexus', 'enki', 'anu']);
-  const RIG3D = n => !ANIM[n] && !!(window.PMBoss?.has(n) || window.PMChosen?.has(n) || window.PMGirl?.has(n) || (ELEM.has(n) && window.PMElemental));
+  const RIG3D = n => !ANIM[n] && !!(window.PMCreature?.has(n) || window.PMBoss?.has(n) || window.PMChosen?.has(n) || window.PMGirl?.has(n) || (ELEM.has(n) && window.PMElemental));
   function draw3D(n, f, i, opt, now, x, y, h, col) {
+    if (window.PMCreature?.has(n)) return window.PMCreature.ready(n) && window.PMCreature.draw(ctx, x, y, h, f, col, { name: n, i, now: opt.now, faint: opt.faint }); // wild creatures: their own body-type rig
     if (window.PMBoss?.has(n)) return window.PMBoss.ready(n) && window.PMBoss.draw(ctx, x, y, h, f, col, { name: n, i, now: opt.now, faint: opt.faint });
     if (window.PMGirl?.has(n)) return window.PMGirl.ready(n) && window.PMGirl.draw(ctx, x, y, h, f, col, { name: n, i, now: opt.now, faint: opt.faint });
     if (ELEM.has(n)) return !!window.PMElemental?.has(n) && window.PMElemental.draw(n, ctx, x, y, h, f);
