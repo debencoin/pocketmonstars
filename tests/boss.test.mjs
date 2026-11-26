@@ -83,3 +83,17 @@ test('Ultimate Warriors: Obsidian Nexus is the strongest and fastest, teleports,
   assert.equal(shots.length, 10); assert.ok(Math.abs(pw / (shots[0].pw / 0.5) - 5) < 1e-6, 'all together: five times a power attack');
   for (const n of ['Vulkar', 'Karnolith', 'Aeralon', 'Obsidian Nexus', 'Terra', 'Pyra', 'Zephyria', 'Nexus']) assert.ok(m && M.SPECIES[id(n)].aura, n);
 });
+
+test('Enki: a charged Storm Crown detonates right in front of the rival; ANU: Soul Siphon heals him, his titan fights beside him', async () => {
+  const S = await import('../shared/sim.mjs'), M = await import('../shared/monstars.mjs'), id = n => M.SPECIES.find(s => s.name === n).id;
+  const m = S.createMatch(new M.Monstar({ speciesId: id('Enki'), level: 10 }), new M.Monstar({ speciesId: M.STARTER_IDS[0], level: 10 }), { auto: false });
+  let eb = null; for (let i = 0; i < Math.round(1.6 / S.TICK) + 3 && !eb; i++) { m.fighters[0].input = S.sanitizeInput({ atk: i < Math.round(1.2 / S.TICK), ax: 1 }); m.fighters[1].input = S.sanitizeInput({}); S.step(m); eb = m.effects.find(e => e.eb); }
+  assert.ok(eb, 'the storm disc detonates'); const foe = m.fighters[1]; assert.ok(Math.hypot(eb.gx - foe.x, eb.gy - foe.y) < 40, 'right in front of the rival'); assert.ok(eb.rad > 120, 'a big blast');
+  const a = S.createMatch(new M.Monstar({ speciesId: id('ANU'), level: 10 }), new M.Monstar({ speciesId: M.STARTER_IDS[0], level: 10 }), { auto: false });
+  assert.equal(a.fighters[0].kit.special.leech, 0.8);
+  a.fighters[0].ult = 100; a.fighters[0].input = S.sanitizeInput({ mega: true, ax: 1 }); a.fighters[1].input = S.sanitizeInput({}); const ev = S.step(a);
+  assert.ok(ev.some(e => e.type === 'summon') && a.summons.length === 1, 'the titan appears');
+  a.fighters[0].input = S.sanitizeInput({});
+  let shots = 0; for (let i = 0; i < Math.round(4 / S.TICK); i++) { S.step(a); shots = Math.max(shots, a.projectiles.filter(p => p.sid === a.summons[0]?.sid).length); }
+  assert.ok(shots >= 1, 'the titan attacks the rival'); assert.ok(S.snapshot(a).sm.length === 1);
+});

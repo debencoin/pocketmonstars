@@ -25,7 +25,7 @@ test('master, the second founder wallet and Ashley each get a copy; only the mas
     const m = reg.ownedBy(w).find(x => x.species.id === ID(n)); assert.ok(m, `${n} in ${w.slice(0, 4)}`);
     assert.equal(m.originOwner, MASTER, 'the master earns the 5% royalty on every sale');
   }
-  assert.deepEqual(Object.keys(CONFIG.masterOnly).map(Number).sort(), [...NAMES.map(ID), ID('Rikkolo'), ...BOSS_IDS].sort()); // + the Boss Monsters
+  assert.deepEqual(Object.keys(CONFIG.masterOnly).map(Number).sort(), [...NAMES.map(ID), ID('Rikkolo'), ID('Enki'), ID('ANU'), ...BOSS_IDS].sort()); // + the Boss Monsters
   assert.ok(Object.values(CONFIG.masterOnly).every(w => w === MASTER));
 });
 

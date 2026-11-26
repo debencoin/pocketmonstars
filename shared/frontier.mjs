@@ -855,6 +855,26 @@ Object.assign(CHK_SIG, {
     names: ['Storm Shrapnel', 'Steam Cataclysm', 'Obsidian Sovereign'], forms: ['Obsidian Nexus', 'Obsidian Initiate', 'Obsidian Nexus', 'Ascended Obsidian Nexus', 'Master Obsidian Nexus', 'Ultimate Obsidian Nexus'] },
 });
 
+
+// Enki (wind and thunder, from Storm Elder Raiko) and his brother ANU (fire, thunder and the fifth element: he steals the rival's
+// power and life to heal himself, and summons a titan that fights beside him). Founder's wallet; only the founder may sell them.
+Object.assign(CHK_SIG, {
+  'Enki': { type: 'GALE', cls: 'mystic', title: 'Storm Elder', female: false, main: '#bfe8ff', el2: 'thunder',
+    sig: { basic: { name: 'Storm Crown', look: 'en_storm', status: 'paralyze', knock: 3, power: 1.6, note: 'Tap: a Gale Palm ring of compressed air. Hold: a disc of storm energy spins over his head and grows up to eight times as big, then detonates right in front of the rival.' },
+      special: { name: 'Thunder Thread', style: 'bolt', status: 'paralyze', power: 1.75, note: 'Blue branching lightning that arcs to the rival.' },
+      dash: { kind: 'trail', name: 'Gale Drift', note: 'Glides on the wind, leaving lightning behind.', dist: 1.9, cd: 0.62 },
+      guard: { kind: 'counter', name: 'Dawnsteel Draw', note: 'A white-light saber draw: blocks, then a precise sweep answers.', time: 1.25, cd: 4.8 },
+      mega: { kind: 'lance', name: 'Tempest Divide', note: 'A white wind crescent threaded with blue lightning runs along the ground through the arena.', power: 2.0, size: 1.55 } },
+    names: ['Storm Crown II', 'Thunder Web', 'Storm Sovereign'], forms: ['Enki', 'Enki', 'Enki', 'Storm Elder Enki', 'Elder Enki', 'Enki, Lord of Storms'] },
+  'ANU': { type: 'ANCIENT', cls: 'deity', title: 'Lord of Fire, Thunder and Soul', female: false, main: '#ff1a2a', el2: 'thunder',
+    sig: { basic: { name: 'Crimson Twin Blade', look: 'anu_blade', status: 'burn', power: 1.7, note: 'Tap: a red crescent from his double-ended katana. Hold: red, green and purple lightning crackles through his locs, then two blasts of fire and thunder fly out.' },
+      special: { name: 'Soul Siphon', style: 'projectile', look: 'anu_siphon', homing: true, leech: 0.8, status: 'weaken', power: 1.8, note: 'The fifth element: a ribbon of soul fire takes the rival\'s power (it deals less damage) and its life, and heals ANU.' },
+      dash: { kind: 'shock', name: 'Thunder Stride', note: 'Strides through a crack of thunder that throws the rival back.', dist: 1.8, cd: 0.66 },
+      guard: { kind: 'reflect', name: 'Crimson Wheel', note: 'Spins the double-ended katana: shots bounce back.', time: 1.35, cd: 5.0 },
+      mega: { kind: 'summon', name: 'Summon the Titan', time: 12, each: 0.45, note: 'Calls up a titan of stone and storm that walks the arena and attacks the rival while ANU fights too.', power: 2.0, size: 1.5 } },
+    names: ['Crimson Storm Blade', 'Soul Devourer', 'ANU, King of Heaven'], forms: ['ANU', 'ANU', 'ANU', 'Ascended ANU', 'Elder ANU', 'ANU, King of Heaven'] },
+});
+
 const CHK = name => {
   const k0 = CHK_SIG[name], ix = Object.keys(CHK_SIG).indexOf(name), tw = (o, ...f) => { const r = { ...o }; for (const x of f) r[x] = +(r[x] + ix * 0.004).toFixed(3); return r; }; // every Chosen One has its own dash and guard numbers
   const k = { ...k0, sig: { ...k0.sig, dash: tw(k0.sig.dash, 'dist', 'cd'), guard: tw(k0.sig.guard, 'time', 'cd') } };
@@ -1067,3 +1087,6 @@ export const QUARTET = ['Terra', 'Pyra', 'Zephyria', 'Nexus'].map(n => { const b
 export const ULTIMATE_MEN = ['Vulkar', 'Karnolith', 'Aeralon', 'Obsidian Nexus'].map(n => { const b = CHK(n), sol = CHK_SIG[n].market;
   return { ...b, master: undefined, legendary: undefined, legendFor: undefined, bender: undefined, elite: undefined, aura: true, boost: n === 'Obsidian Nexus' ? 1.4 : 1.25, speedBoost: n === 'Obsidian Nexus' ? 1.6 : undefined,
     drop: { priceLamports: String(Math.round(sol * 1_000_000_000)), shop: true } }; });
+
+// Enki and ANU: in the founder's wallet, never wild, only the founder may sell them
+export const ELDERS = ['Enki', 'ANU'].map(n => ({ ...CHK(n), master: undefined, legendary: undefined, legendFor: undefined, bender: undefined, elite: undefined, aura: true, boost: n === 'ANU' ? 1.38 : 1.3 }));

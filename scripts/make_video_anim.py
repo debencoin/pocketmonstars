@@ -18,17 +18,24 @@ FPS, SIZE, IDLE = 8, 300, 0.8
 
 def frames(video, fps=FPS):
     d = tempfile.mkdtemp()
-    subprocess.run(['ffmpeg', '-v', 'error', '-i', video, '-vf', f'fps={fps},scale={SIZE}:{SIZE}', os.path.join(d, '%04d.png'), '-y'], check=True)
+    subprocess.run(['ffmpeg', '-v', 'error', '-i', video, '-vf', f'fps={fps},scale=-2:{SIZE},pad={SIZE}:{SIZE}:(ow-iw)/2:0:white', os.path.join(d, '%04d.png'), '-y'], check=True)
     fs = sorted(os.listdir(d))
     return [Image.open(os.path.join(d, f)).convert('RGB') for f in fs]
 
 
+TH = float(os.environ.get('MATTE', 8))  # raise for videos whose background has a faint haze (lightning flashes)
+
 def matte(im):
     a = np.asarray(im).astype(np.float32)
-    d = 255 - a.min(axis=2)                                   # how far from white
-    al = np.clip((d - 8) / 38, 0, 1)
-    rgb = 255 - (255 - a) / np.maximum(al[..., None], 1e-3)   # un-mix the white background
-    rgb = np.clip(np.where(al[..., None] > 0, rgb, 0), 0, 255)
+    mn = a.min(axis=2)
+    if os.environ.get('BGADAPT'): # this frame's own background level (lightning flashes turn it light grey): cut against that
+        h, w = mn.shape; ring = np.concatenate([mn[:8, w // 5: -w // 5].ravel(), mn[:, w // 5: w // 5 + 8].ravel(), mn[:, -w // 5 - 8: -w // 5].ravel()])
+        bg = np.percentile(ring, 60)
+    else: bg = 255
+    d = np.maximum(0, bg - mn)                                # how far from the background
+    al = np.clip((d - TH) / 38, 0, 1)
+    if os.environ.get('GLOW'): rgb = a   # bright glow (white-blue lightning): keep its own colour so it stays bright on the dark arena
+    else: rgb = np.clip(np.where(al[..., None] > 0, 255 - (255 - a) / np.maximum(al[..., None], 1e-3), 0), 0, 255)   # un-mix the white background
     return np.dstack([rgb, al * 255]).astype(np.uint8)
 
 

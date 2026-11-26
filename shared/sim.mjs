@@ -117,7 +117,7 @@ export const ARENA_COUNT = 5; // 0 Thunderstorm Citadel (lightning), 1 Inferno R
 // What a power does to the Monstar it hits (special moves always, basic moves 15% of the time).
 // stop = can't move, act = can't attack, slow = speed multiplier, dot = % max HP per second, lift = carried around in the air.
 // The four starter Element Masters: a charged blast (held at least 30% of the way) fires twice as many shots
-const TWIN_CHARGE = new Set(['Terrok', 'Zephar', 'Tydal', 'Ignar', 'Terra', 'Pyra', 'Zephyria', 'Nexus', 'Vulkar', 'Karnolith', 'Aeralon', 'Obsidian Nexus']); // + the Quartet and the Ultimate Warriors
+const TWIN_CHARGE = new Set(['Terrok', 'Zephar', 'Tydal', 'Ignar', 'Terra', 'Pyra', 'Zephyria', 'Nexus', 'Vulkar', 'Karnolith', 'Aeralon', 'Obsidian Nexus', 'ANU']); // + the Quartet and the Ultimate Warriors
 export const STATUS = Object.freeze({
   paralyze: { label: 'PARALYZED', dur: 1.8, slow: 0.35, fail: 0.4 },
   freeze: { label: 'FROZEN', dur: 1.3, stop: true, act: true },
@@ -318,6 +318,9 @@ function megaShot(m, f, foe, events) {
     gx: clamp(x, 40, ARENA.w - 40), gy: clamp(y, BOUNDS.y0, BOUNDS.y1), t: 0, dur: S.dur, hit: false, nextTick: 0, thrown: 0, bolted: false, pw: P, mega: true, ...extra }); };
   if (k === 'barrage') { for (let i = 0; i < 7; i++) { const a = Math.atan2(f.fy, f.fx) + (i - 3) * 0.16, sp = STYLES.projectile.speed * 1.1;
     m.projectiles.push({ id: m.nextId++, owner: f.side, by: f, kind: 'special', style: 'projectile', type: f.type, sid: f.speciesId, x: f.x + Math.cos(a) * 36, y: f.y + Math.sin(a) * 36, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, r: 16, life: 1.4, hitDone: false, missDone: false, pw: P * 0.38, homing: true }); } }
+  else if (k === 'summon') { // ANU calls up a titan: it walks the arena beside him and attacks the rival while he keeps fighting
+    (m.summons ||= []).push({ side: f.side, by: f, sid: g.summonSid ?? f.speciesId, x: clamp(f.x - f.fx * 70, 60, ARENA.w - 60), y: clamp(f.y + 60, BOUNDS.y0, BOUNDS.y1), fx: f.fx || 1, fy: 0, mv: false, ct: 9, cd: 0.8, life: g.time || 12, pw: P * (g.each || 0.4) });
+    events.push({ type: 'summon', side: f.side }); }
   else if (k === 'clones') { // Replicator Protocol: three duplicates appear around the caster; all four attack with a power attack at the same time
     const base = Math.atan2(f.fy, f.fx), spots = [{ x: f.x, y: f.y }], offs = [[-70, -85], [-70, 85], [-120, 0], [-150, -150], [-150, 150]].slice(0, f.kit?.mega?.count || 3); // Obsidian Legion: four copies
     for (const [ox, oy] of offs) { const c = Math.cos(base), sn = Math.sin(base); spots.push({ x: clamp(f.x + ox * c - oy * sn, 40, ARENA.w - 40), y: clamp(f.y + ox * sn + oy * c, BOUNDS.y0, BOUNDS.y1) }); }
@@ -466,12 +469,17 @@ function land(m, att, vic, kind, style, events, dirx, diry, knock = 90, power, f
 }
 
 // Elemental benders hold the shot button to charge: let go and a bigger blast leaves with up to double the damage. A quick tap fires the normal shot.
-const CHARGERS = new Set(['Aquari', 'Rokko', 'Blazen', 'Gusti', 'Eclipse Sovereign', 'Tide Weaver', 'Ember Weaver', 'Volt Weaver', 'Stone Weaver', 'Halo Slinger', 'Sariel the Watcher', 'Nerath the Nephilim', 'Enkar the Anunnaki', 'Rikkolo', 'Terrok', 'Zephar', 'Tydal', 'Ignar', 'Voltz', 'Terra', 'Pyra', 'Zephyria', 'Nexus', 'Vulkar', 'Karnolith', 'Aeralon', 'Obsidian Nexus']), CHARGE_MAX = 1.5, CHARGE_TAP = 0.25; // seconds of real time
+const CHARGERS = new Set(['Aquari', 'Rokko', 'Blazen', 'Gusti', 'Eclipse Sovereign', 'Tide Weaver', 'Ember Weaver', 'Volt Weaver', 'Stone Weaver', 'Halo Slinger', 'Sariel the Watcher', 'Nerath the Nephilim', 'Enkar the Anunnaki', 'Rikkolo', 'Terrok', 'Zephar', 'Tydal', 'Ignar', 'Voltz', 'Terra', 'Pyra', 'Zephyria', 'Nexus', 'Vulkar', 'Karnolith', 'Aeralon', 'Obsidian Nexus', 'Enki', 'ANU']), CHARGE_MAX = 1.5, CHARGE_TAP = 0.25; // seconds of real time
 function cast(m, f, kind, lvl = 0) {
   const style = f.styles[kind], S = STYLES[style];
   f.energy -= S.cost; f.cd[kind] = S.cd * (kind === 'special' ? f.mods.specialCd : 1) * (f.kit?.[kind]?.cd ?? 1); f.actions++;
   f.castT = 0; f.castKind = kind;
   const id = m.nextId++;
+  if (kind === 'basic' && lvl >= 0.25 && f.mon?.species?.name === 'Enki') { // Enki: the storm disc over his head (up to 8x as big) detonates right in front of the rival
+    const foe = foeOf(m, f), [nx, ny] = norm(f.x - foe.x, f.y - foe.y), ST = STYLES.strike;
+    m.effects.push({ id, owner: f.side, by: f, kind: 'basic', style: 'strike', type: f.type, sid: f.speciesId, x: foe.x, y: foe.y, dx: -nx, dy: -ny, gx: foe.x + nx * 24, gy: foe.y + ny * 24,
+      t: ST.hitAt * 0.55, dur: ST.dur, hit: false, nextTick: 0, thrown: 0, bolted: false, rad: 60 + lvl * 100, pw: S.power * 1.6 * (1 + lvl * 2), eb: 1 });
+    return; }
   if (style === 'projectile') {
     const sp = S.speed * f.mods.projectileSpeed * (kind === 'basic' ? f.kit?.basic.speed ?? 1 : 1);
     const shots = (kind === 'basic' ? f.kit?.basic.shots ?? 1 : f.kit?.special.shots ? f.kit.special.shots + (Math.random() < 0.5 ? 1 : 0) : 1) * (kind === 'basic' && lvl >= 0.3 && TWIN_CHARGE.has(f.mon?.species?.name) ? 2 : 1); // Gust Volley: 3 or 4 balls; the four starter Masters' charged blast fires twice as many
@@ -682,6 +690,13 @@ export function step(m, realDt = TICK) {
       }
     }
   }
+  if (m.summons?.length) { // summoned titans: walk to the rival and keep attacking until their time runs out
+    for (const q of m.summons) { const foe = foeOf(m, q.by); q.life -= dt; q.ct += dt; if (!foe || foe.hp <= 0) continue;
+      const dx = foe.x - q.x, dy = foe.y - q.y, d = Math.hypot(dx, dy) || 1; q.fx = dx / d; q.fy = dy / d;
+      q.mv = d > 230; if (q.mv) { q.x = clamp(q.x + q.fx * 150 * dt, 50, ARENA.w - 50); q.y = clamp(q.y + q.fy * 150 * dt, BOUNDS.y0, BOUNDS.y1); }
+      q.cd -= dt; if (q.cd <= 0 && d < 520) { q.cd = 1.25; q.ct = 0; const sp = STYLES.projectile.speed;
+        m.projectiles.push({ id: m.nextId++, owner: q.side, by: q.by, kind: 'special', style: 'projectile', type: q.by.type, sid: q.sid, x: q.x + q.fx * 40, y: q.y + q.fy * 40, vx: q.fx * sp, vy: q.fy * sp, r: 18, life: 1.5, hitDone: false, missDone: false, pw: q.pw, homing: true, turn: 2.6 }); } }
+    m.summons = m.summons.filter(q => q.life > 0 && q.by.hp > 0); }
   for (const p of m.projectiles) {
     if (p.wait > 0) { p.wait -= dt; const o = p.by || m.fighters[p.owner]; p.x = o.x + p.ox; p.y = o.y + p.oy; continue; } // charging up beside its owner
     if (p.homing) { const tg = foeOf(m, p.by || m.fighters[p.owner]), sp = Math.hypot(p.vx, p.vy), [hx, hy] = norm(tg.x - p.x, tg.y - p.y), [cx, cy] = norm(p.vx, p.vy), tt = Math.min(1, (p.turn || 2.2) * dt);
@@ -757,7 +772,8 @@ export function snapshot(m) {
     sq: m.squad ? 1 : 0, lim: m.limit, pk: m.pickups.map(q => ({ id: q.id, x: r(q.x), y: r(q.y), k: q.k, l: r(q.life) })), gs: GAME_SPEED * (m.pace || 1),
     p: m.projectiles.map(p => ({ id: p.id, o: p.owner, k: p.kind, st: p.style, ty: p.type, sid: p.sid, x: r(p.x), y: r(p.y), vx: Math.round(p.vx), vy: Math.round(p.vy), r: p.r, lt: p.lt ? 1 : 0, w: p.wait > 0 ? 1 : 0, lk: p.look || null, cg: p.chg || 0 })),
     e: m.effects.map(e => ({ id: e.id, o: e.owner, k: e.kind, st: e.style, ty: e.type, sid: e.sid, x: r(e.x), y: r(e.y), dx: r(e.dx * 100) / 100, dy: r(e.dy * 100) / 100,
-      gx: r(e.gx), gy: r(e.gy), t: Math.round(e.t * 100) / 100, d: e.dur, ra: e.rad || 0, wd: e.wid || 0, mg: e.mega ? 1 : 0, ls: e.ls ? 1 : 0, tw: e.tw ? 1 : 0, hs: e.hs ? 1 : 0, bs: e.bs ? 1 : 0, fg: e.fg ? 1 : 0, iw: e.iw ? 1 : 0, hb: e.hb ? 1 : 0 })) };
+      gx: r(e.gx), gy: r(e.gy), t: Math.round(e.t * 100) / 100, d: e.dur, ra: e.rad || 0, wd: e.wid || 0, mg: e.mega ? 1 : 0, ls: e.ls ? 1 : 0, tw: e.tw ? 1 : 0, hs: e.hs ? 1 : 0, bs: e.bs ? 1 : 0, fg: e.fg ? 1 : 0, iw: e.iw ? 1 : 0, hb: e.hb ? 1 : 0, eb: e.eb ? 1 : 0 })),
+    sm: (m.summons || []).map(q => ({ sd: q.side, s: q.sid, x: r(q.x), y: r(q.y), fx: r(q.fx * 100) / 100, fy: r(q.fy * 100) / 100, mv: q.mv ? 1 : 0, ct: Math.round(q.ct * 100) / 100, l: Math.round(q.life * 10) / 10 })) };
 }
 
 /** Opponent brain for AI matches: movement is the autopilot; this decides when to attack. */
