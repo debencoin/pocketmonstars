@@ -216,10 +216,14 @@ function makeFighter(monstar, side, teamMax = 0) {
 export function createMatch(monstarA, monstarB, opts = {}) {
   const teams = [monstarA, monstarB].map(x => (Array.isArray(x) ? x.slice(0, 3) : [x]));
   const teamMax = teams.map(t => t.reduce((n, mo) => n + mo.stats.hp, 0));
-  const squad = !!opts.squad && teams[0].length > 1 && teams[1].length > 1;
+  const squad = !!opts.squad && (teams[0].length > 1 || teams[1].length > 1); // Boss Arena: 1v2 / 2v2 / 3v2 are squad matches too
   const fighters = [makeFighter(teams[0][0], 0, teamMax[0]), makeFighter(teams[1][0], 1, teamMax[1])];
   const roster = teams.map((t, side) => t.map((mo, i) => (i === 0 ? fighters[side] : squad ? makeFighter(mo, side, teamMax[side]) : null)));
   if (squad) for (const side of [0, 1]) roster[side].forEach((f, i) => { f.y = ARENA.h / 2 + 20 + [0, -120, 120][i]; f.x += i ? (side ? 60 : -60) : 0; f.slot = i; f.mem = {}; });
+  if (opts.boss) { // Boss Arena: the bosses fight at full strength (online together: more HP for every extra player)
+    for (const f of roster[1]) { if (!f) continue; f.mem = { hard: true, level: 'hard' }; const k = opts.boss.hp || 1; f.maxHp = Math.round(f.maxHp * k); f.hp = f.maxHp; f.teamMax = Math.round(f.teamMax * k); }
+    teamMax[1] = Math.round(teamMax[1] * (opts.boss.hp || 1));
+    (opts.boss.humans || []).forEach(slot => { if (roster[0][slot]) roster[0][slot].human = true; }); }
   const arena = fighters.some(f => SPECIES[f.speciesId]?.god) ? (fighters[0].speciesId + fighters[1].speciesId) % 2 : (opts.arena ?? 0) % ARENA_COUNT;
   return { t: 0, over: false, winner: null, reason: null, auto: opts.auto !== false, arena, /* the Watcher Gods fight in the Thunderstorm Citadel or the Inferno Rift */ squad, pace: squad ? SQUAD_PACE : 1,
     teams, teamMax, roster, slot: [0, 0], swCd: [0, 0],
@@ -610,7 +614,7 @@ export function step(m, realDt = TICK) {
     const want = m.fighters[side].input.sw;
     if (want >= 0 && want < m.teams[side].length && want !== m.slot[side] && m.swCd[side] === 0 && alive(m, side, want)) switchIn(m, side, want, events, 'switch');
   }
-  if (m.squad) for (const f of onField(m)) if (m.fighters[f.side] !== f) f.input = sanitizeInput(aiFor(m, f, f.mem)); // teammates fight on their own
+  if (m.squad) for (const f of onField(m)) if (m.fighters[f.side] !== f && !f.human) f.input = sanitizeInput(aiFor(m, f, f.mem)); // (Boss Arena online: other players drive their own) // teammates fight on their own
   for (const f of onField(m)) {
     const foe = foeOf(m, f);
     const inp = f.input, mods = f.mods;

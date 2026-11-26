@@ -10,6 +10,7 @@ import { mplCore, fetchAsset, addPlugin, approvePluginAuthority } from '@metaple
 import * as Monstars from '../shared/monstars.mjs';
 import * as Stake from '../shared/stake.mjs';
 import * as Sim from '../shared/sim.mjs';
+import * as Bosses from '../shared/bosses.mjs';
 import QRCode from 'qrcode';
 const { ARENA } = Sim;
 globalThis.Buffer ??= Buffer;
@@ -201,4 +202,5 @@ export const qrDataUrl = text => QRCode.toDataURL(text, { margin: 1, width: 240,
 export const explorer = sig => `https://explorer.solana.com/tx/${sig}?cluster=devnet`;
 
 if (typeof window !== 'undefined') window.PMStake = { signIn, session, balance, getConfig, myMonstars, mint, syncOwner, listings, list, cancelListing, buy,
-  connectSocket, deposit, explorer, phantomBrowseLink, breedCreate, breedJoin, breedStatus, breedPay, wildPay, signOut, accountRegister, accountLogin, drop, dropBuy, cardStatus, cardBuy, cardConfirm, catchesMe, simMe, simRefill, starter, starterChoose, guest, friends, friendAdd, friendRemove, invite, inviteDismiss, soulMine, soulFee, soulBuy, soulCard, immortalSign, immortalLock, escrowCollect, catchPassBuy, payoutsMe, payoutsConnect, usdListings, usdList, usdCancel, usdBuy, profile, setAvatar, avatars, avatarBuy, referrals, referralLink, qrDataUrl, Monstars, Stake, ARENA, Sim };
+  connectSocket, deposit, explorer, phantomBrowseLink, breedCreate, breedJoin, breedStatus, breedPay, wildPay, signOut, accountRegister, accountLogin, drop, dropBuy, cardStatus, cardBuy, cardConfirm, catchesMe, simMe, simRefill, starter, starterChoose, guest, friends, friendAdd, friendRemove, invite, inviteDismiss, soulMine, soulFee, soulBuy, soulCard, immortalSign, immortalLock, escrowCollect, catchPassBuy, payoutsMe, payoutsConnect, usdListings, usdList, usdCancel, usdBuy, profile, setAvatar, avatars, avatarBuy, referrals, referralLink, qrDataUrl, Monstars, Stake, ARENA, Sim, Bosses,
+  bossOpen: () => api('/api/boss/open'), bossBadges: () => api('/api/boss/badges') };

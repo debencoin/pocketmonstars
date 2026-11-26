@@ -166,6 +166,9 @@ export function createServer({ config = CONFIG, chain = new SolanaChain(config.r
       const esc = players.escrowOfClaim(c.id);
       if (esc && esc.state === 'held') { if (await nft.ownerOf(esc.asset) !== w) throw Error('The NFT did not arrive. Contact support with ' + b.signature); players.updateEscrow(esc.id, { state: 'released', release_to: w }); }
       registry.setOwner(m.serial, w); players.setSoulState(c.id, 'bought', b.signature); return registry.get(m.serial).toJSON(); },
+    // Boss Arena: open online raids, and the ancient seals (badges) a player has earned
+    'GET /api/boss/open': () => ({ raids: matches.openRaids() }),
+    'GET /api/boss/badges': req => ({ badges: matches.badges(need(req)) }),
     // Immortal Guild: every open Immortal Combat waiting for a rival
     'GET /api/immortal/open': () => ({ fights: [...matches.rooms.values()].filter(r => r.immortal && r.state === 'waiting' && r.players.length === 1)
       .map(r => { const p = r.players[0], m = registry.get(p.monstar.serial) || p.monstar; return { code: r.code, owner: p.wallet, record: recordOf(p.wallet), createdAt: r.createdAt, monstar: m.toJSON(), nft: !!m.asset, power: Object.values(m.stats).reduce((a, b) => a + b, 0) }; })
@@ -453,7 +456,7 @@ export function createServer({ config = CONFIG, chain = new SolanaChain(config.r
     matches.attach(wallet, ws);
     const reply = msg => { try { ws.send(JSON.stringify(msg)); } catch {} };
     { const room = matches.roomOf(wallet); reply(room ? matches.publicRoom(room, wallet) : { t: 'noroom' }); } // lets a reconnecting player resume or reset
-    const roomUpdate = room => { matches.attach(wallet, ws); for (const p of room.players) for (const s of p.sockets) { try { s.send(JSON.stringify(matches.publicRoom(room, p.wallet))); } catch {} } };
+    const roomUpdate = room => { matches.attach(wallet, ws); for (const p of matches.members(room)) for (const s of p.sockets) { try { s.send(JSON.stringify(matches.publicRoom(room, p.wallet))); } catch {} } };
     ws.on('message', async raw => {
       let msg; try { msg = JSON.parse(raw); } catch { return; }
       try {
@@ -461,6 +464,9 @@ export function createServer({ config = CONFIG, chain = new SolanaChain(config.r
         if (msg.t === 'create') return roomUpdate(matches.create(wallet, msg));
         if (msg.t === 'join') return roomUpdate(matches.join(wallet, msg));
         if (msg.t === 'ai') return roomUpdate(matches.createAi(wallet, msg));
+        if (msg.t === 'boss') return roomUpdate(matches.createBoss(wallet, msg));
+        if (msg.t === 'bossjoin') return roomUpdate(matches.joinBoss(wallet, msg));
+        if (msg.t === 'bossgo') return roomUpdate(matches.bossGo(wallet));
         if (msg.t === 'wild') return roomUpdate(await matches.createWild(wallet, msg));
         if (msg.t === 'capture') return reply(matches.capture(wallet));
         if (msg.t === 'deposit') return roomUpdate(await matches.confirmDeposit(wallet, msg.signature));

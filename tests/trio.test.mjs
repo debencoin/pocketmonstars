@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { openDb } from '../server/db.mjs';
 import { Registry } from '../server/registry.mjs';
 import { CONFIG } from '../server/config.mjs';
-import { SPECIES } from '../shared/monstars.mjs';
+import { SPECIES, BOSS_IDS } from '../shared/monstars.mjs';
 import fs from 'node:fs';
 
 const NAMES = ['COVO', 'COVA', 'Kena'], ID = n => SPECIES.find(s => s.name === n).id;
@@ -25,7 +25,7 @@ test('master, the second founder wallet and Ashley each get a copy; only the mas
     const m = reg.ownedBy(w).find(x => x.species.id === ID(n)); assert.ok(m, `${n} in ${w.slice(0, 4)}`);
     assert.equal(m.originOwner, MASTER, 'the master earns the 5% royalty on every sale');
   }
-  assert.deepEqual(Object.keys(CONFIG.masterOnly).map(Number).sort(), NAMES.map(ID).sort());
+  assert.deepEqual(Object.keys(CONFIG.masterOnly).map(Number).sort(), [...NAMES.map(ID), ...BOSS_IDS].sort()); // + the Boss Monsters
   assert.ok(Object.values(CONFIG.masterOnly).every(w => w === MASTER));
 });
 

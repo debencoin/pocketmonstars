@@ -1,0 +1,58 @@
+// Boss Arena: the Boss Monsters (founder-only, never wild), solo 1v2 / 2v2 / 3v2, online raids where each player drives
+// their own Monstar against harder bosses, and the ancient seal (badge) every winner earns for the level.
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { Keypair } from '@solana/web3.js';
+import { openDb } from '../server/db.mjs';
+import { Registry } from '../server/registry.mjs';
+import { MatchManager } from '../server/matches.mjs';
+import { CONFIG } from '../server/config.mjs';
+import { SPECIES, BOSS_IDS, WILD_IDS, SHOP_IDS, Monstar } from '../shared/monstars.mjs';
+import { BOSS_STAGES, bossLevel } from '../shared/bosses.mjs';
+import { TICK } from '../shared/sim.mjs';
+
+const wallet = () => Keypair.generate().publicKey.toBase58();
+const MASTER = 'Dc9s1YwNHE2xDBzpprDvyruzxj8j5HvBSvfbvdups5LJ';
+const mgr = () => { const db = openDb(':memory:'), registry = new Registry(db, { gifts: CONFIG.gifts, masterOnly: CONFIG.masterOnly, legendaryOwner: MASTER });
+  return { db, registry, mm: new MatchManager({ db, registry, chain: {}, config: { disconnectGraceMs: 1e9, depositTimeoutMs: 1e9 } }) }; };
+
+test('20 Boss Monsters with their own powers: never in the wild or the shop, in the founder wallet, only the founder may sell', () => {
+  assert.equal(BOSS_IDS.length, 20);
+  for (const id of BOSS_IDS) { const s = SPECIES[id]; assert.ok(s.boss && s.aura, s.name); assert.ok(!WILD_IDS.includes(id) && !SHOP_IDS.includes(id), s.name + ' is never met in the wild or sold in the shop');
+    assert.ok(CONFIG.gifts[MASTER].includes(id), s.name + ' is in the founder wallet'); assert.equal(CONFIG.masterOnly[id], MASTER); }
+  const specials = new Set(BOSS_IDS.map(id => SPECIES[id].kit.special.name)), looks = new Set(BOSS_IDS.map(id => SPECIES[id].kit.basic.look));
+  assert.equal(specials.size, 20, 'every boss has its own special'); assert.equal(looks.size, 20, 'and its own shot');
+  for (const id of BOSS_IDS) assert.ok(String(SPECIES[id].kit.basic.look).startsWith('bx_'), 'boss shots look like nothing else');
+  assert.equal(BOSS_STAGES.length, 15); for (const st of BOSS_STAGES) assert.ok(SPECIES[st.bosses[0]].serpent, `level ${st.stage} has a serpent`);
+});
+
+test('bosses level above the team: solo +1..2, online together +3..5', () => {
+  for (let i = 0; i < 50; i++) { const s = bossLevel([4, 7], false), c = bossLevel([4, 7], true); assert.ok(s >= 8 && s <= 9, 'solo ' + s); assert.ok(c >= 10 && c <= 12, 'online ' + c); }
+});
+
+test('solo 1v2: your Monstar against two bosses; a win earns the level badge', () => {
+  const { registry, mm } = mgr(), w = wallet(), [m] = registry.claimAll(w);
+  assert.throws(() => mm.createBoss(w, { stage: 1, serials: [BOSS_IDS[0]], coop: false }), /own|Boss/);
+  const room = mm.createBoss(w, { stage: 1, serials: [m.serial] });
+  assert.equal(room.players[1].team.length, 2); for (let i = 0; i < 200; i++) mm.tick(TICK);
+  assert.equal(room.state, 'live'); assert.equal(room.sim.roster[1].length, 2); assert.equal(room.sim.roster[0].length, 1);
+  for (const f of room.sim.roster[1]) f.hp = 0; mm.tick(TICK);
+  assert.deepEqual(mm.badges(w).map(b => b.stage), [1]);
+});
+
+test('online raid: Phantom only, players join with one Monstar each and drive their own; everyone gets the badge', () => {
+  const { registry, mm } = mgr(), a = wallet(), b = wallet(), c = wallet(), ma = registry.claimAll(a)[0], mb = registry.claimAll(b)[0], mc = registry.claimAll(c)[0];
+  assert.throws(() => mm.createBoss('@kid', { stage: 2, serials: [1], coop: true }), /Phantom/);
+  const room = mm.createBoss(a, { stage: 2, serials: [ma.serial], coop: true, size: 3 });
+  assert.equal(room.state, 'waiting'); assert.equal(mm.openRaids().length, 1);
+  mm.joinBoss(b, { code: room.code, serial: mb.serial }); assert.equal(room.state, 'waiting');
+  mm.joinBoss(c, { code: room.code, serial: mc.serial }); assert.equal(room.state, 'countdown', 'full raids start by themselves');
+  assert.throws(() => mm.joinBoss(wallet(), { code: room.code, serial: 1 }), /not open|full/);
+  for (let i = 0; i < 200; i++) mm.tick(TICK);
+  assert.equal(room.state, 'live'); assert.equal(room.sim.roster[0].length, 3); assert.ok(room.sim.roster[0].every(f => f.human));
+  const solo = new Monstar({ speciesId: BOSS_IDS[0], level: room.boss.level }).stats.hp * 1.3;
+  assert.ok(room.sim.roster[1][0].maxHp > solo * 1.5, 'online bosses have more HP for every extra player');
+  mm.input(b, { mx: 1, my: 0 }); assert.equal(room.sim.roster[0][1].input.mx, 1, "b drives b's own Monstar");
+  for (const f of room.sim.roster[1]) f.hp = 0; mm.tick(TICK);
+  for (const w of [a, b, c]) assert.deepEqual(mm.badges(w).map(x => x.stage), [2]);
+});

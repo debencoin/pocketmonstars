@@ -624,3 +624,15 @@ header{overflow:hidden}
 .pv-starter-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(112px,1fr));gap:10px;margin-top:12px}
 .pv-starter-grid button{background:#222a4d;border:2px solid #3b4680;border-radius:12px;padding:10px 6px;color:#fff;display:flex;flex-direction:column;align-items:center;gap:2px;cursor:pointer}
 .pv-starter-grid button:hover{border-color:#ffd23f}.pv-starter-grid img{width:80px;height:92px;object-fit:contain;image-rendering:pixelated}.pv-starter-grid small{opacity:.8;font-size:11px}
+/* Boss Arena */
+.bs-seals{display:flex;flex-wrap:wrap;gap:8px}.bs-seal-box{display:flex;flex-direction:column;align-items:center;gap:2px}.bs-seal-box small{color:#9a94a8;font-size:11px}
+.bs-seal{filter:grayscale(.2) brightness(.8)}.bs-seal.on{filter:drop-shadow(0 0 8px #e0a83099)}
+.bs-stages{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:10px}
+.bs-stage{display:flex;flex-direction:column;align-items:center;gap:3px;padding:10px;border-radius:14px;border:1px solid #3a2a44;background:linear-gradient(180deg,#1c1424,#120c18);color:#eee;cursor:pointer;text-align:center}
+.bs-stage.on{border-color:#ff4a3a;box-shadow:0 0 0 2px #ff4a3a55,0 0 18px #ff2a1a44}.bs-stage.won{border-color:#e0a830}
+.bs-stage b{font-size:14px}.bs-stage small{color:#b8aec8;font-size:11px}.bs-lv{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#ff8a6a;font-weight:800}.bs-blv{color:#ff6a5a!important;font-weight:700}
+.bs-pair{display:flex;align-items:flex-end;gap:2px}.bs-pair img{width:62px;height:72px;object-fit:contain}.bs-pair i{font-style:normal;color:#ff4a3a;font-weight:800;align-self:center}
+.bs-modes{display:flex;flex-wrap:wrap;gap:8px}.bs-modes button{padding:9px 14px;border-radius:999px;border:1px solid #4a3a55;background:#1a1420;color:#ddd;font-weight:700;cursor:pointer}
+.bs-modes button[aria-pressed=true]{background:#ff4a3a;border-color:#ff4a3a;color:#fff}
+.bs-raids{display:flex;flex-direction:column;gap:8px}.bs-raid{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:12px;background:#1a1420;border:1px solid #3a2a44}
+.bs-raid>div{flex:1;display:flex;flex-direction:column;gap:2px}.bs-raid small{color:#b8aec8;font-size:11px}.bs-raid .bs-pair img{width:44px;height:52px}

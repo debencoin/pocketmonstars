@@ -2,6 +2,7 @@
 import { randomBytes } from 'node:crypto';
 import { createMatch, step, snapshot, sanitizeInput, forfeit, aiInput, TICK, ARENA_COUNT } from '../shared/sim.mjs';
 import { Monstar, GENESIS_IDS, SPECIES, TIERS, rollWild, stageFor, wildLevel } from '../shared/monstars.mjs';
+import { stageOf, bossLevel, BOSS_COOP } from '../shared/bosses.mjs';
 
 export const WILD_ZONE_MIN = [1, 6, 14, 26];
 import { createHash } from 'node:crypto';
@@ -65,6 +66,64 @@ export class MatchManager {
     const bots = team.map(() => new Monstar({ speciesId: pick(), level: lvl() })), bot = bots[0], sid = bot.species.id;
     return this.aiRoom(wallet, team, bots, { level: ['easy', 'normal', 'hard'].includes(msg.level) ? msg.level : 'normal', squad: !!msg.squad && team.length > 1 });
   }
+
+  // ---------- Boss Arena ----------
+  /** Solo: 1, 2 or 3 of your Monstars against a level's two bosses (1v2, 2v2, 3v2). Online together (`coop`): you bring one
+   *  Monstar, open a raid for `size` players (2 or 3), and other players join with theirs; the bosses are 3-5 levels higher. */
+  createBoss(wallet, msg) {
+    const st = stageOf(msg.stage), coop = !!msg.coop;
+    if (coop && wallet.startsWith('@')) throw Error('Raiding together online needs a Phantom wallet. Sign in with Phantom.');
+    const serials = (Array.isArray(msg.serials) ? msg.serials : [msg.serial]).filter(x => x != null).map(Number).slice(0, coop ? 1 : 3);
+    if (!serials.length) throw Error('Pick your Monstar first.');
+    if (new Set(serials).size !== serials.length) throw Error('Pick different Monstars.');
+    const team = serials.map(serial => this.resolveMonstar(wallet, { serial }, false));
+    if (team.some(m => m.species.boss)) throw Error('Boss Monsters guard the levels: fight them with your other Monstars.');
+    if (this.byWallet.has(wallet)) this.leave(wallet);
+    let code; do code = 'BS' + newCode().slice(0, 4); while (this.rooms.has(code));
+    const size = coop ? Math.max(2, Math.min(BOSS_COOP.maxPlayers, Number(msg.size) || 2)) : team.length;
+    const room = { id: randomBytes(16).toString('hex'), code, stake: 0n, state: coop ? 'waiting' : 'countdown', countdown: 2.5, createdAt: this.now(), ai: true, mode: '3v3', squad: true,
+      boss: { stage: st.stage, coop, size }, allies: [],
+      players: [{ wallet, monstar: team[0], team, deposit: null, sockets: new Set(), lastSeen: this.now() }, { wallet: 'AI', ai: true, monstar: null, team: [], sockets: new Set(), lastSeen: Infinity }],
+      escrow: null, sim: null, ledger: null, seq: 0, aiMem: { hard: true, level: 'hard' } };
+    this.bossBots(room);
+    this.rooms.set(code, room); this.byWallet.set(wallet, code); this.release(wallet);
+    this.db.prepare('INSERT INTO matches(id,code,stake,player_a,player_b,monstar_a,monstar_b,state,created_at) VALUES(?,?,?,?,?,?,?,?,?)')
+      .run(room.id, code, '0', wallet, 'BOSS', String(team[0].serial), 'boss:' + st.stage, room.state, room.createdAt);
+    return room;
+  }
+  /** The two bosses of the level, levelled above the strongest Monstar on the team (rebuilt when a player joins). */
+  bossBots(room) {
+    const st = stageOf(room.boss.stage), team = [...room.players[0].team, ...room.allies.map(a => a.monstar)], lvl = bossLevel(team.map(m => m.level), room.boss.coop);
+    room.players[1].team = st.bosses.map(sid => new Monstar({ speciesId: sid, level: lvl })); room.players[1].monstar = room.players[1].team[0]; room.boss.level = lvl;
+  }
+  /** Join an open online raid with one of your Monstars. It starts by itself when the raid is full. */
+  joinBoss(wallet, { code, serial }) {
+    const room = this.rooms.get(String(code || '').toUpperCase());
+    if (!room?.boss?.coop || room.state !== 'waiting') throw Error('That raid is not open any more.');
+    if (wallet.startsWith('@')) throw Error('Raiding together online needs a Phantom wallet. Sign in with Phantom.');
+    if (this.members(room).some(p => p.wallet === wallet)) return room;
+    if (1 + room.allies.length >= room.boss.size) throw Error('That raid is full.');
+    const monstar = this.resolveMonstar(wallet, { serial }, false);
+    if (monstar.species.boss) throw Error('Boss Monsters guard the levels: fight them with your other Monstars.');
+    if (this.byWallet.has(wallet)) this.leave(wallet);
+    room.allies.push({ wallet, monstar, slot: 1 + room.allies.length, sockets: new Set(), lastSeen: this.now() });
+    this.byWallet.set(wallet, room.code); this.release(wallet); this.bossBots(room);
+    if (1 + room.allies.length >= room.boss.size) { room.state = 'countdown'; room.countdown = 3; this.persistState(room); }
+    return room;
+  }
+  /** The raid leader starts now with whoever has joined. */
+  bossGo(wallet) {
+    const room = this.roomOf(wallet);
+    if (!room?.boss || room.state !== 'waiting' || room.players[0].wallet !== wallet) throw Error('Only the raid leader can start the raid.');
+    this.bossBots(room); room.state = 'countdown'; room.countdown = 3; this.persistState(room); return room;
+  }
+  openRaids() {
+    return [...this.rooms.values()].filter(r => r.boss?.coop && r.state === 'waiting').map(r => ({ code: r.code, stage: r.boss.stage, size: r.boss.size, level: r.boss.level, createdAt: r.createdAt,
+      players: this.members(r).map(p => ({ wallet: p.wallet, monstar: p.monstar.toJSON() })) })).sort((a, b) => b.createdAt - a.createdAt);
+  }
+  badges(wallet) { return this.db.prepare('SELECT stage, at FROM boss_badges WHERE wallet=? ORDER BY stage').all(wallet); }
+  /** Everyone on the players' side: the room's two seats plus raid allies (Boss Arena online). */
+  members(room) { return [...room.players, ...(room.allies || [])]; }
 
   /** Wild Expedition: a paid (0.0001 SOL) battle against a random wild Monstar. Win it for a chance to catch it. */
   async createWild(wallet, { serial, signature, zone = 0 }) {
@@ -193,6 +252,9 @@ export class MatchManager {
   input(wallet, raw) {
     const room = this.roomOf(wallet);
     if (!room || room.state !== 'live') return;
+    if (room.boss) { // Boss Arena: each player drives their own Monstar (no switching onto a teammate's)
+      const ally = room.allies.find(a => a.wallet === wallet), f = ally ? room.sim.roster[0][ally.slot] : room.boss.coop ? room.sim.roster[0][0] : room.sim.fighters[0];
+      if (f && f.hp > 0) f.input = sanitizeInput(room.boss.coop ? { ...raw, sw: -1 } : raw); return; }
     const idx = room.players.findIndex(p => p.wallet === wallet);
     room.sim.fighters[idx].input = sanitizeInput(raw);
   }
@@ -227,13 +289,19 @@ export class MatchManager {
   leave(wallet) {
     const room = this.roomOf(wallet);
     if (!room) return;
+    const ally = room.allies?.find(a => a.wallet === wallet);
+    if (ally) { // a raid ally leaves: the AI takes over their Monstar (or they simply drop out before the start)
+      if (room.state === 'live') { const f = room.sim.roster[0][ally.slot]; if (f) f.human = false; }
+      else { room.allies = room.allies.filter(a => a !== ally); room.allies.forEach((a, i) => (a.slot = i + 1)); this.bossBots(room); }
+      this.byWallet.delete(wallet); return; }
     const idx = room.players.findIndex(p => p.wallet === wallet);
+    if (room.state === 'live' && room.boss?.coop && room.allies.some(a => room.sim.roster[0][a.slot]?.human)) { const f = room.sim.roster[0][0]; if (f) f.human = false; this.byWallet.delete(wallet); room.leaderGone = true; return; }
     if (room.state === 'live') { forfeit(room.sim, idx); this.byWallet.delete(wallet); return; } // the tick loop ends and settles it
     if (['waiting', 'deposit', 'lock', 'countdown'].includes(room.state)) this.cancel(room, 'left');
   }
 
   /** A player starting or joining another match stops receiving anything from their previous one. */
-  release(wallet) { for (const room of this.rooms.values()) for (const p of room.players) if (p.wallet === wallet && this.byWallet.get(wallet) !== room.code) p.sockets.clear(); }
+  release(wallet) { for (const room of this.rooms.values()) for (const p of this.members(room)) if (p.wallet === wallet && this.byWallet.get(wallet) !== room.code) p.sockets.clear(); }
   roomOf(wallet) { const c = this.byWallet.get(wallet); return c ? this.rooms.get(c) : null; }
 
   // ---------- loop ----------
@@ -253,19 +321,28 @@ export class MatchManager {
         room.countdown -= dt;
         if (room.countdown <= 0) this.start(room);
       } else if (room.state === 'live') {
-        for (const [i, p] of room.players.entries()) {
+        if (room.boss?.coop) { // online raid: a player who drops keeps their Monstar fighting, driven by the AI
+          for (const a of room.allies) if (a.sockets.size === 0 && now - a.lastSeen > this.config.disconnectGraceMs) { const f = room.sim.roster[0][a.slot]; if (f) f.human = false; }
+          const lead = room.players[0]; if (room.leaderGone || (lead.sockets.size === 0 && now - lead.lastSeen > this.config.disconnectGraceMs)) { const f = room.sim.roster[0][0]; if (f) f.human = false; }
+          if (!room.sim.fighters[0].human) room.sim.fighters[0].input = sanitizeInput(aiInput(room.sim, 0, {}));
+        } else for (const [i, p] of room.players.entries()) {
           if (!p.ai && p.sockets.size === 0 && now - p.lastSeen > this.config.disconnectGraceMs) forfeit(room.sim, i);
         }
         if (room.ai) room.sim.fighters[1].input = sanitizeInput(aiInput(room.sim, 1, room.aiMem));
         for (const ev of step(room.sim, dt)) this.onHit(room, ev);
         if (room.sim.over) this.end(room);
-      } else if (['waiting', 'deposit', 'lock'].includes(room.state) && now - room.createdAt > this.config.depositTimeoutMs) {
+      } else if (['waiting', 'deposit', 'lock'].includes(room.state) && now - room.createdAt > (room.boss ? BOSS_COOP.waitMs : this.config.depositTimeoutMs)) {
         this.cancel(room, 'timeout');
       }
     }
   }
 
   start(room) {
+    if (room.boss) { // Boss Arena: the team (leader + raid allies) against the level's two bosses
+      this.bossBots(room); const st = stageOf(room.boss.stage), team = [...room.players[0].team, ...room.allies.map(a => a.monstar)], humans = room.boss.coop ? [0, ...room.allies.map(a => a.slot)] : [];
+      room.players[0].fullTeam = team;
+      room.sim = createMatch(team, room.players[1].team, { arena: st.arena, squad: true, intro: true, boss: { hp: room.boss.coop ? 1 + BOSS_COOP.hpPerExtraPlayer * room.allies.length : 1.15, humans } });
+      room.ledger = new StakeLedger(room.stake, this.policy); room.state = 'live'; room.startedAt = this.now(); this.persistState(room); return; }
     const side = p => (p.team?.length > 1 ? p.team : p.monstar);
     room.sim = createMatch(side(room.players[0]), side(room.players[1]), { arena: room.wild ? Math.floor(Math.random() * ARENA_COUNT) : Math.floor(Math.random() * ARENA_COUNT), squad: !!room.squad, intro: true });
     room.ledger = new StakeLedger(room.stake, this.policy);
@@ -300,7 +377,8 @@ export class MatchManager {
     // Save the EXP each registered Monstar earned (levels and evolutions persist).
     const progress = sim.fighters.map((active, i) => {
       const p = room.players[i];
-      for (const f of sim.roster[i]) { const m = f?.mon; if (f && !p.ai && m.serial != null && this.registry.get(m.serial)?.owner === p.wallet) this.registry.setExp(m.serial, f.exp); }
+      const owners = i === 0 ? this.members(room).filter(x => !x.ai).map(x => x.wallet) : [p.wallet]; // raid allies' Monstars level up for their own owners
+      for (const f of sim.roster[i]) { const m = f?.mon; if (f && !p.ai && m.serial != null && owners.includes(this.registry.get(m.serial)?.owner)) this.registry.setExp(m.serial, f.exp); }
       const f = sim.roster[i][0] || active;
       return { gained: sim.roster[i].reduce((n, x) => n + (x?.expGained || 0), 0), level: f.level, stage: stageFor(f.level).name, saved: !p.ai && p.monstar.serial != null };
     });
@@ -317,6 +395,12 @@ export class MatchManager {
         catch (e) { caught.taken = true; caught.error = e.message; } }
       this.db.prepare('UPDATE wild_runs SET won=?, caught_serial=? WHERE signature=?').run(won ? 1 : 0, caught.monstar?.serial ?? null, room.wild.signature);
     }
+    let badge = null;
+    if (room.boss && sim.winner === 0) { // every player on the winning raid earns this level's ancient Anunnaki seal
+      const wallets = this.members(room).filter(x => !x.ai).map(x => x.wallet), team = JSON.stringify(wallets);
+      for (const w of wallets) this.db.prepare('INSERT OR IGNORE INTO boss_badges(wallet, stage, at, team) VALUES(?,?,?,?)').run(w, room.boss.stage, this.now(), team);
+      badge = { stage: room.boss.stage, wallets };
+    }
     let immortal = null;
     if (room.immortal && (sim.winner === 0 || sim.winner === 1) && room.players.length === 2) { // the winner takes the loser's Monstar
       const W = room.players[sim.winner], L = room.players[1 - sim.winner], m = this.registry.get(L.monstar.serial);
@@ -329,7 +413,7 @@ export class MatchManager {
         immortal = { claim: id, serial: m.serial, speciesId: m.species.id, name: m.toJSON().form || m.species.name, winner: W.wallet, loser: L.wallet, hours: 24 };
       }
     }
-    this.emit(room, { t: 'end', winner: sim.winner, reason: sim.reason, shares: shares.map(String), stake: room.stake.toString(), progress, caught, immortal });
+    this.emit(room, { t: 'end', winner: sim.winner, reason: sim.reason, shares: shares.map(String), stake: room.stake.toString(), progress, caught, immortal, badge });
     if (room.simSol) { // pay the simulated pot out by the final shares
       room.players.forEach((p, i) => this.players.simAdd(p.wallet, shares[i]));
       this.emit(room, { t: 'settlement', ok: true, sim: true, payouts: shares.map(String), company: '0', network: '0', balances: room.players.map(p => this.players.simBalance(p.wallet).toString()),
@@ -403,27 +487,28 @@ export class MatchManager {
 
   persistState(room, reason = null) { this.db.prepare('UPDATE matches SET state=?, reason=COALESCE(?,reason) WHERE id=?').run(room.state, reason, room.id); }
   close(room) {
-    for (const p of room.players) if (this.byWallet.get(p.wallet) === room.code) this.byWallet.delete(p.wallet);
+    for (const p of this.members(room)) if (this.byWallet.get(p.wallet) === room.code) this.byWallet.delete(p.wallet);
     setTimeout(() => this.rooms.delete(room.code), 30_000).unref?.();
   }
 
   // ---------- sockets ----------
-  attach(wallet, ws) { this.release(wallet); const room = this.roomOf(wallet); const p = room?.players.find(q => q.wallet === wallet); if (p) { p.sockets.add(ws); p.lastSeen = this.now(); } }
-  detach(wallet, ws) { const room = this.roomOf(wallet); const p = room?.players.find(q => q.wallet === wallet); if (p) { p.sockets.delete(ws); p.lastSeen = this.now(); } }
-  emit(room, msg) { const s = JSON.stringify({ ...msg, code: room.code }); for (const p of room.players) for (const ws of p.sockets) { try { ws.send(s); } catch {} } }
+  attach(wallet, ws) { this.release(wallet); const room = this.roomOf(wallet); const p = room && this.members(room).find(q => q.wallet === wallet); if (p) { p.sockets.add(ws); p.lastSeen = this.now(); } }
+  detach(wallet, ws) { const room = this.roomOf(wallet); const p = room && this.members(room).find(q => q.wallet === wallet); if (p) { p.sockets.delete(ws); p.lastSeen = this.now(); } }
+  emit(room, msg) { const s = JSON.stringify({ ...msg, code: room.code }); for (const p of this.members(room)) for (const ws of p.sockets) { try { ws.send(s); } catch {} } }
 
   publicRoom(room, wallet) {
     return { t: 'room', code: room.code, state: room.state, stake: room.stake.toString(), escrow: room.escrow?.address ?? null,
-      you: room.players.findIndex(p => p.wallet === wallet), countdown: Math.max(0, Math.ceil(room.countdown || 0)),
+      you: room.allies?.some(a => a.wallet === wallet) ? 0 : room.players.findIndex(p => p.wallet === wallet), countdown: Math.max(0, Math.ceil(room.countdown || 0)),
       ai: !!room.ai, immortal: !!room.immortal, simSol: !!room.simSol, mode: room.mode || '1v1', squad: !!room.squad, wild: room.wild ? { speciesId: room.wild.speciesId, level: room.wild.level, tier: room.wild.tier } : null,
       consent: room.immortal && room.state === 'lock' && wallet && !wallet.startsWith('@') && room.players.some(p => p.wallet === wallet && !p.locked && !p.monstar.asset) ? this.consentMessage(room, wallet) : null,
-      players: room.players.map(p => ({ wallet: p.wallet, ai: !!p.ai, deposited: !!p.deposit, locked: !!p.locked, nft: !!p.monstar.asset, monstar: p.monstar.toJSON(), team: (p.team || [p.monstar]).map(x => x.toJSON()) })),
+      boss: room.boss ? { ...room.boss, leader: room.players[0].wallet, slot: room.allies.find(a => a.wallet === wallet)?.slot ?? 0, allies: room.allies.map(a => ({ wallet: a.wallet, slot: a.slot, monstar: a.monstar.toJSON() })) } : null,
+      players: room.players.map((p, i) => ({ wallet: p.wallet, ai: !!p.ai, deposited: !!p.deposit, locked: !!p.locked, nft: !!p.monstar.asset, monstar: p.monstar.toJSON(), team: (i === 0 && room.boss ? [...p.team, ...room.allies.map(a => a.monstar)] : p.team || [p.monstar]).map(x => x.toJSON()) })),
       shares: room.ledger ? room.ledger.shares.map(String) : room.players.map(() => room.stake.toString()) };
   }
   broadcastStates() {
     for (const room of this.rooms.values()) {
       if (room.state === 'live') this.emit(room, { t: 'state', s: snapshot(room.sim), shares: room.ledger.shares.map(String) });
-      else if (['waiting', 'deposit', 'lock', 'countdown'].includes(room.state)) for (const p of room.players) if (this.byWallet.get(p.wallet) === room.code) for (const ws of p.sockets) { try { ws.send(JSON.stringify(this.publicRoom(room, p.wallet))); } catch {} }
+      else if (['waiting', 'deposit', 'lock', 'countdown'].includes(room.state)) for (const p of this.members(room)) if (this.byWallet.get(p.wallet) === room.code) for (const ws of p.sockets) { try { ws.send(JSON.stringify(this.publicRoom(room, p.wallet))); } catch {} }
     }
   }
 }

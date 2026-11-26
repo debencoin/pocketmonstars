@@ -544,12 +544,30 @@ function startPractice(opt = null) {
   renderRoom(); draw();
 }
 window.PMStartBattle = startPractice;
+// ---------- Boss Arena (the tab is in boss.js) ----------
+function startBossLocal(stage, team) { // signed out / offline: a practice raid on this device (no badge, EXP kept on this device)
+  const B = S.Bosses, st = B.stageOf(stage), lvl = B.bossLevel(team.map(m => m.level), false), bosses = st.bosses.map(sid => new Monstars.Monstar({ speciesId: sid, level: lvl }));
+  local = { m: Sim.createMatch(team, bosses, { arena: st.arena, squad: true, intro: true, boss: { hp: 1.15 } }), mem: { hard: true, level: 'hard' } };
+  room = { local: true, ai: true, boss: { stage: st.stage, coop: false, size: team.length, level: lvl, slot: 0 }, mode: '3v3', squad: true, state: 'live', you: 0, stake: '0', code: 'BOSS',
+    players: [{ wallet: me || 'You', monstar: team[0].toJSON(), team: team.map(x => x.toJSON()) }, { wallet: 'AI', monstar: bosses[0].toJSON(), team: bosses.map(x => x.toJSON()) }] };
+  ended = null; snapPrev = null; snapCur = Sim.snapshot(local.m); snapAt = performance.now(); renderer.reset(); fightAt = performance.now(); resetVirtual(); renderRoom(); draw();
+}
+function bossReset() { ended = null; fightAt = 0; renderer.reset(); resetVirtual(); window.tab?.('pvp'); }
 window.PMArenaApi = {
   afterSignIn: () => afterSignIn(), refreshMine: () => refreshMine(), toast, snap: () => snapCur, mine: () => mine, renderSouls: box => renderSouls(box), pickedMon: () => mine.find(x => x.serial === picked) || null,
   /** Immortal Guild: join an open Immortal Combat with the Monstar picked in the Arena (the player already confirmed). */
   joinImmortal(code) { const m = mine.find(x => x.serial === picked); if (!m) throw Error('Pick one of your own Monstars first.'); window.tab?.('pvp'); lastJoin = { t: 'join', code, mode: '1v1', serial: m.serial, speciesId: m.speciesId }; sendWs({ ...lastJoin, immortalOk: true }); },
   pick(serial) { const m = mine.find(x => x.serial === serial); if (m) { picked = m.serial; pickedSpecies = m.speciesId; renderPicker(); } },
   signedIn: () => !!S.session(),
+  /** Boss Arena: solo with 1-3 of your Monstars, or open an online raid (coop) for 2-3 players. */
+  startBoss({ stage, serials, coop = false, size = 2, guestTeam = null }) {
+    if (!S.session() || guestTeam) { startBossLocal(stage, guestTeam || serials.map(sr => { const m = mine.find(x => x.serial === sr); return new Monstars.Monstar({ speciesId: m.speciesId, level: m.level }); })); window.tab?.('pvp'); return; }
+    if (ws?.readyState !== 1) { openSocket(); throw Error('Connecting to the game server, try again in a moment.'); }
+    room = null; local = null; snapCur = null; snapPrev = null; sendWs({ t: 'boss', stage, serials, coop, size }); bossReset();
+  },
+  joinBoss(code, serial) { if (ws?.readyState !== 1) { openSocket(); throw Error('Connecting to the game server, try again in a moment.'); } room = null; local = null; snapCur = null; snapPrev = null; sendWs({ t: 'bossjoin', code, serial }); bossReset(); },
+  bossGo() { sendWs({ t: 'bossgo' }); },
+  room: () => room,
   ownedPick: () => ownedFor(pickedSpecies) || mine[0] || null,
   // paid wild battle run by the server: it picks the wild Monstar, and a win can catch it
   startServerWild(signature, zone) { sendWs({ t: 'wild', serial: (ownedFor(pickedSpecies) || mine[0])?.serial, signature, zone }); ended = null; fightAt = 0; renderer.reset(); resetVirtual(); },
@@ -701,7 +719,13 @@ function renderRoom() {
     q('pvRoom').hidden = true; q('pvLobby').hidden = false;
     const ov = q('pvOverlay'), btns = q('pvOvBtns'); ov.hidden = !!full && !stay; btns.innerHTML = '';
     hudNames();
-    if (!ended && !full) { q('pvBig').textContent = 'Get ready!'; q('pvSmall').textContent = `${room.players[0].monstar.name} vs ${room.players[1]?.monstar.name || '…'}`; }
+    if (!ended && !full && room.boss) { const b = room.boss, st = S.Bosses.stageOf(b.stage), names = st.bosses.map(id => Monstars.SPECIES[id].name).join(' & '), n = 1 + (b.allies?.length || 0);
+      q('pvBig').textContent = room.state === 'waiting' ? `Raid ${room.code}` : 'Get ready!';
+      q('pvSmall').innerHTML = `Boss Level ${b.stage}: <b>${esc(st.title)}</b> · ${esc(names)} (Lv${b.level || '?'})` + (b.coop ? `<br>${n} of ${b.size} players: ${[room.players[0].wallet, ...(b.allies || []).map(a => a.wallet)].map(w => esc(w === me ? 'you' : w.slice(0, 4) + '…')).join(', ')}`
+        + (room.state === 'waiting' ? `<br>Share the raid code <b>${esc(room.code)}</b>: other players open Boss Arena and join it. It starts when the raid is full.` : '') : '');
+      if (room.state === 'waiting' && b.leader === me) { const go = el('button', { className: 'primary', textContent: 'Start now with ' + n + (n === 1 ? ' player' : ' players') }); go.onclick = () => sendWs({ t: 'bossgo' }); btns.append(go); }
+      if (room.state === 'waiting') { const lv = el('button', { className: 'smallbtn', textContent: 'Leave raid' }); lv.onclick = () => { sendWs({ t: 'leave' }); room = null; renderRoom(); window.tab?.('boss'); }; btns.append(lv); } }
+    else if (!ended && !full) { q('pvBig').textContent = 'Get ready!'; q('pvSmall').textContent = `${room.players[0].monstar.name} vs ${room.players[1]?.monstar.name || '…'}`; }
     if (ended && (!full || stay)) {
       const pr = ended.progress?.[0];
       q('pvBig').textContent = ended.winner == null ? 'Draw' : ended.winner === 0 ? 'Victory!' : 'Defeated';
@@ -719,6 +743,12 @@ function renderRoom() {
         const nx = el('button', { className: 'primary', textContent: 'Next wild encounter' }); nx.onclick = () => { room = null; local = null; ended = null; snapCur = null; renderRoom(); w.next(); };
         const mp = el('button', { className: 'smallbtn', textContent: 'Expedition map' }); mp.onclick = () => { room = null; local = null; ended = null; snapCur = null; renderRoom(); w.map(); };
         btns.append(nx, mp); if (!ended._rec) { ended._rec = 1; w.record(won, c); if (c?.ok) refreshMine(); } return; }
+      if (room.boss) { const st = S.Bosses.stageOf(room.boss.stage), mineB = ended.badge?.wallets?.includes(me);
+        q('pvBig').textContent = won ? 'Bosses defeated!' : ended.winner == null ? 'Draw' : 'The bosses won';
+        q('pvSmall').innerHTML = q('pvSmall').innerHTML.replace(/practice vs [^<]*/, `Boss Level ${st.stage}: ${esc(st.title)}`)
+          + (won && mineB ? `<br><b>☥ You earned the Ancient Seal of Level ${st.stage}</b>: it's on your account now.` : won && room.local ? '<br>Sign in with Phantom to earn the Ancient Seal for this level.' : '');
+        const bk = el('button', { className: 'primary', textContent: 'Back to Boss Arena' }); bk.onclick = () => { room = null; local = null; ended = null; snapCur = null; renderRoom(); window.tab?.('boss'); window.PMBossTab?.refresh(); };
+        btns.append(bk); return; }
       // No rematch: the game reloads to the start, where you pick your Monstar again (a clean start every time)
       btns.append(backToPick(6));
     }
@@ -801,7 +831,7 @@ zone.addEventListener('pointerdown', e => {
   if (mate) { touch.sw = mate.sl; setTimeout(() => { touch.sw = -1; }, 250); return; } // switch control, don't move
   movePointer = e.pointerId; try { zone.setPointerCapture(e.pointerId); } catch {}
   const pt = toArena(e), now = performance.now(); target = { ...pt, held: true, until: 0 }; trail = [{ x: e.clientX, y: e.clientY, t: now }];
-  if (now - lastTap.at < 320 && Math.hypot(e.clientX - lastTap.x, e.clientY - lastTap.y) < 60 && snapCur) { const f = snapCur.f[room.local ? 0 : room.you]; dodge(pt.x - f.x, pt.y - f.y); }
+  if (now - lastTap.at < 320 && Math.hypot(e.clientX - lastTap.x, e.clientY - lastTap.y) < 60 && snapCur) { const f = myF() || snapCur.f[0]; dodge(pt.x - f.x, pt.y - f.y); }
   lastTap = { at: now, x: e.clientX, y: e.clientY };
 });
 zone.addEventListener('pointermove', e => {
@@ -816,10 +846,15 @@ zone.addEventListener('pointerup', endMove); zone.addEventListener('pointercance
 zone.addEventListener('contextmenu', e => e.preventDefault());
 
 let lastSent = '', lastSendAt = 0;
+function myF() {
+  const b = room?.boss; if (!snapCur) return null;
+  if (b?.coop && b.slot > 0) { const x = (snapCur.x || []).find(o => o.sd === 0 && o.sl === b.slot); if (x) return x; }
+  return snapCur.f[room.local ? 0 : room.you];
+}
 function currentInput() {
   if (!snapCur) return {};
   let mx = (keys.KeyD || keys.ArrowRight ? 1 : 0) - (keys.KeyA || keys.ArrowLeft ? 1 : 0), my = (keys.KeyS || keys.ArrowDown ? 1 : 0) - (keys.KeyW || keys.ArrowUp ? 1 : 0);
-  const meF = snapCur.f[room.local ? 0 : room.you];
+  const meF = myF() || snapCur.f[0];
   if (target && !mx && !my) { // run to the finger / mouse; once there, hold the spot briefly, then the autopilot takes over again
     const dx = target.x - meF.x, dy = target.y - meF.y, d = Math.hypot(dx, dy);
     if (d > 16) { mx = dx / d; my = dy / d; } else if (!target.held && performance.now() > target.until) target = null; else { mx = 0.0001; my = 0; }

@@ -1,5 +1,5 @@
 import { kitFor, GUARD_KINDS } from './abilities.mjs';
-import { FRONTIER, MYTHIC, ANUNNAKI, WATCHERS, ASCENDANTS, ROYALS, HEROES, BENDERS, LEGEND_HEROES, SKY_BENDERS, FINAL_BENDERS, STARTER_BENDERS, GIFT_FINALS, GIFT_ELITES, AURA_WARRIORS, WATCHER_GODS, ELEMENT_MASTERS, CHOSEN_ONES, ANCIENTS, NEW_FIGHTERS, WEAVERS, TIERS } from './frontier.mjs';
+import { FRONTIER, MYTHIC, ANUNNAKI, WATCHERS, ASCENDANTS, ROYALS, HEROES, BENDERS, LEGEND_HEROES, SKY_BENDERS, FINAL_BENDERS, STARTER_BENDERS, GIFT_FINALS, GIFT_ELITES, AURA_WARRIORS, WATCHER_GODS, ELEMENT_MASTERS, CHOSEN_ONES, ANCIENTS, NEW_FIGHTERS, WEAVERS, BOSSES, TIERS } from './frontier.mjs';
 // PocketMonstars species, classes, evolution stages, EXP and DNA traits.
 // Pure ES module: runs in the browser (rendering) and in Node (authoritative server).
 // The server derives DNA; this file only turns a DNA hex string into traits and stats.
@@ -154,9 +154,9 @@ export const SPECIES = [
   { id: 9, name: 'Seraphon', type: 'ASTRAL', art: 'seraphon', cls: Seraph, move: 'Holy lance', special: 'Heaven\'s judgment', basicStyle: 'bolt', specialStyle: 'strike', motion: 'hover', collection: 'legendary', legendary: true, color: '#f4f0ff' },
   { id: 10, name: 'Psyvolt', type: 'PSYCHIC', art: 'psyvolt', cls: Psion, move: 'Psy orb', special: 'Levitation storm', basicStyle: 'projectile', specialStyle: 'levitate', motion: 'hover', collection: 'legendary', legendary: true, color: '#c9a6ff' },
 ];
-for (const [list, coll] of [[FRONTIER, 'frontier'], [MYTHIC, 'mythic'], [ANUNNAKI, 'anunnaki'], [WATCHERS, 'watchers'], [ASCENDANTS, 'ascendants'], [ROYALS, 'royals'], [HEROES, 'heroes'], [BENDERS, 'benders'], [LEGEND_HEROES, 'legendheroes'], [SKY_BENDERS, 'skybenders'], [FINAL_BENDERS, 'skybenders'], [STARTER_BENDERS, 'starters'], [GIFT_FINALS, 'skybenders'], [GIFT_ELITES, 'skybenders'], [AURA_WARRIORS, 'aurawarriors'], [WATCHER_GODS, 'watchergods'], [ELEMENT_MASTERS, 'masters'], [CHOSEN_ONES, 'chosen'], [NEW_FIGHTERS, 'covostyle'], [WEAVERS, 'weavers'], [ANCIENTS, 'ancients']]) for (const f of list) {
+for (const [list, coll] of [[FRONTIER, 'frontier'], [MYTHIC, 'mythic'], [ANUNNAKI, 'anunnaki'], [WATCHERS, 'watchers'], [ASCENDANTS, 'ascendants'], [ROYALS, 'royals'], [HEROES, 'heroes'], [BENDERS, 'benders'], [LEGEND_HEROES, 'legendheroes'], [SKY_BENDERS, 'skybenders'], [FINAL_BENDERS, 'skybenders'], [STARTER_BENDERS, 'starters'], [GIFT_FINALS, 'skybenders'], [GIFT_ELITES, 'skybenders'], [AURA_WARRIORS, 'aurawarriors'], [WATCHER_GODS, 'watchergods'], [ELEMENT_MASTERS, 'masters'], [CHOSEN_ONES, 'chosen'], [NEW_FIGHTERS, 'covostyle'], [WEAVERS, 'weavers'], [ANCIENTS, 'ancients'], [BOSSES, 'bosses']]) for (const f of list) {
   SPECIES.push({ id: SPECIES.length, name: f.name, type: f.type, art: f.name.toLowerCase().replace(/\s+/g, ''), cls: CLASS_BY_ID[f.cls], move: f.move, special: f.special,
-    basicStyle: f.basicStyle, specialStyle: f.specialStyle, motion: f.motion, collection: coll, tier: f.tier, mythic: ['Mythic', 'Divine'].includes(f.tier) || undefined, legendary: f.legendary || undefined, legendFor: f.legendFor, portrait: f.look.plan === 'portrait' || undefined, walker: f.look.plan === 'walker' || undefined, forms: f.forms || (f.look.plan === 'walker' ? walkerForms(f.name) : undefined), hero: f.hero, drop: f.drop, bender: f.bender, elite: f.elite, giftHero: f.giftHero, sky: f.sky, el2: f.el2, female: f.female, unique: f.unique, starter: f.starter, aura: f.aura, god: f.god, master: f.master, battleForms: f.battleForms, tiers: f.tiers, speedBoost: f.speedBoost, sig: f.sig, lore: f.lore, color: f.look.main });
+    basicStyle: f.basicStyle, specialStyle: f.specialStyle, motion: f.motion, collection: coll, tier: f.tier, mythic: ['Mythic', 'Divine'].includes(f.tier) || undefined, legendary: f.legendary || undefined, legendFor: f.legendFor, portrait: f.look.plan === 'portrait' || undefined, walker: f.look.plan === 'walker' || undefined, forms: f.forms || (f.look.plan === 'walker' ? walkerForms(f.name) : undefined), hero: f.hero, drop: f.drop, bender: f.bender, elite: f.elite, giftHero: f.giftHero, sky: f.sky, el2: f.el2, female: f.female, unique: f.unique, starter: f.starter, aura: f.aura, god: f.god, master: f.master, battleForms: f.battleForms, tiers: f.tiers, speedBoost: f.speedBoost, sig: f.sig, lore: f.lore, boss: f.boss, serpent: f.serpent, color: f.look.main });
 }
 // Airbenders fly: every Monstar that commands air hovers above the ground (and over hazards)
 for (const s of SPECIES) if (s.el2 === 'air') s.motion = 'hover';
@@ -298,6 +298,7 @@ export const LEGENDARY_IDS = SPECIES.filter(s => s.legendary).map(s => s.id);
 export const HERO_IDS = SPECIES.filter(s => s.hero).map(s => s.id);
 /** Species sold once each for SOL: the drop heroes (time-limited) and the market Sky Benders (no time limit). */
 export const SALE_IDS = SPECIES.filter(s => s.drop).map(s => s.id);
+export const BOSS_IDS = SPECIES.filter(s => s.boss).map(s => s.id);
 export const SHOP_IDS = SPECIES.filter(s => s.drop?.shop).map(s => s.id);
 markWildOne(WILD_ONE_NAMES);
 /** Legendary species held by each founder wallet ('founder' = first wallet, 'royal' = second). */
